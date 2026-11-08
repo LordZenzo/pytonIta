@@ -102,6 +102,54 @@ classe DialogoTesto(tk.Toplevel):
         ritorna se_stesso.risultato
 
 
+classe DialogoClasse(tk.Toplevel):
+    """Nome, classe di base e righe a livello di classe (attributi, costanti) di una classe."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, titolo, nome, base, attributi):
+        tk.Toplevel.__init__(se_stesso, genitore)
+        se_stesso.title(titolo)
+        se_stesso.transient(genitore)
+        se_stesso.risultato = Nessuno
+        se_stesso.configure(background=colori["pannello"])
+        se_stesso.geometry(f"520x360+{genitore.winfo_rootx() + 80}+{genitore.winfo_rooty() + 80}")
+        se_stesso.minsize(360, 240)
+        se_stesso.columnconfigure(1, weight=1)
+        se_stesso.rowconfigure(2, weight=1)
+        stile = dict(background=colori["campo"], foreground=colori["primo_piano"], insertbackground=colori["cursore"],
+                     relief="flat", highlightthickness=1, highlightbackground=colori["bordo"], highlightcolor=colori["accento"])
+        per i, et in enumera(("Nome della classe", "Classe di base (facoltativa)")):
+            tk.Label(se_stesso, text=et, anchor="w", background=colori["pannello"], foreground=colori["primo_piano"]).grid(
+                row=i, column=0, sticky="w", padx=10, pady=6)
+        se_stesso.e_nome = tk.Entry(se_stesso, **stile)
+        se_stesso.e_nome.insert(0, nome)
+        se_stesso.e_nome.grid(row=0, column=1, sticky="we", padx=(0, 10), pady=6)
+        se_stesso.e_base = tk.Entry(se_stesso, **stile)
+        se_stesso.e_base.insert(0, base)
+        se_stesso.e_base.grid(row=1, column=1, sticky="we", padx=(0, 10), pady=6)
+        tk.Label(se_stesso, text="Attributi e costanti della classe\n(una per riga, es.  colore = \"rosso\")", anchor="nw", justify="left",
+                 background=colori["pannello"], foreground=colori["primo_piano"]).grid(row=2, column=0, sticky="nw", padx=10, pady=6)
+        se_stesso.t = tk.Text(se_stesso, height=6, width=30, font=("Consolas", 11), undo=Vero, **stile)
+        se_stesso.t.insert("1.0", attributi)
+        se_stesso.t.grid(row=2, column=1, sticky="nsew", padx=(0, 10), pady=6)
+        barra = tk.Frame(se_stesso, background=colori["pannello"])
+        barra.grid(row=3, column=0, columnspan=2, sticky="e", padx=10, pady=10)
+        tk.Button(barra, text="Annulla", command=se_stesso.destroy, background=colori["pulsante"], foreground=colori["primo_piano"],
+                  relief="flat", padx=12).pack(side="right", padx=4)
+        tk.Button(barra, text="Applica", command=se_stesso.applica, background=colori["accento"], foreground="#ffffff",
+                  relief="flat", padx=12).pack(side="right", padx=4)
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+
+    definisci applica(se_stesso):
+        se_stesso.risultato = (se_stesso.e_nome.get().strip(), se_stesso.e_base.get().strip(), se_stesso.t.get("1.0", "end-1c"))
+        se_stesso.destroy()
+
+    definisci mostra(se_stesso):
+        se_stesso.grab_set()
+        se_stesso.e_nome.focus_set()
+        se_stesso.wait_window()
+        ritorna se_stesso.risultato
+
+
 # =========================================================================== area di lavoro
 classe AreaMattonelle(tk.Frame):
     """Una finestra di lavoro: il flusso principale o una funzione. Si trascinano, staccano e agganciano le mattonelle."""
@@ -742,7 +790,8 @@ classe EditorMattonelle(tk.Frame):
         se_stesso.titolo = tk.Label(barra, text="", anchor="w")
         se_stesso.titolo.pack(side="left", padx=8)
         per testo_, comando in (("💾 Salva e genera", se_stesso.salva), ("▶ Esegui", se_stesso.esegui),
-                                ("＋ Funzione", se_stesso.nuova_funzione), ("⚙ Modulo", se_stesso.modulo),
+                                ("＋ Funzione", se_stesso.nuova_funzione), ("＋ Classe", se_stesso.nuova_classe),
+                                ("＋ Metodo", se_stesso.nuovo_metodo), ("⚙ Modulo", se_stesso.modulo),
                                 ("‹/› Codice", se_stesso.vedi_codice),
                                 ("↶", se_stesso.annulla), ("↷", se_stesso.ripeti),
                                 ("🔍＋", lambda: se_stesso.cambia_zoom(1.15)), ("🔍－", lambda: se_stesso.cambia_zoom(1 / 1.15))):
@@ -884,6 +933,83 @@ classe EditorMattonelle(tk.Frame):
         se_stesso.vai_alla_funzione(f.nome)
         se_stesso.notifica()
 
+    definisci _funzione_del_cappello(se_stesso, m):
+        per f in se_stesso.programma.funzioni:
+            se f.area.cappello è m:
+                ritorna f
+        ritorna Nessuno
+
+    # ------------------------------------------------------------ classi e metodi
+    definisci nuova_classe(se_stesso):
+        r = DialogoClasse(se_stesso.winfo_toplevel(), se_stesso.colori, "Nuova classe", "", "", "").mostra()
+        se r è Nessuno:
+            ritorna
+        nome, base, attributi = r
+        c = se_stesso.programma.aggiungi_classe(nome, base, attributi)
+        se c è Nessuno:
+            messagebox.showwarning("Nome non valido", "Nome non valido o già usato da un'altra classe o funzione.", parent=se_stesso)
+            ritorna
+        f = se_stesso.programma.aggiungi_metodo(c.nome, "__init__", "se_stesso")
+        se_stesso.registra()
+        se_stesso.ricostruisci_viste()
+        se_stesso.vai_alla_funzione(f.nome)
+        se_stesso.notifica()
+
+    definisci _classe_corrente(se_stesso):
+        v = se_stesso.vista_corrente()
+        f = se_stesso.programma.funzione(v.nome_area) se v altrimenti Nessuno
+        ritorna f.classe se f e f.classe altrimenti ""
+
+    definisci nuovo_metodo(se_stesso, classe_nome=""):
+        classi = [c.nome per c in se_stesso.programma.classi]
+        se non classi:
+            messagebox.showinfo("Nuovo metodo", "Prima crea una classe con «＋ Classe».", parent=se_stesso)
+            ritorna
+        da_chiedere = lunghezza(classi) > 1 e non classe_nome e non se_stesso._classe_corrente()
+        classe_nome = classe_nome o se_stesso._classe_corrente() o classi[-1]
+        se da_chiedere:
+            scelta = simpledialog.askstring("Nuovo metodo", "In quale classe? (" + ", ".join(classi) + ")", initialvalue=classe_nome,
+                                            parent=se_stesso)
+            se non scelta o scelta.strip() non in classi:
+                ritorna
+            classe_nome = scelta.strip()
+        nome = simpledialog.askstring("Nuovo metodo", f"Nome del metodo di {classe_nome}:", parent=se_stesso)
+        se non nome:
+            ritorna
+        nome = nome.strip()
+        par = simpledialog.askstring("Nuovo metodo", "Parametri (il primo è se_stesso):", initialvalue="se_stesso", parent=se_stesso) o "se_stesso"
+        f = se_stesso.programma.aggiungi_metodo(classe_nome, nome, par.strip())
+        se f è Nessuno:
+            messagebox.showwarning("Nome non valido", "Nome non valido o già usato in questa classe.", parent=se_stesso)
+            ritorna
+        se_stesso.registra()
+        se_stesso.ricostruisci_viste()
+        se_stesso.vai_alla_funzione(f.nome)
+        se_stesso.notifica()
+
+    definisci modifica_classe(se_stesso, nome):
+        c = se_stesso.programma.classe_(nome)
+        se c è Nessuno:
+            ritorna
+        r = DialogoClasse(se_stesso.winfo_toplevel(), se_stesso.colori, f"Classe {nome}", c.nome, c.base, c.attributi).mostra()
+        se r è Nessuno:
+            ritorna
+        nuovo, base, attributi = r
+        se nuovo != nome e non se_stesso.programma.rinomina_classe(nome, nuovo):
+            messagebox.showwarning("Nome non valido", "Nome non valido o già usato.", parent=se_stesso)
+            ritorna
+        c.base, c.attributi = base, attributi
+        se_stesso.registra()
+        se_stesso.ricostruisci_viste()
+        se_stesso.notifica()
+
+    definisci elimina_classe(se_stesso, nome):
+        se messagebox.askyesno("Elimina classe", f"Eliminare la classe «{nome}» e tutti i suoi metodi?", parent=se_stesso):
+            se_stesso.programma.rimuovi_classe(nome)
+            se_stesso.registra()
+            se_stesso.ricostruisci_viste()
+            se_stesso.notifica()
+
     definisci modifica_cappello(se_stesso, m, campo, valore):
         """Rinomina la funzione o cambia i suoi parametri. Ritorna Falso se il valore non è valido."""
         se m.tipo != "definisci_funzione":
@@ -892,12 +1018,14 @@ classe EditorMattonelle(tk.Frame):
             vecchio = m.campi.get("nome", "")
             se valore == vecchio:
                 ritorna Vero
-            se non se_stesso.programma.rinomina_funzione(vecchio, valore):
+            fn = se_stesso._funzione_del_cappello(m)
+            chiave_vecchia = fn.nome se fn altrimenti vecchio
+            se non se_stesso.programma.rinomina_funzione(chiave_vecchia, valore):
                 messagebox.showwarning("Nome non valido", "Nome non valido o già usato.", parent=se_stesso)
                 ritorna Falso
             se_stesso.registra()
             se_stesso.ricostruisci_viste()
-            se_stesso.vai_alla_funzione(valore)
+            se_stesso.vai_alla_funzione((fn.classe + "." + valore) se fn e fn.classe altrimenti valore)
             ritorna Vero
         pulito = ", ".join(p.strip() per p in valore.split(",") se p.strip())
         se tutti(nome_variabile_valido(p) per p in pulito.split(", ") se p) o non pulito:
@@ -914,7 +1042,13 @@ classe EditorMattonelle(tk.Frame):
             ritorna
         m = tk.Menu(se_stesso, tearoff=0)
         m.add_command(label="Apri in una finestra separata", command=lambda: se_stesso.stacca_vista(v.nome_area))
-        se v.nome_area != "principale":
+        fn = se_stesso.programma.funzione(v.nome_area)
+        se fn e fn.classe:
+            m.add_command(label=f"Modifica la classe {fn.classe}…", command=lambda: se_stesso.modifica_classe(fn.classe))
+            m.add_command(label=f"Aggiungi un metodo a {fn.classe}…", command=lambda: se_stesso.nuovo_metodo(fn.classe))
+            m.add_command(label="Elimina il metodo", command=lambda: se_stesso.elimina_funzione(v.nome_area))
+            m.add_command(label=f"Elimina la classe {fn.classe}", command=lambda: se_stesso.elimina_classe(fn.classe))
+        altrimenti_se v.nome_area != "principale":
             m.add_command(label="Elimina la funzione", command=lambda: se_stesso.elimina_funzione(v.nome_area))
         m.tk_popup(e.x_root, e.y_root)
 

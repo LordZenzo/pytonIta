@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.15
+
+- **Programmi a oggetti interamente a mattonelle**: classi con una pagina per metodo (＋ Classe, ＋ Metodo), categoria *Oggetti* (attributi, imposta su attributi/tuple, chiamata di metodi, opzioni `nome=valore`, tupla, lambda), comprensioni, `a se c altrimenti b`, catene di confronti, `è`, fette, dizionari, `eccetto Tipo come nome`.
+- **La conversione in mattonelle ora porta con sé le classi**: su un programma reale con interfaccia grafica (modfile_gui, 1.100 righe) restano come testo meno dell'1% delle istruzioni; il programma rigenerato dalle mattonelle supera gli stessi test e la stessa prova dell'interfaccia.
+
 ## Novità della 1.14
 
 - **Mattonelle**: il testo su più righe o molto lungo (codice, espressione…) non esce più dalla mattonella: si vede su una riga con «⏎» al posto degli a capo e «…» se è lungo; il testo completo si legge e si modifica nella finestra.

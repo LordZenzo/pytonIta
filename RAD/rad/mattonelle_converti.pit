@@ -10,12 +10,13 @@ importa re
 importa textwrap
 importa tokenize
 
-da rad.mattonelle_modello importa (Mattonella, Programma, Funzione, collega_pila, definizione, ingressi_di)
+da rad.mattonelle_modello importa (Mattonella, Programma, Funzione, collega_pila, definizione, ingressi_di,
+                                   nome_variabile_valido)
 
 BINARI = {ast.Add: "somma", ast.Sub: "sottrai", ast.Mult: "moltiplica", ast.Div: "dividi", ast.FloorDiv: "dividi_intero",
           ast.Mod: "resto", ast.Pow: "potenza"}
 CONFRONTI = {ast.Eq: "uguale", ast.NotEq: "diverso", ast.Lt: "minore", ast.Gt: "maggiore", ast.LtE: "minore_uguale",
-             ast.GtE: "maggiore_uguale", ast.In: "contiene"}
+             ast.GtE: "maggiore_uguale", ast.In: "contiene", ast.Is: "identico", ast.IsNot: "non_identico"}
 UNARIE = {"intero": "intero_di", "int": "intero_di", "decimale": "decimale_di", "float": "decimale_di",
           "testo": "testo_di", "str": "testo_di", "lunghezza": "lunghezza_di", "len": "lunghezza_di",
           "arrotonda": "arrotonda", "round": "arrotonda", "assoluto": "assoluto", "abs": "assoluto",
@@ -38,6 +39,7 @@ classe Convertitore:
         se_stesso.programma = Programma(nome)
         se_stesso.funzioni = {}            # nome -> numero di parametri
         se_stesso.commenti = {}            # riga -> testo dei commenti a riga intera
+        se_stesso.moduli = set()           # nomi importati (moduli e simili): si chiamano per nome, come testo
         se_stesso.rapporto = {"funzioni": 0, "mattonelle": 0, "righe_libere": 0, "espressioni_libere": 0,
                               "commenti": 0, "classi_e_codice_di_modulo": 0, "libere": [], "avvisi": []}
         se_stesso._leggi_commenti()
@@ -133,6 +135,10 @@ classe Convertitore:
                 m = se_stesso.nuova("numero")
                 m.campi["valore"] = "-" + repr(nodo.operand.value)
                 ritorna m
+            se isinstance(nodo.op, ast.USub):
+                m = se_stesso.nuova("negativo")
+                se_stesso.ingresso(m, "a", nodo.operand)
+                ritorna m
             ritorna se_stesso._libera(nodo)
         se isinstance(nodo, ast.BinOp) e tipo(nodo.op) in BINARI:
             m = se_stesso.nuova(BINARI[tipo(nodo.op)])
@@ -157,6 +163,14 @@ classe Convertitore:
                 se_stesso.ingresso(m, "b", v)
                 acc = m
             ritorna m
+        se isinstance(nodo, ast.Subscript) e isinstance(nodo.slice, ast.Slice) e nodo.slice.step è Nessuno:
+            m = se_stesso.nuova("fetta")
+            se_stesso.ingresso(m, "obj", nodo.value)
+            se nodo.slice.lower è non Nessuno:
+                se_stesso.ingresso(m, "da", nodo.slice.lower)
+            se nodo.slice.upper è non Nessuno:
+                se_stesso.ingresso(m, "a", nodo.slice.upper)
+            ritorna m
         se isinstance(nodo, ast.Subscript) e non isinstance(nodo.slice, (ast.Slice, ast.Tuple)):
             m = se_stesso.nuova("elemento_di")
             se_stesso.ingresso(m, "n", nodo.slice)
@@ -169,11 +183,99 @@ classe Convertitore:
             per slot, e in zip("abc", nodo.elts):
                 se_stesso.ingresso(m, slot, e)
             ritorna m
+        se isinstance(nodo, ast.Compare) e lunghezza(nodo.ops) == 1 e isinstance(nodo.ops[0], ast.NotIn):
+            dentro = se_stesso.nuova("contiene")
+            se_stesso.ingresso(dentro, "a", nodo.left)
+            se_stesso.ingresso(dentro, "b", nodo.comparators[0])
+            m = se_stesso.nuova("non_logico")
+            se_stesso._collega(m, "a", dentro)
+            ritorna m
+        se isinstance(nodo, ast.Compare) e lunghezza(nodo.ops) == 2 e tipo(nodo.ops[0]) è ast.LtE e tipo(nodo.ops[1]) è ast.LtE:
+            m = se_stesso.nuova("tra")
+            se_stesso.ingresso(m, "a", nodo.left)
+            se_stesso.ingresso(m, "x", nodo.comparators[0])
+            se_stesso.ingresso(m, "b", nodo.comparators[1])
+            ritorna m
+        se isinstance(nodo, ast.Attribute):
+            m = se_stesso.nuova("attributo")
+            m.campi["nome"] = nodo.attr
+            se_stesso.ingresso(m, "obj", nodo.value)
+            ritorna m
+        se isinstance(nodo, ast.Tuple) e 1 <= lunghezza(nodo.elts) <= 6 e non any(isinstance(e, ast.Starred) per e in nodo.elts):
+            m = se_stesso.nuova("tupla")
+            per slot, e in zip("abcdef", nodo.elts):
+                se_stesso.ingresso(m, slot, e)
+            ritorna m
+        se isinstance(nodo, ast.Dict) e 1 <= lunghezza(nodo.keys) <= 4 e tutti(k è non Nessuno per k in nodo.keys):
+            m = se_stesso.nuova("dizionario")
+            per n, (k, v) in enumera(zip(nodo.keys, nodo.values), 1):
+                se_stesso.ingresso(m, f"k{n}", k)
+                se_stesso.ingresso(m, f"v{n}", v)
+            ritorna m
+        se isinstance(nodo, ast.IfExp):
+            m = se_stesso.nuova("valore_se")
+            se_stesso.ingresso(m, "a", nodo.body)
+            se_stesso.ingresso(m, "cond", nodo.test)
+            se_stesso.ingresso(m, "b", nodo.orelse)
+            ritorna m
+        se isinstance(nodo, ast.Lambda) e se_stesso._parametri(nodo) è non Nessuno:
+            m = se_stesso.nuova("funzione_anonima")
+            m.campi["parametri"] = se_stesso._parametri(nodo)
+            se_stesso.ingresso(m, "corpo", nodo.body)
+            ritorna m
+        se (isinstance(nodo, (ast.ListComp, ast.SetComp, ast.GeneratorExp)) e lunghezza(nodo.generators) == 1
+                e non nodo.generators[0].is_async e lunghezza(nodo.generators[0].ifs) <= 1):
+            g = nodo.generators[0]
+            tipo_ = {ast.ListComp: "lista_da", ast.SetComp: "insieme_da", ast.GeneratorExp: "generatore_da"}[tipo(nodo)]
+            m = se_stesso.nuova(tipo_)
+            m.campi["var"] = se_stesso.segmento(g.target)
+            se_stesso.ingresso(m, "espr", nodo.elt)
+            se_stesso.ingresso(m, "elenco", g.iter)
+            se g.ifs:
+                se_stesso.ingresso(m, "cond", g.ifs[0])
+            ritorna m
         se isinstance(nodo, ast.Call):
             m = se_stesso._chiamata(nodo)
             se m è non Nessuno:
                 ritorna m
         ritorna se_stesso._libera(nodo)
+
+    definisci _radice_modulo(se_stesso, f):
+        """Vero se f è un nome (o nome.attributo...) che parte da un modulo importato, una funzione o una classe del programma."""
+        mentre isinstance(f, ast.Attribute):
+            f = f.value
+        ritorna isinstance(f, ast.Name) e (f.id in se_stesso.moduli o f.id in se_stesso.funzioni o se_stesso.programma.classe_(f.id) è non Nessuno)
+
+    definisci _chiamata_generale(se_stesso, c, istruzione):
+        """Chiamata con qualsiasi argomento (anche nome=valore) come mattonella chiama / chiama_su. Nessuno se non si può."""
+        f = c.func
+        se any(isinstance(a, ast.Starred) per a in c.args) o any(k.arg è Nessuno per k in c.keywords):
+            ritorna Nessuno
+        argomenti = [("pos", a) per a in c.args] + [("kw", k) per k in c.keywords]
+        se isinstance(f, ast.Name) o (isinstance(f, ast.Attribute) e se_stesso._nome_chiamabile(f) e se_stesso._radice_modulo(f)):
+            se lunghezza(argomenti) > 6:
+                ritorna Nessuno
+            m = se_stesso.nuova("chiama" se istruzione altrimenti "chiamata")
+            m.campi["nome"] = se_stesso.segmento(f)
+            slots = "abcdef"
+        altrimenti_se isinstance(f, ast.Attribute):
+            se lunghezza(argomenti) > 6:
+                ritorna Nessuno
+            m = se_stesso.nuova("chiama_su" se istruzione altrimenti "chiamata_su")
+            m.campi["nome"] = f.attr
+            se_stesso.ingresso(m, "obj", f.value)
+            slots = "abcdef"
+        altrimenti:
+            ritorna Nessuno
+        per slot, (genere, a) in zip(slots, argomenti):
+            se genere == "pos":
+                se_stesso.ingresso(m, slot, a)
+            altrimenti:
+                o = se_stesso.nuova("opzione")
+                o.campi["nome"] = a.arg
+                se_stesso.ingresso(o, "val", a.value)
+                se_stesso._collega(m, slot, o)
+        ritorna m
 
     definisci _semplice(se_stesso, chiamata):
         """Vero se la chiamata ha solo argomenti posizionali (niente nome=valore, *args)."""
@@ -218,13 +320,7 @@ classe Convertitore:
                 se_stesso.ingresso(m, "a", c.args[0])
                 se_stesso.ingresso(m, "b", c.args[1])
                 ritorna m
-        se se_stesso._semplice(c) e n <= 3 e se_stesso._nome_chiamabile(f):
-            m = se_stesso.nuova("chiamata")
-            m.campi["nome"] = se_stesso.segmento(f)
-            per slot, a in zip("abc", c.args):
-                se_stesso.ingresso(m, slot, a)
-            ritorna m
-        ritorna Nessuno
+        ritorna se_stesso._chiamata_generale(c, Falso)
 
     definisci _nome_chiamabile(se_stesso, f):
         """Nome semplice o catena di attributi (a.b.c): si può scrivere nel campo di una mattonella «chiama»."""
@@ -286,21 +382,34 @@ classe Convertitore:
                     per i, a in enumera(c.args):
                         se_stesso.ingresso(m, f"p{i}", a)
                     ritorna [m]
-            se se_stesso._semplice(c) e n <= 3 e se_stesso._nome_chiamabile(f):
-                m = se_stesso.nuova("chiama")
-                m.campi["nome"] = se_stesso.segmento(f)
-                per slot, a in zip("abc", c.args):
-                    se_stesso.ingresso(m, slot, a)
-                ritorna [m]
             se isinstance(f, ast.Attribute) e f.attr in ("aggiungi", "append") e n == 1 e se_stesso._semplice(c):
                 m = se_stesso.nuova("aggiungi_a_lista")
                 se_stesso.ingresso(m, "valore", c.args[0])
                 se_stesso.ingresso(m, "lista", f.value)
                 ritorna [m]
+            m = se_stesso._chiamata_generale(c, Vero)
+            se m è non Nessuno:
+                ritorna [m]
         se isinstance(nodo, ast.Assign) e lunghezza(nodo.targets) == 1 e isinstance(nodo.targets[0], ast.Name):
             m = se_stesso.nuova("imposta")
             m.campi["var"] = nodo.targets[0].id
             se_stesso.ingresso(m, "valore", nodo.value)
+            ritorna [m]
+        se (isinstance(nodo, ast.Assign) e lunghezza(nodo.targets) == 1 e isinstance(nodo.targets[0], (ast.Attribute, ast.Subscript, ast.Tuple))
+                e non isinstance(getattr(nodo.targets[0], "slice", Nessuno), ast.Slice)
+                e non any(isinstance(x, (ast.Starred, ast.Slice)) per x in ast.walk(nodo.targets[0]))):
+            m = se_stesso.nuova("assegna")
+            se_stesso.ingresso(m, "dest", nodo.targets[0])
+            se_stesso.ingresso(m, "val", nodo.value)
+            ritorna [m]
+        se (isinstance(nodo, ast.AugAssign) e tipo(nodo.op) in BINARI e non (isinstance(nodo.target, ast.Name) e isinstance(nodo.op, ast.Add))
+                e isinstance(nodo.target, (ast.Name, ast.Attribute, ast.Subscript))
+                e non any(isinstance(x, ast.Slice) per x in ast.walk(nodo.target))):
+            lettura = ast.BinOp(left=nodo.target, op=nodo.op, right=nodo.value)
+            ast.copy_location(lettura, nodo)
+            m = se_stesso.nuova("assegna")
+            se_stesso.ingresso(m, "dest", nodo.target)
+            se_stesso.ingresso(m, "val", lettura)
             ritorna [m]
         se isinstance(nodo, ast.AugAssign) e isinstance(nodo.target, ast.Name) e isinstance(nodo.op, ast.Add):
             m = se_stesso.nuova("cambia")
@@ -313,6 +422,15 @@ classe Convertitore:
             se_stesso._riempi(m, "corpo", nodo.body)
             se nodo.orelse:
                 se_stesso._riempi(m, "altro", nodo.orelse)
+            ritorna [m]
+        se (isinstance(nodo, ast.For) e non nodo.orelse e isinstance(nodo.target, ast.Tuple)
+                e tutti(isinstance(x, ast.Name) per x in nodo.target.elts)):
+            m = se_stesso.nuova("per_ogni")
+            m.campi["var"] = ", ".join(x.id per x in nodo.target.elts)
+            se lunghezza(nodo.target.elts) == 1:
+                m.campi["var"] = "(" + m.campi["var"] + ",)"
+            se_stesso.ingresso(m, "elenco", nodo.iter)
+            se_stesso._riempi(m, "corpo", nodo.body)
             ritorna [m]
         se isinstance(nodo, ast.For) e non nodo.orelse e isinstance(nodo.target, ast.Name):
             it = nodo.iter
@@ -351,9 +469,11 @@ classe Convertitore:
             ritorna tessere
         se isinstance(nodo, ast.Try) e lunghezza(nodo.handlers) <= 1 e non nodo.orelse e (nodo.handlers o nodo.finalbody):
             h = nodo.handlers[0] se nodo.handlers altrimenti Nessuno
-            tipo_ok = h è Nessuno o (h.name in (Nessuno, "errore") e (h.type è Nessuno o (isinstance(h.type, ast.Name) e h.type.id in ("Eccezione", "Exception"))))
-            se tipo_ok:
+            se h è Nessuno o h.type è Nessuno o non any(isinstance(x, ast.Starred) per x in ast.walk(h.type)):
                 m = se_stesso.nuova("prova")
+                se h è non Nessuno:
+                    m.campi["tipo"] = se_stesso.segmento(h.type) se h.type è non Nessuno altrimenti ""
+                    m.campi["come"] = h.name o ""
                 se_stesso._riempi(m, "corpo", nodo.body)
                 se h è non Nessuno:
                     se_stesso._riempi(m, "errore", h.body)
@@ -397,10 +517,48 @@ classe Convertitore:
     definisci _convertibile(se_stesso, nodo):
         ritorna (isinstance(nodo, ast.FunctionDef) e non nodo.decorator_list e se_stesso._parametri(nodo) è non Nessuno)
 
+    definisci _classe_convertibile(se_stesso, n):
+        """Una classe diventa classe a mattonelle se i suoi metodi sono semplici e senza nomi doppi."""
+        se non isinstance(n, ast.ClassDef) o n.keywords o n.decorator_list:
+            ritorna Falso
+        se se_stesso.programma.classe_(n.name) o se_stesso.programma.funzione(n.name):
+            ritorna Falso
+        nomi = []
+        per x in n.body:
+            se isinstance(x, ast.AsyncFunctionDef):
+                ritorna Falso
+            se isinstance(x, ast.FunctionDef):
+                se x.name in nomi o se_stesso._parametri(x) è Nessuno o non nome_variabile_valido(x.name):
+                    ritorna Falso
+                nomi.append(x.name)
+        ritorna non any(isinstance(b, ast.Starred) per b in n.bases)
+
+    definisci _registra_classe(se_stesso, n):
+        """Crea la classe e i suoi metodi (corpi ancora vuoti). Ritorna la lista (nodo, Funzione) dei metodi."""
+        p = se_stesso.programma
+        base = ", ".join(se_stesso.segmento(b) per b in n.bases)
+        attributi = []
+        per x in n.body:
+            se non isinstance(x, ast.FunctionDef):
+                attributi.append(se_stesso.testo_di(x))
+        p.aggiungi_classe(n.name, base, "\n".join(attributi))
+        metodi = []
+        per x in n.body:
+            se isinstance(x, ast.FunctionDef):
+                decoratori = "\n".join("@" + se_stesso.segmento(d) per d in x.decorator_list)
+                f = p.aggiungi_metodo(n.name, x.name, se_stesso._parametri(x), decoratori)
+                metodi.append((x, f))
+        ritorna metodi
+
     # ------------------------------------------------------------ programma intero
     definisci converti(se_stesso):
         albero = compile(se_stesso.sorgente, "<conversione>", "exec", ast.PyCF_ONLY_AST)
         p = se_stesso.programma
+        per x in ast.walk(albero):
+            se isinstance(x, ast.Import):
+                se_stesso.moduli.update((a_.asname o a_.name).split(".")[0] per a_ in x.names)
+            altrimenti_se isinstance(x, ast.ImportFrom):
+                se_stesso.moduli.update(a_.asname o a_.name per a_ in x.names)
         nodi = albero.body
         # 1) registra le funzioni convertibili (nome e parametri), così le chiamate trovano la definizione
         funzioni = []
@@ -410,6 +568,11 @@ classe Convertitore:
                 p.funzioni.append(f)
                 se_stesso.funzioni[n.name] = lunghezza(f.parametri())
                 funzioni.append((n, f))
+        classi_convertite = []
+        per n in nodi:
+            se se_stesso._classe_convertibile(n):
+                classi_convertite.append(n)
+                funzioni.extend(se_stesso._registra_classe(n))
         # 2) il resto del modulo
         flusso = []
         per i, n in enumera(nodi):
@@ -419,6 +582,8 @@ classe Convertitore:
                 continua
             altrimenti_se isinstance(n, ast.Expr) e isinstance(n.value, ast.Constant) e isinstance(n.value.value, str) e i == 0:
                 continua                                  # docstring del modulo
+            altrimenti_se n in classi_convertite:
+                se_stesso.rapporto["classi"] = se_stesso.rapporto.get("classi", 0) + 1
             altrimenti_se isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 p.codice_iniziale += se_stesso.testo_di(n) + "\n\n\n"
                 se_stesso.rapporto["classi_e_codice_di_modulo"] += 1
@@ -526,6 +691,8 @@ definisci descrivi_rapporto(r):
     righe = [f"Funzioni convertite: {r['funzioni']}",
              f"Mattonelle create: {r['mattonelle']}",
              f"Commenti conservati: {r['commenti']}"]
+    se r.get("classi"):
+        righe.append(f"Classi convertite in mattonelle (un metodo per pagina): {r['classi']}")
     se r["classi_e_codice_di_modulo"]:
         righe.append(f"Classi e costanti lasciate come codice di modulo: {r['classi_e_codice_di_modulo']}")
     libere = r["righe_libere"] + r["espressioni_libere"]

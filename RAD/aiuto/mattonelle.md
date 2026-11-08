@@ -65,6 +65,14 @@ La categoria Funzioni contiene anche **chiama** e **chiamata**: servono per usar
 - **↶ ↷** annullano e ripetono qualsiasi modifica; **🔍＋ 🔍−** (o **Ctrl + rotella**) cambiano lo zoom.
 - **⚙ Modulo** apre le *importazioni* e il *codice di modulo* (classi, costanti) del programma: serve soprattutto per i programmi [convertiti](#conversione).
 - **Salva e genera** scrive due file: `nome.mattonelle.json` (il disegno) e `nome.pit` (il codice, da non modificare a mano).
+## Classi e oggetti
+
+Un programma intero, anche a oggetti, si costruisce a mattonelle:
+
+- **＋ Classe** crea una classe (nome, classe di base, attributi di classe) con il suo `__init__`; **＋ Metodo** aggiunge un metodo. Ogni metodo ha la **sua pagina** («Classe.metodo»); clic destro sulla linguetta per modificare o eliminare la classe.
+- Nella categoria **Oggetti**: *attributo* (`se_stesso.nome`), *imposta … a …* (per attributi, elementi e più nomi insieme con la tupla), *chiama su un oggetto* (`oggetto.metodo(…)`), *opzione* (`colore = rosso` dentro una chiamata), *tupla*, *lambda*.
+- Altre mattonelle per costrutti comuni: *lista/insieme/generatore di … per … in …*, *a se condizione altrimenti b*, *tra* (a ≤ x ≤ b), *è* / *non è*, *fetta* (`t[1:3]`), *dizionario*, *meno*.
+- La mattonella **prova** ha i campi del tipo di errore e del nome (`eccetto ValueError come e`).
 - Le mattonelle **codice** ed **espressione** (categoria Altro) accettano pytonIta scritto a mano, per tutto ciò che non ha una mattonella.
 - Le mattonelle che contengono **testo scritto da te** (codice, espressione, commento, testo) si modificano in una **finestra**: clic sulla casella, scrivi (il codice può avere più righe), **Ctrl+Invio** applica, **Esc** annulla. La finestra si ingrandisce trascinando i bordi e ricorda la misura scelta; la casella **A capo automatico** decide se le righe lunghe vanno a capo o scorrono di lato. I nomi e i numeri brevi si scrivono ancora direttamente nella casella.
 

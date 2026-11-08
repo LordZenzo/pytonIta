@@ -21,9 +21,10 @@ CATEGORIE = {
     "testo": ("Testo", "#26a69a"),
     "liste": ("Liste", "#8e5fd1"),
     "funzioni": ("Funzioni", "#d6409f"),
+    "oggetti": ("Oggetti", "#6c7ae0"),
     "altro": ("Altro", "#7a8088"),
 }
-ORDINE_CATEGORIE = ["eventi", "flusso", "variabili", "io", "operatori", "testo", "liste", "funzioni", "altro"]
+ORDINE_CATEGORIE = ["eventi", "flusso", "variabili", "io", "operatori", "testo", "liste", "funzioni", "oggetti", "altro"]
 FORME_ISTRUZIONE = ("cappello", "istruzione", "blocco", "fine")
 FORME_VALORE = ("valore", "booleano")
 
@@ -54,8 +55,9 @@ TIPI = {
                  intestazioni=["per _ in intervallo({n}):"], descrizione="Ripete N volte"),
     "mentre": _d("blocco", "flusso", ["mentre", ("i", "cond", "booleano", "")], corpi=[("corpo", "")],
                  intestazioni=["mentre {cond}:"], descrizione="Ripete finché la condizione è vera"),
-    "prova": _d("blocco", "flusso", ["prova"], corpi=[("corpo", ""), ("errore", "se c'è un errore"), ("infine", "alla fine")],
-                intestazioni=["prova:", "eccetto Eccezione come errore:", "infine:"],
+    "prova": _d("blocco", "flusso", ["prova", "eccetto", ("c", "tipo", "Eccezione", "testo"), "come", ("c", "come", "errore", "testo")],
+                corpi=[("corpo", ""), ("errore", "se c'è un errore"), ("infine", "alla fine")],
+                intestazioni=["prova:", "eccetto {tipo} come {come}:", "infine:"],
                 descrizione="Gestione degli errori"),
     "con_file": _d("blocco", "flusso", ["con file", ("i", "nome", "testo", "dati.txt"), "come", ("c", "var", "f", "variabile_nuova")],
                    corpi=[("corpo", "")], intestazioni=['con apri({nome}, encoding="utf-8") come {var}:'],
@@ -127,19 +129,67 @@ TIPI = {
                  codice="testo({v}).separa({sep})"),
     # --- liste
     "lista_vuota": _d("valore", "liste", ["lista vuota"], codice="[]"),
-    "lista_di": _d("valore", "liste", ["lista di", ("i", "a", "valore", ""), ("i", "b", "valore", ""), ("i", "c", "valore", "")],
+    "lista_di": _d("valore", "liste", ["lista di", ("i", "a", "valore", ""), ("i", "b", "valore", ""), ("i", "c", "valore", ""),
+                                       ("i", "d", "valore", ""), ("i", "e", "valore", ""), ("i", "f", "valore", "")],
                    codice="@lista_di", descrizione="Gli ingressi vuoti vengono ignorati"),
     "aggiungi_a_lista": _d("istruzione", "liste", ["aggiungi", ("i", "valore", "valore", ""), "alla lista", ("i", "lista", "valore", "")],
                            codice="{lista}.aggiungi({valore})"),
     "elemento_di": _d("valore", "liste", ["elemento", ("i", "n", "numero", "0"), "di", ("i", "lista", "valore", "")], codice="{lista}[{n}]"),
     "ordina_lista": _d("valore", "liste", ["ordina", ("i", "lista", "valore", "")], codice="ordinato({lista})"),
     "somma_lista": _d("valore", "liste", ["somma di", ("i", "lista", "valore", "")], codice="somma({lista})"),
+    # --- oggetti, classi e costrutti avanzati
+    "attributo": _d("valore", "oggetti", [("i", "obj", "valore", ""), ".", ("c", "nome", "x", "testo")], codice="{obj}.{nome}",
+                    descrizione="Un attributo di un oggetto (es. se_stesso.nome)"),
+    "assegna": _d("istruzione", "oggetti", ["imposta", ("i", "dest", "valore", ""), "a", ("i", "val", "valore", "")],
+                  codice="{dest} = {val}", descrizione="Assegna a un attributo, a un elemento o a più nomi insieme (tupla)"),
+    "chiama_su": _d("istruzione", "oggetti", [("i", "obj", "valore", ""), ".", ("c", "nome", "metodo", "testo"), "(",
+                                              ("i", "a", "valore", ""), ("i", "b", "valore", ""), ("i", "c", "valore", ""),
+                                              ("i", "d", "valore", ""), ("i", "e", "valore", ""), ("i", "f", "valore", ""), ")"], codice="@chiama_su",
+                    descrizione="Chiama un metodo di un oggetto"),
+    "chiamata_su": _d("valore", "oggetti", [("i", "obj", "valore", ""), ".", ("c", "nome", "metodo", "testo"), "(",
+                                            ("i", "a", "valore", ""), ("i", "b", "valore", ""), ("i", "c", "valore", ""),
+                                            ("i", "d", "valore", ""), ("i", "e", "valore", ""), ("i", "f", "valore", ""), ")"], codice="@chiama_su",
+                      descrizione="Chiama un metodo di un oggetto e usa il risultato"),
+    "opzione": _d("valore", "oggetti", ["opzione", ("c", "nome", "colore", "testo"), "=", ("i", "val", "valore", "")],
+                  codice="{nome}={val}", descrizione="Un argomento con nome, da mettere in una chiamata (es. fill=col)"),
+    "tupla": _d("valore", "oggetti", ["tupla (", ("i", "a", "valore", ""), ("i", "b", "valore", ""), ("i", "c", "valore", ""),
+                                      ("i", "d", "valore", ""), ("i", "e", "valore", ""), ("i", "f", "valore", ""), ")"],
+                codice="@tupla", descrizione="Più valori insieme; gli ingressi vuoti vengono ignorati"),
+    "fetta": _d("valore", "liste", [("i", "obj", "valore", ""), "[ da", ("i", "da", "valore", ""), "a", ("i", "a", "valore", ""), "]"],
+                codice="@fetta", descrizione="Una parte di una lista o di un testo: da…a (gli ingressi vuoti = inizio/fine)"),
+    "dizionario": _d("valore", "liste", ["dizionario", ("i", "k1", "valore", ""), ":", ("i", "v1", "valore", ""),
+                                         ("i", "k2", "valore", ""), ":", ("i", "v2", "valore", ""),
+                                         ("i", "k3", "valore", ""), ":", ("i", "v3", "valore", ""),
+                                         ("i", "k4", "valore", ""), ":", ("i", "v4", "valore", "")],
+                     codice="@dizionario", descrizione="Coppie chiave: valore; le coppie con la chiave vuota vengono ignorate"),
+    "negativo": _d("valore", "operatori", ["meno", ("i", "a", "valore", "")], codice="(-{a})"),
+    "identico": _d("booleano", "operatori", [("i", "a", "valore", ""), "è", ("i", "b", "valore", "")], codice="({a} è {b})"),
+    "non_identico": _d("booleano", "operatori", [("i", "a", "valore", ""), "non è", ("i", "b", "valore", "")],
+                       codice="({a} è non {b})"),
+    "tra": _d("booleano", "operatori", [("i", "a", "valore", ""), "≤", ("i", "x", "valore", ""), "≤", ("i", "b", "valore", "")],
+              codice="({a} <= {x} <= {b})", descrizione="Vero se x sta tra a e b (estremi inclusi)"),
+    "valore_se": _d("valore", "operatori", [("i", "a", "valore", ""), "se", ("i", "cond", "booleano", ""), "altrimenti",
+                                            ("i", "b", "valore", "")], codice="({a} se {cond} altrimenti {b})",
+                    descrizione="Sceglie tra due valori in base a una condizione"),
+    "funzione_anonima": _d("valore", "oggetti", ["lambda", ("c", "parametri", "x", "testo"), ":", ("i", "corpo", "valore", "")],
+                           codice="(lambda {parametri}: {corpo})", descrizione="Una piccola funzione senza nome"),
+    "lista_da": _d("valore", "liste", ["lista di", ("i", "espr", "valore", ""), "per", ("c", "var", "x", "testo"), "in",
+                                       ("i", "elenco", "valore", ""), "se", ("i", "cond", "booleano", "")],
+                   codice="@comprensione:[,]", descrizione="[espr per x in elenco se cond]; la condizione è facoltativa"),
+    "insieme_da": _d("valore", "liste", ["insieme di", ("i", "espr", "valore", ""), "per", ("c", "var", "x", "testo"), "in",
+                                         ("i", "elenco", "valore", ""), "se", ("i", "cond", "booleano", "")],
+                     codice="@comprensione:{,}"),
+    "generatore_da": _d("valore", "liste", ["generatore di", ("i", "espr", "valore", ""), "per", ("c", "var", "x", "testo"), "in",
+                                            ("i", "elenco", "valore", ""), "se", ("i", "cond", "booleano", "")],
+                        codice="@comprensione:(,)"),
     # --- altro
     "chiama": _d("istruzione", "funzioni", ["chiama", ("c", "nome", "funzione", "testo"), "(", ("i", "a", "valore", ""),
-                                           ("i", "b", "valore", ""), ("i", "c", "valore", ""), ")"], codice="@chiama",
+                                           ("i", "b", "valore", ""), ("i", "c", "valore", ""), ("i", "d", "valore", ""),
+                                           ("i", "e", "valore", ""), ("i", "f", "valore", ""), ")"], codice="@chiama",
                  descrizione="Chiama qualsiasi funzione o metodo per nome (es. f.write, sqrt, Contatore)"),
     "chiamata": _d("valore", "funzioni", ["chiama", ("c", "nome", "funzione", "testo"), "(", ("i", "a", "valore", ""),
-                                          ("i", "b", "valore", ""), ("i", "c", "valore", ""), ")"], codice="@chiama",
+                                          ("i", "b", "valore", ""), ("i", "c", "valore", ""), ("i", "d", "valore", ""),
+                                          ("i", "e", "valore", ""), ("i", "f", "valore", ""), ")"], codice="@chiama",
                    descrizione="Come «chiama», ma restituisce un valore"),
     "importa": _d("istruzione", "altro", ["importa", ("c", "modulo", "json", "testo")], codice="importa {modulo}"),
     "commento": _d("istruzione", "altro", ["#", ("c", "testo", "nota", "testo")], codice="# {testo}"),
@@ -520,14 +570,22 @@ definisci nome_variabile_valido(nome):
 classe Funzione:
     """Una funzione costruita a mattonelle: la sua area ha come cappello 'definisci_funzione'."""
 
-    definisci __inizializza__(se_stesso, nome="funzione", parametri=""):
+    definisci __inizializza__(se_stesso, nome="funzione", parametri="", classe="", decoratori=""):
         se_stesso.area = Area("definisci_funzione")
         se_stesso.area.cappello.campi["nome"] = nome
         se_stesso.area.cappello.campi["parametri"] = parametri
+        se_stesso.classe = classe            # se non è vuota, questa funzione è un metodo di quella classe
+        se_stesso.decoratori = decoratori    # righe come "@property", una per riga (solo metodi)
+
+    @property
+    definisci breve(se_stesso):
+        """Il nome com'è scritto nel codice (per un metodo, senza la classe)."""
+        ritorna (se_stesso.area.cappello.campi.get("nome") o "").strip()
 
     @property
     definisci nome(se_stesso):
-        ritorna (se_stesso.area.cappello.campi.get("nome") o "").strip()
+        """Chiave che identifica la funzione: il nome, oppure «Classe.metodo»."""
+        ritorna (se_stesso.classe + "." + se_stesso.breve) se se_stesso.classe altrimenti se_stesso.breve
 
     definisci parametri_testo(se_stesso):
         """I parametri come sono scritti (possono avere valori predefiniti)."""
@@ -558,6 +616,18 @@ classe Funzione:
                     per m in se_stesso.area.tutte())
 
 
+classe Classe:
+    """Una classe: nome, classe di base e righe a livello di classe (attributi, costanti). I metodi sono Funzione con classe=nome."""
+
+    definisci __inizializza__(se_stesso, nome, base="", attributi=""):
+        se_stesso.nome = nome
+        se_stesso.base = base
+        se_stesso.attributi = attributi
+
+    definisci a_dizionario(se_stesso):
+        ritorna {"nome": se_stesso.nome, "base": se_stesso.base, "attributi": se_stesso.attributi}
+
+
 classe Programma:
     """Il programma intero: funzioni (ognuna nella sua finestra) e flusso principale."""
 
@@ -567,6 +637,7 @@ classe Programma:
         se_stesso.importazioni = []        # righe di import a livello di modulo ("importa x", "da a importa b")
         se_stesso.codice_iniziale = ""     # codice di modulo scritto a mano (classi, costanti...)
         se_stesso.funzioni = []
+        se_stesso.classi = []              # Classe; i loro metodi sono in "funzioni" con classe valorizzata
         se_stesso.principale = Area("avvio")
         se_stesso.versione = 1
 
@@ -594,10 +665,57 @@ classe Programma:
     definisci rimuovi_funzione(se_stesso, nome):
         se_stesso.funzioni = [f per f in se_stesso.funzioni se f.nome != nome]
 
+    # --- classi e metodi
+    definisci classe_(se_stesso, nome):
+        per c in se_stesso.classi:
+            se c.nome == nome:
+                ritorna c
+        ritorna Nessuno
+
+    definisci aggiungi_classe(se_stesso, nome, base="", attributi=""):
+        se non nome_variabile_valido(nome) o se_stesso.classe_(nome) o se_stesso.funzione(nome):
+            ritorna Nessuno
+        c = Classe(nome, base, attributi)
+        se_stesso.classi.append(c)
+        ritorna c
+
+    definisci rimuovi_classe(se_stesso, nome):
+        se_stesso.classi = [c per c in se_stesso.classi se c.nome != nome]
+        se_stesso.funzioni = [f per f in se_stesso.funzioni se f.classe != nome]
+
+    definisci rinomina_classe(se_stesso, vecchio, nuovo):
+        c = se_stesso.classe_(vecchio)
+        se c è Nessuno o non nome_variabile_valido(nuovo) o (nuovo != vecchio e (se_stesso.classe_(nuovo) o se_stesso.funzione(nuovo))):
+            ritorna Falso
+        c.nome = nuovo
+        per f in se_stesso.funzioni:
+            se f.classe == vecchio:
+                f.classe = nuovo
+        ritorna Vero
+
+    definisci metodi_di(se_stesso, classe_nome):
+        ritorna [f per f in se_stesso.funzioni se f.classe == classe_nome]
+
+    definisci aggiungi_metodo(se_stesso, classe_nome, nome, parametri="se_stesso", decoratori=""):
+        se se_stesso.classe_(classe_nome) è Nessuno o non nome_variabile_valido(nome) o se_stesso.funzione(classe_nome + "." + nome):
+            ritorna Nessuno
+        f = Funzione(nome, parametri, classe_nome, decoratori)
+        se_stesso.funzioni.append(f)
+        ritorna f
+
+    definisci rinomina_metodo(se_stesso, chiave, nuovo):
+        f = se_stesso.funzione(chiave)
+        se f è Nessuno o non f.classe o non nome_variabile_valido(nuovo) o (nuovo != f.breve e se_stesso.funzione(f.classe + "." + nuovo)):
+            ritorna Falso
+        f.area.cappello.campi["nome"] = nuovo
+        ritorna Vero
+
     definisci rinomina_funzione(se_stesso, vecchio, nuovo):
         """Rinomina e aggiorna tutte le chiamate. Ritorna Falso se il nome non è valido o è già usato."""
         f = se_stesso.funzione(vecchio)
-        se f è Nessuno o non nome_variabile_valido(nuovo) o (se_stesso.funzione(nuovo) e nuovo != vecchio):
+        se f è Nessuno o f.classe:
+            ritorna se_stesso.rinomina_metodo(vecchio, nuovo)
+        se non nome_variabile_valido(nuovo) o (se_stesso.funzione(nuovo) e nuovo != vecchio) o se_stesso.classe_(nuovo):
             ritorna Falso
         f.area.cappello.campi["nome"] = nuovo
         per area in se_stesso.aree():
@@ -614,7 +732,7 @@ classe Programma:
         """Tipi dinamici (chiamata come istruzione e come valore) per la tavolozza."""
         risultato = []
         per f in se_stesso.funzioni:
-            se f.nome:
+            se f.nome e non f.classe:
                 risultato.append("fn:" + f.nome)
                 risultato.append("fnv:" + f.nome)
         ritorna risultato
@@ -640,7 +758,9 @@ classe Programma:
         ritorna {"versione": se_stesso.versione, "nome": se_stesso.nome, "variabili_globali": se_stesso.variabili_globali,
                  "importazioni": lista(se_stesso.importazioni), "codice_iniziale": se_stesso.codice_iniziale,
                  "principale": se_stesso.principale.a_dizionario(),
-                 "funzioni": [f.area.a_dizionario() per f in se_stesso.funzioni]}
+                 "classi": [c.a_dizionario() per c in se_stesso.classi],
+                 "funzioni": [dict(f.area.a_dizionario(), **({"classe": f.classe} se f.classe altrimenti {}),
+                                   **({"decoratori": f.decoratori} se f.decoratori altrimenti {})) per f in se_stesso.funzioni]}
 
     definisci a_json(se_stesso):
         ritorna json.dumps(se_stesso.a_dizionario(), indent=1, ensure_ascii=Falso)
@@ -651,10 +771,11 @@ classe Programma:
         p.variabili_globali = lista(d.get("variabili_globali", []))
         p.importazioni = lista(d.get("importazioni", []))
         p.codice_iniziale = d.get("codice_iniziale", "")
+        p.classi = [Classe(c["nome"], c.get("base", ""), c.get("attributi", "")) per c in d.get("classi", [])]
         dati = d.get("funzioni", [])
         # prima si registrano nome e parametri di ogni funzione, cosi' le chiamate trovano la definizione
         per ad in dati:
-            f = Funzione()
+            f = Funzione(classe=ad.get("classe", ""), decoratori=ad.get("decoratori", ""))
             per r in ad.get("radici", []):
                 per m in r.get("pila", []):
                     se m.get("t") == "definisci_funzione":
@@ -683,12 +804,20 @@ classe Generatore:
         se_stesso._area = ""
 
     # --- espressioni
+    definisci _si_possono_togliere_parentesi(se_stesso, m, slot, figlio):
+        """Le parentesi di un valore in una mattonella-istruzione si tolgono, tranne dove cambierebbero il significato."""
+        se figlio.tipo == "generatore_da":
+            ritorna Falso
+        se figlio.tipo == "tupla":
+            ritorna (m.tipo == "assegna" e slot == "dest") o m.tipo in ("ritorna", "imposta")
+        ritorna Vero
+
     definisci ingresso(se_stesso, m, slot, tipo_slot):
         """Codice di un ingresso: la mattonella collegata oppure il valore scritto a mano."""
         figlio = m.ingressi.get(slot)
         se figlio è non Nessuno:
             codice = se_stesso.espressione(figlio)
-            se m.def_(se_stesso.programma)["forma"] in FORME_ISTRUZIONE:
+            se m.def_(se_stesso.programma)["forma"] in FORME_ISTRUZIONE e se_stesso._si_possono_togliere_parentesi(m, slot, figlio):
                 codice = senza_parentesi(codice)
             ritorna codice
         letterale = (m.letterali.get(slot) o "")
@@ -718,12 +847,36 @@ classe Generatore:
         modello = d["codice"]
         se modello == "@lista_di":
             voci = []
-            per slot in ("a", "b", "c"):
+            per slot in ("a", "b", "c", "d", "e", "f"):
                 se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip():
                     voci.append(se_stesso.ingresso(m, slot, "valore"))
             ritorna "[" + ", ".join(voci) + "]"
+        se modello == "@fetta":
+            da_ = se_stesso.ingresso(m, "da", "valore") se (m.ingressi.get("da") è non Nessuno o (m.letterali.get("da") o "").strip()) altrimenti ""
+            a_ = se_stesso.ingresso(m, "a", "valore") se (m.ingressi.get("a") è non Nessuno o (m.letterali.get("a") o "").strip()) altrimenti ""
+            ritorna f"{se_stesso.ingresso(m, 'obj', 'valore')}[{da_}:{a_}]"
+        se modello == "@dizionario":
+            coppie = []
+            per n in "1234":
+                se m.ingressi.get("k" + n) è non Nessuno o (m.letterali.get("k" + n) o "").strip():
+                    coppie.append(se_stesso.ingresso(m, "k" + n, "valore") + ": " + se_stesso.ingresso(m, "v" + n, "valore"))
+            ritorna "{" + ", ".join(coppie) + "}"
+        se modello == "@tupla":
+            voci = [se_stesso.ingresso(m, slot, "valore") per slot in "abcdef"
+                    se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip()]
+            ritorna "(" + ", ".join(voci) + ("," se lunghezza(voci) == 1 altrimenti "") + ")"
+        se modello == "@chiama_su":
+            argomenti = [se_stesso.ingresso(m, slot, "valore") per slot in "abcdef"
+                         se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip()]
+            ritorna f"{se_stesso.ingresso(m, 'obj', 'valore')}.{(m.campi.get('nome') o 'metodo').strip()}({', '.join(argomenti)})"
+        se modello.startswith("@comprensione:"):
+            apri, chiudi = modello.split(":", 1)[1].split(",")
+            testo_ = se_stesso.ingresso(m, "espr", "valore") + f" per {(m.campi.get('var') o 'x').strip()} in " + se_stesso.ingresso(m, "elenco", "valore")
+            se m.ingressi.get("cond") è non Nessuno o (m.letterali.get("cond") o "").strip():
+                testo_ += " se " + se_stesso.ingresso(m, "cond", "booleano")
+            ritorna apri + testo_ + chiudi
         se modello == "@chiama":
-            argomenti = [se_stesso.ingresso(m, slot, "valore") per slot in ("a", "b", "c")
+            argomenti = [se_stesso.ingresso(m, slot, "valore") per slot in ("a", "b", "c", "d", "e", "f")
                          se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip()]
             ritorna f"{(m.campi.get('nome') o 'funzione').strip()}({', '.join(argomenti)})"
         se modello == "@stampa":
@@ -765,6 +918,9 @@ classe Generatore:
                     se i > 0 e non corpo e non (forza_eccetto e nome_corpo == "errore"):
                         continua
                     intestazione = se_stesso._applica(d["intestazioni"][i], m, d)
+                    se m.tipo == "prova" e nome_corpo == "errore":
+                        intestazione = re.sub(r"\s+come\s*:", ":", intestazione)
+                        intestazione = re.sub(r"eccetto\s+:", "eccetto:", intestazione)
                     righe.append(pad + intestazione)
                     interno = se_stesso.istruzioni(corpo, livello + 1)
                     righe.extend(interno o [pad + se_stesso.RIENTRO + "passa"])
@@ -777,7 +933,7 @@ classe Generatore:
                 righe.append(pad + f"{nome}({', '.join(argomenti)})")
             altrimenti_se d["forma"] in FORME_VALORE:
                 se_stesso.avvisi.append(f"{se_stesso._area}: un valore ({m.tipo}) è finito tra le istruzioni")
-            altrimenti_se d["codice"] in ("@chiama", "@stampa"):
+            altrimenti_se d["codice"] in ("@chiama", "@stampa", "@chiama_su"):
                 righe.append(pad + se_stesso.espressione(m))
             altrimenti_se d["codice"]:
                 riga = se_stesso._applica(d["codice"], m, d)
@@ -804,18 +960,45 @@ classe Generatore:
                     nomi.append(n)
         ritorna [se_stesso.RIENTRO + f"globale {n}" per n in nomi]
 
+    definisci testo_funzione(se_stesso, f):
+        """'definisci nome(parametri):' con il corpo, a rientro zero."""
+        se_stesso._area = f"funzione {f.nome}"
+        se non nome_variabile_valido(f.breve):
+            se_stesso.avvisi.append(f"nome di funzione non valido: «{f.nome}»")
+        corpo = se_stesso.dichiarazioni_globali(f.area, f.parametri()) + se_stesso.istruzioni(f.area.cappello.lista[1:], 1)
+        se_stesso.avvisi_pile_sciolte(f.area, f"funzione {f.nome}")
+        righe = [d.strip() per d in f.decoratori.splitlines() se d.strip()]
+        righe.append(f"definisci {f.breve}({f.parametri_testo()}):")
+        righe.extend(corpo o [se_stesso.RIENTRO + "passa"])
+        ritorna "\n".join(righe)
+
+    definisci testo_classe(se_stesso, c):
+        base = c.base.strip()
+        se base e non (base.startswith("(")):
+            base = "(" + base + ")"
+        righe = [f"classe {c.nome}{base}:"]
+        per riga in c.attributi.rstrip().splitlines():
+            righe.append(se_stesso.RIENTRO + riga se riga.strip() altrimenti "")
+        per f in se_stesso.programma.metodi_di(c.nome):
+            se lunghezza(righe) > 1:
+                righe.append("")
+            per riga in se_stesso.testo_funzione(f).splitlines():
+                righe.append(se_stesso.RIENTRO + riga se riga.strip() altrimenti "")
+        se lunghezza(righe) == 1:
+            righe.append(se_stesso.RIENTRO + "passa")
+        ritorna "\n".join(righe)
+
     # --- programma intero
     definisci genera(se_stesso):
         p = se_stesso.programma
         parti_funzioni = []
         per f in p.funzioni:
-            se_stesso._area = f"funzione {f.nome}"
-            se non nome_variabile_valido(f.nome):
-                se_stesso.avvisi.append(f"nome di funzione non valido: «{f.nome}»")
-            corpo = se_stesso.dichiarazioni_globali(f.area, f.parametri()) + se_stesso.istruzioni(f.area.cappello.lista[1:], 1)
-            se_stesso.avvisi_pile_sciolte(f.area, f"funzione {f.nome}")
-            parametri = f.parametri_testo()
-            parti_funzioni.append(f"definisci {f.nome}({parametri}):\n" + "\n".join(corpo o [se_stesso.RIENTRO + "passa"]))
+            se f.classe:
+                continua
+            parti_funzioni.append(se_stesso.testo_funzione(f))
+        parti_classi = []
+        per c in p.classi:
+            parti_classi.append(se_stesso.testo_classe(c))
         se_stesso._area = "programma principale"
         principale = se_stesso.dichiarazioni_globali(p.principale, []) + se_stesso.istruzioni(p.principale.cappello.lista[1:], 1)
         se_stesso.avvisi_pile_sciolte(p.principale, "programma principale")
@@ -833,7 +1016,7 @@ classe Generatore:
             righe.append("")
             righe.append("")
             righe.extend(p.codice_iniziale.rstrip().split("\n"))
-        per blocco in parti_funzioni:
+        per blocco in parti_classi + parti_funzioni:
             righe.append("")
             righe.append("")
             righe.append(blocco)

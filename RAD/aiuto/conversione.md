@@ -20,7 +20,10 @@ La conversione inversa trasforma un file `.pit` già scritto in un programma a m
 | `x.metodo(a, b)`, `funzione(a)` | *chiama* / *chiamata* |
 | operazioni, confronti, `e`/`o`/`non`, indici, `leggi`, `intero`, `lunghezza`… | mattonelle-valore |
 | commenti sopra un'istruzione | mattonelle «commento» |
-| importazioni, classi, costanti | **codice di modulo** (⚙ Modulo), restano com'erano |
+| `classe` con i suoi metodi | una **classe** (＋ Classe) e **una pagina per ogni metodo** (`Classe.metodo`); attributi di classe e decoratori restano nella classe |
+| `self.x`, `self.x = …`, `a, b = b, a`, `obj.metodo(x, colore=rosso)` | **Oggetti**: attributo, imposta (anche a più nomi), chiama su un oggetto, opzione `nome=valore`, tupla |
+| `lambda`, `[x per x in …]`, `a se c altrimenti b`, `a ≤ x ≤ b`, `a è b`, `t[1:3]`, `{k: v}` | le mattonelle corrispondenti |
+| importazioni, costanti | **codice di modulo** (⚙ Modulo), restano com'erano |
 | tutto il resto (f-string, tuple, dizionari, espressioni condizionali…) | mattonelle di testo grigie («codice», «espressione»): fanno la stessa cosa dell'originale |
 
 Il codice rigenerato si comporta come l'originale (PitStudio lo verifica sui propri test). I commenti a fine riga non si conservano.

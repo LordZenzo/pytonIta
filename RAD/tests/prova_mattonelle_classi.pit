@@ -1,0 +1,189 @@
+importa sys, os, tempfile, subprocess, ast
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.mattonelle_modello importa *
+da rad.mattonelle_converti importa converti_sorgente
+da rad importa mattonelle_ui
+
+PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
+
+# ============================================================ modello: classi e metodi
+p = Programma("t")
+c = p.aggiungi_classe("Conto", "", "interesse = 0.02")
+p.aggiungi_metodo("Conto", "__init__", "se_stesso, saldo")
+p.aggiungi_metodo("Conto", "saldo_attuale", "se_stesso", "@property")
+p.aggiungi_classe("Risparmio", "Conto")
+codice, av = genera_codice(p)
+stampa("classi generate:", "classe Conto:" in codice, "classe Risparmio(Conto):" in codice, "interesse = 0.02" in codice, "@property" in codice)
+stampa("chiavi dei metodi:", [f.nome per f in p.funzioni])
+stampa("nome doppio rifiutato:", p.aggiungi_metodo("Conto", "__init__") è Nessuno, "| classe doppia:", p.aggiungi_classe("Conto") è Nessuno)
+q = Programma.da_json(p.a_json())
+stampa("salva e ricarica:", [x.nome per x in q.classi], [f.nome per f in q.funzioni], genera_codice(q)[0] == codice)
+stampa("i metodi non sono mattonelle di chiamata:", p.mattonelle_funzione() == [])
+p.rinomina_funzione("Conto.saldo_attuale", "saldo")
+stampa("rinomina metodo:", p.funzione("Conto.saldo") è non Nessuno)
+p.rinomina_classe("Conto", "Cassa")
+stampa("rinomina classe:", p.funzione("Cassa.saldo") è non Nessuno, p.funzione("Conto.saldo") è Nessuno)
+p.rimuovi_classe("Cassa")
+stampa("elimina classe porta via i metodi:", [f.nome per f in p.funzioni], [x.nome per x in p.classi])
+
+# ============================================================ le mattonelle nuove, generate
+sorgente = '''importa tkinter come tk
+da collections importa namedtuple
+
+COLORE = "rosso"
+
+
+classe Punto:
+    """Un punto."""
+    contatore = 0
+
+    definisci __init__(self, x, y=0):
+        self.x, self.y = x, y
+        self.nome = "p" + testo(x)
+        Punto.contatore += 1
+
+    @property
+    definisci doppio(self):
+        ritorna (self.x * 2, self.y * 2)
+
+    definisci sposta(self, dx, dy):
+        self.x += dx
+        self.y -= dy
+        self.storia = [self.x, self.y]
+        ritorna self
+
+    @staticmethod
+    definisci origine():
+        ritorna Punto(0, 0)
+
+    definisci descrivi(self, **opz):
+        parti = [testo(v) per v in (self.x, self.y) se v >= 0]
+        quadrati = insieme(v * v per v in (self.x, self.y) se v)
+        ritorna ", ".join(parti) + " " + testo(lunghezza(quadrati)) + (" nome" se self.nome altrimenti "-")
+
+
+classe Cerchio(Punto):
+    definisci __init__(self, x, y, r):
+        super().__init__(x, y)
+        self.r = r
+        self.dati = {"r": r}
+
+    definisci dentro(self, px):
+        ritorna 0 <= px <= self.r e px non in (99,) e self.r è non Nessuno
+
+    definisci fette(self):
+        t = "abcdef"
+        ritorna t[1:3] + t[:2] + t[4:]
+
+
+definisci principale():
+    p = Punto(1, 2)
+    p.sposta(1, 1).sposta(dx=2, dy=0)
+    stampa(p.x, p.y, p.doppio, p.storia, Punto.contatore)
+    stampa(p.descrivi())
+    c = Cerchio(3, 4, 5)
+    stampa(c.dentro(2), c.dentro(9), c.dentro(99), c.fette(), c.dati)
+    ordine = ordinato([3, 1, 2], chiave=lambda v: -v)
+    stampa(ordine)
+    prova:
+        1 / 0
+    eccetto ZeroDivisionError come err:
+        stampa("errore:", err)
+    eccetto:
+        stampa("altro")
+    prova:
+        int("x")
+    eccetto (ValueError, TypeError):
+        stampa("non è un numero")
+    per a, b in [(1, 2), (3, 4)]:
+        stampa(a + b)
+    per (w,) in [(7,), (8,)]:
+        stampa(w)
+    d = {"a": 1}
+    d["b"] = 2
+    d["a"] *= 5
+    stampa(d)
+
+
+se __nome__ == "__main__":
+    principale()
+'''
+prog, rap = converti_sorgente(sorgente, "prova")
+stampa("classi convertite:", [x.nome per x in prog.classi], "| metodi:", lunghezza([f per f in prog.funzioni se f.classe]))
+stampa("base e decoratori:", prog.classe_("Cerchio").base, "|", prog.funzione("Punto.doppio").decoratori, prog.funzione("Punto.origine").decoratori)
+stampa("attributi di classe:", "contatore = 0" in prog.classe_("Punto").attributi)
+stampa("righe libere:", rap["righe_libere"], "espressioni libere:", rap["espressioni_libere"], "| elenco:", rap["libere"])
+tipi = set()
+per area in prog.aree():
+    per m in area.tutte():
+        tipi.add(m.tipo)
+stampa("mattonelle nuove usate:", sorted(tipi & {"attributo", "assegna", "chiama_su", "chiamata_su", "opzione", "tupla", "identico", "non_identico",
+                                                  "tra", "funzione_anonima", "lista_da", "insieme_da", "fetta", "prova", "dizionario", "negativo"}))
+nuovo, avvisi = genera_codice(prog)
+stampa("avvisi:", avvisi)
+ast.parse  # (solo per avere il modulo)
+compile(nuovo, "x", "exec", 0x10000 | ast.PyCF_ONLY_AST)
+cartella = tempfile.mkdtemp()
+con open(os.path.join(cartella, "a.pit"), "w", encoding="utf-8") come f:
+    f.write(sorgente)
+con open(os.path.join(cartella, "b.pit"), "w", encoding="utf-8") come f:
+    f.write(nuovo)
+a = subprocess.run([PITONIT, "a.pit"], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella)
+b = subprocess.run([PITONIT, "b.pit"], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella)
+stampa("stessa uscita del programma originale:", a.stdout == b.stdout e a.returncode == b.returncode == 0, "|", (a.stderr + b.stderr).strip()[-200:])
+se a.stdout != b.stdout:
+    stampa(a.stdout, "---", b.stdout)
+
+# ============================================================ interfaccia
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1300x760+10+10")
+configura_stile(radice, col)
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci esegui_file(se_stesso, p): passa
+
+ed = mattonelle_ui.EditorMattonelle(radice, os.path.join(tempfile.mkdtemp(), "p.mattonelle.json"), prog, col, cfg, Az())
+ed.pack(fill="both", expand=Vero)
+applica(radice, col)
+radice.update()
+stampa("una pagina per metodo:", [n per n in ed.viste se "." in n][:4], lunghezza([n per n in ed.viste se "." in n]))
+ed.vai_alla_funzione("Cerchio.dentro"); radice.update()
+stampa("pagina corrente:", ed.vista_corrente().nome_area, "| classe corrente:", ed._classe_corrente())
+# nuova classe e nuovo metodo (finestre pilotate)
+risposte = {}
+classe FintoDialogo:
+    definisci __inizializza__(se_stesso, *a, **k):
+        se_stesso.a = a
+    definisci mostra(se_stesso):
+        ritorna risposte["classe"]
+mattonelle_ui.DialogoClasse = FintoDialogo
+risposte["classe"] = ("Forma", "Punto", "lati = 0")
+ed.nuova_classe(); radice.update()
+stampa("nuova classe:", ed.programma.classe_("Forma") è non Nessuno, ed.programma.funzione("Forma.__init__") è non Nessuno, ed._classe_corrente())
+domande = iter(["calcola", "se_stesso, k"])
+mattonelle_ui.simpledialog.askstring = lambda *a, **k: next(domande)
+ed.nuovo_metodo("Forma"); radice.update()
+stampa("nuovo metodo:", ed.programma.funzione("Forma.calcola").parametri_testo(), "| pagina:", "Forma.calcola" in ed.viste)
+# rinomina dal cappello
+fn = ed.programma.funzione("Forma.calcola")
+ed.modifica_cappello(fn.area.cappello, "nome", "misura"); radice.update()
+stampa("rinomina dal cappello:", ed.programma.funzione("Forma.misura") è non Nessuno, "Forma.misura" in ed.viste)
+# modifica della classe
+risposte["classe"] = ("Poligono", "Punto", "lati = 3")
+ed.modifica_classe("Forma"); radice.update()
+stampa("modifica classe:", ed.programma.funzione("Poligono.misura") è non Nessuno, ed.programma.classe_("Poligono").attributi)
+mattonelle_ui.messagebox.askyesno = lambda *a, **k: Vero
+ed.elimina_classe("Poligono"); radice.update()
+stampa("elimina classe:", ed.programma.classe_("Poligono") è Nessuno, [n per n in ed.viste se n.startswith("Poligono")])
+# tavolozza «Oggetti»
+ed.tavolozza.scegli("oggetti"); radice.update()
+stampa("categoria Oggetti nella tavolozza:", "oggetti" in ORDINE_CATEGORIE)
+radice.destroy()
