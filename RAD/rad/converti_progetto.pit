@@ -1,0 +1,460 @@
+"""Conversione di un intero progetto Python (.py) in un progetto pytonIta (.pit).
+
+Si crea una NUOVA cartella: l'originale non viene toccato. Ogni file .py è tradotto con py2pit (parole chiave, funzioni predefinite e
+costanti in italiano; librerie e metodi restano con i loro nomi, che funzionano uguale). Gli altri file (dati, immagini, testi…) sono copiati.
+Ogni traduzione è controllata: deve compilare con l'interprete pitonit e avere la stessa struttura dell'originale; se qualcosa non torna il
+file resta Python (.py), che pitonit esegue lo stesso, e finisce nel rapporto CONVERSIONE.md.
+"""
+importa ast
+importa json
+importa os
+importa queue
+importa re
+importa shutil
+importa sys
+importa threading
+importa time
+importa tkinter come tk
+da tkinter importa ttk, filedialog, messagebox
+
+da rad.dialoghi importa DialogoBase
+
+CARTELLE_ESCLUSE = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules", "venv", ".venv", "env",
+                    "build", "dist", ".mypy_cache", ".pytest_cache", ".tox", "__pypackages__", ".eggs"}
+ESTENSIONI_NON_COPIATE = {".pyc", ".pyo", ".exe", ".dll", ".pyd", ".so", ".dylib", ".msi", ".whl", ".egg", ".spec"}
+LIMITE_COPIA = 300 * 1024 * 1024         # file più grandi di così non si copiano
+FLAG_ITALIANO = 0x10000
+_RE_CODIFICA = re.compile(r"^[ \t\f]*#.*?coding[:=][ \t]*[-\w.]+")
+
+
+definisci carica_py2pit():
+    """Importa py2pit (cartella pitonit/tools, accanto a PitStudio sia nello sviluppo sia nell'installazione)."""
+    strumenti = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "pitonit", "tools")
+    se strumenti non in sys.path:
+        sys.path.insert(0, strumenti)
+    importa py2pit
+    ritorna py2pit
+
+
+definisci leggi_sorgente(percorso):
+    """(testo, nota): UTF-8 se possibile, altrimenti cp1252; toglie il commento di codifica (i .pit sono sempre UTF-8)."""
+    dati = open(percorso, "rb").read()
+    nota = ""
+    prova:
+        testo_ = dati.decode("utf-8-sig")
+    eccetto UnicodeDecodeError:
+        testo_ = dati.decode("cp1252", "replace")
+        nota = "il file non era UTF-8: letto come Windows-1252 e salvato in UTF-8"
+    righe = testo_.split("\n")
+    per i in intervallo(min(2, lunghezza(righe))):
+        se _RE_CODIFICA.match(righe[i]):
+            righe[i] = ""
+    ritorna "\n".join(righe), nota
+
+
+definisci nome_pit(rel):
+    base, estensione = os.path.splitext(rel)
+    ritorna base + ".pit"
+
+
+definisci _escluso_dentro(destinazione, percorso):
+    d = os.path.normcase(os.path.abspath(destinazione))
+    p = os.path.normcase(os.path.abspath(percorso))
+    ritorna p == d o p.startswith(d + os.sep)
+
+
+definisci piano(origine, destinazione=Nessuno):
+    """Cosa succederà: ([file .py da convertire], [file da copiare], [(file, motivo) saltati])."""
+    da_convertire, da_copiare, saltati = [], [], []
+    per radice, cartelle, file in os.walk(origine):
+        cartelle[:] = sorted(d per d in cartelle se d non in CARTELLE_ESCLUSE e non (destinazione e _escluso_dentro(destinazione, os.path.join(radice, d))))
+        per nome in sorted(file):
+            percorso = os.path.join(radice, nome)
+            rel = os.path.relpath(percorso, origine)
+            estensione = os.path.splitext(nome)[1].lower()
+            se estensione in (".py", ".pyw"):
+                da_convertire.append(rel)
+            altrimenti_se estensione in ESTENSIONI_NON_COPIATE:
+                saltati.append((rel, "file generato dalla versione Python (eseguibile o libreria): non serve nel progetto pytonIta"))
+            altrimenti:
+                prova:
+                    troppo_grande = os.path.getsize(percorso) > LIMITE_COPIA
+                eccetto OSError:
+                    troppo_grande = Falso
+                se troppo_grande:
+                    saltati.append((rel, "file troppo grande (oltre 300 MB)"))
+                altrimenti:
+                    da_copiare.append(rel)
+    ritorna da_convertire, da_copiare, saltati
+
+
+definisci _tipi(albero):
+    ritorna [tipo(n).__name__ per n in ast.walk(albero)]
+
+
+definisci _stringhe_con_py(albero):
+    """(riga, testo) delle stringhe che nominano file .py: dopo la conversione vanno cambiate a mano se puntano a file convertiti."""
+    trovate = []
+    per n in ast.walk(albero):
+        se isinstance(n, ast.Constant) e isinstance(n.value, testo) e ".py" in n.value e lunghezza(n.value) < 200:
+            se re.search(r"\w\.pyw?\b", n.value):
+                trovate.append((n.lineno, n.value))
+    ritorna trovate
+
+
+definisci converti_file(py2pit, sorgente, percorso, verifica=Vero):
+    """Traduce un file. Ritorna (testo_pit, rinominati, stringhe_py, nota) oppure (Nessuno, [], [], motivo) se va lasciato in Python."""
+    prova:
+        albero = ast.parse(sorgente)
+    eccetto (SyntaxError, ErroreDiValore) come e:
+        ritorna Nessuno, [], [], f"errore di sintassi nell'originale (riga {getattr(e, 'lineno', '?')})"
+    rapporto = []
+    prova:
+        tradotto = py2pit.traduci(sorgente, rapporto)
+    eccetto Exception come e:
+        ritorna Nessuno, [], [], f"traduzione non riuscita ({tipo(e).__name__}: {e})"
+    prova:
+        albero_pit = compile(tradotto, percorso, "exec", FLAG_ITALIANO | ast.PyCF_ONLY_AST, Vero)
+    eccetto SyntaxError come e:
+        ritorna Nessuno, [], [], f"il testo tradotto non compila (riga {e.lineno}: {e.msg})"
+    se verifica e _tipi(albero) != _tipi(albero_pit):
+        ritorna Nessuno, [], [], "la struttura del programma tradotto non coincide con l'originale"
+    rinominati = sorted({(r[1], r[2]) per r in rapporto})
+    ritorna tradotto, rinominati, _stringhe_con_py(albero), ""
+
+
+definisci _ha_principale(sorgente):
+    prova:
+        albero = ast.parse(sorgente)
+    eccetto SyntaxError:
+        ritorna Falso
+    per n in albero.body:
+        se isinstance(n, ast.If) e isinstance(n.test, ast.Compare) e isinstance(n.test.left, ast.Name) e n.test.left.id == "__name__":
+            ritorna Vero
+    ritorna Falso
+
+
+definisci converti(origine, destinazione, verifica=Vero, avanzamento=Nessuno, fermato=Nessuno):
+    """Converte il progetto. Ritorna il rapporto (dizionario). avanzamento(fatti, totale, testo) è chiamato a ogni file."""
+    inizio = time.time()
+    origine = os.path.abspath(origine)
+    destinazione = os.path.abspath(destinazione)
+    se os.path.normcase(destinazione) == os.path.normcase(origine):
+        solleva ErroreDiValore("la cartella di destinazione deve essere diversa da quella di origine")
+    se os.path.exists(destinazione) e os.listdir(destinazione):
+        solleva ErroreDiValore("la cartella di destinazione esiste già e non è vuota")
+    py2pit = carica_py2pit()
+    da_convertire, da_copiare, saltati = piano(origine, destinazione)
+    totale = lunghezza(da_convertire) + lunghezza(da_copiare)
+    r = {"origine": origine, "destinazione": destinazione, "convertiti": [], "mantenuti_py": [], "copiati": 0,
+         "saltati": [{"file": f, "motivo": m} per f, m in saltati], "stringhe_py": [], "principale": "", "interrotto": Falso}
+    os.makedirs(destinazione, exist_ok=Vero)
+    fatti = 0
+    candidati_principale = []
+    per rel in da_convertire:
+        se fermato e fermato.is_set():
+            r["interrotto"] = Vero
+            interrompi
+        sorgente_path = os.path.join(origine, rel)
+        se avanzamento:
+            avanzamento(fatti, totale, rel)
+        prova:
+            sorgente, nota_codifica = leggi_sorgente(sorgente_path)
+        eccetto OSError come e:
+            r["mantenuti_py"].append({"file": rel, "motivo": f"non leggibile: {e}"})
+            fatti += 1
+            continua
+        tradotto, rinominati, stringhe, motivo = converti_file(py2pit, sorgente, sorgente_path, verifica)
+        se tradotto è Nessuno:
+            _copia(sorgente_path, os.path.join(destinazione, rel))
+            r["mantenuti_py"].append({"file": rel, "motivo": motivo})
+        altrimenti:
+            nuovo = nome_pit(rel)
+            percorso_nuovo = os.path.join(destinazione, nuovo)
+            os.makedirs(os.path.dirname(percorso_nuovo), exist_ok=Vero)
+            con open(percorso_nuovo, "w", encoding="utf-8", newline="\n") come f:
+                f.write(tradotto)
+            r["convertiti"].append({"file": rel, "nuovo": nuovo, "righe": tradotto.count("\n") + 1, "rinominati": [list(x) per x in rinominati],
+                                    "nota": nota_codifica})
+            per riga, t in stringhe:
+                r["stringhe_py"].append({"file": rel, "riga": riga, "testo": t})
+            se _ha_principale(sorgente):
+                candidati_principale.append(nuovo)
+        fatti += 1
+    se non r["interrotto"]:
+        per rel in da_copiare:
+            se fermato e fermato.is_set():
+                r["interrotto"] = Vero
+                interrompi
+            se avanzamento:
+                avanzamento(fatti, totale, rel)
+            prova:
+                _copia(os.path.join(origine, rel), os.path.join(destinazione, rel))
+                r["copiati"] += 1
+            eccetto OSError come e:
+                r["saltati"].append({"file": rel, "motivo": f"copia non riuscita: {e}"})
+            fatti += 1
+    r["principale"] = _scrivi_manifesto(origine, destinazione, r, candidati_principale)
+    r["durata_s"] = round(time.time() - inizio, 1)
+    scrivi_rapporto(destinazione, r)
+    ritorna r
+
+
+definisci _copia(a, b):
+    os.makedirs(os.path.dirname(b), exist_ok=Vero)
+    shutil.copy2(a, b)
+
+
+definisci _scrivi_manifesto(origine, destinazione, r, candidati):
+    """Crea progetto.rad.json: usa quello dell'originale (con il file principale tradotto) oppure ne ricava uno."""
+    dati = {}
+    sorgente = os.path.join(origine, "progetto.rad.json")
+    se os.path.exists(sorgente):
+        prova:
+            con open(sorgente, encoding="utf-8") come f:
+                dati = json.load(f)
+        eccetto (OSError, ValueError):
+            dati = {}
+    dati["nome"] = os.path.basename(destinazione)
+    convertiti = {c["file"]: c["nuovo"] per c in r["convertiti"]}
+    principale = dati.get("principale", "") o ""
+    se principale in convertiti:
+        principale = convertiti[principale]
+    altrimenti_se principale e not_esiste(destinazione, principale):
+        principale = ""
+    se non principale:
+        preferiti = [c per c in candidati se os.path.basename(c).lower() in ("main.pit", "app.pit", "__main__.pit", "run.pit")]
+        scelta = preferiti o (candidati se lunghezza(candidati) == 1 altrimenti [])
+        principale = scelta[0] se scelta altrimenti ""
+    dati["principale"] = principale
+    dati.setdefault("descrizione", "Convertito da " + os.path.basename(origine))
+    dati.setdefault("argomenti", "")
+    con open(os.path.join(destinazione, "progetto.rad.json"), "w", encoding="utf-8") come f:
+        json.dump(dati, f, indent=2, ensure_ascii=Falso)
+    ritorna principale
+
+
+definisci not_esiste(destinazione, rel):
+    ritorna non os.path.exists(os.path.join(destinazione, rel))
+
+
+definisci testo_rapporto(r):
+    """Il rapporto in Markdown (si salva come CONVERSIONE.md nel nuovo progetto)."""
+    nome = os.path.basename(r["origine"])
+    righe = [f"# Conversione di «{nome}» in pytonIta", "",
+             f"- Origine: `{r['origine']}`", f"- Destinazione: `{r['destinazione']}`",
+             f"- File Python convertiti in `.pit`: **{lunghezza(r['convertiti'])}**",
+             f"- File rimasti Python (`.py`): **{lunghezza(r['mantenuti_py'])}**",
+             f"- Altri file copiati: **{r['copiati']}**", f"- File non copiati: **{lunghezza(r['saltati'])}**",
+             f"- File principale impostato: `{r['principale'] o '(nessuno: impostalo dal menu Progetto)'}`", ""]
+    se r.get("interrotto"):
+        righe += ["> ⚠ La conversione è stata interrotta: il progetto è incompleto.", ""]
+    se r["mantenuti_py"]:
+        righe += ["## File rimasti Python", "",
+                  "Restano `.py` (pitonit li esegue lo stesso, e un `.pit` può importarli e viceversa). Da rivedere:", ""]
+        righe += [f"- `{m['file']}`: {m['motivo']}" per m in r["mantenuti_py"]] + [""]
+    nomi = {}
+    per c in r["convertiti"]:
+        per vecchio, nuovo in c["rinominati"]:
+            nomi.setdefault((vecchio, nuovo), []).append(c["file"])
+    se nomi:
+        righe += ["## Nomi rinominati", "",
+                  "Questi nomi coincidono con parole chiave o funzioni italiane e sono stati cambiati (aggiunto `_`). "
+                  "Se compaiono dentro stringhe o nei file di dati, vanno adeguati a mano.", ""]
+        righe += [f"- `{v}` → `{n}`  ({lunghezza(set(f))} file)" per (v, n), f in sorted(nomi.items())] + [""]
+    se r["stringhe_py"]:
+        righe += ["## Stringhe che nominano file .py", "",
+                  "Dopo la conversione questi file si chiamano `.pit`: se la stringa serve a lanciarli o aprirli, aggiornala.", ""]
+        righe += [f"- `{s['file']}` riga {s['riga']}: `{s['testo']}`" per s in r["stringhe_py"][:200]] + [""]
+    se r["saltati"]:
+        righe += ["## File non copiati", ""]
+        righe += [f"- `{s['file']}`: {s['motivo']}" per s in r["saltati"][:200]] + [""]
+    righe += ["## Come provarlo", "",
+              "- Se il progetto ha dei test, eseguili con F5 (o con `pitonit file_di_test.pit`) e confrontali con quelli dell'originale.",
+              "- I file `.bat`/script che lanciano i `.py` vanno adeguati ai nuovi nomi.", ""]
+    ritorna "\n".join(righe)
+
+
+definisci scrivi_rapporto(destinazione, r):
+    con open(os.path.join(destinazione, "CONVERSIONE.md"), "w", encoding="utf-8", newline="\n") come f:
+        f.write(testo_rapporto(r))
+
+
+definisci proposta_destinazione(origine):
+    """Nome non ancora usato accanto all'origine: ModFile_py -> ModFile_pit (poi _pit2, _pit3…)."""
+    origine = os.path.abspath(origine)
+    cartella, nome = os.path.split(origine)
+    base = nome[:-3] + "_pit" se nome.lower().endswith("_py") altrimenti nome + "_pit"
+    candidato = os.path.join(cartella, base)
+    n = 2
+    mentre os.path.exists(candidato):
+        candidato = os.path.join(cartella, f"{base}{n}")
+        n += 1
+    ritorna candidato
+
+
+classe DialogoConversione(DialogoBase):
+    """Finestra «Converti un progetto Python»: sceglie origine e destinazione, mostra l'avanzamento e il rapporto."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, origine="", apri_progetto=Nessuno):
+        DialogoBase.__init__(se_stesso, genitore, "Converti un progetto Python in pytonIta", colori, 760, 600)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.apri_progetto = apri_progetto
+        se_stesso.coda = queue.Queue()
+        se_stesso.fermo = threading.Event()
+        se_stesso.lavoro = Nessuno
+        se_stesso.rapporto = Nessuno
+        c = colori
+        se_stesso.var_origine = tk.StringVar(value=origine)
+        se_stesso.var_destinazione = tk.StringVar(value=proposta_destinazione(origine) se origine altrimenti "")
+        se_stesso.var_verifica = tk.BooleanVar(value=Vero)
+        se_stesso.var_apri = tk.BooleanVar(value=Vero)
+
+        tk.Label(se_stesso, text="Crea una nuova cartella con la versione in pytonIta di un progetto Python. L'originale non viene toccato.",
+                 anchor="w", background=c["pannello"], foreground=c["tenue"], font=("Segoe UI", 9)).pack(fill="x", padx=14, pady=(12, 6))
+        griglia = tk.Frame(se_stesso, background=c["pannello"])
+        griglia.pack(fill="x", padx=14)
+        griglia.grid_columnconfigure(1, weight=1)
+        se_stesso._riga_campo(griglia, 0, "Progetto Python (origine)", se_stesso.var_origine, se_stesso._sfoglia_origine)
+        se_stesso._riga_campo(griglia, 1, "Nuova cartella (destinazione)", se_stesso.var_destinazione, se_stesso._sfoglia_destinazione)
+        opzioni = tk.Frame(se_stesso, background=c["pannello"])
+        opzioni.pack(fill="x", padx=14, pady=(8, 0))
+        per testo_, var in (("Controlla ogni file tradotto (compila e ha la stessa struttura dell'originale)", se_stesso.var_verifica),
+                            ("Apri il nuovo progetto al termine", se_stesso.var_apri)):
+            tk.Checkbutton(opzioni, text=testo_, variable=var, anchor="w", background=c["pannello"], foreground=c["primo_piano"],
+                           activebackground=c["pannello"], activeforeground=c["primo_piano"], selectcolor=c["campo"]).pack(fill="x")
+        se_stesso.etichetta_piano = tk.Label(se_stesso, text="", anchor="w", justify="left", background=c["pannello"], foreground=c["primo_piano"],
+                                             font=("Segoe UI", 9))
+        se_stesso.etichetta_piano.pack(fill="x", padx=14, pady=(10, 0))
+        barra = tk.Frame(se_stesso, background=c["pannello"])
+        barra.pack(side="bottom", fill="x", padx=14, pady=10)
+        se_stesso.pulsante_chiudi = tk.Button(barra, text="Chiudi", width=11, relief="flat", background=c["pulsante"], foreground=c["primo_piano"],
+                                              command=se_stesso._chiudi)
+        se_stesso.pulsante_chiudi.pack(side="right", padx=4)
+        se_stesso.pulsante_converti = tk.Button(barra, text="Converti", width=14, relief="flat", background=c["accento"], foreground="#ffffff",
+                                                command=se_stesso._avvia)
+        se_stesso.pulsante_converti.pack(side="right", padx=4)
+        se_stesso.pulsante_apri = tk.Button(barra, text="Apri il progetto convertito", width=24, relief="flat", background=c["pulsante"],
+                                            foreground=c["primo_piano"], command=se_stesso._apri_convertito, state="disabled")
+        se_stesso.pulsante_apri.pack(side="left", padx=4)
+        se_stesso.progresso = ttk.Progressbar(se_stesso, maximum=100)
+        se_stesso.progresso.pack(side="bottom", fill="x", padx=14, pady=(0, 6))
+        se_stesso.log = tk.Text(se_stesso, wrap="word", font=("Consolas", 9), borderwidth=0, highlightthickness=1, state="disabled",
+                                background=c["editor"], foreground=c["editor_testo"], highlightbackground=c["bordo"])
+        se_stesso.log.pack(fill="both", expand=Vero, padx=14, pady=(8, 6))
+        se_stesso.var_origine.trace_add("write", lambda *a: se_stesso._aggiorna_piano())
+        se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
+        se_stesso._aggiorna_piano()
+
+    definisci _riga_campo(se_stesso, griglia, n, etichetta, variabile, comando):
+        c = se_stesso.colori
+        tk.Label(griglia, text=etichetta, anchor="w", background=c["pannello"], foreground=c["primo_piano"]).grid(row=n, column=0, sticky="w", pady=4)
+        tk.Entry(griglia, textvariable=variabile, background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"], relief="flat",
+                 highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"]).grid(row=n, column=1, sticky="we", padx=8, ipady=3)
+        tk.Button(griglia, text="Sfoglia…", command=comando, relief="flat", background=c["pulsante"], foreground=c["primo_piano"]).grid(row=n, column=2)
+
+    definisci _sfoglia_origine(se_stesso):
+        cartella = filedialog.askdirectory(parent=se_stesso, title="Cartella del progetto Python")
+        se cartella:
+            se_stesso.var_origine.set(os.path.normpath(cartella))
+            se_stesso.var_destinazione.set(proposta_destinazione(cartella))
+
+    definisci _sfoglia_destinazione(se_stesso):
+        cartella = filedialog.askdirectory(parent=se_stesso, title="Dove creare il progetto pytonIta")
+        se cartella:
+            se_stesso.var_destinazione.set(os.path.normpath(os.path.join(cartella, os.path.basename(proposta_destinazione(se_stesso.var_origine.get() o "progetto")))))
+
+    definisci _aggiorna_piano(se_stesso):
+        origine = se_stesso.var_origine.get().strip()
+        se non origine o non os.path.isdir(origine):
+            se_stesso.etichetta_piano.configure(text="Scegli la cartella del progetto Python.")
+            ritorna
+        da_convertire, da_copiare, saltati = piano(origine, se_stesso.var_destinazione.get().strip() o Nessuno)
+        se_stesso.etichetta_piano.configure(text=f"Verranno convertiti {lunghezza(da_convertire)} file Python, copiati {lunghezza(da_copiare)} altri file"
+                                                 + (f", non copiati {lunghezza(saltati)} (eseguibili e file generati)." se saltati altrimenti "."))
+
+    definisci _scrivi(se_stesso, riga):
+        se_stesso.log.configure(state="normal")
+        se_stesso.log.insert("end", riga + "\n")
+        se_stesso.log.see("end")
+        se_stesso.log.configure(state="disabled")
+
+    definisci _avvia(se_stesso):
+        origine = se_stesso.var_origine.get().strip()
+        destinazione = se_stesso.var_destinazione.get().strip()
+        se non origine o non os.path.isdir(origine):
+            messagebox.showwarning("Conversione", "Scegli la cartella del progetto Python da convertire.", parent=se_stesso)
+            ritorna
+        se non destinazione:
+            messagebox.showwarning("Conversione", "Scegli dove creare il nuovo progetto.", parent=se_stesso)
+            ritorna
+        se os.path.isdir(destinazione) e os.listdir(destinazione):
+            messagebox.showwarning("Conversione", "La cartella di destinazione esiste già e non è vuota: scegli un altro nome.", parent=se_stesso)
+            ritorna
+        se_stesso.pulsante_converti.configure(state="disabled")
+        se_stesso.pulsante_chiudi.configure(text="Interrompi")
+        se_stesso.fermo.clear()
+        se_stesso._scrivi(f"Converto «{os.path.basename(origine)}» in {destinazione}…")
+        verifica = se_stesso.var_verifica.get()
+        definisci lavora():
+            prova:
+                r = converti(origine, destinazione, verifica,
+                             lambda fatti, totale, testo_: se_stesso.coda.put(("avanza", (fatti, totale, testo_))), se_stesso.fermo)
+                se_stesso.coda.put(("fine", r))
+            eccetto Exception come errore:
+                se_stesso.coda.put(("errore", f"{tipo(errore).__name__}: {errore}"))
+        se_stesso.lavoro = threading.Thread(target=lavora, daemon=Vero)
+        se_stesso.lavoro.start()
+        se_stesso._pompa()
+
+    definisci _pompa(se_stesso):
+        prova:
+            mentre Vero:
+                tipo_, dati = se_stesso.coda.get_nowait()
+                se tipo_ == "avanza":
+                    fatti, totale, testo_ = dati
+                    se_stesso.progresso.configure(value=100 * fatti / max(1, totale))
+                    se fatti % 10 == 0:
+                        se_stesso._scrivi(f"  {fatti}/{totale}  {testo_}")
+                altrimenti_se tipo_ == "errore":
+                    se_stesso._scrivi("⚠ " + dati)
+                    se_stesso._finito(Nessuno)
+                    ritorna
+                altrimenti_se tipo_ == "fine":
+                    se_stesso._finito(dati)
+                    ritorna
+        eccetto queue.Empty:
+            passa
+        se_stesso.after(60, se_stesso._pompa)
+
+    definisci _finito(se_stesso, r):
+        se_stesso.progresso.configure(value=100)
+        se_stesso.pulsante_converti.configure(state="normal")
+        se_stesso.pulsante_chiudi.configure(text="Chiudi")
+        se r è Nessuno:
+            ritorna
+        se_stesso.rapporto = r
+        se_stesso._scrivi("")
+        se_stesso._scrivi(f"Fatto in {r['durata_s']} s: {lunghezza(r['convertiti'])} file convertiti in .pit, {lunghezza(r['mantenuti_py'])} rimasti Python, "
+                          f"{r['copiati']} copiati, {lunghezza(r['saltati'])} non copiati.")
+        per m in r["mantenuti_py"][:15]:
+            se_stesso._scrivi(f"  • {m['file']} resta .py: {m['motivo']}")
+        se r["principale"]:
+            se_stesso._scrivi(f"File principale: {r['principale']}")
+        se_stesso._scrivi("Il rapporto completo è nel file CONVERSIONE.md del nuovo progetto.")
+        se_stesso.pulsante_apri.configure(state="normal")
+        se se_stesso.var_apri.get() e se_stesso.apri_progetto e non r.get("interrotto"):
+            se_stesso._apri_convertito()
+
+    definisci _apri_convertito(se_stesso):
+        se se_stesso.rapporto e se_stesso.apri_progetto:
+            destinazione = se_stesso.rapporto["destinazione"]
+            se_stesso.destroy()
+            se_stesso.apri_progetto(destinazione)
+
+    definisci _chiudi(se_stesso):
+        se se_stesso.lavoro e se_stesso.lavoro.is_alive():
+            se_stesso.fermo.set()
+            se_stesso._scrivi("Interruzione richiesta…")
+            ritorna
+        se_stesso.destroy()

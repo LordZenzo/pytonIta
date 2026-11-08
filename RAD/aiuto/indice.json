@@ -115,6 +115,11 @@
   "gruppo": "Programmare"
  },
  {
+  "id": "converti-progetto",
+  "titolo": "Convertire un progetto Python",
+  "gruppo": "Programmare"
+ },
+ {
   "id": "debugger",
   "titolo": "Il debugger",
   "gruppo": "Programmare"

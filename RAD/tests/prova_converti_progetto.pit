@@ -1,0 +1,150 @@
+importa sys, os, tempfile, time, json, subprocess, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa converti_progetto
+
+PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
+base = tempfile.mkdtemp()
+o = os.path.join(base, "Esempio_py")
+
+definisci scrivi(rel, contenuto, binario=Falso):
+    p = os.path.join(o, rel)
+    os.makedirs(os.path.dirname(p), exist_ok=Vero)
+    con open(p, "wb" se binario altrimenti "w", **({} se binario altrimenti {"encoding": "utf-8", "newline": "\n"})) come f:
+        f.write(contenuto)
+
+scrivi("main.py", '''"""Programma di prova."""
+import json
+import os
+from pkg import util
+from pkg.util import Contatore
+
+
+def leggi_dati(percorso):
+    with open(percorso, encoding="utf-8") as f:
+        return json.load(f)
+
+
+if __name__ == "__main__":
+    da = 3                      # nomi che coincidono con parole italiane
+    con = Contatore()
+    for i in range(da):
+        con.aumenta(i)
+    dati = leggi_dati(os.path.join(os.path.dirname(os.path.abspath(__file__)), "dati.json"))
+    print(f"totale={con.totale} nome={dati['nome']} doppio={util.doppio(21)}")
+    try:
+        util.dividi(1, 0)
+    except ZeroDivisionError as e:
+        print("errore:", e)
+    print(sorted(dati["valori"], reverse=True), max(dati["valori"]), len(dati))
+''')
+scrivi("pkg/__init__.py", '"""Pacchetto."""\n')
+scrivi("pkg/util.py", '''class Contatore:
+    def __init__(self):
+        self.totale = 0
+
+    def aumenta(self, n):
+        self.totale += n
+
+
+def doppio(x):
+    return x * 2
+
+
+def dividi(a, b):
+    return a / b
+''')
+scrivi("dati.json", '{"nome": "Anna", "valori": [3, 1, 2]}')
+scrivi("note.txt", "appunti\n")
+scrivi("avvia.bat", "python main.py\n")
+scrivi("vecchio.exe", b"MZ....", Vero)
+scrivi("__pycache__/x.cpython-313.pyc", b"abc", Vero)
+scrivi(".git/config", "[core]\n")
+scrivi("rotto.py", "def f(:\n    pass\n")
+scrivi("latino.py", b"# -*- coding: latin-1 -*-\nnome = 'citt\xe0'\nprint(nome)\n", Vero)
+scrivi("percorsi.py", 'import subprocess\nsubprocess.run(["python", "main.py"])\nprint("ok")\n')
+
+# ================================================================= la conversione
+d = os.path.join(base, "Esempio_pit")
+stampa("destinazione proposta:", os.path.basename(converti_progetto.proposta_destinazione(o)))
+piano = converti_progetto.piano(o, d)
+stampa("piano: da convertire", sorted(piano[0]), "| da copiare", sorted(piano[1]), "| saltati", [s[0] per s in piano[2]])
+r = converti_progetto.converti(o, d, Vero)
+stampa("convertiti:", sorted(c["file"] per c in r["convertiti"]), "| rimasti py:", [(m["file"], m["motivo"][:40]) per m in r["mantenuti_py"]])
+stampa("copiati:", r["copiati"], "| non copiati:", [s["file"] per s in r["saltati"]], "| principale:", r["principale"])
+stampa("file nella nuova cartella:", sorted(os.path.relpath(os.path.join(rad, n), d) per rad, cart, file in os.walk(d) per n in file))
+stampa("niente cartelle di sistema:", non os.path.exists(os.path.join(d, ".git")) e non os.path.exists(os.path.join(d, "__pycache__")))
+stampa("nomi rinominati:", sorted({tuple(x) per c in r["convertiti"] per x in c["rinominati"]}))
+latino = [c per c in r["convertiti"] se c["file"] == "latino.py"][0]
+stampa("latin-1 convertito:", latino["nota"][:30], "|", "città" in open(os.path.join(d, "latino.pit"), encoding="utf-8").read(), "| cookie tolto:", "coding" non in open(os.path.join(d, "latino.pit"), encoding="utf-8").read())
+stampa("stringhe che nominano .py:", [(s["file"], s["testo"]) per s in r["stringhe_py"]])
+manifesto = json.load(open(os.path.join(d, "progetto.rad.json"), encoding="utf-8"))
+stampa("manifesto:", manifesto["nome"], manifesto["principale"])
+rapporto = open(os.path.join(d, "CONVERSIONE.md"), encoding="utf-8").read()
+stampa("rapporto con le sezioni:", [x per x in ("File rimasti Python", "Nomi rinominati", "Stringhe che nominano file .py", "File non copiati") se x in rapporto])
+# l'originale non è stato toccato
+stampa("originale intatto:", sorted(os.listdir(o)) == sorted(["main.py", "pkg", "dati.json", "note.txt", "avvia.bat", "vecchio.exe", "__pycache__", ".git", "rotto.py", "latino.py", "percorsi.py"]))
+
+# ================================================================= stessa uscita di prima e dopo
+a = subprocess.run([PITONIT, os.path.join(o, "main.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=o)
+b = subprocess.run([PITONIT, os.path.join(d, "main.pit")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=d)
+stampa("uscita .py:", a.stdout.strip().splitlines())
+stampa("uscita .pit:", b.stdout.strip().splitlines())
+stampa("uguale tranne il messaggio d'errore tradotto:", a.stdout.replace("division by zero", "divisione per zero") == b.stdout, "| codici:", a.returncode, b.returncode, "|", b.stderr.strip()[-120:])
+
+# ================================================================= errori
+prova:
+    converti_progetto.converti(o, d)
+    stampa("destinazione piena: nessun errore (sbagliato)")
+eccetto ErroreDiValore come e:
+    stampa("destinazione non vuota -> errore:", "non è vuota" in testo(e))
+prova:
+    converti_progetto.converti(o, o)
+    stampa("stessa cartella: nessun errore (sbagliato)")
+eccetto ErroreDiValore come e:
+    stampa("origine = destinazione -> errore:", "diversa" in testo(e))
+dentro = os.path.join(o, "uscita")
+r2 = converti_progetto.converti(o, dentro, Falso)
+stampa("destinazione dentro l'origine: non si converte se stessa:", non any("uscita" in c["file"] per c in r2["convertiti"]), "| creata:", os.path.isdir(dentro))
+
+# ================================================================= la finestra
+cfg = Configurazione(os.path.join(base, "config.json"))
+radice = tk.Tk()
+radice.geometry("1200x800+10+10")
+app = Applicazione(radice, cfg)
+radice.update()
+aperti = []
+dlg = converti_progetto.DialogoConversione(radice, app.colori, o, lambda cartella: aperti.append(cartella))
+dest2 = os.path.join(base, "DaFinestra_pit")
+dlg.var_destinazione.set(dest2)
+radice.update()
+stampa("piano mostrato:", dlg.etichetta_piano.cget("text")[:60])
+dlg._avvia()
+t0 = time.time()
+mentre dlg.winfo_exists() e dlg.rapporto è Nessuno e time.time() - t0 < 30:
+    radice.update()
+    time.sleep(0.02)
+radice.update()
+stampa("finestra: rapporto ottenuto:", dlg.rapporto è non Nessuno, "| progetto aperto al termine:", [os.path.basename(x) per x in aperti])
+stampa("finestra chiusa dopo l'apertura:", non dlg.winfo_exists())
+# interruzione
+dlg2 = converti_progetto.DialogoConversione(radice, app.colori, o, Nessuno)
+dlg2.var_destinazione.set(os.path.join(base, "Interrotta_pit"))
+dlg2.fermo.set()
+r3 = converti_progetto.converti(o, os.path.join(base, "Interrotta_pit"), Vero, Nessuno, dlg2.fermo)
+stampa("interrotta:", r3["interrotto"], "| rapporto lo dice:", "interrotta" in open(os.path.join(base, "Interrotta_pit", "CONVERSIONE.md"), encoding="utf-8").read())
+dlg2.destroy()
+radice.destroy()
+
+# ================================================================= un progetto vero (se c'è): ModFile2 con interfaccia e prove
+vero = r"C:\AppPython\ModFile2_py"
+se os.path.isdir(vero):
+    dv = os.path.join(base, "ModFile2_vero_pit")
+    rv = converti_progetto.converti(vero, dv, Vero)
+    stampa("ModFile2: convertiti", lunghezza(rv["convertiti"]), "rimasti py", lunghezza(rv["mantenuti_py"]), "| principale", rv["principale"])
+    t = subprocess.run([PITONIT, "test_core.pit"], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dv)
+    stampa("ModFile2: test in italiano:", "Ran 28 tests" in t.stderr, "OK" in t.stderr)
+    s = subprocess.run([PITONIT, "smoke_gui.pit"], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dv, timeout=120)
+    stampa("ModFile2: prova dell'interfaccia in italiano:", "SMOKE OK" in s.stdout, s.stderr.strip()[-100:])

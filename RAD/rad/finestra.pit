@@ -13,6 +13,7 @@ da rad.editor importa Editor, linguaggio_di
 da rad importa registro_ai
 da rad.storia importa Storia
 da rad importa claude_code
+da rad importa converti_progetto
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
 da rad.progetto importa Progetto, PannelloProgetto, tipo_file
@@ -173,6 +174,7 @@ classe Applicazione:
         file.add_command(label="Nuovo programma a mattonelle…", command=lambda: se_stesso.nuovo_mattonelle())
         file.add_command(label="Converti il file corrente in mattonelle…", command=lambda: se_stesso.converti_in_mattonelle())
         file.add_command(label="Traduci il file .py corrente in pytonIta…", command=lambda: se_stesso.traduci_in_pit())
+        file.add_command(label="Converti un progetto Python in pytonIta…", command=lambda: se_stesso.converti_progetto_py())
         file.add_separator()
         file.add_command(label="Salva", command=se_stesso.salva_scheda, accelerator="Ctrl+S")
         file.add_command(label="Salva tutto", command=se_stesso.salva_tutto, accelerator="Ctrl+Maiusc+S")
@@ -201,6 +203,7 @@ classe Applicazione:
         prog.add_command(label="Aggiungi risorse (immagini, JSON…)…", command=lambda: se_stesso.pannello_progetto.aggiungi_risorse())
         prog.add_command(label="Imposta il file corrente come principale", command=se_stesso.imposta_corrente_principale)
         prog.add_command(label="Proprietà del progetto…", command=se_stesso.proprieta_progetto)
+        prog.add_command(label="Converti questo progetto Python in pytonIta…", command=lambda: se_stesso.converti_progetto_py(se_stesso.progetto.cartella se se_stesso.progetto altrimenti ""))
         prog.add_command(label="Aggiorna l'albero", command=lambda: se_stesso.pannello_progetto.aggiorna())
         barra.add_cascade(label="Progetto", menu=prog)
 
@@ -924,6 +927,12 @@ classe Applicazione:
         mattonelle_modello.salva_programma(prog, cartella)
         se_stesso.pannello_progetto.aggiorna()
         ritorna se_stesso.apri_file(mattonelle_modello.percorsi_programma(cartella, nome)["json"])
+
+    definisci converti_progetto_py(se_stesso, origine=""):
+        """Apre la finestra che converte un intero progetto Python in un nuovo progetto pytonIta."""
+        d = converti_progetto.DialogoConversione(se_stesso.radice, se_stesso.colori, origine, se_stesso.apri_progetto)
+        d.grab_set()
+        ritorna d
 
     definisci traduci_in_pit(se_stesso, percorso=Nessuno, silenzioso=Falso):
         """Traduce un programma Python classico (.py) in pytonIta (.pit) accanto all'originale, che non viene toccato.

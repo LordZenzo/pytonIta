@@ -43,8 +43,25 @@ RISERVATE = ({v for k, v in KEYWORDS.items() if v != k and v not in ("e", "o")}
              | {"confronta", "caso"})
 
 
+def _percorsi_italiano():
+    """Dove cercare _italiano.py: accanto all'interprete (installazione) o nei sorgenti di sviluppo."""
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))          # .../pitonit
+    return [os.path.join(base, 'Lib', '_italiano.py'),
+            os.path.join(base, 'installazione', 'Lib', '_italiano.py'),
+            SRC_ITALIANO]
+
+
 def carica_builtin():
-    albero = ast.parse(open(SRC_ITALIANO, encoding='utf-8').read())
+    """Tabella inglese -> italiano dei builtin: la legge da _italiano.py senza importarlo."""
+    testo = None
+    for p in _percorsi_italiano():
+        if os.path.exists(p):
+            with open(p, encoding='utf-8') as f:
+                testo = f.read()
+            break
+    if testo is None:
+        raise FileNotFoundError("_italiano.py non trovato: " + "; ".join(_percorsi_italiano()))
+    albero = ast.parse(testo)
     tab = {}
     for nodo in albero.body:
         if isinstance(nodo, ast.Assign) and nodo.targets[0].id in ("FUNZIONI", "ECCEZIONI"):
