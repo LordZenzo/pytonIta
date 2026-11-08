@@ -62,6 +62,7 @@ classe Editor(tk.Frame):
         se_stesso._voci = []
         se_stesso._prefisso_popup = ""
         se_stesso._righe_errore = {}
+        se_stesso.ultima_selezione = Nessuno     # (testo, riga iniziale, riga finale) dell'ultima selezione fatta, per l'assistente
         se_stesso.punti_arresto = set()          # righe con punto di arresto (debugger)
         se_stesso.riga_debug = Nessuno           # riga in cui il programma è fermo
         se_stesso.sui_punti_arresto = Nessuno
@@ -113,6 +114,7 @@ classe Editor(tk.Frame):
         se_stesso.campo_sostituisci.bind("<Escape>", lambda e: se_stesso.chiudi_ricerca())
 
         t = se_stesso.t
+        t.bind("<<Selection>>", se_stesso._ricorda_selezione)
         t.bind("<<Modified>>", se_stesso._alla_modifica)
         t.bind("<KeyPress>", se_stesso._alla_pressione, add="+")
         t.bind("<KeyRelease>", se_stesso._al_rilascio, add="+")
@@ -840,6 +842,32 @@ classe Editor(tk.Frame):
         se_stesso._righe_errore = {}
         se_stesso.t.tag_remove("errore_riga", "1.0", "end")
         se_stesso._ridisegna_numeri()
+
+    definisci _riga_finale_selezione(se_stesso):
+        """Ultima riga toccata dalla selezione (se finisce a inizio riga, quella riga non è inclusa)."""
+        riga, colonna = [int(x) per x in se_stesso.t.index("sel.last").split(".")]
+        prima = int(se_stesso.t.index("sel.first").split(".")[0])
+        ritorna riga - 1 se (colonna == 0 e riga > prima) altrimenti riga
+
+    definisci _ricorda_selezione(se_stesso, evento=Nessuno):
+        """Tiene a mente l'ultima selezione: se si passa alla chat e la selezione sparisce per altri motivi, l'assistente la vede lo stesso."""
+        se se_stesso.t.tag_ranges("sel"):
+            testo_ = se_stesso.t.get("sel.first", "sel.last")
+            se testo_.strip():
+                se_stesso.ultima_selezione = (testo_, int(se_stesso.t.index("sel.first").split(".")[0]), se_stesso._riga_finale_selezione())
+        altrimenti_se se_stesso.focus_get() è se_stesso.t:
+            se_stesso.ultima_selezione = Nessuno          # l'utente l'ha tolta lui: non va più ricordata
+
+    definisci selezione_con_righe(se_stesso):
+        """(testo, riga iniziale, riga finale) della selezione attuale o, se è sparita da poco, dell'ultima fatta; altrimenti Nessuno."""
+        se se_stesso.t.tag_ranges("sel"):
+            testo_ = se_stesso.t.get("sel.first", "sel.last")
+            se testo_.strip():
+                ritorna (testo_, int(se_stesso.t.index("sel.first").split(".")[0]), se_stesso._riga_finale_selezione())
+        ricordata = se_stesso.ultima_selezione
+        se ricordata e ricordata[0] in se_stesso.contenuto():
+            ritorna ricordata
+        ritorna Nessuno
 
     definisci selezione(se_stesso):
         se se_stesso.t.tag_ranges("sel"):

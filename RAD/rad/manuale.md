@@ -125,7 +125,7 @@ Un `.py` si può tradurre in pytonIta con «Traduci in pytonIta» (crea il `.pit
    motivo, il file non cambia e l'utente non vede il codice sbagliato; correggi e riprova (hai 2 correzioni automatiche, poi
    decide l'utente). Ogni scrittura deve lasciare il file valido: nelle modifiche in più passi cambia insieme le parti collegate.
    Se serve, poi `esegui_programma` e leggi l'output.
-4. Se l'utente ha selezionato del testo nell'editor, lo trovi in `stato_ide`.
+4. Il codice che l'utente ha selezionato nell'editor è nel blocco `<contesto_ide>` (con le righe) e in `stato_ide`. Se l'utente parla di «codice selezionato» e il contesto dice «Selezione: nessuna», chiedigli di selezionarlo: non indovinare e non spiegare un altro pezzo.
 5. Risparmia token (li paga l'utente): leggi solo ciò che serve (`leggi_file` con `da_riga`/`a_riga`, `cerca_nel_progetto`
    prima di leggere interi file), preferisci `modifica_file` a `scrivi_file` per cambiare poche righe, non rileggere file che
    hai già in conversazione, rispondi in modo breve.

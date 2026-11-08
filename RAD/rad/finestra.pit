@@ -1120,7 +1120,7 @@ classe Applicazione:
     # ================================================================== AI: scorciatoie
     definisci ai_spiega(se_stesso):
         w = se_stesso._scheda_corrente()
-        se isinstance(w, Editor) e w.selezione().strip():
+        se isinstance(w, Editor) e w.selezione_con_righe():
             se testo(se_stesso.chat) non in [testo(x) per x in se_stesso.corpo.panes()]:
                 se_stesso.mostra_chat()
             se_stesso.chat.chiedi("Spiegami questo codice (selezione nell'editor) e dimmi se vedi problemi.", economico=Vero)
@@ -1264,9 +1264,10 @@ classe Applicazione:
              "programma_in_esecuzione": se_stesso.console.in_esecuzione}
         se isinstance(w, Editor):
             d["riga_cursore"] = w.riga_cursore()
-            sel = w.selezione()
-            se sel:
-                d["selezione"] = sel[:4000]
+            trovata = w.selezione_con_righe()
+            se trovata:
+                d["selezione"] = trovata[0][:4000]
+                d["selezione_righe"] = f"{trovata[1]}-{trovata[2]}"
         d["console_ultime_righe"] = se_stesso.console.t.get("1.0", "end")[-3000:]
         ritorna d
 
@@ -1279,9 +1280,11 @@ classe Applicazione:
         righe = [f"File attivo: {rel}"]
         se isinstance(w, Editor):
             righe.append(f"Riga del cursore: {w.riga_cursore()}")
-            sel = w.selezione()
-            se sel:
-                righe.append("Selezione:\n" + sel[:2500])
+            trovata = w.selezione_con_righe()
+            se trovata:
+                righe.append(f"Selezione (righe {trovata[1]}-{trovata[2]}), è il «codice selezionato» di cui parla l'utente:\n" + trovata[0][:3500])
+            altrimenti:
+                righe.append("Selezione: nessuna (se l'utente parla di «codice selezionato» chiedigli di selezionarlo nell'editor)")
         ritorna "\n".join(righe)
 
     definisci contenuto_aperto(se_stesso, assoluto):

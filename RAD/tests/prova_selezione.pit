@@ -1,0 +1,77 @@
+importa sys, os, tempfile, time, json, threading
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da http.server importa BaseHTTPRequestHandler, HTTPServer
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+
+corpi = []
+classe H(BaseHTTPRequestHandler):
+    definisci log_message(se_stesso, *a): passa
+    definisci do_POST(se_stesso):
+        corpi.append(json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"]))))
+        dati = json.dumps({"stop_reason": "end_turn", "usage": {"input_tokens": 1, "output_tokens": 1}, "content": [{"type": "text", "text": "ok"}]}).encode()
+        se_stesso.send_response(200)
+        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+srv = HTTPServer(("127.0.0.1", 0), H)
+threading.Thread(target=srv.serve_forever, daemon=Vero).start()
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+cfg.imposta("ai.url", f"http://127.0.0.1:{srv.server_address[1]}/v1/messages", notifica=Falso)
+cfg.imposta("ai.chiave_api", "k", notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1300x800+10+10")
+app = Applicazione(radice, cfg)
+cart = os.path.join(tempfile.mkdtemp(), "P")
+Progetto.nuovo(cart, "P", "vuoto")
+Progetto(cart).crea_file("a.py", "x = 1\ny = 2\nz = 3\nprint(x + y + z)\n")
+app.apri_progetto(cart)
+ed = app.apri_file(os.path.join(cart, "a.py"))
+radice.update()
+app.mostra_chat() se testo(app.chat) non in [testo(x) per x in app.corpo.panes()] altrimenti Nessuno
+
+definisci chiedi(domanda):
+    corpi.clear()
+    app.chat.invia(domanda)
+    t0 = time.time()
+    mentre (app.chat.lavoro.is_alive() o non app.chat.eventi.empty()) e time.time() - t0 < 15:
+        radice.update()
+        time.sleep(0.02)
+    radice.update()
+    ritorna corpi[0]["messages"][-1]["content"][0]["text"]
+
+# 1. selezione normale
+ed.t.focus_force(); radice.update()
+ed.t.tag_add("sel", "2.0", "4.0"); radice.update()
+c = chiedi("spiega")
+stampa("selezione attuale nel contesto:", "righe 2-3" in c, "y = 2" in c)
+
+# 2. la selezione sparisce mentre il focus è altrove (per esempio nella chat): l'assistente la vede lo stesso
+ed.t.focus_force(); radice.update()
+ed.t.tag_remove("sel", "1.0", "end"); ed.t.tag_add("sel", "1.0", "2.0"); radice.update()
+app.chat.ingresso.focus_force(); radice.update()
+ed.t.tag_remove("sel", "1.0", "end"); radice.update()
+stampa("tag sparito:", repr(ed.selezione()), "| ricordata:", ed.ultima_selezione è non Nessuno)
+c = chiedi("mi spieghi il codice selezionato")
+stampa("selezione ricordata nel contesto:", "righe 1-1" in c, "x = 1" in c)
+
+# 3. la selezione tolta dall'utente (con il focus nell'editor) non va più ricordata
+ed.t.focus_force(); radice.update()
+ed.t.tag_remove("sel", "1.0", "end"); ed.t.tag_add("sel", "3.0", "4.0"); radice.update()
+ed.t.tag_remove("sel", "1.0", "end"); radice.update()
+stampa("tolta dall'utente: nessuna selezione ricordata:", ed.ultima_selezione è Nessuno)
+c = chiedi("e adesso?")
+stampa("contesto dice che non c'è selezione:", "Selezione: nessuna" in c)
+
+# 4. se il testo selezionato non c'è più nel file, non si manda
+ed.t.focus_force(); radice.update()
+ed.t.tag_add("sel", "4.0", "5.0"); radice.update()
+app.chat.ingresso.focus_force(); radice.update()
+ed.t.tag_remove("sel", "1.0", "end")
+ed.imposta_contenuto("tutto cambiato\n"); radice.update()
+stampa("testo non più nel file -> niente:", ed.selezione_con_righe() è Nessuno)
+srv.shutdown()
+radice.destroy()
