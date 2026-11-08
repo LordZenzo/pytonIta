@@ -185,9 +185,15 @@ definisci principale():
     menu = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "pytonIta")
     desktop = os.path.join(os.environ["USERPROFILE"], "Desktop", "PitStudio.lnk")
     subprocess.run(["cmd", "/c", "rmdir", "/s", "/q", menu], creationflags=SENZA_FINESTRA, capture_output=Vero)
+    # il collegamento sul desktop si toglie solo se punta a questa installazione (potrebbe essercene uno dell'utente con lo stesso nome)
     prova:
-        os.remove(desktop)
-    eccetto OSError:
+        r = subprocess.run(["powershell", "-NoProfile", "-Command",
+                            "(New-Object -ComObject WScript.Shell).CreateShortcut('" + desktop + "').TargetPath"],
+                           capture_output=Vero, text=Vero, creationflags=SENZA_FINESTRA, timeout=30)
+        destinazione = r.stdout.strip().lower()
+        se destinazione e destinazione.startswith(CARTELLA.lower()):
+            os.remove(desktop)
+    eccetto (OSError, subprocess.SubprocessError):
         passa
     # la cartella contiene questo stesso programma: la cancella un processo separato, dopo che siamo usciti
     subprocess.Popen('cmd /c ping -n 3 127.0.0.1 >nul & rmdir /s /q "' + CARTELLA + '"',
