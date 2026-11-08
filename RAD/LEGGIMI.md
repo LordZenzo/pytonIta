@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.7
+
+- **Claude Code con l'abbonamento**: *Strumenti → Apri Claude Code nel progetto* (o il pulsante «⌨ Claude Code» nella chat) apre il Claude Code ufficiale nella cartella del progetto. PitStudio prepara `CLAUDE.md` e `.claude/settings.local.json` (hook locali: copia di sicurezza per «Annulla», controllo sintassi dopo ogni scrittura, registro). L'accesso lo fa l'utente nel programma di Anthropic; PitStudio non tocca credenziali. Vedi la guida, pagina «Claude Code con l'abbonamento».
+- Corretto: due richieste dell'assistente nello stesso secondo potevano sovrascrivere il gruppo di modifiche.
+
 ## Novità della 1.6
 
 - **Prima / dopo**: ogni modifica proposta dall'assistente si vede affiancata (righe tolte e aggiunte, con il «perché»).

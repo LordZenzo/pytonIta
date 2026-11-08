@@ -70,6 +70,37 @@ classe Storia:
             se_stesso._descrizione = descrizione
             se_stesso._prima = se_stesso._fotografa(Vero)
 
+    definisci inizia_persistente(se_stesso, id_richiesta="", descrizione=""):
+        """Come prima_di_modificare, ma lo stato di partenza resta su disco: serve ai processi separati (gli hook di Claude Code),
+        che non condividono la memoria. Una richiesta rimasta aperta (interrotta) viene chiusa prima."""
+        se_stesso.concludi_persistente()
+        se_stesso._prima = Nessuno
+        se_stesso.prima_di_modificare(id_richiesta, descrizione)
+        os.makedirs(se_stesso.base, exist_ok=Vero)
+        con open(os.path.join(se_stesso.base, "in_corso.json"), "w", encoding="utf-8") come f:
+            json.dump({"id": se_stesso._id, "descrizione": se_stesso._descrizione, "prima": se_stesso._prima}, f)
+
+    definisci concludi_persistente(se_stesso):
+        """Chiude la richiesta iniziata con inizia_persistente (se c'è) e ritorna il gruppo di modifiche (o Nessuno)."""
+        percorso = os.path.join(se_stesso.base, "in_corso.json")
+        se non os.path.exists(percorso):
+            ritorna Nessuno
+        prova:
+            con open(percorso, encoding="utf-8") come f:
+                dati = json.load(f)
+        eccetto (OSError, ValueError):
+            dati = Nessuno
+        prova:
+            os.remove(percorso)
+        eccetto OSError:
+            passa
+        se non dati:
+            ritorna Nessuno
+        se_stesso._id = dati.get("id", "")
+        se_stesso._descrizione = dati.get("descrizione", "")
+        se_stesso._prima = dati.get("prima")
+        ritorna se_stesso.concludi()
+
     definisci concludi(se_stesso):
         """Alla fine della richiesta: se qualcosa è cambiato registra il gruppo e lo ritorna (altrimenti Nessuno)."""
         se se_stesso._prima è Nessuno:
@@ -87,6 +118,10 @@ classe Storia:
                   "descrizione": se_stesso._descrizione[:120], "modifiche": modifiche, "annullato": Falso}
         os.makedirs(os.path.join(se_stesso.base, "gruppi"), exist_ok=Vero)
         gruppo["file"] = f"{time.strftime('%Y%m%d-%H%M%S')}_{gruppo['id']}.json"
+        n = 2
+        mentre os.path.exists(os.path.join(se_stesso.base, "gruppi", gruppo["file"])):       # due richieste nello stesso secondo
+            gruppo["file"] = f"{time.strftime('%Y%m%d-%H%M%S')}_{gruppo['id']}_{n}.json"
+            n += 1
         se_stesso._scrivi_gruppo(gruppo)
         se_stesso._pota()
         ritorna gruppo

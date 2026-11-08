@@ -77,6 +77,10 @@ Le copie stanno nel progetto (cartella `.rad/storia`), senza bisogno di git. Si 
 
 I programmi che l'assistente esegue hanno un **limite di memoria** (1024 MB predefiniti) e un massimo di **20 processi**, oltre al tempo massimo: un programma sbagliato che riempie la memoria o si moltiplica viene fermato dal sistema senza bloccare il computer. Gli stessi limiti si possono mettere ai tuoi programmi dalle impostazioni (*Esecuzione*, 0 = nessun limite). Alla chiusura di PitStudio i programmi ancora in corso vengono terminati.
 
+## Senza crediti API: Claude Code
+
+Se hai un abbonamento a Claude ma non crediti per l'API, puoi usare **Claude Code** dentro il progetto: vedi [Claude Code con l'abbonamento](#claude-code).
+
 ## Sicurezza e privacy
 
 - **Conferme**: per default l'assistente chiede il permesso prima di **scrivere file** e prima di **eseguire programmi**; vedi un'anteprima di cosa farà. Eliminare un file chiede sempre conferma. Le conferme si regolano nelle impostazioni.

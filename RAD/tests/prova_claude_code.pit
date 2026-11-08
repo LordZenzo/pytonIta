@@ -1,0 +1,116 @@
+importa sys, os, json, subprocess, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa claude_code
+
+PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
+HOOK = claude_code.SCRIPT_HOOK
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+
+# ================================================================= preparazione del progetto
+d = os.path.join(cartella_temp, "Prova")
+os.makedirs(os.path.join(d, ".claude"))
+os.makedirs(os.path.join(d, ".git"))
+json.dump({"nome": "Prova", "principale": ""}, open(os.path.join(d, "progetto.rad.json"), "w"))
+con open(os.path.join(d, "CLAUDE.md"), "w", encoding="utf-8") come f:
+    f.write("# Note mie\n\nNon toccare questa riga.\n")
+json.dump({"permissions": {"allow": ["Bash(ls)"]}, "hooks": {"Stop": [{"hooks": [{"type": "command", "command": "echo mio"}]}]}},
+          open(os.path.join(d, ".claude", "settings.local.json"), "w"))
+stampa("preparato prima:", claude_code.preparato(d))
+toccati = claude_code.prepara_progetto(d, cfg, "Prova")
+stampa("file toccati:", [os.path.basename(p) per p in toccati])
+dati = json.load(open(os.path.join(d, ".claude", "settings.local.json"), encoding="utf-8"))
+stampa("impostazioni dell'utente conservate:", dati["permissions"] == {"allow": ["Bash(ls)"]}, "| hook dell'utente conservato:", any(h.get("command") == "echo mio" per g in dati["hooks"]["Stop"] per h in g["hooks"]))
+stampa("hook nostri:", {e: lunghezza(g) per e, g in dati["hooks"].items()}, "| matcher:", [g.get("matcher") per g in dati["hooks"]["PostToolUse"]])
+stampa("preparato dopo:", claude_code.preparato(d))
+prima = open(os.path.join(d, "CLAUDE.md"), encoding="utf-8").read()
+claude_code.prepara_progetto(d, cfg, "Prova")
+dopo = open(os.path.join(d, "CLAUDE.md"), encoding="utf-8").read()
+stampa("CLAUDE.md: note dell'utente intatte:", "Non toccare questa riga." in dopo, "| blocco una volta sola:", dopo.count(claude_code.MARCATORE_INIZIO) == 1, "| idempotente:", prima == dopo)
+dati2 = json.load(open(os.path.join(d, ".claude", "settings.local.json"), encoding="utf-8"))
+stampa("hook senza doppioni dopo la seconda preparazione:", {e: lunghezza(g) per e, g in dati2["hooks"].items()})
+stampa(".gitignore:", "settings.local.json" in open(os.path.join(d, ".gitignore"), encoding="utf-8").read())
+stampa("istruzioni con il percorso di pitonit:", claude_code.percorso_pitonit(cfg) in dopo, "| nessun segnaposto rimasto:", "{{pitonit}}" non in dopo)
+rotto = os.path.join(cartella_temp, "Rotto")
+os.makedirs(os.path.join(rotto, ".claude"))
+open(os.path.join(rotto, ".claude", "settings.local.json"), "w").write("{ non e' json")
+prova:
+    claude_code.prepara_progetto(rotto, cfg)
+    stampa("JSON rotto: nessun errore (sbagliato)")
+eccetto ErroreDiValore come e:
+    stampa("JSON rotto -> errore chiaro:", "non è un JSON valido" in testo(e))
+stampa("claude.exe trovato su questo computer:", claude_code.trova_claude(cfg) è non Nessuno)
+
+# ================================================================= gli hook, come li esegue Claude Code
+p = os.path.join(cartella_temp, "ProvaHook")
+os.makedirs(p)
+json.dump({"nome": "H", "principale": ""}, open(os.path.join(p, "progetto.rad.json"), "w"))
+open(os.path.join(p, "vecchio.pit"), "w", encoding="utf-8").write("stampa('uno')\n")
+definisci hook(evento):
+    r = subprocess.run([PITONIT, HOOK], input=json.dumps(evento), capture_output=Vero, text=Vero, encoding="utf-8")
+    ritorna r.returncode, r.stdout.strip(), r.stderr.strip()
+base = {"cwd": p, "session_id": "abc123456"}
+stampa("richiesta:", hook({**base, "hook_event_name": "UserPromptSubmit", "prompt": "Cambia il vecchio e crea il nuovo"}))
+open(os.path.join(p, "nuovo.pit"), "w", encoding="utf-8").write("se x\n    stampa(1)\n")
+open(os.path.join(p, "vecchio.pit"), "w", encoding="utf-8").write("stampa('UNO')\n")
+r = hook({**base, "hook_event_name": "PostToolUse", "tool_name": "Write", "tool_input": {"file_path": os.path.join(p, "nuovo.pit")}})
+stampa("scrittura sbagliata -> exit", r[0], "| avviso a Claude:", "errore di sintassi alla riga 1" in r[2], "| con «»:", "«" in r[2] o "serve dopo" in r[2])
+open(os.path.join(p, "nuovo.pit"), "w", encoding="utf-8").write("se Vero:\n    stampa(1)\n")
+stampa("scrittura giusta -> exit", hook({**base, "hook_event_name": "PostToolUse", "tool_name": "Edit", "tool_input": {"file_path": os.path.join(p, "nuovo.pit")}})[0])
+stampa("file non codice e progetto sconosciuto -> exit", hook({**base, "hook_event_name": "PostToolUse", "tool_name": "Write", "tool_input": {"file_path": os.path.join(p, "note.md")}})[0],
+       hook({"cwd": tempfile.gettempdir(), "hook_event_name": "Stop"})[0])
+stampa("fine richiesta:", hook({**base, "hook_event_name": "Stop"}))
+gruppi = os.listdir(os.path.join(p, ".rad", "storia", "gruppi"))
+g = json.load(open(os.path.join(p, ".rad", "storia", "gruppi", gruppi[0]), encoding="utf-8"))
+stampa("gruppo annullabile:", g["descrizione"], sorted(g["modifiche"]), "| stato in corso rimosso:", non os.path.exists(os.path.join(p, ".rad", "storia", "in_corso.json")))
+righe = [json.loads(x) per x in open(os.path.join(p, ".rad", "ai_registro.jsonl"), encoding="utf-8")]
+stampa("registro:", [(x["tipo"], x.get("esito")) per x in righe], "| motore:", {x.get("motore") per x in righe})
+# una richiesta rimasta aperta si chiude da sola alla successiva
+hook({**base, "hook_event_name": "UserPromptSubmit", "prompt": "prima"})
+open(os.path.join(p, "extra.pit"), "w", encoding="utf-8").write("stampa(3)\n")
+hook({**base, "hook_event_name": "UserPromptSubmit", "prompt": "seconda"})
+stampa("richiesta interrotta chiusa alla successiva:", lunghezza(os.listdir(os.path.join(p, ".rad", "storia", "gruppi"))) == 2)
+
+# ================================================================= dentro PitStudio
+cfg.imposta("claude_code.percorso", "", notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1300x800+10+10")
+app = Applicazione(radice, cfg)
+radice.update()
+avviati = []
+vecchio_avvia = claude_code.avvia
+claude_code.avvia = lambda cartella, claude: avviati.append((cartella, claude))
+avvisi = []
+messagebox.showinfo = lambda t, m, **k: avvisi.append(t)
+app.apri_claude_code()
+stampa("senza progetto non parte:", avviati == [])
+cart = os.path.join(cartella_temp, "InApp")
+Progetto.nuovo(cart, "InApp", "vuoto")
+app.apri_progetto(cart)
+radice.update()
+risposte = []
+messagebox.askyesnocancel = lambda *a, **k: risposte.append("chiesto") o Vero
+app.apri_claude_code()
+stampa("prima volta: chiede e prepara:", risposte, claude_code.preparato(cart), "| avviato in:", os.path.basename(avviati[0][0]) se avviati altrimenti Nessuno)
+risposte.clear()
+app.apri_claude_code()
+stampa("seconda volta: non richiede:", risposte == [], "| avviato di nuovo:", lunghezza(avviati) == 2)
+# file cambiato da Claude Code: l'editor lo ricarica
+f = os.path.join(cart, "principale.pit")
+ed = app.apri_file(f)
+radice.update()
+open(f, "w", encoding="utf-8").write("stampa('scritto da fuori')\n")
+app._sincronizza_file_aperti()
+stampa("editor ricaricato dal disco:", "scritto da fuori" in ed.contenuto())
+# senza claude installato
+claude_code.trova_claude = lambda config=Nessuno: Nessuno
+avviati.clear()
+app.apri_claude_code()
+stampa("claude assente -> spiegazione e niente avvio:", avvisi[-1], avviati == [])
+claude_code.avvia = vecchio_avvia
+radice.destroy()

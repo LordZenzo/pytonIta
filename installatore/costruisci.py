@@ -105,7 +105,7 @@ def costruisci_pacchetti():
                 continue
             scrivi(zr, percorso, "PitStudio/" + rel)
             n_rad += 1
-        scrivi(zr, os.path.join(RAD, "PitStudio.exe"), "PitStudio.exe")     # l'exe sta nella radice, accanto a pitonit        # le immagini della guida sono utili: docs è esclusa, aiuto\immagini è già inclusa
+        scrivi(zr, os.path.join(QUI, "PitStudio.exe"), "PitStudio.exe")     # l'exe sta nella radice, accanto a pitonit        # le immagini della guida sono utili: docs è esclusa, aiuto\immagini è già inclusa
     for z, n in ((core, n_core), (sci, n_sci), (rad, n_rad)):
         print(f"{os.path.basename(z):22} {n:6} file  {os.path.getsize(z) / 1e6:7.1f} MB")
 
@@ -129,7 +129,10 @@ if __name__ == "__main__":
     scrivi_versione()
     subprocess.check_call([os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32", "cmd.exe"), "/c",
                            os.path.join(QUI, "build_exe.cmd")], cwd=QUI)
-    shutil.copy(os.path.join(QUI, "PitStudio.exe"), os.path.join(RAD, "PitStudio.exe"))
+    try:
+        shutil.copy(os.path.join(QUI, "PitStudio.exe"), os.path.join(RAD, "PitStudio.exe"))
+    except PermissionError:
+        print("Nota: RAD\PitStudio.exe è in uso (PitStudio aperto): la copia di sviluppo non è stata aggiornata; il pacchetto usa quella appena compilata.")
     costruisci_pacchetti()
     if "--solo-pacchetti" not in sys.argv:
         costruisci_exe()

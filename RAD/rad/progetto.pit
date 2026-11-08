@@ -12,7 +12,7 @@ da tkinter importa ttk, messagebox, simpledialog, filedialog
 da rad importa form_modello
 
 NOME_MANIFESTO = "progetto.rad.json"
-IGNORA = {"__pycache__", ".git", ".rad", ".idea", ".vscode", "node_modules"}
+IGNORA = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules"}
 ESTENSIONI_CODICE = {".pit"}
 ESTENSIONI_IMMAGINE = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tif", ".tiff"}
 ESTENSIONI_TABELLA = {".csv", ".tsv"}

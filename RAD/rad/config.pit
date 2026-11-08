@@ -52,6 +52,9 @@ PREDEFINITI = {
         "storia": Vero,                  # copie di sicurezza per annullare le modifiche dell'assistente (.rad/storia)
         "registro": Vero,                # registro locale di token e codice generato (.rad/ai_registro.jsonl)
     },
+    "claude_code": {
+        "percorso": "",                  # percorso di claude.exe se non è nel PATH
+    },
     "finestra": {
         "geometria": "1400x860",
         "pannello_sinistro": 270,

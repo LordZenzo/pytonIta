@@ -140,6 +140,11 @@
   "gruppo": "Assistente"
  },
  {
+  "id": "claude-code",
+  "titolo": "Claude Code con l'abbonamento",
+  "gruppo": "Assistente"
+ },
+ {
   "id": "riepilogo",
   "titolo": "Scheda dei comandi (una pagina)",
   "gruppo": "Riferimento"

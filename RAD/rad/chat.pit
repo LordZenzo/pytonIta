@@ -46,8 +46,10 @@ classe PannelloChat(tk.Frame):
         tk.Button(testata, text="Nuova chat", command=se_stesso.nuova_chat).pack(side="right", padx=3, pady=3)
         se_stesso.pulsante_annulla = tk.Button(testata, text="↶ Annulla", command=lambda: se_stesso.ambiente.annulla_ultima_ai(), state="disabled")
         se_stesso.pulsante_annulla.pack(side="right", padx=3, pady=3)
+        se_stesso.pulsante_claude = tk.Button(testata, text="⌨ Claude Code", command=lambda: se_stesso.ambiente.apri_claude_code())
+        se_stesso.pulsante_claude.pack(side="right", padx=3, pady=3)
         se_stesso.var_modello = tk.StringVar(value=se_stesso.config_.ottieni("ai.modello"))
-        se_stesso.selettore = ttk.Combobox(testata, textvariable=se_stesso.var_modello, width=18,
+        se_stesso.selettore = ttk.Combobox(testata, textvariable=se_stesso.var_modello, width=15,
                                            values=se_stesso.config_.ottieni("ai.modelli", []))
         se_stesso.selettore.pack(side="right", padx=3)
         se_stesso.selettore.bind("<<ComboboxSelected>>", se_stesso._cambia_modello)

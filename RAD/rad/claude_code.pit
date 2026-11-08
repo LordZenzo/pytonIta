@@ -1,0 +1,162 @@
+"""Claude Code (l'app ufficiale di Anthropic) usato dentro un progetto PitStudio, con l'abbonamento dell'utente.
+
+PitStudio non fa da tramite: prepara la cartella del progetto (istruzioni sul linguaggio e controlli locali) e apre il programma
+ufficiale `claude`, non modificato, in una finestra di console. L'accesso all'account lo fa l'utente nel programma di Anthropic:
+PitStudio non vede, non legge e non conserva credenziali.
+"""
+importa json
+importa os
+importa shutil
+importa subprocess
+importa sys
+
+da rad importa NOME
+
+MARCATORE_INIZIO = "<!-- pitstudio:inizio -->"
+MARCATORE_FINE = "<!-- pitstudio:fine -->"
+EVENTI = ("UserPromptSubmit", "PostToolUse", "Stop")
+QUI = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_HOOK = os.path.join(QUI, "claude_hook.py")
+ISTRUZIONI = os.path.join(QUI, "claude_code_istruzioni.md")
+
+
+definisci trova_claude(config=Nessuno):
+    """Percorso del programma `claude` (impostazione, PATH, cartella predefinita dell'installazione) o Nessuno."""
+    scelto = (config.ottieni("claude_code.percorso", "") se config altrimenti "").strip()
+    se scelto e os.path.exists(scelto):
+        ritorna scelto
+    trovato = shutil.which("claude")
+    se trovato:
+        ritorna trovato
+    per candidato in (os.path.join(os.path.expanduser("~"), ".local", "bin", "claude.exe"),
+                      os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "claude", "claude.exe")):
+        se os.path.exists(candidato):
+            ritorna candidato
+    ritorna Nessuno
+
+
+definisci percorso_pitonit(config=Nessuno):
+    """pitonit.exe (versione con console, necessaria agli hook: devono poter scrivere su stderr)."""
+    base = ""
+    se config:
+        base = os.path.dirname(config.interprete())
+    altrimenti:
+        base = os.path.dirname(sys.executable)
+    per nome in ("pitonit.exe", "pitonitw.exe"):
+        p = os.path.join(base, nome)
+        se os.path.exists(p):
+            ritorna p
+    ritorna os.path.join(base, "pitonit.exe")
+
+
+definisci _gestore(pitonit):
+    ritorna {"type": "command", "command": pitonit, "args": [SCRIPT_HOOK], "timeout": 60}
+
+
+definisci _e_nostro(gruppo):
+    per h in gruppo.get("hooks", []):
+        se SCRIPT_HOOK.lower() in " ".join(testo(a) per a in h.get("args", [])).lower() o "claude_hook.py" in " ".join(testo(a) per a in h.get("args", [])):
+            ritorna Vero
+    ritorna Falso
+
+
+definisci _aggiornato(gruppo, pitonit):
+    """Vero se l'hook è quello di questa installazione (se PitStudio è stato spostato o aggiornato i percorsi cambiano)."""
+    per h in gruppo.get("hooks", []):
+        se h.get("command") == pitonit e [os.path.normcase(testo(a)) per a in h.get("args", [])] == [os.path.normcase(SCRIPT_HOOK)]:
+            ritorna Vero
+    ritorna Falso
+
+
+definisci preparato(cartella, config=Nessuno):
+    """Vero se il progetto ha già i controlli di PitStudio, con i percorsi di questa installazione."""
+    pitonit = percorso_pitonit(config)
+    p = os.path.join(cartella, ".claude", "settings.local.json")
+    prova:
+        con open(p, encoding="utf-8") come f:
+            hooks = json.load(f).get("hooks", {})
+    eccetto (OSError, ValueError):
+        ritorna Falso
+    ritorna tutti(any(_e_nostro(g) e _aggiornato(g, pitonit) per g in hooks.get(e, [])) per e in EVENTI)
+
+
+definisci _scrivi_impostazioni(cartella, pitonit):
+    """Aggiunge i nostri hook a .claude/settings.local.json senza toccare quelli dell'utente."""
+    cartella_claude = os.path.join(cartella, ".claude")
+    os.makedirs(cartella_claude, exist_ok=Vero)
+    p = os.path.join(cartella_claude, "settings.local.json")
+    dati = {}
+    se os.path.exists(p):
+        prova:
+            con open(p, encoding="utf-8") come f:
+                dati = json.load(f)
+        eccetto (OSError, ValueError):
+            solleva ErroreDiValore(f"{p} non è un JSON valido: correggilo o toglilo e riprova")
+    hooks = dati.setdefault("hooks", {})
+    per evento in EVENTI:
+        gruppi = [g per g in hooks.get(evento, []) se non _e_nostro(g)]
+        gruppo = {"hooks": [_gestore(pitonit)]}
+        se evento == "PostToolUse":
+            gruppo["matcher"] = "Write|Edit|MultiEdit"
+        gruppi.append(gruppo)
+        hooks[evento] = gruppi
+    con open(p, "w", encoding="utf-8") come f:
+        json.dump(dati, f, indent=2, ensure_ascii=Falso)
+    ritorna p
+
+
+definisci testo_istruzioni(pitonit):
+    con open(ISTRUZIONI, encoding="utf-8") come f:
+        ritorna f.read().replace("{{pitonit}}", pitonit)
+
+
+definisci _scrivi_claude_md(cartella, pitonit, nome_progetto):
+    """Mette (o aggiorna) il blocco di PitStudio in CLAUDE.md, lasciando intatto il resto del file."""
+    p = os.path.join(cartella, "CLAUDE.md")
+    blocco = f"{MARCATORE_INIZIO}\n{testo_istruzioni(pitonit).rstrip()}\n{MARCATORE_FINE}\n"
+    se os.path.exists(p):
+        con open(p, encoding="utf-8") come f:
+            attuale = f.read()
+        i, j = attuale.find(MARCATORE_INIZIO), attuale.find(MARCATORE_FINE)
+        se i >= 0 e j > i:
+            nuovo = attuale[:i] + blocco.rstrip("\n") + attuale[j + lunghezza(MARCATORE_FINE):]
+        altrimenti:
+            nuovo = attuale.rstrip("\n") + "\n\n" + blocco
+    altrimenti:
+        nuovo = f"# {nome_progetto}\n\n" + blocco
+    con open(p, "w", encoding="utf-8", newline="\n") come f:
+        f.write(nuovo)
+    ritorna p
+
+
+definisci _ignora_in_git(cartella):
+    """Se il progetto è un repository git, tiene fuori dal repository le impostazioni locali di Claude Code."""
+    se non os.path.isdir(os.path.join(cartella, ".git")):
+        ritorna Falso
+    p = os.path.join(cartella, ".gitignore")
+    riga = ".claude/settings.local.json"
+    attuale = ""
+    se os.path.exists(p):
+        con open(p, encoding="utf-8") come f:
+            attuale = f.read()
+        se riga in attuale.splitlines():
+            ritorna Falso
+    con open(p, "a", encoding="utf-8", newline="\n") come f:
+        f.write(("" se attuale.endswith("\n") o non attuale altrimenti "\n") + riga + "\n")
+    ritorna Vero
+
+
+definisci prepara_progetto(cartella, config=Nessuno, nome_progetto=""):
+    """Crea/aggiorna CLAUDE.md e .claude/settings.local.json. Ritorna l'elenco dei file toccati."""
+    pitonit = percorso_pitonit(config)
+    toccati = [_scrivi_claude_md(cartella, pitonit, nome_progetto o os.path.basename(cartella)),
+               _scrivi_impostazioni(cartella, pitonit)]
+    se _ignora_in_git(cartella):
+        toccati.append(os.path.join(cartella, ".gitignore"))
+    ritorna toccati
+
+
+definisci avvia(cartella, claude):
+    """Apre il Claude Code ufficiale in una nuova console, nella cartella del progetto."""
+    flag = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+    ritorna subprocess.Popen(["cmd.exe", "/k", claude], cwd=cartella, creationflags=flag)

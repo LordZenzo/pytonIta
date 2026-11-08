@@ -273,6 +273,7 @@ classe Console(tk.Frame):
         se se_stesso.config_.ottieni("esecuzione.pulisci_console", Vero):
             se_stesso.pulisci()
         se_stesso._errori_recenti = ""
+        se_stesso._visto_output = Falso
         se_stesso._cartella_esecuzione = cartella
         se_stesso._e_python = any(testo(a).lower().endswith((".py", ".pyw")) per a in argomenti)
         se_stesso.scrivi(f"▶ {descrizione o ' '.join(argomenti)}\n", "info")
@@ -317,6 +318,7 @@ classe Console(tk.Frame):
             se tipo_ == "out" e se_stesso.gestore_debug:
                 dati = se_stesso._estrai_eventi_debug(dati)
             se tipo_ in ("out", "err") e dati:
+                se_stesso._visto_output = Vero
                 se_stesso.scrivi(dati, tipo_)
                 se tipo_ == "err":
                     se_stesso._errori_recenti = (getattr(se_stesso, "_errori_recenti", "") + dati)[-6000:]
@@ -328,6 +330,10 @@ classe Console(tk.Frame):
                 codice, secondi = dati
                 se codice == 0:
                     se_stesso.scrivi(f"\n✔ terminato in {secondi} s\n", "ok")
+                    se non getattr(se_stesso, "_visto_output", Vero):
+                        se_stesso.scrivi("💡 Il programma non ha stampato nulla. Se il file contiene solo funzioni o classi (un modulo, una libreria), "
+                                         "non c'è niente da eseguire: lancia il file che le usa, per esempio uno di prova, oppure imposta come principale "
+                                         "il file giusto (clic destro sul file → Imposta come principale).\n", "suggerimento")
                 altrimenti:
                     se_stesso.scrivi(f"\n✖ terminato con codice {codice} ({secondi} s)\n", "err")
                     aiuto = Nessuno

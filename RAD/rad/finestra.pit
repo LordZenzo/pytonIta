@@ -12,6 +12,7 @@ da rad.config importa Configurazione
 da rad.editor importa Editor, linguaggio_di
 da rad importa registro_ai
 da rad.storia importa Storia
+da rad importa claude_code
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
 da rad.progetto importa Progetto, PannelloProgetto, tipo_file
@@ -234,6 +235,7 @@ classe Applicazione:
         strumenti.add_command(label="Impostazioni…", command=se_stesso.impostazioni)
         strumenti.add_command(label="Chiedi all'AI di spiegare il codice selezionato", command=se_stesso.ai_spiega)
         strumenti.add_command(label="Chiedi all'AI di correggere l'ultimo errore", command=se_stesso.ai_correggi)
+        strumenti.add_command(label="Apri Claude Code nel progetto (con il tuo abbonamento)…", command=se_stesso.apri_claude_code)
         strumenti.add_command(label="Annulla l'ultima modifica dell'assistente", command=se_stesso.annulla_ultima_ai)
         strumenti.add_command(label="Cronologia delle modifiche dell'assistente…", command=se_stesso.cronologia_ai)
         strumenti.add_command(label="Statistiche dell'assistente (token, codice valido)…", command=se_stesso.statistiche_ai)
@@ -1130,6 +1132,69 @@ classe Applicazione:
             se_stesso.mostra_chat()
         se_stesso.chat.chiedi("L'ultima esecuzione ha dato un errore (vedi la console con stato_ide). "
                               "Trova la causa, correggi il codice e verifica eseguendolo.")
+
+    # ---- Claude Code (app ufficiale di Anthropic, con l'abbonamento dell'utente)
+    definisci apri_claude_code(se_stesso):
+        """Prepara il progetto (istruzioni e controlli) e apre il Claude Code ufficiale in una nuova console."""
+        se non se_stesso.progetto:
+            se_stesso.info("Apri un progetto: Claude Code lavora nella cartella del progetto.")
+            ritorna
+        claude = claude_code.trova_claude(se_stesso.config_)
+        se non claude:
+            messagebox.showinfo("Claude Code non trovato",
+                                "Non trovo il programma «claude» sul computer.\n\nInstalla Claude Code dal sito ufficiale di Anthropic "
+                                "(code.claude.com) ed esegui «claude» una volta in un terminale per accedere con il tuo account; poi riprova.\n\n"
+                                "Se è installato in un posto insolito, scrivi il percorso di claude.exe in config.json (claude_code.percorso).",
+                                parent=se_stesso.radice)
+            ritorna
+        cartella = se_stesso.progetto.cartella
+        se non claude_code.preparato(cartella, se_stesso.config_):
+            scelta = messagebox.askyesnocancel(
+                "Claude Code nel progetto",
+                "PitStudio può preparare questo progetto per Claude Code:\n\n"
+                "• CLAUDE.md: spiega a Claude che i file .pit usano parole chiave italiane e come eseguirli;\n"
+                "• .claude/settings.local.json: controlli locali (solo sul tuo computer) che\n"
+                "     – fotografano i file a ogni richiesta, così puoi usare «Annulla» di PitStudio,\n"
+                "     – controllano la sintassi dei .pit/.py dopo ogni scrittura e avvisano Claude se è sbagliata.\n\n"
+                "Non vengono inviati dati a nessuno e PitStudio non tocca il tuo accesso a Claude.\n\n"
+                "Sì = prepara e apri    No = apri senza preparare    Annulla = niente",
+                parent=se_stesso.radice)
+            se scelta è Nessuno:
+                ritorna
+            se scelta:
+                prova:
+                    toccati = claude_code.prepara_progetto(cartella, se_stesso.config_, se_stesso.progetto.nome)
+                eccetto (OSError, ErroreDiValore) come errore:
+                    messagebox.showerror("Claude Code", f"Non riesco a preparare il progetto:\n{errore}", parent=se_stesso.radice)
+                    ritorna
+                se_stesso.pannello_progetto.aggiorna()
+                se_stesso.info("Progetto preparato per Claude Code: " + ", ".join(os.path.basename(p) per p in toccati))
+        prova:
+            claude_code.avvia(cartella, claude)
+        eccetto OSError come errore:
+            messagebox.showerror("Claude Code", f"Non riesco ad avviare Claude Code:\n{errore}", parent=se_stesso.radice)
+            ritorna
+        se_stesso.info("Claude Code avviato in una nuova finestra. Le modifiche ai file compaiono qui da sole.")
+        se non getattr(se_stesso, "_claude_code_attivo", Falso):
+            se_stesso._claude_code_attivo = Vero
+            se_stesso._sincronizza_file_aperti()
+
+    definisci _sincronizza_file_aperti(se_stesso):
+        """Rilegge i file aperti cambiati su disco da un programma esterno (Claude Code) e tiene aggiornato «Annulla»."""
+        se non getattr(se_stesso, "_claude_code_attivo", Falso):
+            ritorna
+        cambiato = Falso
+        per w in lista(se_stesso.schede.values()):
+            se isinstance(w, Editor):
+                prova:
+                    cambiato = w.ricarica_se_cambiato_su_disco() o cambiato
+                eccetto Exception:
+                    passa
+        se se_stesso.storia e se_stesso.chat:
+            se_stesso.chat.aggiorna_annulla()
+        se cambiato:
+            se_stesso.pannello_progetto.aggiorna()
+        se_stesso.radice.after(2500, se_stesso._sincronizza_file_aperti)
 
     # ---- annullare le modifiche dell'assistente
     definisci ripristina_file(se_stesso, assoluto, dati):
