@@ -27,6 +27,8 @@ I progetti recenti compaiono nel menu *File → Progetti recenti* e nella scherm
 
 ## Le librerie del progetto
 
+![La scheda Librerie](immagini/librerie.png)
+
 A sinistra, accanto alla scheda **Progetto**, la scheda **Librerie** mostra tutte le librerie italiane divise per categoria, ognuna con una breve descrizione. Spunta la casella per **attivare** una libreria nel progetto (la scelta si salva con il progetto): le librerie attive compaiono sempre tra i suggerimenti dell'editor e i loro nomi si completano anche senza `importa`. Un **doppio clic** inserisce la riga `importa …` in testa al file aperto (in un `.py` inserisce l'`import` inglese). Il campo di ricerca filtra per nome o descrizione; «solo spuntate» mostra solo quelle attive. Le librerie segnate con ⚠ non sono installate (le scientifiche sono un componente facoltativo dell'installazione).
 
 ## Cercare nel progetto

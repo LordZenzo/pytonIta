@@ -48,6 +48,8 @@ Premi **F6** (o il pulsante con l'insetto 🐞 nella barra). Il programma parte 
 
 Vedi subito che `totale / lunghezza(voti)` vale 7.5: il `+ 1` è il bug!
 
+![Il pannello Debug](immagini/debugger.png)
+
 ## I comandi
 
 | Pulsante | Tasto | Cosa fa |

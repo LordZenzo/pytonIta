@@ -1,0 +1,150 @@
+importa sys, os, tempfile, time, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+IMMAGINI = os.path.join(QUI, "..", "aiuto", "immagini")
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+cfg.imposta("tema", "scuro", notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1400x860+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "Rubrica")
+Progetto.nuovo(cart, "Rubrica", "finestra")
+p = Progetto(cart)
+p.crea_file("risorse/contatti.json", '{"Anna": "333 1234567", "Luca": "347 7654321", "Sara": {"telefono": "320 1112223", "citta": "Roma"}}')
+p.crea_file("contatti.pit", '''"""Funzioni per la rubrica."""
+importa formato_json
+importa matematica
+
+
+definisci carica(percorso):
+    con apri(percorso, codifica="utf-8") come f:
+        ritorna formato_json.carica(f)
+
+
+classe Persona:
+    definisci __inizializza__(se_stesso, nome, eta):
+        se_stesso.nome = nome
+        se_stesso.eta = eta
+
+    definisci saluta(se_stesso):
+        # un commento
+        se se_stesso.eta >= 18:
+            stampa(f"Ciao {se_stesso.nome}, sei maggiorenne", Vero)
+        altrimenti:
+            stampa("Ciao piccolo", se_stesso.nome)
+''')
+p.crea_file("calcola.pit", '''definisci media(voti):
+    totale = 0
+    per voto in voti:
+        totale += voto
+    ritorna totale / lunghezza(voti)
+
+pagella = [6, 7, 8, 9]
+stampa("Media:", media(pagella))
+''')
+p.crea_file("errore.pit", '''conto = 10
+stampa("Il conto è", cont)
+''')
+p.manifesto["librerie"] = ["formato_json", "matematica"]
+p.manifesto["principale"] = "calcola.pit"
+p.salva_manifesto()
+app.apri_progetto(cart)
+radice.update()
+
+definisci pausa(n=0.4):
+    radice.update(); time.sleep(n); radice.update()
+
+definisci aspetta_che(condizione, secondi=15):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione():
+            ritorna Vero
+        time.sleep(0.03)
+    ritorna Falso
+
+definisci foto(nome, widget=Nessuno):
+    pausa()
+    w = widget o radice
+    x, y = w.winfo_rootx(), w.winfo_rooty()
+    img = ImageGrab.grab(bbox=(x, y, x + w.winfo_width(), y + w.winfo_height()))
+    img.save(os.path.join(IMMAGINI, nome))
+    stampa("salvata", nome, img.size)
+
+# ---- chat dimostrativa
+app.chat.t.configure(state="normal")
+app.chat.t.insert("end", "\n")
+app.chat.t.configure(state="disabled")
+app.chat._scrivi("Tu\n", "etichetta_utente")
+app.chat._scrivi("Perché il programma errore.pit non funziona?\n", "utente")
+app.chat._scrivi("Assistente\n", "etichetta_ai")
+app.chat._gestisci("strumento", {"nome": "esegui_programma", "parametri": {"file": "errore.pit"}})
+app.chat._gestisci("risultato", {"nome": "esegui_programma", "testo": "ErroreDiNome: il nome 'cont' non è definito", "errore": Vero, "secondi": 0.12})
+app.chat._gestisci("testo", "Hai scritto `cont` invece di `conto`: è un errore di battitura. Lo correggo:\n```pit\nconto = 10\nstampa(\"Il conto è\", conto)\n```")
+pausa()
+
+# ---- console con errore e suggerimento
+errore = os.path.join(cart, "errore.pit")
+app.apri_file(errore)
+app.esegui_file(errore)
+aspetta_che(lambda: non app.console.in_esecuzione, 10)
+pausa(0.6)
+foto("console.png", app.console)
+foto("assistente.png", app.chat)
+
+# ---- editor con suggerimenti
+ed = app.apri_file(os.path.join(cart, "contatti.pit"))
+ed.vai_a(18, 20)
+ed.t.insert("end", "\npersona = Persona('Anna', 30)\nlis")
+ed.t.mark_set("insert", "end-1c")
+pausa()
+ed.suggerisci(forza=Vero)
+pausa()
+foto("editor.png", app.centro)
+ed.chiudi_suggerimenti()
+
+# ---- progetti e librerie (colonna di sinistra)
+app.mostra_pannello_sinistro("progetto")
+app.pannello_progetto.albero.selection_set(app.pannello_progetto.albero.get_children()[0])
+foto("progetti.png", app.sinistra)
+app.mostra_pannello_sinistro("librerie")
+app.pannello_librerie.albero.selection_set("lib:matematica")
+app.pannello_librerie.albero.see("lib:matematica")
+foto("librerie.png", app.sinistra)
+app.mostra_pannello_sinistro("progetto")
+
+# ---- debugger
+calcola = os.path.join(cart, "calcola.pit")
+e2 = app.apri_file(calcola)
+radice.update()
+e2.vai_a(5)
+e2.alterna_punto_arresto(5)
+app.debug.avvia(calcola)
+aspetta_che(lambda: app.debug.fermo)
+app.debug.aggiungi_osservata("totale / (voto - 5)")
+aspetta_che(lambda: app.debug.pannello.osservate.get_children() e app.debug.pannello.osservate.item(app.debug.pannello.osservate.get_children()[0], "values")[0] != "…")
+foto("debugger.png", app.centro)
+app.debug.comando("ferma")
+aspetta_che(lambda: non app.debug.attiva)
+
+# ---- finestra intera: interfaccia
+app.apri_file(calcola)
+app.esegui_file(calcola)
+aspetta_che(lambda: non app.console.in_esecuzione, 10)
+pausa(0.6)
+foto("interfaccia.png")
+
+# ---- progettista e JSON
+w = app.apri_file(os.path.join(cart, "principale.form.json"))
+w.seleziona(["pulsante1"])
+foto("progettista.png")
+j = app.apri_file(os.path.join(cart, "risorse", "contatti.json"))
+foto("risorse-json.png")
+radice.destroy()

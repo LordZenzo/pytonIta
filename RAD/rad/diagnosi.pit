@@ -135,7 +135,11 @@ definisci analizza(testo_errori, cartella=Nessuno, linguaggio_py=Falso):
                 aiuto = f"«{nome}» è una libreria: scrivi «importa {nome}» o, in italiano, «importa {LIBRERIE_ESTERNE[nome]}»."
             altrimenti:
                 vicino = _vicino(nome, _nomi_noti(percorso) - {nome}) se percorso altrimenti Nessuno
-                se vicino e "Forse intendevi" non in messaggio:
+                suggerito = re.search(r"Forse intendevi: '([^']+)'", messaggio)
+                se suggerito:
+                    aiuto = (f"Probabile errore di battitura: «{nome}» non esiste, volevi scrivere «{suggerito.group(1)}»? "
+                             "Controlla anche maiuscole e minuscole.")
+                altrimenti_se vicino:
                     aiuto = f"Il nome «{nome}» non esiste: forse volevi scrivere «{vicino}»?"
                 altrimenti:
                     aiuto = (f"Il nome «{nome}» non è stato definito. Controlla di averlo scritto uguale (maiuscole e minuscole contano), "

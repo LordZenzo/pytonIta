@@ -242,7 +242,7 @@ classe Applicazione:
         aiuto.add_command(label="Riferimento del linguaggio pytonIta", command=lambda: se_stesso.apri_aiuto("linguaggio"))
         aiuto.add_command(label="Apri la guida nel browser", command=lambda: se_stesso.apri_aiuto("@browser"))
         aiuto.add_separator()
-        aiuto.add_command(label=f"Informazioni su {NOME}", command=lambda: dialoghi.informazioni(se_stesso.radice))
+        aiuto.add_command(label=f"Informazioni su {NOME}", command=lambda: dialoghi.informazioni(se_stesso.radice, se_stesso.colori, lambda: se_stesso.apri_aiuto()))
         barra.add_cascade(label="Aiuto", menu=aiuto)
         se_stesso._aggiorna_recenti()
 

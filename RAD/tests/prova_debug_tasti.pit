@@ -1,0 +1,117 @@
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+
+cartella_temp = tempfile.mkdtemp()
+tema_scelto = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti "scuro"
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+cfg.imposta("tema", tema_scelto, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1300x860+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "TastiDebug")
+Progetto.nuovo(cart, "TastiDebug", "vuoto")
+p = Progetto(cart)
+p.crea_file("principale.pit", '''definisci somma(a, b):
+    r = a + b
+    ritorna r
+
+
+nome = leggi("Nome? ")
+totale = 0
+per i in intervallo(3):
+    totale = somma(totale, i)
+    stampa("giro", i, totale)
+stampa("ciao", nome, totale)
+''')
+p.crea_file("classico.py", '''def quadrato(n):
+    q = n * n
+    return q
+
+for k in range(3):
+    print("k =", k, quadrato(k))
+print("fine")
+''')
+p.manifesto["principale"] = "principale.pit"
+p.salva_manifesto()
+app.apri_progetto(cart)
+radice.update()
+
+definisci aspetta_che(condizione, secondi=15):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione():
+            ritorna Vero
+        time.sleep(0.03)
+    ritorna Falso
+
+definisci tasto(widget, sequenza, **kw):
+    widget.focus_force()
+    radice.update()
+    widget.event_generate(sequenza, **kw)
+    radice.update()
+
+definisci foto(nome):
+    radice.update(); time.sleep(0.4); radice.update()
+    x, y = radice.winfo_rootx(), radice.winfo_rooty()
+    ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(tempfile.gettempdir(), nome))
+
+pit = os.path.join(cart, "principale.pit")
+ed = app.apri_file(pit)
+radice.update()
+# --- punto di arresto con F9 e con il clic sul margine
+ed.vai_a(9)
+tasto(ed.t, "<F9>")
+stampa("F9 -> punti:", sorted(ed.punti_arresto))
+info = ed.t.dlineinfo("10.0")
+tasto(ed.num, "<Button-1>", x=6, y=info[1] + 4)
+stampa("clic margine riga 10 -> punti:", sorted(ed.punti_arresto))
+tasto(ed.num, "<Button-1>", x=6, y=info[1] + 4)
+stampa("secondo clic toglie:", sorted(ed.punti_arresto))
+# --- F6 avvia; il programma chiede un nome (leggi) prima di arrivare al punto di arresto
+tasto(ed.t, "<F6>")
+stampa("debug avviato:", app.debug.attiva, "| fermo subito?", aspetta_che(lambda: app.debug.fermo, 2))
+app.console.ingresso.insert(0, "Anna")
+app.console._invia()
+stampa("dopo leggi si ferma al punto 9:", aspetta_che(lambda: app.debug.fermo), ed.riga_debug)
+foto("tasti_" + tema_scelto + ".png")
+# --- F10 passo, F11 entra, Shift-F11 esci, F5 continua
+tasto(ed.t, "<F10>")
+aspetta_che(lambda: app.debug.fermo)
+stampa("F10 ->", ed.riga_debug)
+tasto(ed.t, "<F11>")
+aspetta_che(lambda: app.debug.fermo)
+stampa("F11 ->", ed.riga_debug)
+tasto(ed.t, "<Shift-F11>")
+aspetta_che(lambda: app.debug.fermo)
+stampa("Maiusc+F11 ->", ed.riga_debug)
+tasto(ed.t, "<F5>")
+stampa("F5 prosegue, si ferma di nuovo:", aspetta_che(lambda: app.debug.fermo), ed.riga_debug)
+tasto(ed.t, "<Shift-F5>")
+stampa("Maiusc+F5 ferma:", aspetta_che(lambda: non app.debug.attiva))
+radice.update()
+stampa("pannello debug nascosto dopo lo stop:", str(app.debug.pannello) non in [testo(x) per x in app.centro.panes()])
+# --- file .py
+py = os.path.join(cart, "classico.py")
+edp = app.apri_file(py)
+radice.update()
+edp.vai_a(6)
+tasto(edp.t, "<F9>")
+app.debug.avvia(py)
+stampa("py fermo:", aspetta_che(lambda: app.debug.fermo), edp.riga_debug, [app.debug.pannello.variabili.item(i, "values")[:2] per i in app.debug.pannello.variabili.get_children()][:4])
+app.debug.comando("continua"); aspetta_che(lambda: app.debug.fermo)
+stampa("py secondo giro:", [app.debug.pannello.variabili.item(i, "values")[:2] per i in app.debug.pannello.variabili.get_children() se app.debug.pannello.variabili.item(i, "values")[0] in ("k",)])
+app.debug.comando("ferma"); aspetta_che(lambda: non app.debug.attiva)
+# --- pannello librerie nel tema scelto
+app.mostra_pannello_sinistro("librerie")
+app.pannello_librerie.attiva("matematica")
+app.pannello_librerie.albero.selection_set("lib:matematica")
+radice.update()
+foto("librerie_" + tema_scelto + ".png")
+stampa("fine prova")
+radice.destroy()

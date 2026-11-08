@@ -44,14 +44,14 @@ classe PannelloDebug(tk.Frame):
         se_stesso.variabili.heading("nome", text="Variabile")
         se_stesso.variabili.heading("valore", text="Valore")
         se_stesso.variabili.heading("tipo", text="Tipo")
-        se_stesso.variabili.column("nome", width=110, stretch=Falso)
-        se_stesso.variabili.column("valore", width=220, stretch=Vero)
-        se_stesso.variabili.column("tipo", width=70, stretch=Falso)
+        se_stesso.variabili.column("nome", width=90, minwidth=60, stretch=Falso)
+        se_stesso.variabili.column("valore", width=150, minwidth=60, stretch=Vero)
+        se_stesso.variabili.column("tipo", width=60, minwidth=40, stretch=Falso)
         sb = ttk.Scrollbar(a, orient="vertical", command=se_stesso.variabili.yview)
         se_stesso.variabili.configure(yscrollcommand=sb.set)
         sb.pack(side="right", fill="y")
         se_stesso.variabili.pack(fill="both", expand=Vero)
-        se_stesso.corpo.add(a, minsize=200, stretch="always")
+        se_stesso.corpo.add(a, minsize=220, stretch="always", width=330)
 
         b = tk.Frame(se_stesso.corpo)
         tk.Label(b, text="Pila delle chiamate", anchor="w", font=("Segoe UI", 9)).pack(fill="x", padx=4)
@@ -59,7 +59,7 @@ classe PannelloDebug(tk.Frame):
         se_stesso.pila.pack(fill="both", expand=Vero)
         se_stesso.pila.bind("<<ListboxSelect>>", se_stesso._scelta_pila)
         se_stesso._etichetta_pila = b.winfo_children()[0]
-        se_stesso.corpo.add(b, minsize=150, stretch="never", width=230)
+        se_stesso.corpo.add(b, minsize=140, stretch="never", width=200)
 
         c = tk.Frame(se_stesso.corpo)
         se_stesso._etichetta_osserva = tk.Label(c, text="Espressioni osservate (Invio per aggiungere)", anchor="w", font=("Segoe UI", 9))
@@ -75,7 +75,7 @@ classe PannelloDebug(tk.Frame):
         se_stesso.osservate.column("valore", width=140)
         se_stesso.osservate.pack(fill="both", expand=Vero, padx=4, pady=(2, 0))
         se_stesso.osservate.bind("<Delete>", se_stesso._rimuovi_osservata)
-        se_stesso.corpo.add(c, minsize=200, stretch="never", width=300)
+        se_stesso.corpo.add(c, minsize=180, stretch="never", width=260)
         se_stesso._frame_pila = []
         se_stesso.attiva_comandi(Falso)
 

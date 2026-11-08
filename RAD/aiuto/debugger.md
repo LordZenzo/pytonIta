@@ -2,6 +2,8 @@
 
 Il debugger esegue il programma sotto il tuo controllo: lo **fermi** dove vuoi, **guardi** le variabili e **avanzi** una riga alla volta. È lo strumento giusto quando il programma parte ma fa qualcosa di sbagliato. Una spiegazione con un esempio è nella [lezione 12](#lezione-12).
 
+![Il pannello Debug](immagini/debugger.png)
+
 ## Punti di arresto
 
 - **Clic sul margine** a sinistra del numero di riga, oppure **F9** con il cursore sulla riga: compare un pallino rosso. Un altro clic lo toglie.

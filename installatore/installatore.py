@@ -211,9 +211,47 @@ class Opzioni:
         self.desktop = False
 
 
+FILE_DA_CONTROLLARE = ("PitStudio.exe", os.path.join("pitonit", "pitonit.exe"), os.path.join("pitonit", "pitonitw.exe"),
+                       os.path.join("pitonit", "python313.dll"), os.path.join("pitonit", "DLLs", "_tkinter.pyd"))
+
+
+def in_uso(cartella):
+    """File di una installazione esistente che non si possono sostituire perché il programma è aperto."""
+    bloccati = []
+    for rel in FILE_DA_CONTROLLARE:
+        percorso = os.path.join(cartella, rel)
+        if os.path.exists(percorso):
+            try:
+                with open(percorso, "ab"):
+                    pass
+            except OSError:
+                bloccati.append(rel)
+    return bloccati
+
+
+def versione_installata(cartella):
+    """Versione di pytonIta già installata in cartella (o None)."""
+    try:
+        with open(os.path.join(cartella, "installazione.json"), encoding="utf-8") as f:
+            return json.load(f).get("versione")
+    except (OSError, ValueError):
+        return None
+
+
+class ProgrammaInUso(Exception):
+    pass
+
+
 def installa(op, avanza, scrivi):
     """Esegue l'installazione. avanza(frazione, testo) e scrivi(riga) aggiornano l'interfaccia."""
     cartella = os.path.abspath(op.cartella)
+    bloccati = in_uso(cartella)
+    if bloccati:
+        raise ProgrammaInUso("pytonIta è in esecuzione: chiudi PitStudio e i programmi pitonit aperti, poi riprova. (File in uso: "
+                             + ", ".join(bloccati) + ")")
+    precedente = versione_installata(cartella)
+    if precedente:
+        scrivi(f"Aggiorno l'installazione esistente (versione {precedente}) alla {VERSIONE}")
     scelti = ["pitonit"] + (["rad"] if op.rad else []) + (["scientifiche"] if op.scientifiche else [])
     totale = 0
     infos = {}
@@ -520,6 +558,8 @@ def avvia_gui():
             try:
                 stato["cartella"] = installa(op, avanza, log)
                 esito = None
+            except ProgrammaInUso as errore:
+                esito = str(errore)
             except Exception:
                 esito = traceback.format_exc()
             stato["installando"] = False
@@ -544,6 +584,12 @@ def avvia_gui():
                 return
             if os.path.exists(c) and os.listdir(c) and not os.path.exists(os.path.join(c, "installazione.json")):
                 if not messagebox.askyesno(NOME, f"La cartella\n{c}\nnon è vuota e non contiene una installazione di pytonIta.\nInstallare comunque qui?", parent=radice):
+                    return
+        if n == 2:      # sta per partire l'installazione: niente programmi aperti dentro la cartella
+            c = v_cartella.get().strip()
+            while in_uso(os.path.abspath(c)):
+                if not messagebox.askretrycancel(NOME, "PitStudio (o un programma pitonit) è aperto in questa cartella.\n"
+                                                 "Chiudilo e premi Riprova per continuare.", parent=radice):
                     return
         if n == 4:
             if not (stato["finito"] and stato["cartella"]):

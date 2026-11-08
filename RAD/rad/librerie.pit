@@ -11,7 +11,7 @@ da rad importa parole
 
 # modulo italiano -> (categoria, descrizione)
 CATALOGO = {
-    "matematica": ("Calcolo", "Funzioni matematiche: radice quadrata, seno, logaritmi, pi greco."),
+    "matematica": ("Calcolo", "Radice quadrata, seno, logaritmi, pi greco."),
     "matematica_complessa": ("Calcolo", "Matematica con i numeri complessi."),
     "statistica": ("Calcolo", "Media, mediana, varianza e altre statistiche di base."),
     "decimali": ("Calcolo", "Numeri decimali esatti, adatti ai calcoli di denaro."),
@@ -19,7 +19,7 @@ CATALOGO = {
     "casuale": ("Calcolo", "Numeri casuali, scelte e rimescolamenti."),
     "numerico": ("Scienza e dati", "numpy: matrici e calcolo numerico veloce."),
     "tabelle": ("Scienza e dati", "pandas: tabelle di dati, analisi e filtri."),
-    "scienza": ("Scienza e dati", "scipy: algoritmi scientifici, ottimizzazione, statistica avanzata."),
+    "scienza": ("Scienza e dati", "scipy: ottimizzazione, integrali, statistica avanzata."),
     "grafici": ("Scienza e dati", "matplotlib: grafici e diagrammi."),
     "array_numerici": ("Scienza e dati", "Vettori compatti di numeri dello stesso tipo."),
     "immagini": ("Immagini e documenti", "PIL: apre, modifica e salva immagini."),
@@ -27,14 +27,14 @@ CATALOGO = {
     "colori_conversioni": ("Immagini e documenti", "Conversioni tra sistemi di colore (RGB, HSV…)."),
     "tartaruga": ("Immagini e documenti", "Disegni con la tartaruga, per imparare a programmare."),
     "interfaccia": ("Finestre", "tkinter: finestre, pulsanti, caselle di testo."),
-    "foglio_tk": ("Finestre", "tksheet: tabelle modificabili da inserire nelle finestre."),
-    "sistema": ("Sistema", "Argomenti del programma, uscita, informazioni sull'interprete."),
-    "sistema_operativo": ("Sistema", "Cartelle, variabili d'ambiente e operazioni del sistema."),
+    "foglio_tk": ("Finestre", "tksheet: tabelle modificabili nelle finestre."),
+    "sistema": ("Sistema", "Argomenti del programma, uscita, interprete."),
+    "sistema_operativo": ("Sistema", "Cartelle e variabili d'ambiente del sistema."),
     "percorso": ("Sistema", "Percorsi di file e cartelle come oggetti."),
     "operazioni_file": ("Sistema", "Copia, sposta e cancella file e cartelle."),
     "cerca_file": ("Sistema", "Trova i file con i caratteri jolly (*.txt)."),
     "file_temporanei": ("Sistema", "File e cartelle temporanei."),
-    "corrispondenza_nomi": ("Sistema", "Confronto di nomi di file con i caratteri jolly."),
+    "corrispondenza_nomi": ("Sistema", "Nomi di file con i caratteri jolly."),
     "processi": ("Sistema", "Lancia altri programmi e ne legge l'output."),
     "piattaforma": ("Sistema", "Informazioni su sistema operativo e computer."),
     "registro_windows": ("Sistema", "Legge e scrive il registro di Windows."),
@@ -87,7 +87,7 @@ CATALOGO = {
     "segreti": ("Sicurezza", "Numeri e codici casuali sicuri per password e token."),
     "sicurezza_ssl": ("Sicurezza", "Connessioni cifrate (SSL/TLS)."),
     "identificatori": ("Sicurezza", "Identificatori univoci (UUID)."),
-    "richieste": ("Rete", "requests: scarica pagine e usa servizi web in modo semplice."),
+    "richieste": ("Rete", "requests: scarica pagine e usa servizi web."),
     "rete_url": ("Rete", "Indirizzi web e download di base."),
     "rete_http": ("Rete", "Client e server HTTP."),
     "rete": ("Rete", "Connessioni di rete a basso livello (socket)."),
@@ -116,7 +116,7 @@ CATALOGO = {
     "traccia_errori": ("Programmazione", "Stampa e analizza gli errori (traceback)."),
     "registro": ("Programmazione", "Registro degli eventi (logging) con livelli."),
     "argomenti": ("Programmazione", "Argomenti della riga di comando con aiuto automatico."),
-    "opzioni_riga_comando": ("Programmazione", "Opzioni della riga di comando in stile getopt."),
+    "opzioni_riga_comando": ("Programmazione", "Opzioni della riga di comando (getopt)."),
     "test_unitari": ("Test", "unittest: scrivere ed eseguire test automatici."),
     "test_documentazione": ("Test", "Test scritti negli esempi della documentazione."),
 }
@@ -197,6 +197,11 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso.albero.bind("<space>", se_stesso._spazio)
         se_stesso.albero.bind("<Return>", se_stesso._doppio_clic)
         se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._selezione)
+        se_stesso.albero.bind("<Motion>", se_stesso._muovi)
+        se_stesso.albero.bind("<Leave>", lambda e: se_stesso._nascondi_suggerimento())
+        se_stesso._suggerimento = Nessuno
+        se_stesso._lavoro_sug = Nessuno
+        se_stesso._riga_sug = Nessuno
         se_stesso.albero.tag_configure("categoria", font=("Segoe UI Semibold", 9))
         se_stesso.albero.tag_configure("assente", foreground="#9a9a9a")
         se_stesso.bind("<Configure>", lambda e: se_stesso.descrizione.configure(wraplength=max(120, e.width - 24)))
@@ -296,6 +301,46 @@ classe PannelloLibrerie(tk.Frame):
                 testo_ += "\nSpunta per averla sempre nei suggerimenti · doppio clic: inserisce «importa»."
             se_stesso.descrizione.configure(text=testo_)
 
+    # ------------------------------------------------------------ suggerimento al passaggio del mouse
+    definisci _muovi(se_stesso, e):
+        iid = se_stesso.albero.identify_row(e.y)
+        se iid == se_stesso._riga_sug:
+            ritorna
+        se_stesso._nascondi_suggerimento()
+        se_stesso._riga_sug = iid
+        se iid e iid.startswith("lib:"):
+            se_stesso._lavoro_sug = se_stesso.after(550, lambda: se_stesso._mostra_suggerimento(iid, e.x_root, e.y_root))
+
+    definisci _mostra_suggerimento(se_stesso, iid, x, y):
+        voce = [v per v in se_stesso.tutte se v[0] == iid[4:]]
+        se non voce:
+            ritorna
+        _, cat, descr, orig = voce[0]
+        w = tk.Toplevel(se_stesso)
+        w.wm_overrideredirect(Vero)
+        w.geometry(f"+{x + 14}+{y + 18}")
+        c = getattr(se_stesso, "_colori", Nessuno)
+        sfondo = c["chat_strumento"] se c altrimenti "#ffffe0"
+        primo = c["primo_piano"] se c altrimenti "#000000"
+        tk.Label(w, text=f"{iid[4:]}  (= {orig})\n{descr}", justify="left", background=sfondo, foreground=primo, borderwidth=1,
+                 relief="solid", padx=8, pady=5, font=("Segoe UI", 9)).pack()
+        se_stesso._suggerimento = w
+
+    definisci _nascondi_suggerimento(se_stesso):
+        se se_stesso._lavoro_sug:
+            prova:
+                se_stesso.after_cancel(se_stesso._lavoro_sug)
+            eccetto tk.TclError:
+                passa
+            se_stesso._lavoro_sug = Nessuno
+        se se_stesso._suggerimento è non Nessuno:
+            prova:
+                se_stesso._suggerimento.destroy()
+            eccetto tk.TclError:
+                passa
+            se_stesso._suggerimento = Nessuno
+        se_stesso._riga_sug = Nessuno
+
     # ------------------------------------------------------------ inserimento nel file
     definisci inserisci_importazione(se_stesso, nome_it):
         """Aggiunge «importa nome» in testa al file aperto (se non c'è già). Ritorna True se ha inserito."""
@@ -313,6 +358,7 @@ classe PannelloLibrerie(tk.Frame):
 
     # ------------------------------------------------------------ colori
     definisci applica_colori(se_stesso, c):
+        se_stesso._colori = c
         per w in (se_stesso, se_stesso.barra, se_stesso.riga_ricerca):
             w.configure(background=c["pannello"])
         per w in (se_stesso.titolo, se_stesso.contatore, se_stesso.descrizione):

@@ -201,9 +201,43 @@ classe DialogoModulo(DialogoBase):
         se_stesso.destroy()
 
 
-definisci informazioni(genitore):
-    messagebox.showinfo(f"Informazioni su {NOME}",
-                        f"{NOME} {VERSIONE}\nAmbiente di sviluppo per pytonIta (pitonit)\n\n"
-                        "Editor con suggerimenti in italiano, gestione dei progetti,\n"
-                        "progettista grafico delle finestre e assistente AI (Claude)\n"
-                        "che può usare l'ambiente stesso.", parent=genitore)
+classe DialogoInformazioni(DialogoBase):
+    """Finestra «Informazioni»: logo, versione di PitStudio e dell'interprete, scorciatoie verso la guida."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, apri_guida=Nessuno):
+        DialogoBase.__init__(se_stesso, genitore, f"Informazioni su {NOME}", colori, 500, 330)
+        c = colori
+        importa sys
+        da rad importa stile
+        se_stesso._logo = stile.logo_tk(96)
+        tk.Label(se_stesso, image=se_stesso._logo, background=c["pannello"]).place(x=26, y=26)
+        tk.Label(se_stesso, text=NOME, font=("Segoe UI Semibold", 20), background=c["pannello"],
+                 foreground=c["primo_piano"]).place(x=146, y=22)
+        tk.Label(se_stesso, text=f"Versione {VERSIONE}", font=("Segoe UI", 10), background=c["pannello"],
+                 foreground=c["accento"]).place(x=148, y=66)
+        tk.Label(se_stesso, text="Ambiente di sviluppo per pytonIta", font=("Segoe UI", 10), background=c["pannello"],
+                 foreground=c["tenue"]).place(x=148, y=90)
+        versione_py = ".".join(testo(x) per x in sys.version_info[:3])
+        corpo = ("Editor con suggerimenti in italiano, progetti, debugger, progettista di finestre,\n"
+                 "programmazione a mattonelle, lezioni integrate e assistente AI (Claude)\n"
+                 "che può usare l'ambiente stesso.\n\n"
+                 f"Interprete: pitonit, basato su CPython {versione_py}\n"
+                 f"Numerazione 1.x.y: x sale a ogni modifica, y è la versione di Python.")
+        tk.Label(se_stesso, text=corpo, justify="left", anchor="nw", font=("Segoe UI", 9), background=c["pannello"],
+                 foreground=c["primo_piano"]).place(x=26, y=142)
+        barra = tk.Frame(se_stesso, background=c["pannello"])
+        barra.place(relx=1.0, rely=1.0, x=-20, y=-16, anchor="se")
+        se apri_guida:
+            tk.Button(barra, text="Guida", width=10, relief="flat", background=c["pulsante"], foreground=c["primo_piano"],
+                      activebackground=c["pulsante_attivo"], command=lambda: (se_stesso.destroy(), apri_guida())).pack(side="left", padx=4)
+        tk.Button(barra, text="Chiudi", width=10, relief="flat", background=c["accento"], foreground="#ffffff",
+                  activebackground=c["accento"], command=se_stesso.destroy).pack(side="left", padx=4)
+        se_stesso.bind("<Return>", lambda e: se_stesso.destroy())
+        se_stesso.grab_set()
+
+
+definisci informazioni(genitore, colori=Nessuno, apri_guida=Nessuno):
+    se colori è Nessuno:
+        messagebox.showinfo(f"Informazioni su {NOME}", f"{NOME} {VERSIONE}\nAmbiente di sviluppo per pytonIta (pitonit)", parent=genitore)
+        ritorna
+    DialogoInformazioni(genitore, colori, apri_guida)
