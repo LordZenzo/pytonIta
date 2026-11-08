@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.14
+
+- **Mattonelle**: il testo su più righe o molto lungo (codice, espressione…) non esce più dalla mattonella: si vede su una riga con «⏎» al posto degli a capo e «…» se è lungo; il testo completo si legge e si modifica nella finestra.
+
 ## Novità della 1.13
 
 - **Finestra del testo nelle mattonelle**: casella «A capo automatico» per andare a capo o no (per il codice parte spento, per i testi acceso; la scelta è ricordata).

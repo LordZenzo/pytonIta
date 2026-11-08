@@ -121,4 +121,14 @@ stampa("nome della funzione in linea (nessuna finestra):", 1 non in chiusi)
 # il codice generato riflette il testo scritto
 codice = genera_codice(prog)[0] se isinstance(genera_codice(prog), tuple) altrimenti genera_codice(prog)
 stampa("codice generato contiene il testo scritto:", "y = 2" in codice, "# nota lunga su due righe" in codice)
+# nella mattonella il testo lungo o su più righe sta su una riga sola
+dis = v.disegnatore
+lungo = "prova:" + chr(10) + "    se x:" + chr(10) + "        passa" + chr(10) + "eccetto E:" + chr(10) + "    passa"
+vis = dis.in_riga(lungo)
+stampa("in mattonella: una riga:", chr(10) non in vis, "|", vis)
+stampa("in mattonella: accorciato:", lunghezza(dis.in_riga("a" * 200)) <= dis.MAX_CARATTERI_RIGA)
+m.campi["testo"] = lungo
+ed.notifica(); radice.update()
+l = dis.lay[m.id]
+stampa("altezza mattonella invariata (una riga):", l.testa_h <= dis.s(dis.RIGA) * 2)
 radice.destroy()

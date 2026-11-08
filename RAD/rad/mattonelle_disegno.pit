@@ -88,6 +88,15 @@ classe Disegnatore:
     definisci _def(se_stesso, m):
         ritorna definizione(m.tipo, se_stesso.programma)
 
+    MAX_CARATTERI_RIGA = 48
+
+    definisci in_riga(se_stesso, valore):
+        """Testo mostrato nella mattonella: su una sola riga (a capo → «⏎») e accorciato se lungo."""
+        t = " ⏎ ".join(r.strip() per r in testo(valore).splitlines())
+        se lunghezza(t) > se_stesso.MAX_CARATTERI_RIGA:
+            t = t[:se_stesso.MAX_CARATTERI_RIGA - 1] + "…"
+        ritorna t
+
     definisci misura(se_stesso, m):
         """Calcola (larghezza, altezza) di m e dei suoi contenuti; salva i dati intermedi."""
         d = se_stesso._def(m)
@@ -99,7 +108,7 @@ classe Disegnatore:
                 w = se_stesso.f_testo.measure(seg)
                 voci.append(("etichetta", seg, w, se_stesso.s(se_stesso.CHIP_H)))
             altrimenti_se seg[0] == "c":
-                valore = testo(m.campi.get(seg[1], ""))
+                valore = se_stesso.in_riga(m.campi.get(seg[1], ""))
                 w = max(se_stesso.s(26), se_stesso.f_campo.measure(valore) + se_stesso.s(14))
                 voci.append(("campo", seg[1], w, se_stesso.s(se_stesso.CHIP_H)))
             altrimenti:
@@ -109,7 +118,7 @@ classe Disegnatore:
                     fw, fh = se_stesso.misura(figlio)
                     voci.append(("ingresso", nome, fw, fh))
                 altrimenti:
-                    letterale = m.letterali.get(nome, "")
+                    letterale = se_stesso.in_riga(m.letterali.get(nome, ""))
                     w = max(se_stesso.s(se_stesso.SLOT_MIN), se_stesso.f_campo.measure(letterale) + se_stesso.s(14))
                     voci.append(("vuoto", nome, w, se_stesso.s(se_stesso.SLOT_H)))
         alto = max([v[3] per v in voci] + [0])
@@ -298,7 +307,7 @@ classe Disegnatore:
             se tipo_ == "etichetta":
                 c.create_text(x, y + h / 2, text=nome, anchor="w", fill="#ffffff", font=se_stesso.f_testo, tags=(tag,))
             altrimenti_se tipo_ == "campo":
-                valore = testo(m.campi.get(nome, ""))
+                valore = se_stesso.in_riga(m.campi.get(nome, ""))
                 c.create_polygon(se_stesso._pillola_semplice(x, y, w, h), fill=schiarisci(colore, 0.82), outline=bordo,
                                  tags=(tag,))
                 c.create_text(x + w / 2, y + h / 2, text=valore, fill="#222222", font=se_stesso.f_campo, tags=(tag,))
@@ -307,7 +316,7 @@ classe Disegnatore:
                 punti_slot = se_stesso._esagono(x, y, w, h) se booleano altrimenti se_stesso._pillola_semplice(x, y, w, h)
                 c.create_polygon(punti_slot, fill=scurisci(colore, 0.82) se booleano altrimenti "#ffffff",
                                  outline=bordo, tags=(tag, f"s{m.id}_{nome}"))
-                letterale = m.letterali.get(nome, "")
+                letterale = se_stesso.in_riga(m.letterali.get(nome, ""))
                 c.create_text(x + w / 2, y + h / 2, text=letterale, fill="#222222", font=se_stesso.f_campo, tags=(tag,))
         # figli
         per nome, figlio in m.ingressi.items():
