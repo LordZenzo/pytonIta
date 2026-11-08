@@ -4,10 +4,12 @@ importa os
 importa queue
 importa re
 importa threading
+importa uuid
 importa tkinter come tk
 da tkinter importa ttk, messagebox
 
 da rad importa ai
+da rad.registro_ai importa RegistroAI
 
 _RE_BLOCCO = re.compile(r"```([\w+-]*)\n(.*?)```", re.S)
 _RE_INLINE = re.compile(r"`([^`\n]+)`|\*\*([^*\n]+)\*\*")
@@ -28,6 +30,7 @@ classe PannelloChat(tk.Frame):
         se_stesso.agente = Nessuno
         se_stesso.token_ingresso = 0
         se_stesso.token_uscita = 0
+        se_stesso.token_cache = 0
         se_stesso._costruisci()
         se_stesso.applica_colori(colori)
         se_stesso._pompa()
@@ -231,9 +234,23 @@ classe PannelloChat(tk.Frame):
         cliente = ai.ClienteClaude(se_stesso.config_)
         strumenti = ai.Strumenti(se_stesso.ambiente, se_stesso.config_, se_stesso.ponte)
         se_stesso.agente = ai.Agente(cliente, strumenti, se_stesso.config_, lambda tipo_, dati: se_stesso.eventi.put((tipo_, dati)))
+        # registro delle richieste (token, validità del codice generato): un file per progetto
+        registro = se_stesso.nuovo_registro()
+        id_richiesta = uuid.uuid4().hex[:8]
+        strumenti.registro = se_stesso.agente.registro = registro
+        strumenti.id_richiesta = se_stesso.agente.id_richiesta = id_richiesta
+        registro.scrivi("richiesta", richiesta=id_richiesta, modello=se_stesso.config_.ottieni("ai.modello", ""),
+                        domanda=domanda[:80], con_contesto=lunghezza(contenuto) > 1)
         sistema = se_stesso.ponte.esegui(lambda: ai.prompt_di_sistema(se_stesso.config_, se_stesso.ambiente.progetto))
         se_stesso.lavoro = threading.Thread(target=se_stesso._lavora, args=(sistema,), daemon=Vero)
         se_stesso.lavoro.start()
+
+    definisci nuovo_registro(se_stesso):
+        """RegistroAI del progetto aperto (vuoto se il registro è disattivato o non c'è un progetto)."""
+        p = se_stesso.ambiente.progetto
+        se non se_stesso.config_.ottieni("ai.registro", Vero) o p è Nessuno:
+            ritorna RegistroAI(Nessuno)
+        ritorna RegistroAI(os.path.join(p.cartella, ".rad", "ai_registro.jsonl"))
 
     definisci chiedi(se_stesso, domanda):
         """Invia una domanda preparata dall'ambiente (es. 'spiega questo errore')."""
@@ -261,7 +278,8 @@ classe PannelloChat(tk.Frame):
 
     definisci _testo_token(se_stesso):
         se se_stesso.token_ingresso o se_stesso.token_uscita:
-            ritorna f"token: {se_stesso.token_ingresso} in / {se_stesso.token_uscita} out"
+            da_cache = f" (di cui {se_stesso.token_cache} da cache)" se se_stesso.token_cache altrimenti ""
+            ritorna f"token: {se_stesso.token_ingresso} in{da_cache} / {se_stesso.token_uscita} out"
         ritorna ""
 
     definisci _pompa(se_stesso):
@@ -284,6 +302,7 @@ classe PannelloChat(tk.Frame):
                               "risultato_err" se dati["errore"] altrimenti "risultato_ok")
         altrimenti_se tipo_ == "uso":
             se_stesso.token_ingresso += dati.get("input_tokens", 0) + dati.get("cache_read_input_tokens", 0) + dati.get("cache_creation_input_tokens", 0)
+            se_stesso.token_cache += dati.get("cache_read_input_tokens", 0)
             se_stesso.token_uscita += dati.get("output_tokens", 0)
         altrimenti_se tipo_ == "info":
             se_stesso._scrivi(dati + "\n", "info")
@@ -313,7 +332,7 @@ classe PannelloChat(tk.Frame):
         se se_stesso.lavoro e se_stesso.lavoro.is_alive():
             ritorna
         se_stesso.messaggi = []
-        se_stesso.token_ingresso = se_stesso.token_uscita = 0
+        se_stesso.token_ingresso = se_stesso.token_uscita = se_stesso.token_cache = 0
         se_stesso.t.configure(state="normal")
         se_stesso.t.delete("1.0", "end")
         se_stesso.t.configure(state="disabled")

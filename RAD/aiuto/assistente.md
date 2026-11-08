@@ -45,6 +45,21 @@ quando usa l'ambiente lo vedi in riga: 🛠 nome dello strumento, ✔ o ✖ con 
 - *«Costruisci a mattonelle un programma che stampa la tabellina del 7»*.
 - *«Converti `vecchio.pit` in mattonelle e dimmi cosa è rimasto come testo»*.
 
+## Codice sempre controllato
+
+Prima di scrivere un file `.pit` o `.py`, PitStudio ne controlla la **sintassi**. Se il codice dell'assistente ha un errore, **tu non lo vedi nemmeno**: l'errore torna all'assistente, che corregge e riprova (fino a 2 correzioni automatiche). Se non ci riesce, ti chiede se salvare comunque il file per correggerlo a mano. Il file non viene toccato finché il codice non è valido o non lo decidi tu.
+
+## Quanto costa
+
+L'assistente usa la tua chiave API e i costi dipendono dal modello e dal testo scambiato. Per tenerli bassi:
+
+- la **conversazione già letta viene riusata** (cache dell'API): a ogni passo si paga solo ciò che è nuovo;
+- l'assistente legge solo le parti di file che servono e modifica poche righe invece di riscrivere tutto;
+- in basso nella chat vedi i token della conversazione, con quanti letti dalla cache;
+- con *Strumenti → Statistiche dell'assistente* vedi, per il progetto: richieste, token, quanti file erano **validi al primo tentativo**, quanti corretti da solo, quanti programmi eseguiti con successo. I dati restano sul tuo computer (`.rad\ai_registro.jsonl`) e si disattivano nelle impostazioni.
+
+Per i lavori semplici (spiegare un errore, una piccola correzione) puoi scegliere dal menu della chat un modello più economico.
+
 ## Sicurezza e privacy
 
 - **Conferme**: per default l'assistente chiede il permesso prima di **scrivere file** e prima di **eseguire programmi**; vedi un'anteprima di cosa farà. Eliminare un file chiede sempre conferma. Le conferme si regolano nelle impostazioni.

@@ -16,6 +16,12 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.5
+
+- **Codice dell'assistente sempre controllato**: la sintassi dei `.pit`/`.py` si verifica prima di scrivere; gli errori tornano all'assistente (2 correzioni automatiche), poi decide l'utente.
+- **Registro dell'assistente** (`.rad/ai_registro.jsonl`, locale) e *Strumenti → Statistiche dell'assistente*: token, codice valido al primo tentativo, esecuzioni.
+- **Cache della conversazione**: a ogni passo si paga solo il nuovo (impostazione *Risparmia token*).
+
 ## Novità della 1.4
 
 - **Pannello Librerie** (scheda a sinistra): elenco spuntabile con descrizione, per progetto.

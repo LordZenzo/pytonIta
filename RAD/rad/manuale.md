@@ -25,9 +25,12 @@ Nei file `.pit` le parole chiave inglesi NON esistono. Usa solo quelle italiane:
 | True / False / None | Vero / Falso / Nessuno | x if c else y | `x se c altrimenti y` |
 
 - `True`, `False`, `None` danno errore: usa `Vero`, `Falso`, `Nessuno`.
-- Non usare come nomi di variabile, funzione o metodo le parole riservate: classe, definisci, se, per, da, con, in, e, o, non,
-  elimina, attendi, asincrono, passa, prova, mentre, ritorna, importa, come, solleva, produci, globale, interrompi, continua,
-  eccetto, infine, altrimenti, lambda, è. (Per esempio il metodo "elimina" non è possibile: usa `cancella`.)
+- Parole come classe, con, da, prova, elimina, produci sono anche nomi molto naturali: l'interprete le accetta come nomi dove
+  una parola chiave non può comparire (`con = sqlite3.connect(...)`, `intervallo(da, a)`, `x.classe`, `definisci elimina(x):`),
+  ma NON a inizio istruzione. Per chiarezza preferisci comunque nomi diversi (`connessione`, `cancella`, `classe_3a`).
+- Le opzioni con nome sono accettate anche in italiano: `ordinato(x, chiave=f, inverso=Vero)`, `massimo(x, predefinito=0)`,
+  `apri(nome, modalita="w", codifica="utf-8")`, `stampa(a, b, separatore="-", fine="")`, `enumera(x, inizio=1)`,
+  `testo.separa(separatore=",", max_divisioni=1)`. Quelle inglesi funzionano ancora.
 - `e` e `o` sono operatori solo tra due operandi: `eccetto Errore come e:` è permesso.
 - Per `self` si usa per convenzione `se_stesso`; `__inizializza__` = `__init__`, `__testo__` = `__str__`,
   `__lunghezza__` = `__len__`, `__uguale__`, `__somma__`, `__chiama__`, `__entra__`/`__esci__`, `__nome__` = `__name__`.
@@ -118,6 +121,12 @@ Un `.py` si può tradurre in pytonIta con «Traduci in pytonIta» (crea il `.pit
 ## Come lavorare
 1. `stato_ide` per sapere cosa è aperto; `elenca_file` / `leggi_file` / `cerca_nel_progetto` per capire il codice.
 2. Modifiche piccole: `modifica_file` (sostituzione esatta). File nuovi o riscritture: `scrivi_file`.
-3. Dopo ogni scrittura di codice: `controlla_sintassi`; se serve, `esegui_programma` e leggi l'output.
+3. PitStudio controlla la sintassi di ogni `.pit`/`.py` PRIMA di scriverlo: se c'è un errore ricevi "NON SCRITTO" con riga e
+   motivo, il file non cambia e l'utente non vede il codice sbagliato; correggi e riprova (hai 2 correzioni automatiche, poi
+   decide l'utente). Ogni scrittura deve lasciare il file valido: nelle modifiche in più passi cambia insieme le parti collegate.
+   Se serve, poi `esegui_programma` e leggi l'output.
 4. Se l'utente ha selezionato del testo nell'editor, lo trovi in `stato_ide`.
-5. Non inventare nomi di librerie italiane: se non sei sicuro usa `membri_modulo` oppure i nomi inglesi, che funzionano sempre.
+5. Risparmia token (li paga l'utente): leggi solo ciò che serve (`leggi_file` con `da_riga`/`a_riga`, `cerca_nel_progetto`
+   prima di leggere interi file), preferisci `modifica_file` a `scrivi_file` per cambiare poche righe, non rileggere file che
+   hai già in conversazione, rispondi in modo breve.
+6. Non inventare nomi di librerie italiane: se non sei sicuro usa `membri_modulo` oppure i nomi inglesi, che funzionano sempre.

@@ -1,7 +1,7 @@
 1 ICON "rad.ico"
 1 VERSIONINFO
-FILEVERSION 1,4,3,13
-PRODUCTVERSION 1,4,3,13
+FILEVERSION 1,5,3,13
+PRODUCTVERSION 1,5,3,13
 BEGIN
  BLOCK "StringFileInfo"
  BEGIN
@@ -9,8 +9,8 @@ BEGIN
   BEGIN
    VALUE "ProductName", "PitStudio"
    VALUE "FileDescription", "PitStudio - ambiente di sviluppo per pytonIta"
-   VALUE "FileVersion", "1.4.3.13.18"
-   VALUE "ProductVersion", "1.4.3.13.18"
+   VALUE "FileVersion", "1.5.3.13.18"
+   VALUE "ProductVersion", "1.5.3.13.18"
   END
  END
  BLOCK "VarFileInfo"

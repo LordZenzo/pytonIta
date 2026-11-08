@@ -96,6 +96,27 @@ classe ErroreAI(Eccezione):
     """Errore nella comunicazione con l'AI."""
 
 
+definisci con_cache(messaggi):
+    """Copia dei messaggi con il segno di cache sull'ultimo blocco.
+
+    La conversazione cresce a ogni passo dell'assistente e verrebbe pagata per intero ogni volta: con il segno di cache
+    l'API riusa ciò che ha già letto (costa una frazione). I messaggi originali, che si salvano su disco, non cambiano."""
+    se non messaggi:
+        ritorna messaggi
+    copia = lista(messaggi)
+    ultimo = dict(copia[-1])
+    contenuto = ultimo.get("content")
+    se isinstance(contenuto, testo):
+        contenuto = [{"type": "text", "text": contenuto}]
+    altrimenti:
+        contenuto = [dict(b) per b in (contenuto o [])]
+    se contenuto:
+        contenuto[-1]["cache_control"] = {"type": "ephemeral"}
+    ultimo["content"] = contenuto
+    copia[-1] = ultimo
+    ritorna copia
+
+
 classe ClienteClaude:
     """Client minimale dell'API Messages di Anthropic (urllib, nessuna dipendenza)."""
 
@@ -110,6 +131,8 @@ classe ClienteClaude:
         se non chiave:
             solleva ErroreAI("Manca la chiave API. Inseriscila in Impostazioni → Assistente AI "
                              "(oppure nella variabile d'ambiente ANTHROPIC_API_KEY).")
+        se se_stesso.config_.ottieni("ai.cache_cronologia", Vero):
+            messaggi = con_cache(messaggi)
         corpo = {"model": se_stesso.config_.ottieni("ai.modello", "claude-sonnet-5-5"),
                  "max_tokens": int(se_stesso.config_.ottieni("ai.max_token", 4096)),
                  "system": [{"type": "text", "text": sistema, "cache_control": {"type": "ephemeral"}}],
@@ -148,6 +171,13 @@ classe Strumenti:
         se_stesso.ambiente = ambiente
         se_stesso.config_ = config
         se_stesso.ponte = ponte
+        se_stesso.registro = Nessuno          # RegistroAI (facoltativo)
+        se_stesso.id_richiesta = ""
+        se_stesso.tentativi = {}              # file -> scritture rifiutate per errori di sintassi in questa richiesta
+
+    definisci _registra(se_stesso, tipo_, **dati):
+        se se_stesso.registro:
+            se_stesso.registro.scrivi(tipo_, richiesta=se_stesso.id_richiesta, **dati)
 
     @property
     definisci progetto(se_stesso):
@@ -233,8 +263,43 @@ classe Strumenti:
             solleva ErroreDiValore("i file *_ui.pit sono generati dal progettista: modifica il form con imposta_form")
         p = se_stesso.progetto
         assoluto = p.assoluto(percorso)
+        errore = se_stesso._errore_di_sintassi(percorso, contenuto, vecchio)
+        precedenti = se_stesso.tentativi.get(percorso, 0)
+        linguaggio = "py" se percorso.lower().endswith((".py", ".pyw")) altrimenti ("pit" se percorso.lower().endswith(".pit") altrimenti "altro")
+        se errore:
+            consentiti = int(se_stesso.config_.ottieni("ai.correzioni_automatiche", 2))
+            se_stesso.tentativi[percorso] = precedenti + 1
+            se precedenti < consentiti:
+                # il codice sbagliato non arriva all'utente: lo si rimanda all'assistente perché lo corregga
+                se_stesso._registra("scrittura", file=percorso, linguaggio=linguaggio, esito="sintassi", tentativo=precedenti + 1, errore=testo(errore[2])[:200])
+                solleva ErroreDiValore(f"NON SCRITTO: il codice ha un errore di sintassi alla riga {errore[0]}, colonna {errore[1]}: {errore[2]}. "
+                                       f"Il file non è stato modificato. Correggi e riprova (tentativo {precedenti + 1} di {consentiti + 1}).")
+            # troppi tentativi: decide l'utente
+            dettaglio = (f"L'assistente non è riuscito a produrre codice valido per:\n\n  {percorso}\n\n"
+                         f"Errore alla riga {errore[0]}: {errore[2]}\n\nVuoi salvarlo comunque, per correggerlo a mano?")
+            se non se_stesso.ponte.esegui(lambda: se_stesso.ambiente.chiedi_conferma("Codice con errori", dettaglio), 600):
+                se_stesso._registra("scrittura", file=percorso, linguaggio=linguaggio, esito="rifiutato", tentativo=precedenti + 1)
+                solleva ErroreDiValore("l'utente ha rifiutato di salvare codice con errori di sintassi")
+            se_stesso.ponte.esegui(lambda: se_stesso.ambiente.scrivi_file(assoluto, contenuto))
+            se_stesso._registra("scrittura", file=percorso, linguaggio=linguaggio, esito="forzato", tentativo=precedenti + 1)
+            ritorna
         se_stesso._conferma_scrittura(percorso, contenuto, vecchio)
         se_stesso.ponte.esegui(lambda: se_stesso.ambiente.scrivi_file(assoluto, contenuto))
+        se_stesso.tentativi[percorso] = 0
+        se_stesso._registra("scrittura", file=percorso, linguaggio=linguaggio, esito="valido", tentativo=precedenti + 1)
+
+    definisci _errore_di_sintassi(se_stesso, percorso, nuovo, vecchio):
+        """(riga, colonna, messaggio) se il nuovo contenuto di un file .pit/.py non è valido, altrimenti Nessuno.
+
+        Se il file era già sbagliato prima della modifica non si blocca nulla (può servire una correzione in più passi)."""
+        se non percorso.lower().endswith((".pit", ".py", ".pyw")):
+            ritorna Nessuno
+        errore = esecuzione.controlla_sintassi(nuovo, percorso)
+        se errore è Nessuno:
+            ritorna Nessuno
+        se vecchio è non Nessuno e esecuzione.controlla_sintassi(vecchio, percorso) è non Nessuno:
+            ritorna Nessuno
+        ritorna errore
 
     definisci s_scrivi_file(se_stesso, percorso, contenuto):
         p = se_stesso.progetto
@@ -284,6 +349,7 @@ classe Strumenti:
         comando = [se_stesso.config_.interprete(), "-u", percorso] + lista(argomenti o [])
         r = esecuzione.esegui_sincrono(comando, p.cartella, max(1, min(int(tempo_massimo), 300)), ingresso)
         se_stesso.ponte.esegui(lambda: se_stesso.ambiente.mostra_in_console(p.relativo(percorso), r))
+        se_stesso._registra("esecuzione", file=p.relativo(percorso), codice=r["codice"], scaduto=bool(r["scaduto"]), secondi=r["secondi"])
         parti = [f"codice di uscita: {r['codice']}" + (" (scaduto il tempo massimo: processo terminato)" se r["scaduto"] altrimenti "")
                  + f"  durata: {r['secondi']} s"]
         se r["uscita"]:
@@ -349,19 +415,38 @@ classe Agente:
         se_stesso.config_ = config
         se_stesso.su_evento = su_evento
         se_stesso.arresto = threading.Event()
+        se_stesso.registro = Nessuno          # RegistroAI (facoltativo)
+        se_stesso.id_richiesta = ""
 
     definisci esegui(se_stesso, messaggi, sistema):
         """Elabora finché l'AI ha finito. 'messaggi' viene aggiornato sul posto."""
+        inizio = time.time()
+        se_stesso._passi = 0
+        prova:
+            se_stesso._ciclo(messaggi, sistema)
+        infine:
+            se se_stesso.registro:
+                se_stesso.registro.scrivi("fine", richiesta=se_stesso.id_richiesta, passi=se_stesso._passi,
+                                          durata_s=round(time.time() - inizio, 1))
+
+    definisci _ciclo(se_stesso, messaggi, sistema):
         massimo = int(se_stesso.config_.ottieni("ai.passi_massimi", 25))
         per passo in intervallo(massimo):
             se se_stesso.arresto.is_set():
                 se_stesso.su_evento("info", "Interrotto.")
                 ritorna
             risposta = se_stesso.cliente.chiama(messaggi, sistema, DEFINIZIONI)
+            se_stesso._passi = passo + 1
             blocchi = risposta.get("content", [])
             messaggi.append({"role": "assistant", "content": blocchi})
             uso = risposta.get("usage", {})
             se_stesso.su_evento("uso", uso)
+            se se_stesso.registro:
+                se_stesso.registro.scrivi("chiamata", richiesta=se_stesso.id_richiesta, passo=passo + 1,
+                                          modello=se_stesso.config_.ottieni("ai.modello", ""),
+                                          input=uso.get("input_tokens", 0), output=uso.get("output_tokens", 0),
+                                          cache_lettura=uso.get("cache_read_input_tokens", 0),
+                                          cache_scrittura=uso.get("cache_creation_input_tokens", 0))
             richieste = []
             per b in blocchi:
                 se b.get("type") == "text" e b.get("text", "").strip():

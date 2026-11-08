@@ -41,6 +41,9 @@ PREDEFINITI = {
         "versione_api": "2023-06-01",
         "passi_massimi": 25,
         "includi_file_attivo": Vero,
+        "cache_cronologia": Vero,        # riusa la conversazione già letta (costa molto meno)
+        "correzioni_automatiche": 2,     # quante volte l'assistente corregge da solo il codice con errori di sintassi
+        "registro": Vero,                # registro locale di token e codice generato (.rad/ai_registro.jsonl)
     },
     "finestra": {
         "geometria": "1400x860",

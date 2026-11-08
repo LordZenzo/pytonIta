@@ -10,6 +10,7 @@ da tkinter importa ttk, messagebox, filedialog, simpledialog
 da rad importa NOME, VERSIONE, tema, form_modello, esecuzione, dialoghi, stile
 da rad.config importa Configurazione
 da rad.editor importa Editor, linguaggio_di
+da rad importa registro_ai
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
 da rad.progetto importa Progetto, PannelloProgetto, tipo_file
@@ -231,6 +232,7 @@ classe Applicazione:
         strumenti.add_command(label="Impostazioni…", command=se_stesso.impostazioni)
         strumenti.add_command(label="Chiedi all'AI di spiegare il codice selezionato", command=se_stesso.ai_spiega)
         strumenti.add_command(label="Chiedi all'AI di correggere l'ultimo errore", command=se_stesso.ai_correggi)
+        strumenti.add_command(label="Statistiche dell'assistente (token, codice valido)…", command=se_stesso.statistiche_ai)
         strumenti.add_separator()
         strumenti.add_command(label="Manuale pytonIta (apri)", command=se_stesso.apri_manuale)
         barra.add_cascade(label="Strumenti", menu=strumenti)
@@ -1122,6 +1124,16 @@ classe Applicazione:
             se_stesso.mostra_chat()
         se_stesso.chat.chiedi("L'ultima esecuzione ha dato un errore (vedi la console con stato_ide). "
                               "Trova la causa, correggi il codice e verifica eseguendolo.")
+
+    definisci statistiche_ai(se_stesso):
+        """Riepilogo del registro dell'assistente: token, codice valido al primo tentativo, esecuzioni."""
+        se non se_stesso.progetto:
+            se_stesso.info("Apri un progetto per vedere le statistiche dell'assistente.")
+            ritorna
+        percorso = os.path.join(se_stesso.progetto.cartella, ".rad", "ai_registro.jsonl")
+        eventi = registro_ai.leggi_registro(percorso)
+        messagebox.showinfo("Statistiche dell'assistente", registro_ai.testo_riepilogo(eventi) + f"\n\nRegistro: {percorso}",
+                            parent=se_stesso.radice)
 
     # ================================================================== interfaccia per l'assistente AI
     definisci stato_ide(se_stesso):

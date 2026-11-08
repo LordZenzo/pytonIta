@@ -1,0 +1,123 @@
+"""Registro delle richieste all'assistente: token usati, codice generato valido o no, esecuzioni.
+
+Un file di righe JSON per progetto (.rad/ai_registro.jsonl). Serve a vedere quanto costa l'assistente e con che
+affidabilità produce codice corretto, senza inviare nulla all'esterno. Del testo delle richieste si salvano solo i primi caratteri.
+"""
+importa json
+importa os
+importa threading
+importa time
+
+
+classe RegistroAI:
+    """Aggiunge eventi al file di registro (thread-safe). Con percorso Nessuno non fa nulla."""
+
+    definisci __inizializza__(se_stesso, percorso=Nessuno):
+        se_stesso.percorso = percorso
+        se_stesso._blocco = threading.Lock()
+
+    @property
+    definisci attivo(se_stesso):
+        ritorna bool(se_stesso.percorso)
+
+    definisci scrivi(se_stesso, tipo_, **dati):
+        se non se_stesso.percorso:
+            ritorna
+        voce = {"quando": time.strftime("%Y-%m-%dT%H:%M:%S"), "tipo": tipo_}
+        voce.update(dati)
+        prova:
+            con se_stesso._blocco:
+                os.makedirs(os.path.dirname(se_stesso.percorso), exist_ok=Vero)
+                con open(se_stesso.percorso, "a", encoding="utf-8") come f:
+                    f.write(json.dumps(voce, ensure_ascii=Falso) + chr(10))
+        eccetto OSError:
+            passa           # il registro non deve mai fermare l'assistente
+
+    definisci leggi(se_stesso):
+        ritorna leggi_registro(se_stesso.percorso)
+
+
+definisci leggi_registro(percorso):
+    """Lista di eventi (dizionari); le righe illeggibili vengono saltate."""
+    eventi = []
+    se non percorso o non os.path.exists(percorso):
+        ritorna eventi
+    prova:
+        con open(percorso, encoding="utf-8") come f:
+            per riga in f:
+                prova:
+                    eventi.append(json.loads(riga))
+                eccetto ValueError:
+                    continua
+    eccetto OSError:
+        passa
+    ritorna eventi
+
+
+definisci riepilogo(eventi):
+    """Numeri riassuntivi di una lista di eventi."""
+    r = {"richieste": 0, "chiamate": 0, "token_nuovi": 0, "token_cache_lettura": 0, "token_cache_scrittura": 0,
+         "token_uscita": 0, "scritture": 0, "valide_al_primo": 0, "corrette_da_sole": 0, "forzate": 0, "rifiutate": 0,
+         "esecuzioni": 0, "esecuzioni_ok": 0, "scadute": 0, "passi_totali": 0, "durata_totale_s": 0.0}
+    per e in eventi:
+        t = e.get("tipo")
+        se t == "richiesta":
+            r["richieste"] += 1
+        altrimenti_se t == "chiamata":
+            r["chiamate"] += 1
+            r["token_nuovi"] += e.get("input", 0)
+            r["token_cache_lettura"] += e.get("cache_lettura", 0)
+            r["token_cache_scrittura"] += e.get("cache_scrittura", 0)
+            r["token_uscita"] += e.get("output", 0)
+        altrimenti_se t == "scrittura":
+            esito = e.get("esito")
+            se esito == "valido":
+                r["scritture"] += 1
+                se e.get("tentativo", 1) == 1:
+                    r["valide_al_primo"] += 1
+                altrimenti:
+                    r["corrette_da_sole"] += 1
+            altrimenti_se esito == "forzato":
+                r["scritture"] += 1
+                r["forzate"] += 1
+            altrimenti_se esito == "rifiutato":
+                r["rifiutate"] += 1
+        altrimenti_se t == "esecuzione":
+            r["esecuzioni"] += 1
+            se e.get("codice") == 0 e non e.get("scaduto"):
+                r["esecuzioni_ok"] += 1
+            se e.get("scaduto"):
+                r["scadute"] += 1
+        altrimenti_se t == "fine":
+            r["passi_totali"] += e.get("passi", 0)
+            r["durata_totale_s"] += e.get("durata_s", 0)
+    ritorna r
+
+
+definisci percentuale(parte, totale):
+    ritorna f"{round(100 * parte / totale)}%" se totale altrimenti "—"
+
+
+definisci testo_riepilogo(eventi):
+    """Descrizione in italiano delle statistiche dell'assistente."""
+    r = riepilogo(eventi)
+    se non r["richieste"] e non r["chiamate"]:
+        ritorna "Nessuna richiesta all'assistente registrata in questo progetto."
+    in_totale = r["token_nuovi"] + r["token_cache_lettura"] + r["token_cache_scrittura"]
+    righe = [
+        f"Richieste: {r['richieste']}   ·   chiamate all'API: {r['chiamate']}   ·   passi: {r['passi_totali']}",
+        f"Token in ingresso: {in_totale}  (di cui {r['token_cache_lettura']} letti dalla cache, {r['token_cache_scrittura']} scritti in cache)",
+        f"Token in uscita: {r['token_uscita']}",
+        "",
+        f"File scritti: {r['scritture']}",
+        f"   validi al primo tentativo: {r['valide_al_primo']}  ({percentuale(r['valide_al_primo'], r['scritture'])})",
+        f"   corretti dall'assistente da solo: {r['corrette_da_sole']}",
+        f"   salvati con errori su tua scelta: {r['forzate']}   ·   rifiutati: {r['rifiutate']}",
+        "",
+        f"Programmi eseguiti: {r['esecuzioni']}  (riusciti {r['esecuzioni_ok']}, tempo scaduto {r['scadute']})",
+    ]
+    se r["richieste"]:
+        righe.append("")
+        righe.append(f"In media per richiesta: {round(in_totale / r['richieste'])} token in ingresso, "
+                     f"{round(r['token_uscita'] / r['richieste'])} in uscita, {round(r['passi_totali'] / r['richieste'], 1)} passi")
+    ritorna "\n".join(righe)

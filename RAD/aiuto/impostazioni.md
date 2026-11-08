@@ -42,6 +42,9 @@ per riportare PitStudio ai valori iniziali basta cancellare quel file.
 | Passi massimi per richiesta | quanti strumenti può usare l'assistente di seguito prima di fermarsi |
 | Conferme su scrittura ed esecuzione | consigliate; spegnile solo se ti fidi del lavoro automatico |
 | Includi file attivo e selezione | manda all'assistente il contesto dell'editor |
+| Risparmia token riusando la conversazione | attiva la cache dell'API: la conversazione già letta costa molto meno a ogni passo (consigliato) |
+| Correzioni automatiche del codice | quante volte l'assistente corregge da solo un errore di sintassi prima di chiedere a te (0 = mai) |
+| Registro | salva in locale token e validità del codice generato (`.rad\ai_registro.jsonl` nel progetto) |
 | Indirizzo dell'API | per usare un servizio compatibile diverso |
 | Istruzioni aggiuntive | testo che l'assistente legge a ogni richiesta (stile, convenzioni del tuo progetto…) |
 

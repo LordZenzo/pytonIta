@@ -1,0 +1,127 @@
+importa sys, os, tempfile, time, json, threading
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da http.server importa BaseHTTPRequestHandler, HTTPServer
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa registro_ai, ai
+
+SBAGLIATO = "se x\n    stampa(1)\n"
+GIUSTO = "x = 5\nse x > 3:\n    stampa('ok', x)\n"
+
+# scenario: l'assistente sbaglia due volte e alla terza scrive codice valido
+SCENARIO = [
+    [("scrivi_file", {"percorso": "a.pit", "contenuto": SBAGLIATO})],
+    [("scrivi_file", {"percorso": "a.pit", "contenuto": SBAGLIATO})],
+    [("scrivi_file", {"percorso": "a.pit", "contenuto": GIUSTO})],
+    "FINE",
+]
+classe FalsoApi(BaseHTTPRequestHandler):
+    corpi = []
+    scenario = []
+    definisci log_message(se_stesso, *a): passa
+    definisci do_POST(se_stesso):
+        corpo = json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])))
+        FalsoApi.corpi.append(corpo)
+        n = lunghezza(FalsoApi.corpi) - 1
+        passo = FalsoApi.scenario[n] se n < lunghezza(FalsoApi.scenario) altrimenti "FINE"
+        usage = {"input_tokens": 100 + n, "output_tokens": 10, "cache_read_input_tokens": 400 se n altrimenti 0, "cache_creation_input_tokens": 0 se n altrimenti 500}
+        se passo == "FINE":
+            r = {"stop_reason": "end_turn", "usage": usage, "content": [{"type": "text", "text": "Fatto."}]}
+        altrimenti:
+            r = {"stop_reason": "tool_use", "usage": usage, "content": [
+                {"type": "tool_use", "id": f"t{n}_{i}", "name": nome, "input": inp} per i, (nome, inp) in enumera(passo)]}
+        dati = json.dumps(r).encode()
+        se_stesso.send_response(200)
+        se_stesso.send_header("Content-Type", "application/json")
+        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+server = HTTPServer(("127.0.0.1", 0), FalsoApi)
+threading.Thread(target=server.serve_forever, daemon=Vero).start()
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+cfg.imposta("ai.url", f"http://127.0.0.1:{server.server_address[1]}/v1/messages", notifica=Falso)
+cfg.imposta("ai.chiave_api", "chiave-di-prova", notifica=Falso)
+cfg.imposta("ai.conferma_scrittura", Falso, notifica=Falso)
+cfg.imposta("ai.conferma_esecuzione", Falso, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1200x800+10+10")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "ProvaAI")
+Progetto.nuovo(cart, "ProvaAI", "vuoto")
+app.apri_progetto(cart)
+radice.update()
+domande_utente = []
+app.chiedi_conferma = lambda titolo, dettaglio: (domande_utente.append(titolo), RISPOSTA_UTENTE[0])[1]
+RISPOSTA_UTENTE = [Vero]
+
+definisci chiedi_all_ai(domanda, scenario):
+    FalsoApi.corpi.clear()
+    FalsoApi.scenario = scenario
+    app.mostra_chat() se testo(app.chat) non in [testo(x) per x in app.corpo.panes()] altrimenti Nessuno
+    app.chat.invia(domanda)
+    t0 = time.time()
+    mentre (app.chat.lavoro.is_alive() o non app.chat.eventi.empty()) e time.time() - t0 < 30:
+        radice.update()
+        time.sleep(0.02)
+    radice.update()
+
+# --- 1. due errori di sintassi poi codice valido: l'utente non vede mai il codice sbagliato
+chiedi_all_ai("Crea a.pit", SCENARIO)
+file_a = os.path.join(cart, "a.pit")
+stampa("file scritto solo alla fine, con codice valido:", os.path.exists(file_a) e open(file_a, encoding="utf-8").read() == GIUSTO)
+risultati = [b per m in FalsoApi.corpi[-1]["messages"] se m["role"] == "user" e isinstance(m["content"], lista) per b in m["content"] se b.get("type") == "tool_result"]
+stampa("risposte agli strumenti:", [("errore" se b.get("is_error") altrimenti "ok") per b in risultati], "| messaggio:", "NON SCRITTO" in risultati[0]["content"], "tentativo 2 di 3" in risultati[1]["content"])
+stampa("conferme chieste all'utente:", domande_utente)
+
+# --- 2. registro
+percorso_registro = os.path.join(cart, ".rad", "ai_registro.jsonl")
+eventi = registro_ai.leggi_registro(percorso_registro)
+r = registro_ai.riepilogo(eventi)
+stampa("registro: richieste", r["richieste"], "chiamate", r["chiamate"], "scritture", r["scritture"], "valide al primo", r["valide_al_primo"], "corrette da sole", r["corrette_da_sole"])
+stampa("registro: token nuovi", r["token_nuovi"], "cache lettura", r["token_cache_lettura"], "cache scrittura", r["token_cache_scrittura"], "uscita", r["token_uscita"], "passi", r["passi_totali"])
+stampa("sintassi registrata:", [e["tentativo"] per e in eventi se e["tipo"] == "scrittura" e e["esito"] == "sintassi"])
+stampa("testo statistiche:", registro_ai.testo_riepilogo(eventi).splitlines()[0])
+
+# --- 3. cache della cronologia
+primo = FalsoApi.corpi[0]["messages"]
+ultimo = FalsoApi.corpi[-1]["messages"]
+def_ = lambda corpo: corpo["messages"][-1]["content"][-1].get("cache_control")
+stampa("cache sull'ultimo blocco di ogni richiesta:", [def_(c) per c in FalsoApi.corpi])
+stampa("un solo messaggio con cache per richiesta:", tutti(sum(1 per m in c["messages"] se isinstance(m["content"], lista) per b in m["content"] se "cache_control" in b) == 1 per c in FalsoApi.corpi))
+stampa("cronologia salvata senza cache_control:", "cache_control" non in json.dumps(app.chat.messaggi))
+cfg.imposta("ai.cache_cronologia", Falso, notifica=Falso)
+chiedi_all_ai("Ancora", ["FINE"])
+stampa("cache disattivabile:", "cache_control" non in json.dumps(FalsoApi.corpi[0]["messages"]))
+cfg.imposta("ai.cache_cronologia", Vero, notifica=Falso)
+
+# --- 4. troppi errori: decide l'utente
+domande_utente.clear()
+RISPOSTA_UTENTE[0] = Falso
+chiedi_all_ai("Crea b.pit", [[("scrivi_file", {"percorso": "b.pit", "contenuto": SBAGLIATO})]] * 3 + ["FINE"])
+stampa("terza scrittura sbagliata -> chiesto all'utente:", domande_utente, "| b.pit non creato:", non os.path.exists(os.path.join(cart, "b.pit")))
+domande_utente.clear()
+RISPOSTA_UTENTE[0] = Vero
+chiedi_all_ai("Crea c.pit", [[("scrivi_file", {"percorso": "c.pit", "contenuto": SBAGLIATO})]] * 3 + ["FINE"])
+stampa("utente accetta -> salvato comunque:", os.path.exists(os.path.join(cart, "c.pit")))
+r = registro_ai.riepilogo(registro_ai.leggi_registro(percorso_registro))
+stampa("registro: forzate", r["forzate"], "rifiutate", r["rifiutate"])
+
+# --- 5. file già sbagliato: le modifiche parziali non si bloccano; i file non-codice non si controllano
+Progetto(cart).crea_file("rotto.pit", SBAGLIATO)
+chiedi_all_ai("Modifica", [[("modifica_file", {"percorso": "rotto.pit", "vecchio": "stampa(1)", "nuovo": "stampa(2)"}), ("scrivi_file", {"percorso": "nota.md", "contenuto": "se x\n"})], "FINE"])
+stampa("modifica parziale ammessa:", "stampa(2)" in open(os.path.join(cart, "rotto.pit"), encoding="utf-8").read(), "| md non controllato:", os.path.exists(os.path.join(cart, "nota.md")))
+
+# --- 6. statistiche nel menu
+chiamato = []
+da tkinter importa messagebox
+vecchio = messagebox.showinfo
+messagebox.showinfo = lambda t, m, **k: chiamato.append(m)
+app.statistiche_ai()
+messagebox.showinfo = vecchio
+stampa("finestra statistiche:", chiamato e "Token in ingresso" in chiamato[0])
+server.shutdown()
+radice.destroy()
