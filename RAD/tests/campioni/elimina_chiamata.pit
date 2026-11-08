@@ -1,0 +1,9 @@
+definisci elimina(x):
+    stampa("chiamata elimina", x)
+
+definisci usa(a, elimina):
+    elimina(a)
+    stampa("dopo")
+
+usa(5, lambda v: stampa("callback", v))
+elimina(7)

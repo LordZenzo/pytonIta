@@ -33,6 +33,9 @@ Per i tipi scritti in C (`lista`, `testo`) serve la nuova funzione interna `_imp
 ### 4. Messaggi d'errore
 Tradotti i messaggi del parser e dell'esecuzione che erano rimasti in inglese (blocco indentato dopo `se`/`per`/…, «Forse hai dimenticato una virgola?», «troppi valori da decomprimere», `'ritorna' fuori da una funzione`, ecc.).
 
+### 5. `elimina(x)` è una chiamata
+`elimina` (cioè `del`) attaccato alla parentesi si legge come un nome: `elimina(x)` chiama la funzione `elimina`; per cancellare un nome si scrive `elimina x` (o `elimina lista[0]`). Una parola definita con `definisci`/`classe` resta un nome per tutto il file.
+
 ## Cosa non è stato cambiato (e perché)
 - **Le parole chiave non sono state rinominate**: `se`, `per`, `classe`… restano uguali. Cambiarle romperebbe i programmi esistenti e, senza prove con utenti veri, non sappiamo quali sarebbero migliori.
 - **`se_stesso`** è solo una convenzione: il primo parametro dei metodi si può chiamare come si vuole (`io`, `questo`). Le lezioni mantengono `se_stesso` perché è coerente con le librerie e con la guida.

@@ -11,6 +11,7 @@ da rad importa NOME, VERSIONE, tema, form_modello, esecuzione, dialoghi, stile
 da rad.config importa Configurazione
 da rad.editor importa Editor, linguaggio_di
 da rad importa registro_ai
+da rad.storia importa Storia
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
 da rad.progetto importa Progetto, PannelloProgetto, tipo_file
@@ -36,6 +37,7 @@ classe Applicazione:
         se_stesso.colori = tema.colori(se_stesso.config_)
         se_stesso.progetto = Nessuno
         se_stesso.schede = {}            # percorso assoluto -> widget della scheda
+        se_stesso.storia = Nessuno       # Storia delle modifiche dell'assistente del progetto aperto
         se_stesso.punti_arresto = {}     # percorso assoluto -> insieme di righe con punto di arresto (debugger)
         se_stesso.debug = SessioneDebug(se_stesso)
         se_stesso._sintassi = {}         # widget -> id del lavoro programmato
@@ -232,6 +234,8 @@ classe Applicazione:
         strumenti.add_command(label="Impostazioni…", command=se_stesso.impostazioni)
         strumenti.add_command(label="Chiedi all'AI di spiegare il codice selezionato", command=se_stesso.ai_spiega)
         strumenti.add_command(label="Chiedi all'AI di correggere l'ultimo errore", command=se_stesso.ai_correggi)
+        strumenti.add_command(label="Annulla l'ultima modifica dell'assistente", command=se_stesso.annulla_ultima_ai)
+        strumenti.add_command(label="Cronologia delle modifiche dell'assistente…", command=se_stesso.cronologia_ai)
         strumenti.add_command(label="Statistiche dell'assistente (token, codice valido)…", command=se_stesso.statistiche_ai)
         strumenti.add_separator()
         strumenti.add_command(label="Manuale pytonIta (apri)", command=se_stesso.apri_manuale)
@@ -479,6 +483,7 @@ classe Applicazione:
                 ritorna
         se_stesso.salva_sessione()
         se_stesso.progetto = Progetto(cartella)
+        se_stesso.storia = Storia(se_stesso.progetto)
         se_stesso.config_.aggiungi_recente(cartella)
         se_stesso.pannello_progetto.imposta_progetto(se_stesso.progetto)
         se_stesso.pannello_librerie.imposta_progetto(se_stesso.progetto)
@@ -486,6 +491,7 @@ classe Applicazione:
         se_stesso.testo_progetto.configure(text=f"📦 {se_stesso.progetto.nome}")
         se_stesso._aggiorna_recenti()
         se_stesso.chat.carica_cronologia()
+        se_stesso.chat.aggiorna_annulla()
         se_stesso.console.pulisci()
         se_stesso._nascondi_benvenuto()
         se_stesso.ripristina_sessione()
@@ -1115,7 +1121,7 @@ classe Applicazione:
         se isinstance(w, Editor) e w.selezione().strip():
             se testo(se_stesso.chat) non in [testo(x) per x in se_stesso.corpo.panes()]:
                 se_stesso.mostra_chat()
-            se_stesso.chat.chiedi("Spiegami questo codice (selezione nell'editor) e dimmi se vedi problemi.")
+            se_stesso.chat.chiedi("Spiegami questo codice (selezione nell'editor) e dimmi se vedi problemi.", economico=Vero)
         altrimenti:
             se_stesso.info("Seleziona del codice nell'editor.")
 
@@ -1124,6 +1130,47 @@ classe Applicazione:
             se_stesso.mostra_chat()
         se_stesso.chat.chiedi("L'ultima esecuzione ha dato un errore (vedi la console con stato_ide). "
                               "Trova la causa, correggi il codice e verifica eseguendolo.")
+
+    # ---- annullare le modifiche dell'assistente
+    definisci ripristina_file(se_stesso, assoluto, dati):
+        """Rimette sul disco il contenuto (in byte) di un file e aggiorna la scheda se è aperta."""
+        assoluto = os.path.abspath(assoluto)
+        os.makedirs(os.path.dirname(assoluto), exist_ok=Vero)
+        con open(assoluto, "wb") come f:
+            f.write(dati)
+        w = se_stesso.schede.get(assoluto)
+        se w è non Nessuno e hasattr(w, "ricarica_se_cambiato_su_disco"):
+            w.ricarica_se_cambiato_su_disco()
+        se_stesso.pannello_progetto.aggiorna()
+
+    definisci annulla_gruppo_ai(se_stesso, gruppo):
+        """Annulla un gruppo di modifiche dell'assistente. Ritorna l'elenco (file, azione)."""
+        fatti = se_stesso.storia.annulla(gruppo, se_stesso.ripristina_file, se_stesso.elimina_percorso)
+        se_stesso.pannello_progetto.aggiorna()
+        se_stesso.chat.aggiorna_annulla()
+        ritorna fatti
+
+    definisci annulla_ultima_ai(se_stesso):
+        se non se_stesso.storia:
+            se_stesso.info("Apri un progetto: non ci sono modifiche dell'assistente da annullare.")
+            ritorna
+        gruppo = se_stesso.storia.ultimo_annullabile()
+        se non gruppo:
+            se_stesso.info("Nessuna modifica dell'assistente da annullare.")
+            ritorna
+        elenco = "\n".join("  " + r per r in se_stesso.storia.descrivi(gruppo))
+        se non messagebox.askyesno("Annulla la modifica dell'assistente",
+                                   f"Richiesta: «{gruppo.get('descrizione') o gruppo['id']}»\n({gruppo['quando']})\n\n{elenco}\n\n"
+                                   "I file torneranno come erano prima (i file creati verranno tolti). Procedo?", parent=se_stesso.radice):
+            ritorna
+        fatti = se_stesso.annulla_gruppo_ai(gruppo)
+        se_stesso.info(f"Annullata la modifica dell'assistente: {lunghezza(fatti)} file.")
+
+    definisci cronologia_ai(se_stesso):
+        se non se_stesso.storia:
+            se_stesso.info("Apri un progetto per vedere la cronologia delle modifiche dell'assistente.")
+            ritorna
+        dialoghi.DialogoCronologiaAI(se_stesso.radice, se_stesso.colori, se_stesso.storia, se_stesso.annulla_gruppo_ai)
 
     definisci statistiche_ai(se_stesso):
         """Riepilogo del registro dell'assistente: token, codice valido al primo tentativo, esecuzioni."""
@@ -1202,6 +1249,10 @@ classe Applicazione:
         se_stesso.progetto.cancella(rel)
         se_stesso.file_eliminato(assoluto)
         se_stesso.pannello_progetto.aggiorna()
+
+    definisci chiedi_modifica(se_stesso, percorso, vecchio, nuovo, spiegazione=""):
+        """Finestra «prima / dopo» per una modifica proposta dall'assistente. Ritorna True se l'utente la accetta."""
+        ritorna bool(dialoghi.DialogoModifica(se_stesso.radice, se_stesso.colori, percorso, vecchio, nuovo, spiegazione).mostra())
 
     definisci chiedi_conferma(se_stesso, titolo, dettaglio):
         ritorna messagebox.askyesno(titolo, dettaglio, parent=se_stesso.radice, icon="question")

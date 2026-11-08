@@ -190,6 +190,9 @@ definisci analizza(testo_errori, cartella=Nessuno, linguaggio_py=Falso):
     altrimenti_se en == "UnboundLocalError":
         aiuto = ("Dentro una funzione hai usato una variabile prima di assegnarle un valore (o hai assegnato un valore a una variabile che esiste anche fuori). "
                  "Assegnala prima, oppure dichiarala con «globale nome» se vuoi usare quella esterna.")
+    altrimenti_se en == "MemoryError":
+        aiuto = ("Il programma ha esaurito la memoria a disposizione (c'è un limite nelle impostazioni, oppure una lista o un testo cresce senza fine). "
+                 "Controlla i cicli che aggiungono elementi e le dimensioni dei dati.")
     altrimenti_se en == "RecursionError":
         aiuto = "La funzione si richiama all'infinito: manca il caso base che ferma la ricorsione."
     altrimenti_se en == "KeyboardInterrupt":

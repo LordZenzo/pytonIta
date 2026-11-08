@@ -11,6 +11,7 @@ importa time
 importa tkinter come tk
 
 da rad importa diagnosi
+da rad importa limiti come limiti_mod
 da tkinter importa ttk
 
 _RE_LINK = re.compile(r'File "([^"]+)", (?:riga|line) (\d+)')
@@ -45,29 +46,44 @@ definisci controlla_sintassi(sorgente, nome_file="<editor>", linguaggio=Nessuno)
     ritorna Nessuno
 
 
-definisci esegui_sincrono(argomenti, cartella=Nessuno, tempo_massimo=60, ingresso=Nessuno):
-    """Esegue un comando e ne cattura l'output. Ritorna un dizionario."""
+definisci esegui_sincrono(argomenti, cartella=Nessuno, tempo_massimo=60, ingresso=Nessuno, limiti=Nessuno):
+    """Esegue un comando e ne cattura l'output. Ritorna un dizionario.
+
+    limiti: (memoria_mb, processi) oppure Nessuno (vedi rad.limiti)."""
     ambiente = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
     inizio = time.time()
-    kw = dict(cwd=cartella, capture_output=Vero, env=ambiente, timeout=tempo_massimo,
-              creationflags=_FLAG_NASCONDI)
-    se ingresso è Nessuno:
-        kw["stdin"] = subprocess.DEVNULL
-    altrimenti:
-        kw["input"] = ingresso.encode("utf-8")
     prova:
-        r = subprocess.run(argomenti, **kw)
-        ritorna {"codice": r.returncode,
-                 "uscita": r.stdout.decode("utf-8", "replace"),
-                 "errori": r.stderr.decode("utf-8", "replace"),
-                 "scaduto": Falso, "secondi": round(time.time() - inizio, 2)}
-    eccetto subprocess.TimeoutExpired come e:
-        ritorna {"codice": -1,
-                 "uscita": (e.stdout o b"").decode("utf-8", "replace"),
-                 "errori": (e.stderr o b"").decode("utf-8", "replace"),
-                 "scaduto": Vero, "secondi": tempo_massimo}
+        p = subprocess.Popen(argomenti, cwd=cartella, stdin=subprocess.PIPE se ingresso è non Nessuno altrimenti subprocess.DEVNULL,
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ambiente, creationflags=_FLAG_NASCONDI)
     eccetto OSError come e:
         ritorna {"codice": -1, "uscita": "", "errori": testo(e), "scaduto": Falso, "secondi": 0}
+    limite = limiti_mod.applica(p, *limiti) se limiti altrimenti Nessuno
+    prova:
+        prova:
+            out, err = p.communicate(input=ingresso.encode("utf-8") se ingresso è non Nessuno altrimenti Nessuno, timeout=tempo_massimo)
+            ritorna {"codice": p.returncode, "uscita": (out o b"").decode("utf-8", "replace"),
+                     "errori": (err o b"").decode("utf-8", "replace"),
+                     "scaduto": Falso, "secondi": round(time.time() - inizio, 2)}
+        eccetto subprocess.TimeoutExpired:
+            termina_albero(p)
+            out, err = p.communicate()
+            ritorna {"codice": -1, "uscita": (out o b"").decode("utf-8", "replace"),
+                     "errori": (err o b"").decode("utf-8", "replace"),
+                     "scaduto": Vero, "secondi": tempo_massimo}
+    infine:
+        se limite:
+            limite.chiudi()
+
+
+definisci termina_albero(p):
+    """Ferma un processo e quelli che ha avviato."""
+    prova:
+        se sys.platform == "win32":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", testo(p.pid)], capture_output=Vero, creationflags=_FLAG_NASCONDI)
+        altrimenti:
+            p.kill()
+    eccetto OSError:
+        passa
 
 
 classe Esecutore:
@@ -77,12 +93,13 @@ classe Esecutore:
         se_stesso.processo = Nessuno
         se_stesso.coda = queue.Queue()
         se_stesso.inizio = 0
+        se_stesso.limite = Nessuno
 
     @property
     definisci in_esecuzione(se_stesso):
         ritorna se_stesso.processo è non Nessuno e se_stesso.processo.poll() è Nessuno
 
-    definisci avvia(se_stesso, argomenti, cartella=Nessuno):
+    definisci avvia(se_stesso, argomenti, cartella=Nessuno, limiti=Nessuno):
         se se_stesso.in_esecuzione:
             solleva ErroreDiEsecuzione("un programma è già in esecuzione")
         ambiente = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
@@ -91,6 +108,7 @@ classe Esecutore:
                                               env=ambiente, creationflags=_FLAG_NASCONDI)
         se_stesso.inizio = time.time()
         p = se_stesso.processo
+        se_stesso.limite = limiti_mod.applica(p, *limiti) se limiti altrimenti Nessuno
         t_out = threading.Thread(target=se_stesso._leggi, args=(p.stdout, "out"), daemon=Vero)
         t_err = threading.Thread(target=se_stesso._leggi, args=(p.stderr, "err"), daemon=Vero)
         t_out.start()
@@ -109,6 +127,9 @@ classe Esecutore:
 
     definisci _attendi_fine(se_stesso, p, t_out, t_err):
         codice = p.wait()
+        se se_stesso.limite:
+            se_stesso.limite.chiudi()
+            se_stesso.limite = Nessuno
         t_out.join(1)
         t_err.join(1)
         se_stesso.coda.put(("fine", (codice, round(time.time() - se_stesso.inizio, 2))))
@@ -256,7 +277,7 @@ classe Console(tk.Frame):
         se_stesso._e_python = any(testo(a).lower().endswith((".py", ".pyw")) per a in argomenti)
         se_stesso.scrivi(f"▶ {descrizione o ' '.join(argomenti)}\n", "info")
         prova:
-            se_stesso.esecutore.avvia(argomenti, cartella)
+            se_stesso.esecutore.avvia(argomenti, cartella, limiti_mod.da_configurazione(se_stesso.config_, "esecuzione"))
         eccetto OSError come errore:
             se_stesso.scrivi(f"Impossibile avviare: {errore}\n", "err")
             ritorna Falso

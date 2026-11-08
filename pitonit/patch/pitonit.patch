@@ -6731,10 +6731,10 @@ index d1fb740..e36e220 100644
      set_running_main = 1;
      assert(!PyErr_Occurred());
 diff --git a/Parser/pegen.c b/Parser/pegen.c
-index 311ac0e..4dd9321 100644
+index 311ac0e..a0062b8 100644
 --- a/Parser/pegen.c
 +++ b/Parser/pegen.c
-@@ -155,12 +155,363 @@ growable_comment_array_deallocate(growable_comment_array *arr) {
+@@ -155,12 +155,369 @@ growable_comment_array_deallocate(growable_comment_array *arr) {
      PyMem_Free(arr->items);
  }
  
@@ -6960,6 +6960,12 @@ index 311ac0e..4dd9321 100644
 +        }
 +    }
 +
++    /* "elimina(x)" attaccato alla parentesi e' una chiamata (nome di funzione o parametro), non "del (x)":
++       chi vuole cancellare un nome scrive "elimina x" */
++    if (strcmp(en, "del") == 0 && *tok->end == '(') {
++        return 1;
++    }
++
 +    /* "produci" in mezzo a un'espressione (dopo virgola, operatori...) e' un nome;
 +       come istruzione, dopo "=" o "(" resta "yield" */
 +    if (prev != NULL && strcmp(en, "yield") == 0) {
@@ -7098,7 +7104,7 @@ index 311ac0e..4dd9321 100644
      if (name_len >= p->n_keyword_lists ||
          p->keywords[name_len] == NULL ||
          p->keywords[name_len]->type == -1) {
-@@ -475,6 +826,26 @@ _PyPegen_expect_soft_keyword(Parser *p, const char *keyword)
+@@ -475,6 +832,26 @@ _PyPegen_expect_soft_keyword(Parser *p, const char *keyword)
          p->error_indicator = 1;
          return NULL;
      }
@@ -7125,7 +7131,7 @@ index 311ac0e..4dd9321 100644
      if (strcmp(s, keyword) != 0) {
          return NULL;
      }
-@@ -498,6 +869,14 @@ _PyPegen_get_last_nonnwhitespace_token(Parser *p)
+@@ -498,6 +875,14 @@ _PyPegen_get_last_nonnwhitespace_token(Parser *p)
  PyObject *
  _PyPegen_new_identifier(Parser *p, const char *n)
  {
@@ -7140,7 +7146,7 @@ index 311ac0e..4dd9321 100644
      PyObject *id = PyUnicode_DecodeUTF8(n, strlen(n), NULL);
      if (!id) {
          goto error;
-@@ -578,6 +957,13 @@ _PyPegen_name_from_token(Parser *p, Token* t)
+@@ -578,6 +963,13 @@ _PyPegen_name_from_token(Parser *p, Token* t)
          p->error_indicator = 1;
          return NULL;
      }
@@ -7154,7 +7160,7 @@ index 311ac0e..4dd9321 100644
      PyObject *id = _PyPegen_new_identifier(p, s);
      if (id == NULL) {
          p->error_indicator = 1;
-@@ -797,6 +1183,9 @@ compute_parser_flags(PyCompilerFlags *flags)
+@@ -797,6 +1189,9 @@ compute_parser_flags(PyCompilerFlags *flags)
      if (flags->cf_flags & PyCF_ALLOW_INCOMPLETE_INPUT) {
          parser_flags |= PyPARSE_ALLOW_INCOMPLETE_INPUT;
      }

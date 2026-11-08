@@ -241,3 +241,146 @@ definisci informazioni(genitore, colori=Nessuno, apri_guida=Nessuno):
         messagebox.showinfo(f"Informazioni su {NOME}", f"{NOME} {VERSIONE}\nAmbiente di sviluppo per pytonIta (pitonit)", parent=genitore)
         ritorna
     DialogoInformazioni(genitore, colori, apri_guida)
+
+
+classe DialogoModifica(DialogoBase):
+    """Mostra cosa cambierebbe una modifica dell'assistente: colonna «prima» e «dopo», con le righe cambiate evidenziate."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, percorso, vecchio, nuovo, spiegazione=""):
+        DialogoBase.__init__(se_stesso, genitore, "Modifica proposta dall'assistente", colori, 1000, 640)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.minsize(700, 420)
+        da rad importa confronto
+        c = colori
+        sinistra, destra, stat = confronto.righe_affiancate(vecchio, nuovo)
+        azione = "modificare" se vecchio è non Nessuno altrimenti "creare"
+        tk.Label(se_stesso, text=f"L'assistente vuole {azione}  {percorso}", font=("Segoe UI Semibold", 11), anchor="w",
+                 background=c["pannello"], foreground=c["primo_piano"]).pack(fill="x", padx=14, pady=(12, 0))
+        tk.Label(se_stesso, text=confronto.riassunto(stat, vecchio è non Nessuno), font=("Segoe UI", 9), anchor="w",
+                 background=c["pannello"], foreground=c["tenue"]).pack(fill="x", padx=14)
+        se spiegazione.strip():
+            breve = spiegazione.strip().split("\n\n")[0][:400]
+            tk.Label(se_stesso, text="Perché: " + breve, font=("Segoe UI", 9), anchor="w", justify="left", wraplength=940,
+                     background=c["pannello"], foreground=c["primo_piano"]).pack(fill="x", padx=14, pady=(4, 0))
+        # pulsanti (in basso) e colonne
+        barra = tk.Frame(se_stesso, background=c["pannello"])
+        barra.pack(side="bottom", fill="x", padx=14, pady=10)
+        tk.Button(barra, text="Rifiuta", width=12, relief="flat", background=c["pulsante"], foreground=c["primo_piano"],
+                  command=lambda: se_stesso._chiudi(Falso)).pack(side="right", padx=4)
+        tk.Button(barra, text="Applica la modifica", width=20, relief="flat", background=c["accento"], foreground="#ffffff",
+                  command=lambda: se_stesso._chiudi(Vero)).pack(side="right", padx=4)
+        tk.Label(barra, text="Potrai annullarla da Strumenti → Annulla l'ultima modifica dell'assistente.", font=("Segoe UI", 8),
+                 background=c["pannello"], foreground=c["tenue"]).pack(side="left")
+        corpo = tk.Frame(se_stesso, background=c["pannello"])
+        corpo.pack(fill="both", expand=Vero, padx=14, pady=8)
+        corpo.grid_columnconfigure(0, weight=1, uniform="col")
+        corpo.grid_columnconfigure(1, weight=1, uniform="col")
+        corpo.grid_rowconfigure(1, weight=1)
+        barra_y = ttk.Scrollbar(corpo, orient="vertical")
+        se_stesso.testi = []
+        per colonna, (titolo_, righe) in enumera((("Prima", sinistra), ("Dopo", destra))):
+            tk.Label(corpo, text=titolo_, anchor="w", font=("Segoe UI Semibold", 9), background=c["pannello"],
+                     foreground=c["tenue"]).grid(row=0, column=colonna, sticky="we")
+            t = tk.Text(corpo, wrap="none", font=("Consolas", 10), borderwidth=0, highlightthickness=1,
+                        background=c["editor"], foreground=c["editor_testo"], highlightbackground=c["bordo"], height=10, width=10)
+            t.grid(row=1, column=colonna, sticky="nsew", padx=(0, 6) se colonna == 0 altrimenti (0, 0))
+            rosso = "#5a2a2a" se c["editor"] < "#808080" altrimenti "#fadada"
+            verde = "#1f4a2a" se c["editor"] < "#808080" altrimenti "#d6f5dc"
+            t.tag_configure("rimossa", background=rosso)
+            t.tag_configure("aggiunta", background=verde)
+            t.tag_configure("vuota", background=c["pannello"])
+            t.tag_configure("salto", foreground=c["tenue"], justify="center")
+            t.tag_configure("numero", foreground=c["tenue"])
+            per tipo_, numero, riga in righe:
+                prefisso = f"{numero:>4}  " se numero altrimenti "      "
+                t.insert("end", prefisso, ("numero", tipo_))
+                t.insert("end", riga + "\n", (tipo_,))
+            t.configure(state="disabled", yscrollcommand=barra_y.set)
+            se_stesso.testi.append(t)
+        barra_y.grid(row=1, column=2, sticky="ns")
+        barra_y.configure(command=se_stesso._scorri)
+        per t in se_stesso.testi:
+            t.bind("<MouseWheel>", se_stesso._rotella)
+        se_stesso.protocol("WM_DELETE_WINDOW", lambda: se_stesso._chiudi(Falso))
+
+    definisci _scorri(se_stesso, *args):
+        per t in se_stesso.testi:
+            t.yview(*args)
+
+    definisci _rotella(se_stesso, e):
+        per t in se_stesso.testi:
+            t.yview_scroll(int(-e.delta / 120) * 3, "units")
+        ritorna "break"
+
+    definisci _chiudi(se_stesso, esito):
+        se_stesso.risultato = esito
+        se_stesso.destroy()
+
+
+classe DialogoCronologiaAI(DialogoBase):
+    """Elenco delle modifiche fatte dall'assistente, con la possibilità di annullarle."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, storia, annulla_gruppo):
+        DialogoBase.__init__(se_stesso, genitore, "Modifiche dell'assistente", colori, 820, 460)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.storia = storia
+        se_stesso.annulla_gruppo = annulla_gruppo
+        c = colori
+        tk.Label(se_stesso, text="Ogni richiesta che ha cambiato dei file è un gruppo che si può annullare.", anchor="w",
+                 font=("Segoe UI", 9), background=c["pannello"], foreground=c["tenue"]).pack(fill="x", padx=14, pady=(12, 4))
+        barra = tk.Frame(se_stesso, background=c["pannello"])
+        barra.pack(side="bottom", fill="x", padx=14, pady=10)
+        se_stesso.pulsante = tk.Button(barra, text="Annulla questa modifica", width=24, relief="flat", background=c["accento"],
+                                       foreground="#ffffff", command=se_stesso._annulla)
+        se_stesso.pulsante.pack(side="right", padx=4)
+        tk.Button(barra, text="Chiudi", width=10, relief="flat", background=c["pulsante"], foreground=c["primo_piano"],
+                  command=se_stesso.destroy).pack(side="right", padx=4)
+        corpo = tk.Frame(se_stesso, background=c["pannello"])
+        corpo.pack(fill="both", expand=Vero, padx=14)
+        se_stesso.elenco = tk.Listbox(corpo, width=44, activestyle="none", exportselection=Falso, borderwidth=0, highlightthickness=1,
+                                      background=c["editor"], foreground=c["editor_testo"], selectbackground=c["accento"],
+                                      highlightbackground=c["bordo"], font=("Segoe UI", 9))
+        se_stesso.elenco.pack(side="left", fill="y")
+        se_stesso.dettaglio = tk.Text(corpo, wrap="word", font=("Consolas", 10), borderwidth=0, highlightthickness=1, state="disabled",
+                                      background=c["editor"], foreground=c["editor_testo"], highlightbackground=c["bordo"])
+        se_stesso.dettaglio.pack(side="left", fill="both", expand=Vero, padx=(8, 0))
+        se_stesso.elenco.bind("<<ListboxSelect>>", se_stesso._scelta)
+        se_stesso._riempi()
+
+    definisci _riempi(se_stesso):
+        se_stesso.gruppi = se_stesso.storia.gruppi()
+        se_stesso.elenco.delete(0, "end")
+        per g in se_stesso.gruppi:
+            segno = "↶ " se g.get("annullato") altrimenti ""
+            se_stesso.elenco.insert("end", f"{segno}{g['quando'][5:16]}  {g.get('descrizione') o g['id']}  ({lunghezza(g['modifiche'])} file)")
+        se se_stesso.gruppi:
+            se_stesso.elenco.selection_set(0)
+        se_stesso._scelta()
+
+    definisci _scelta(se_stesso, e=Nessuno):
+        sel = se_stesso.elenco.curselection()
+        se_stesso.dettaglio.configure(state="normal")
+        se_stesso.dettaglio.delete("1.0", "end")
+        se non sel:
+            se_stesso.dettaglio.insert("1.0", "Nessuna modifica dell'assistente registrata in questo progetto.")
+            se_stesso.pulsante.configure(state="disabled")
+        altrimenti:
+            g = se_stesso.gruppi[sel[0]]
+            testo_ = (f"Richiesta: {g.get('descrizione') o g['id']}\nQuando: {g['quando']}\n"
+                      + ("Già annullata.\n" se g.get("annullato") altrimenti "") + "\nFile:\n"
+                      + "\n".join("  " + r per r in se_stesso.storia.descrivi(g))
+                      + "\n\n✎ modificato   ＋ creato   ✖ eliminato")
+            se_stesso.dettaglio.insert("1.0", testo_)
+            se_stesso.pulsante.configure(state="disabled" se g.get("annullato") altrimenti "normal")
+        se_stesso.dettaglio.configure(state="disabled")
+
+    definisci _annulla(se_stesso):
+        sel = se_stesso.elenco.curselection()
+        se non sel:
+            ritorna
+        g = se_stesso.gruppi[sel[0]]
+        se non messagebox.askyesno("Annulla la modifica", "I file di questo gruppo torneranno come erano prima della richiesta "
+                                   "(anche se li hai cambiati dopo). Procedo?", parent=se_stesso):
+            ritorna
+        se_stesso.annulla_gruppo(g)
+        se_stesso._riempi()

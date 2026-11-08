@@ -1,0 +1,181 @@
+"""Registro delle versioni interno: permette di annullare le modifiche fatte dall'assistente.
+
+Prima che l'assistente tocchi il progetto si fotografa lo stato dei file di testo (impronta di ogni file, con una copia del
+contenuto salvata una sola volta); alla fine della richiesta si confronta con lo stato nuovo. Se qualcosa è cambiato nasce un
+«gruppo» di modifiche che si può annullare in un colpo solo: i file modificati tornano come prima, quelli creati vengono tolti,
+quelli eliminati ricompaiono. Non serve git. Tutto sta in .rad/storia dentro il progetto.
+
+Si tracciano i file di testo (codice, JSON, Markdown…) fino a 512 KB; immagini e altri file binari non sono coperti.
+"""
+importa hashlib
+importa json
+importa os
+importa time
+
+ESTENSIONI = {".pit", ".py", ".pyw", ".json", ".md", ".txt", ".csv", ".tsv", ".ini", ".cfg", ".toml", ".yaml", ".yml",
+              ".html", ".css", ".js", ".xml", ".sql"}
+LIMITE_FILE = 512 * 1024
+LIMITE_FILE_TRACCIATI = 2000
+MASSIMO_GRUPPI = 50
+
+
+classe Storia:
+    """Storia delle modifiche dell'assistente per un progetto."""
+
+    definisci __inizializza__(se_stesso, progetto):
+        se_stesso.progetto = progetto
+        se_stesso.base = os.path.join(progetto.cartella, ".rad", "storia")
+        se_stesso._prima = Nessuno          # stato prima della richiesta in corso: {percorso relativo: impronta}
+        se_stesso._descrizione = ""
+        se_stesso._id = ""
+
+    # ------------------------------------------------------------ fotografia dei file
+    definisci _tracciati(se_stesso):
+        per rel in se_stesso.progetto.tutti_i_file(massimo=LIMITE_FILE_TRACCIATI):
+            se os.path.splitext(rel)[1].lower() in ESTENSIONI:
+                assoluto = se_stesso.progetto.assoluto(rel)
+                prova:
+                    se os.path.getsize(assoluto) <= LIMITE_FILE:
+                        produci rel, assoluto
+                eccetto OSError:
+                    continua
+
+    definisci _oggetto(se_stesso, impronta):
+        ritorna os.path.join(se_stesso.base, "oggetti", impronta)
+
+    definisci _fotografa(se_stesso, salva):
+        """{percorso relativo: impronta}. Con salva=True copia anche i contenuti non ancora presenti."""
+        stato = {}
+        per rel, assoluto in se_stesso._tracciati():
+            prova:
+                con open(assoluto, "rb") come f:
+                    dati = f.read()
+            eccetto OSError:
+                continua
+            impronta = hashlib.sha1(dati).hexdigest()
+            stato[rel] = impronta
+            se salva:
+                destinazione = se_stesso._oggetto(impronta)
+                se non os.path.exists(destinazione):
+                    os.makedirs(os.path.dirname(destinazione), exist_ok=Vero)
+                    con open(destinazione, "wb") come f:
+                        f.write(dati)
+        ritorna stato
+
+    # ------------------------------------------------------------ una richiesta dell'assistente
+    definisci prima_di_modificare(se_stesso, id_richiesta="", descrizione=""):
+        """Da chiamare prima del primo strumento che può modificare il progetto (più chiamate: vale la prima)."""
+        se se_stesso._prima è Nessuno:
+            se_stesso._id = id_richiesta
+            se_stesso._descrizione = descrizione
+            se_stesso._prima = se_stesso._fotografa(Vero)
+
+    definisci concludi(se_stesso):
+        """Alla fine della richiesta: se qualcosa è cambiato registra il gruppo e lo ritorna (altrimenti Nessuno)."""
+        se se_stesso._prima è Nessuno:
+            ritorna Nessuno
+        prima = se_stesso._prima
+        se_stesso._prima = Nessuno
+        dopo = se_stesso._fotografa(Falso)
+        modifiche = {}
+        per rel in sorted(set(prima) | set(dopo)):
+            se prima.get(rel) != dopo.get(rel):
+                modifiche[rel] = {"prima": prima.get(rel), "dopo": dopo.get(rel)}
+        se non modifiche:
+            ritorna Nessuno
+        gruppo = {"id": se_stesso._id o time.strftime("%H%M%S"), "quando": time.strftime("%Y-%m-%d %H:%M:%S"),
+                  "descrizione": se_stesso._descrizione[:120], "modifiche": modifiche, "annullato": Falso}
+        os.makedirs(os.path.join(se_stesso.base, "gruppi"), exist_ok=Vero)
+        gruppo["file"] = f"{time.strftime('%Y%m%d-%H%M%S')}_{gruppo['id']}.json"
+        se_stesso._scrivi_gruppo(gruppo)
+        se_stesso._pota()
+        ritorna gruppo
+
+    definisci _scrivi_gruppo(se_stesso, gruppo):
+        con open(os.path.join(se_stesso.base, "gruppi", gruppo["file"]), "w", encoding="utf-8") come f:
+            json.dump(gruppo, f, ensure_ascii=Falso, indent=1)
+
+    # ------------------------------------------------------------ elenco e ripristino
+    definisci gruppi(se_stesso):
+        """Tutti i gruppi, dal più recente."""
+        cartella = os.path.join(se_stesso.base, "gruppi")
+        risultato = []
+        se non os.path.isdir(cartella):
+            ritorna risultato
+        per nome in sorted(os.listdir(cartella), reverse=Vero):
+            se nome.endswith(".json"):
+                prova:
+                    con open(os.path.join(cartella, nome), encoding="utf-8") come f:
+                        g = json.load(f)
+                    g["file"] = nome
+                    risultato.append(g)
+                eccetto (OSError, ValueError):
+                    continua
+        ritorna risultato
+
+    definisci ultimo_annullabile(se_stesso):
+        per g in se_stesso.gruppi():
+            se non g.get("annullato"):
+                ritorna g
+        ritorna Nessuno
+
+    definisci descrivi(se_stesso, gruppo):
+        """Righe di testo con i file del gruppo: ✎ modificato, ＋ creato, ✖ eliminato (⚠ = cambiato anche dopo)."""
+        righe = []
+        per rel, m in sorted(gruppo["modifiche"].items()):
+            simbolo = "＋" se m["prima"] è Nessuno altrimenti ("✖" se m["dopo"] è Nessuno altrimenti "✎")
+            adesso = se_stesso._impronta_attuale(rel)
+            avviso = "   ⚠ cambiato anche dopo" se adesso != m["dopo"] altrimenti ""
+            righe.append(f"{simbolo} {rel}{avviso}")
+        ritorna righe
+
+    definisci _impronta_attuale(se_stesso, rel):
+        prova:
+            con open(se_stesso.progetto.assoluto(rel), "rb") come f:
+                ritorna hashlib.sha1(f.read()).hexdigest()
+        eccetto OSError:
+            ritorna Nessuno
+
+    definisci annulla(se_stesso, gruppo, ripristina, cancella):
+        """Riporta i file del gruppo com'erano prima. ripristina(assoluto, bytes) e cancella(assoluto) fanno il lavoro sui file
+        (così l'ambiente aggiorna anche le schede aperte). Ritorna l'elenco di (file, azione)."""
+        fatti = []
+        per rel, m in sorted(gruppo["modifiche"].items()):
+            assoluto = se_stesso.progetto.assoluto(rel)
+            se m["prima"] è Nessuno:
+                se os.path.exists(assoluto):
+                    cancella(assoluto)
+                    fatti.append((rel, "tolto"))
+            altrimenti:
+                oggetto = se_stesso._oggetto(m["prima"])
+                se non os.path.exists(oggetto):
+                    fatti.append((rel, "copia non disponibile"))
+                    continua
+                con open(oggetto, "rb") come f:
+                    ripristina(assoluto, f.read())
+                fatti.append((rel, "ripristinato"))
+        gruppo["annullato"] = Vero
+        se_stesso._scrivi_gruppo(gruppo)
+        ritorna fatti
+
+    definisci _pota(se_stesso):
+        """Tiene gli ultimi MASSIMO_GRUPPI gruppi e toglie le copie che non servono più."""
+        tutti = se_stesso.gruppi()
+        per g in tutti[MASSIMO_GRUPPI:]:
+            prova:
+                os.remove(os.path.join(se_stesso.base, "gruppi", g["file"]))
+            eccetto OSError:
+                passa
+        usati = set()
+        per g in tutti[:MASSIMO_GRUPPI]:
+            per m in g["modifiche"].values():
+                se m["prima"]:
+                    usati.add(m["prima"])
+        cartella = os.path.join(se_stesso.base, "oggetti")
+        se os.path.isdir(cartella):
+            per nome in os.listdir(cartella):
+                se nome non in usati:
+                    prova:
+                        os.remove(os.path.join(cartella, nome))
+                    eccetto OSError:
+                        passa

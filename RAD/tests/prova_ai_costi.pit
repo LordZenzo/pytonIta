@@ -1,0 +1,165 @@
+importa sys, os, tempfile, time, json, threading
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da http.server importa BaseHTTPRequestHandler, HTTPServer
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa ai, confronto, registro_ai, dialoghi
+
+# ================================================================= confronto prima/dopo
+vecchio = "\n".join(f"riga {i}" per i in intervallo(1, 31))
+nuovo = vecchio.replace("riga 15", "riga QUINDICI") + "\nriga 31"
+sin, des, stat = confronto.righe_affiancate(vecchio, nuovo)
+stampa("confronto: statistiche", stat, "| righe allineate:", lunghezza(sin) == lunghezza(des), "| tipi sinistra:", sorted({t per t, n, r in sin}))
+stampa("righe invariate nascoste:", [r per t, n, r in sin se t == "salto"])
+sin, des, stat = confronto.righe_affiancate(Nessuno, "a\nb\n")
+stampa("file nuovo:", stat, [t per t, n, r in des][:3], confronto.riassunto(stat, Falso))
+sin, des, stat = confronto.righe_affiancate("a\nb\nc", "a\nc")
+stampa("riga tolta:", stat, [t per t, n, r in sin], [t per t, n, r in des])
+
+# ================================================================= compattazione
+definisci messaggio_lungo(n):
+    ritorna [{"role": "user", "content": [{"type": "text", "text": "<contesto_ide>\n" + "x" * 3000 + "\n</contesto_ide>"}, {"type": "text", "text": "domanda"}]},
+             {"role": "assistant", "content": [{"type": "tool_use", "id": f"t{n}", "name": "scrivi_file", "input": {"percorso": "a.pit", "contenuto": "y" * 5000}}]},
+             {"role": "user", "content": [{"type": "tool_result", "tool_use_id": f"t{n}", "content": "z" * 8000}]},
+             {"role": "assistant", "content": [{"type": "text", "text": "ok"}]}]
+msg = []
+per n in intervallo(6):
+    msg += messaggio_lungo(n)
+prima = ai.stima_token(msg)
+ultimi = json.dumps(msg[-6:])
+risparmio = ai.compatta(msg, 8000)
+stampa("compattazione: token prima", prima, "dopo", ai.stima_token(msg), "| risparmio >0:", risparmio > 0)
+stampa("ultimi 6 messaggi intatti:", json.dumps(msg[-6:]) == ultimi, "| id strumenti conservati:", [b["id"] per m in msg se m["role"] == "assistant" per b in m["content"] se b["type"] == "tool_use"] == [f"t{n}" per n in intervallo(6)])
+stampa("input accorciato ma con le chiavi:", msg[1]["content"][0]["input"]["percorso"], msg[1]["content"][0]["input"]["contenuto"][:20])
+stampa("sotto soglia non cambia nulla:", ai.compatta([{"role": "user", "content": [{"type": "text", "text": "ciao"}]}], 8000) == 0, "| soglia 0 = mai:", ai.compatta(msg, 0) == 0)
+
+# ================================================================= falso server (registra il modello usato)
+classe FalsoApi(BaseHTTPRequestHandler):
+    corpi = []
+    scenario = []
+    definisci log_message(se_stesso, *a): passa
+    definisci do_POST(se_stesso):
+        corpo = json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])))
+        FalsoApi.corpi.append(corpo)
+        n = lunghezza(FalsoApi.corpi) - 1
+        passo = FalsoApi.scenario[n] se n < lunghezza(FalsoApi.scenario) altrimenti "FINE"
+        se passo == "FINE":
+            r = {"stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}, "content": [{"type": "text", "text": "Fatto."}]}
+        altrimenti:
+            testo_, usi = passo
+            r = {"stop_reason": "tool_use", "usage": {"input_tokens": 10, "output_tokens": 5}, "content": (
+                [{"type": "text", "text": testo_}] se testo_ altrimenti []) + [{"type": "tool_use", "id": f"t{n}_{i}", "name": nome, "input": inp} per i, (nome, inp) in enumera(usi)]}
+        dati = json.dumps(r).encode()
+        se_stesso.send_response(200)
+        se_stesso.send_header("Content-Type", "application/json")
+        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+server = HTTPServer(("127.0.0.1", 0), FalsoApi)
+threading.Thread(target=server.serve_forever, daemon=Vero).start()
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+cfg.imposta("ai.url", f"http://127.0.0.1:{server.server_address[1]}/v1/messages", notifica=Falso)
+cfg.imposta("ai.chiave_api", "chiave-di-prova", notifica=Falso)
+cfg.imposta("ai.conferma_scrittura", Falso, notifica=Falso)
+cfg.imposta("ai.conferma_esecuzione", Falso, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1300x850+10+10")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "ProvaCosti")
+Progetto.nuovo(cart, "ProvaCosti", "vuoto")
+p = Progetto(cart)
+p.crea_file("vecchio.pit", "stampa('uno')\nstampa('due')\n")
+p.crea_file("da_eliminare.pit", "stampa('addio')\n")
+app.apri_progetto(cart)
+radice.update()
+messagebox.askyesno = lambda *a, **k: Vero
+
+definisci chiedi_all_ai(domanda, scenario, **kw):
+    FalsoApi.corpi.clear()
+    FalsoApi.scenario = scenario
+    app.mostra_chat() se testo(app.chat) non in [testo(x) per x in app.corpo.panes()] altrimenti Nessuno
+    app.chat.invia(domanda, **kw)
+    t0 = time.time()
+    mentre (app.chat.lavoro.is_alive() o non app.chat.eventi.empty()) e time.time() - t0 < 30:
+        radice.update()
+        time.sleep(0.02)
+    radice.update()
+
+# ================================================================= modello economico
+chiedi_all_ai("domanda normale", ["FINE"])
+stampa("modello predefinito:", FalsoApi.corpi[0]["model"])
+app.chat.var_economico.set(Vero)
+chiedi_all_ai("domanda economica", ["FINE"])
+stampa("casella economico:", FalsoApi.corpi[0]["model"])
+app.chat.var_economico.set(Falso)
+chiedi_all_ai("spiega", ["FINE"], economico=Vero)
+stampa("parametro economico (come Spiega):", FalsoApi.corpi[0]["model"])
+cfg.imposta("ai.modello_economico", "modello-x", notifica=Falso)
+chiedi_all_ai("ancora", ["FINE"], economico=Vero)
+stampa("modello economico configurabile:", FalsoApi.corpi[0]["model"])
+
+# ================================================================= annullare le modifiche dell'assistente
+chiedi_all_ai("Rifai il progetto", [
+    ("Creo un file nuovo, cambio il vecchio, tolgo quello inutile e disegno una finestra.", [
+        ("scrivi_file", {"percorso": "nuovo.pit", "contenuto": "stampa('nuovo')\n"}),
+        ("modifica_file", {"percorso": "vecchio.pit", "vecchio": "'uno'", "nuovo": "'UNO'"}),
+        ("elimina_file", {"percorso": "da_eliminare.pit"}),
+        ("imposta_form", {"form": {"nome": "Dialogo", "titolo": "D", "larghezza": 300, "altezza": 200, "componenti": []}})]),
+    "FINE"])
+g = app.storia.ultimo_annullabile()
+stampa("gruppo registrato:", g è non Nessuno, "| file:", sorted(g["modifiche"]) se g altrimenti Nessuno)
+stampa("descrizione e simboli:", g["descrizione"], app.storia.descrivi(g)[:3])
+stampa("stato dopo la richiesta:", os.path.exists(os.path.join(cart, "nuovo.pit")), "UNO" in open(os.path.join(cart, "vecchio.pit"), encoding="utf-8").read(), os.path.exists(os.path.join(cart, "da_eliminare.pit")))
+stampa("pulsante Annulla:", app.chat.pulsante_annulla.cget("state"))
+# l'utente ritocca un file dopo l'assistente: il confronto lo segnala
+con open(os.path.join(cart, "nuovo.pit"), "a", encoding="utf-8") come f:
+    f.write("# ritocco dell'utente\n")
+stampa("avviso se cambiato dopo:", [r per r in app.storia.descrivi(g) se "⚠" in r])
+fatti_ = app.annulla_gruppo_ai(app.storia.ultimo_annullabile())
+stampa("annullamento ha fatto:", fatti_, "| file ora:", sorted(os.listdir(cart)))
+stampa("dopo annulla: nuovo.pit tolto:", non os.path.exists(os.path.join(cart, "nuovo.pit")), "| vecchio ripristinato:", open(os.path.join(cart, "vecchio.pit"), encoding="utf-8").read() == "stampa('uno')\nstampa('due')\n",
+       "| eliminato tornato:", os.path.exists(os.path.join(cart, "da_eliminare.pit")), "| form tolti:", non os.path.exists(os.path.join(cart, "dialogo.form.json")))
+stampa("secondo annulla: niente da annullare:", app.storia.ultimo_annullabile() è Nessuno, "| pulsante:", app.chat.pulsante_annulla.cget("state"))
+cr = dialoghi.DialogoCronologiaAI(radice, app.colori, app.storia, app.annulla_gruppo_ai)
+radice.update()
+stampa("cronologia: gruppi", lunghezza(cr.gruppi), "| annullato:", cr.gruppi[0]["annullato"], "| testo:", "Già annullata" in cr.dettaglio.get("1.0", "end"))
+cr.destroy()
+# richiesta che non cambia nulla: nessun gruppo
+n_prima = lunghezza(app.storia.gruppi())
+chiedi_all_ai("leggi", [("", [("leggi_file", {"percorso": "vecchio.pit"})]), "FINE"])
+stampa("nessuna modifica -> nessun gruppo:", lunghezza(app.storia.gruppi()) == n_prima)
+
+# ================================================================= finestra prima/dopo: l'assistente propone, l'utente decide
+cfg.imposta("ai.conferma_scrittura", Vero, notifica=Falso)
+catturato = {}
+risposta = [Falso]
+definisci finta_chiedi_modifica(percorso, vecchio_, nuovo_, spiegazione=""):
+    catturato.update(percorso=percorso, vecchio=vecchio_, nuovo=nuovo_, spiegazione=spiegazione)
+    ritorna risposta[0]
+app.chiedi_modifica = finta_chiedi_modifica
+chiedi_all_ai("cambia", [("Metto il saluto in maiuscolo perché è più chiaro.", [("modifica_file", {"percorso": "vecchio.pit", "vecchio": "'due'", "nuovo": "'DUE'"})]), "FINE"])
+stampa("l'utente rifiuta -> file invariato:", "'due'" in open(os.path.join(cart, "vecchio.pit"), encoding="utf-8").read(), "| spiegazione mostrata:", catturato.get("spiegazione"))
+risposta[0] = Vero
+chiedi_all_ai("cambia", [("Riprovo.", [("modifica_file", {"percorso": "vecchio.pit", "vecchio": "'due'", "nuovo": "'DUE'"})]), "FINE"])
+stampa("l'utente accetta -> file cambiato:", "'DUE'" in open(os.path.join(cart, "vecchio.pit"), encoding="utf-8").read())
+elimina app.chiedi_modifica
+dm = dialoghi.DialogoModifica(radice, app.colori, "vecchio.pit", "a\nb\nc\n", "a\nB\nc\nd\n", "Metto la B maiuscola.")
+radice.update()
+stampa("finestra prima/dopo: colonne", lunghezza(dm.testi), "| righe:", dm.testi[0].index("end-1c"), dm.testi[1].index("end-1c"))
+dm._chiudi(Vero)
+stampa("risultato Applica:", dm.risultato)
+
+# ================================================================= limiti di memoria sui programmi dell'assistente
+Progetto(cart).crea_file("mangia.pit", "x = bytearray(700 * 1024 * 1024)\nstampa('allocati')\n")
+cfg.imposta("ai.limite_memoria_mb", 200, notifica=Falso)
+cfg.imposta("ai.conferma_scrittura", Falso, notifica=Falso)
+chiedi_all_ai("esegui", [("", [("esegui_programma", {"file": "mangia.pit"})]), "FINE"])
+risultati = [b["content"] per m in FalsoApi.corpi[-1]["messages"] se m["role"] == "user" e isinstance(m["content"], lista) per b in m["content"] se b.get("type") == "tool_result"]
+stampa("programma che esagera con la memoria:", "ErroreDiMemoria" in risultati[-1], "| allocati assente:", "allocati" non in risultati[-1])
+server.shutdown()
+radice.destroy()

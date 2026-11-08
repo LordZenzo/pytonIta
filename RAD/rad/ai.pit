@@ -6,7 +6,7 @@ importa time
 importa urllib.request
 importa urllib.error
 
-da rad importa esecuzione, parole, form_modello, mattonelle_modello
+da rad importa esecuzione, parole, form_modello, mattonelle_modello, limiti
 
 LIMITE_RISULTATO = 24000
 
@@ -92,8 +92,48 @@ DEFINIZIONI = [
 ]
 
 
+# strumenti che possono cambiare i file del progetto: prima del primo di questi si fotografa lo stato (annullabile)
+STRUMENTI_CHE_MODIFICANO = {"scrivi_file", "modifica_file", "elimina_file", "imposta_form", "imposta_mattonelle",
+                            "converti_in_mattonelle", "esegui_programma"}
+
+
 classe ErroreAI(Eccezione):
     """Errore nella comunicazione con l'AI."""
+
+
+definisci stima_token(messaggi):
+    """Stima grossolana dei token di una conversazione (circa 4 caratteri per token)."""
+    ritorna lunghezza(json.dumps(messaggi, ensure_ascii=Falso)) // 4
+
+
+definisci compatta(messaggi, soglia_token, mantieni=6):
+    """Accorcia i vecchi risultati degli strumenti e i grandi contenuti già scritti su disco.
+
+    Quando la conversazione supera la soglia si riducono (sul posto) i messaggi più vecchi: i risultati lunghi degli strumenti
+    diventano un'anteprima, i testi dei file scritti vengono omessi (sono nel progetto) e i vecchi contesti dell'editor spariscono.
+    Gli ultimi `mantieni` messaggi restano intatti. Ritorna i caratteri risparmiati (0 se non serviva)."""
+    se soglia_token <= 0 o stima_token(messaggi) <= soglia_token:
+        ritorna 0
+    prima = lunghezza(json.dumps(messaggi, ensure_ascii=Falso))
+    obiettivo = int(soglia_token * 0.7)
+    per i in intervallo(max(0, lunghezza(messaggi) - mantieni)):
+        m = messaggi[i]
+        contenuto = m.get("content")
+        se non isinstance(contenuto, lista):
+            continua
+        per b in contenuto:
+            tipo_ = b.get("type")
+            se tipo_ == "tool_result" e isinstance(b.get("content"), testo) e lunghezza(b["content"]) > 400:
+                b["content"] = b["content"][:300] + f"\n… [risultato accorciato per risparmiare token: {lunghezza(b['content'])} caratteri]"
+            altrimenti_se tipo_ == "tool_use" e isinstance(b.get("input"), dict):
+                per chiave, valore in lista(b["input"].items()):
+                    se isinstance(valore, testo) e lunghezza(valore) > 400:
+                        b["input"][chiave] = f"[omesso: {lunghezza(valore)} caratteri]"
+            altrimenti_se tipo_ == "text" e m.get("role") == "user" e b.get("text", "").startswith("<contesto_ide>") e lunghezza(b["text"]) > 400:
+                b["text"] = "<contesto_ide>[omesso per risparmiare token]</contesto_ide>"
+        se stima_token(messaggi) <= obiettivo:
+            interrompi
+    ritorna max(0, prima - lunghezza(json.dumps(messaggi, ensure_ascii=Falso)))
 
 
 definisci con_cache(messaggi):
@@ -122,6 +162,10 @@ classe ClienteClaude:
 
     definisci __inizializza__(se_stesso, config):
         se_stesso.config_ = config
+        se_stesso.modello_forzato = Nessuno       # se impostato vale al posto di ai.modello (modello economico)
+
+    definisci modello(se_stesso):
+        ritorna se_stesso.modello_forzato o se_stesso.config_.ottieni("ai.modello", "claude-sonnet-5-5")
 
     definisci chiave(se_stesso):
         ritorna (se_stesso.config_.ottieni("ai.chiave_api", "") o os.environ.get("ANTHROPIC_API_KEY", "")).strip()
@@ -133,7 +177,7 @@ classe ClienteClaude:
                              "(oppure nella variabile d'ambiente ANTHROPIC_API_KEY).")
         se se_stesso.config_.ottieni("ai.cache_cronologia", Vero):
             messaggi = con_cache(messaggi)
-        corpo = {"model": se_stesso.config_.ottieni("ai.modello", "claude-sonnet-5-5"),
+        corpo = {"model": se_stesso.modello(),
                  "max_tokens": int(se_stesso.config_.ottieni("ai.max_token", 4096)),
                  "system": [{"type": "text", "text": sistema, "cache_control": {"type": "ephemeral"}}],
                  "messages": messaggi, "tools": strumenti}
@@ -174,6 +218,9 @@ classe Strumenti:
         se_stesso.registro = Nessuno          # RegistroAI (facoltativo)
         se_stesso.id_richiesta = ""
         se_stesso.tentativi = {}              # file -> scritture rifiutate per errori di sintassi in questa richiesta
+        se_stesso.storia = Nessuno            # Storia del progetto (per annullare le modifiche dell'assistente)
+        se_stesso.descrizione = ""
+        se_stesso.spiegazione = ""            # ultimo testo dell'assistente: è il «Perché» della finestra prima/dopo
 
     definisci _registra(se_stesso, tipo_, **dati):
         se se_stesso.registro:
@@ -191,6 +238,11 @@ classe Strumenti:
         funzione = getattr(se_stesso, "s_" + nome, Nessuno)
         se funzione è Nessuno:
             ritorna f"Strumento sconosciuto: {nome}", Vero
+        se nome in STRUMENTI_CHE_MODIFICANO e se_stesso.storia è non Nessuno:
+            prova:
+                se_stesso.storia.prima_di_modificare(se_stesso.id_richiesta, se_stesso.descrizione)
+            eccetto OSError:
+                passa           # senza copia di sicurezza l'assistente lavora lo stesso
         prova:
             ritorna _tronca(testo(funzione(**(parametri o {})))), Falso
         eccetto ErroreDiValore come e:
@@ -250,6 +302,10 @@ classe Strumenti:
     # --- scrittura (con conferma)
     definisci _conferma_scrittura(se_stesso, percorso, nuovo, vecchio):
         se non se_stesso.config_.ottieni("ai.conferma_scrittura", Vero):
+            ritorna
+        se hasattr(se_stesso.ambiente, "chiedi_modifica"):
+            se non se_stesso.ponte.esegui(lambda: se_stesso.ambiente.chiedi_modifica(percorso, vecchio, nuovo, se_stesso.spiegazione), 600):
+                solleva ErroreDiValore("l'utente ha rifiutato la scrittura del file")
             ritorna
         righe_n = nuovo.count("\n") + 1
         righe_v = (vecchio.count("\n") + 1) se vecchio è non Nessuno altrimenti 0
@@ -347,7 +403,8 @@ classe Strumenti:
                 solleva ErroreDiValore("l'utente ha rifiutato l'esecuzione")
         se_stesso.ponte.esegui(lambda: se_stesso.ambiente.salva_tutto())
         comando = [se_stesso.config_.interprete(), "-u", percorso] + lista(argomenti o [])
-        r = esecuzione.esegui_sincrono(comando, p.cartella, max(1, min(int(tempo_massimo), 300)), ingresso)
+        r = esecuzione.esegui_sincrono(comando, p.cartella, max(1, min(int(tempo_massimo), 300)), ingresso,
+                                      limiti.da_configurazione(se_stesso.config_, "ai"))
         se_stesso.ponte.esegui(lambda: se_stesso.ambiente.mostra_in_console(p.relativo(percorso), r))
         se_stesso._registra("esecuzione", file=p.relativo(percorso), codice=r["codice"], scaduto=bool(r["scaduto"]), secondi=r["secondi"])
         parti = [f"codice di uscita: {r['codice']}" + (" (scaduto il tempo massimo: processo terminato)" se r["scaduto"] altrimenti "")
@@ -425,9 +482,24 @@ classe Agente:
         prova:
             se_stesso._ciclo(messaggi, sistema)
         infine:
+            se_stesso._concludi_storia()
             se se_stesso.registro:
                 se_stesso.registro.scrivi("fine", richiesta=se_stesso.id_richiesta, passi=se_stesso._passi,
                                           durata_s=round(time.time() - inizio, 1))
+
+    definisci _concludi_storia(se_stesso):
+        """Chiude il gruppo di modifiche della richiesta e avvisa l'interfaccia se qualcosa è cambiato."""
+        storia = getattr(se_stesso.strumenti, "storia", Nessuno)
+        se storia è Nessuno:
+            ritorna
+        prova:
+            gruppo = storia.concludi()
+        eccetto OSError:
+            gruppo = Nessuno
+        se gruppo:
+            se_stesso.su_evento("modifiche", {"id": gruppo["id"], "file": lunghezza(gruppo["modifiche"])})
+            se se_stesso.registro:
+                se_stesso.registro.scrivi("modifiche", richiesta=se_stesso.id_richiesta, file=lunghezza(gruppo["modifiche"]))
 
     definisci _ciclo(se_stesso, messaggi, sistema):
         massimo = int(se_stesso.config_.ottieni("ai.passi_massimi", 25))
@@ -435,6 +507,11 @@ classe Agente:
             se se_stesso.arresto.is_set():
                 se_stesso.su_evento("info", "Interrotto.")
                 ritorna
+            risparmiati = compatta(messaggi, int(se_stesso.config_.ottieni("ai.compatta_oltre_token", 30000)))
+            se risparmiati:
+                se_stesso.su_evento("info", f"Conversazione lunga: accorciati i vecchi risultati (circa {risparmiati // 4} token in meno).")
+                se se_stesso.registro:
+                    se_stesso.registro.scrivi("compattazione", richiesta=se_stesso.id_richiesta, token_risparmiati=risparmiati // 4)
             risposta = se_stesso.cliente.chiama(messaggi, sistema, DEFINIZIONI)
             se_stesso._passi = passo + 1
             blocchi = risposta.get("content", [])
@@ -443,7 +520,7 @@ classe Agente:
             se_stesso.su_evento("uso", uso)
             se se_stesso.registro:
                 se_stesso.registro.scrivi("chiamata", richiesta=se_stesso.id_richiesta, passo=passo + 1,
-                                          modello=se_stesso.config_.ottieni("ai.modello", ""),
+                                          modello=se_stesso.cliente.modello(),
                                           input=uso.get("input_tokens", 0), output=uso.get("output_tokens", 0),
                                           cache_lettura=uso.get("cache_read_input_tokens", 0),
                                           cache_scrittura=uso.get("cache_creation_input_tokens", 0))
@@ -451,6 +528,7 @@ classe Agente:
             per b in blocchi:
                 se b.get("type") == "text" e b.get("text", "").strip():
                     se_stesso.su_evento("testo", b["text"])
+                    se_stesso.strumenti.spiegazione = b["text"]
                 altrimenti_se b.get("type") == "tool_use":
                     richieste.append(b)
             se risposta.get("stop_reason") != "tool_use" o non richieste:

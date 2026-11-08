@@ -44,6 +44,9 @@ per riportare PitStudio ai valori iniziali basta cancellare quel file.
 | Includi file attivo e selezione | manda all'assistente il contesto dell'editor |
 | Risparmia token riusando la conversazione | attiva la cache dell'API: la conversazione già letta costa molto meno a ogni passo (consigliato) |
 | Correzioni automatiche del codice | quante volte l'assistente corregge da solo un errore di sintassi prima di chiedere a te (0 = mai) |
+| Modello economico | usato dalla casella «⚡ economico» e da «Spiega» (per risparmiare) |
+| Accorcia la conversazione oltre questi token | quando la chat diventa lunga i vecchi risultati vengono accorciati (0 = mai) |
+| Limiti dei programmi dell'assistente | memoria (MB) e numero di processi che i programmi eseguiti dall'assistente possono usare (0 = nessun limite) |
 | Registro | salva in locale token e validità del codice generato (`.rad\ai_registro.jsonl` nel progetto) |
 | Indirizzo dell'API | per usare un servizio compatibile diverso |
 | Istruzioni aggiuntive | testo che l'assistente legge a ogni richiesta (stile, convenzioni del tuo progetto…) |

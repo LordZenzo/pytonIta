@@ -44,3 +44,12 @@ per codice, atteso in casi:
     altrimenti:
         stampa("MANCA", atteso, "in", ultima)
 stampa(f"errori tradotti: {bene}/{lunghezza(casi)}")
+
+# 5. «elimina(x)» attaccato alla parentesi è una chiamata; «elimina x» cancella il nome
+r = esegui_campione("elimina_chiamata.pit")
+stampa("elimina come funzione/parametro:", [x.strip() per x in r.stdout.splitlines()], r.stderr[-120:])
+programma = os.path.join(cartella, "del.pit")
+con open(programma, "w", encoding="utf-8") come f:
+    f.write("z = [1, 2]" + chr(10) + "elimina z[0]" + chr(10) + "y = 5" + chr(10) + "elimina y" + chr(10) + "stampa(z)" + chr(10))
+r = subprocess.run([sys.executable, programma], capture_output=Vero, text=Vero, encoding="utf-8")
+stampa("elimina x cancella:", r.stdout.split(), r.stderr[-100:])

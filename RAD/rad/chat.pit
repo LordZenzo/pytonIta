@@ -44,6 +44,8 @@ classe PannelloChat(tk.Frame):
         se_stesso.titolo = tk.Label(testata, text="ASSISTENTE", anchor="w")
         se_stesso.titolo.pack(side="left", padx=8, pady=4)
         tk.Button(testata, text="Nuova chat", command=se_stesso.nuova_chat).pack(side="right", padx=3, pady=3)
+        se_stesso.pulsante_annulla = tk.Button(testata, text="↶ Annulla", command=lambda: se_stesso.ambiente.annulla_ultima_ai(), state="disabled")
+        se_stesso.pulsante_annulla.pack(side="right", padx=3, pady=3)
         se_stesso.var_modello = tk.StringVar(value=se_stesso.config_.ottieni("ai.modello"))
         se_stesso.selettore = ttk.Combobox(testata, textvariable=se_stesso.var_modello, width=18,
                                            values=se_stesso.config_.ottieni("ai.modelli", []))
@@ -62,6 +64,9 @@ classe PannelloChat(tk.Frame):
         se_stesso.casella_contesto = tk.Checkbutton(opzioni, text="Includi file attivo e selezione",
                                                     variable=se_stesso.var_contesto, anchor="w")
         se_stesso.casella_contesto.pack(side="left", padx=6)
+        se_stesso.var_economico = tk.BooleanVar(value=Falso)
+        se_stesso.casella_economico = tk.Checkbutton(opzioni, text="⚡ economico", variable=se_stesso.var_economico, anchor="w")
+        se_stesso.casella_economico.pack(side="left", padx=2)
         se_stesso.stato = tk.Label(opzioni, text="", anchor="e")
         se_stesso.stato.pack(side="right", padx=8)
         riga = tk.Frame(basso)
@@ -104,9 +109,9 @@ classe PannelloChat(tk.Frame):
             w.configure(background=c["pannello"])
         se_stesso.titolo.configure(background=c["pannello"], foreground=c["tenue"])
         se_stesso.stato.configure(background=c["pannello"], foreground=c["tenue"])
-        se_stesso.casella_contesto.configure(background=c["pannello"], foreground=c["tenue"],
-                                             activebackground=c["pannello"], activeforeground=c["primo_piano"],
-                                             selectcolor=c["campo"])
+        per casella in (se_stesso.casella_contesto, se_stesso.casella_economico):
+            casella.configure(background=c["pannello"], foreground=c["tenue"], activebackground=c["pannello"],
+                              activeforeground=c["primo_piano"], selectcolor=c["campo"])
         carattere = (se_stesso.config_.ottieni("editor.carattere", "Consolas"), 10)
         se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"], font=("Segoe UI", 10),
                               selectbackground=c["selezione"])
@@ -213,7 +218,7 @@ classe PannelloChat(tk.Frame):
             ritorna ""
         ritorna info
 
-    definisci invia(se_stesso, testo_=Nessuno):
+    definisci invia(se_stesso, testo_=Nessuno, economico=Nessuno):
         se se_stesso.lavoro e se_stesso.lavoro.is_alive():
             ritorna
         domanda = (testo_ se testo_ è non Nessuno altrimenti se_stesso.ingresso.get("1.0", "end")).strip()
@@ -232,7 +237,14 @@ classe PannelloChat(tk.Frame):
         se_stesso._scrivi("Assistente\n", "etichetta_ai")
         se_stesso._imposta_occupato(Vero)
         cliente = ai.ClienteClaude(se_stesso.config_)
+        # modello economico: per spiegazioni e piccole correzioni costa molto meno
+        se (se_stesso.var_economico.get() se economico è Nessuno altrimenti economico):
+            cliente.modello_forzato = se_stesso.config_.ottieni("ai.modello_economico", "claude-haiku-5-5")
+            se_stesso._scrivi(f"(modello economico: {cliente.modello_forzato})\n", "info")
         strumenti = ai.Strumenti(se_stesso.ambiente, se_stesso.config_, se_stesso.ponte)
+        se se_stesso.config_.ottieni("ai.storia", Vero):
+            strumenti.storia = getattr(se_stesso.ambiente, "storia", Nessuno)
+            strumenti.descrizione = domanda[:120]
         se_stesso.agente = ai.Agente(cliente, strumenti, se_stesso.config_, lambda tipo_, dati: se_stesso.eventi.put((tipo_, dati)))
         # registro delle richieste (token, validità del codice generato): un file per progetto
         registro = se_stesso.nuovo_registro()
@@ -245,6 +257,12 @@ classe PannelloChat(tk.Frame):
         se_stesso.lavoro = threading.Thread(target=se_stesso._lavora, args=(sistema,), daemon=Vero)
         se_stesso.lavoro.start()
 
+    definisci aggiorna_annulla(se_stesso):
+        """Abilita il pulsante «Annulla» se c'è una modifica dell'assistente da annullare."""
+        storia = getattr(se_stesso.ambiente, "storia", Nessuno)
+        possibile = bool(storia e storia.ultimo_annullabile())
+        se_stesso.pulsante_annulla.configure(state="normal" se possibile altrimenti "disabled")
+
     definisci nuovo_registro(se_stesso):
         """RegistroAI del progetto aperto (vuoto se il registro è disattivato o non c'è un progetto)."""
         p = se_stesso.ambiente.progetto
@@ -252,9 +270,9 @@ classe PannelloChat(tk.Frame):
             ritorna RegistroAI(Nessuno)
         ritorna RegistroAI(os.path.join(p.cartella, ".rad", "ai_registro.jsonl"))
 
-    definisci chiedi(se_stesso, domanda):
+    definisci chiedi(se_stesso, domanda, economico=Nessuno):
         """Invia una domanda preparata dall'ambiente (es. 'spiega questo errore')."""
-        se_stesso.invia(domanda)
+        se_stesso.invia(domanda, economico=economico)
 
     definisci _lavora(se_stesso, sistema):
         prova:
@@ -304,6 +322,10 @@ classe PannelloChat(tk.Frame):
             se_stesso.token_ingresso += dati.get("input_tokens", 0) + dati.get("cache_read_input_tokens", 0) + dati.get("cache_creation_input_tokens", 0)
             se_stesso.token_cache += dati.get("cache_read_input_tokens", 0)
             se_stesso.token_uscita += dati.get("output_tokens", 0)
+        altrimenti_se tipo_ == "modifiche":
+            se_stesso._scrivi(f"↶ L'assistente ha cambiato {dati['file']} file: puoi annullare con il pulsante «Annulla» "
+                              "(o Strumenti → Annulla l'ultima modifica dell'assistente).\n", "info")
+            se_stesso.aggiorna_annulla()
         altrimenti_se tipo_ == "info":
             se_stesso._scrivi(dati + "\n", "info")
         altrimenti_se tipo_ == "errore":

@@ -20,6 +20,8 @@ SCHEDE = [
         ("editor.salvataggio_automatico", "Salvataggio automatico dopo (secondi, 0 = no)", "numero", (0, 3600)),
     ]),
     ("Esecuzione", [
+        ("esecuzione.limite_memoria_mb", "Limite di memoria dei programmi (MB, 0 = nessuno)", "numero", (0, 65536)),
+        ("esecuzione.limite_processi", "Limite di processi dei programmi (0 = nessuno)", "numero", (0, 500)),
         ("esecuzione.interprete", "Interprete pitonit (vuoto = quello di PitStudio)", "testo", Nessuno),
         ("esecuzione.argomenti", "Argomenti del programma", "testo", Nessuno),
         ("esecuzione.salva_prima", "Salva tutto prima di eseguire", "si_no", Nessuno),
@@ -28,6 +30,7 @@ SCHEDE = [
     ("Assistente AI", [
         ("ai.chiave_api", "Chiave API Anthropic", "segreto", Nessuno),
         ("ai.modello", "Modello", "testo", Nessuno),
+        ("ai.modello_economico", "Modello economico (casella «⚡ economico» e «Spiega»)", "testo", Nessuno),
         ("ai.max_token", "Lunghezza massima della risposta (token)", "numero", (256, 64000)),
         ("ai.passi_massimi", "Passi massimi per richiesta", "numero", (1, 100)),
         ("ai.conferma_scrittura", "Chiedi conferma prima di scrivere file", "si_no", Nessuno),
@@ -35,6 +38,10 @@ SCHEDE = [
         ("ai.includi_file_attivo", "Includi file attivo e selezione nei messaggi", "si_no", Nessuno),
         ("ai.cache_cronologia", "Risparmia token riusando la conversazione (cache)", "si_no", Nessuno),
         ("ai.correzioni_automatiche", "Correzioni automatiche del codice con errori (0 = mai)", "numero", (0, 5)),
+        ("ai.compatta_oltre_token", "Accorcia la conversazione oltre questi token (0 = mai)", "numero", (0, 500000)),
+        ("ai.limite_memoria_mb", "Limite di memoria per i programmi dell'assistente (MB, 0 = nessuno)", "numero", (0, 65536)),
+        ("ai.limite_processi", "Limite di processi per i programmi dell'assistente (0 = nessuno)", "numero", (0, 500)),
+        ("ai.storia", "Permetti di annullare le modifiche dell'assistente (copie in .rad/storia)", "si_no", Nessuno),
         ("ai.registro", "Registra token e validità del codice generato (solo in locale)", "si_no", Nessuno),
         ("ai.url", "Indirizzo dell'API", "testo", Nessuno),
         ("ai.istruzioni_extra", "Istruzioni aggiuntive per l'assistente", "lungo", Nessuno),

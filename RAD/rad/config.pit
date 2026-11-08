@@ -28,10 +28,13 @@ PREDEFINITI = {
         "salva_prima": Vero,
         "pulisci_console": Vero,
         "tempo_massimo_s": 0,
+        "limite_memoria_mb": 0,          # 0 = nessun limite; altrimenti i programmi che superano la memoria vengono fermati
+        "limite_processi": 0,            # 0 = nessun limite sul numero di processi avviati dal programma
     },
     "ai": {
         "chiave_api": "",
         "modello": "claude-sonnet-5-5",
+        "modello_economico": "claude-haiku-5-5",      # per spiegazioni e piccole correzioni (casella «economico» della chat)
         "modelli": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-fable-5-1"],
         "max_token": 4096,
         "conferma_scrittura": Vero,
@@ -43,6 +46,10 @@ PREDEFINITI = {
         "includi_file_attivo": Vero,
         "cache_cronologia": Vero,        # riusa la conversazione già letta (costa molto meno)
         "correzioni_automatiche": 2,     # quante volte l'assistente corregge da solo il codice con errori di sintassi
+        "compatta_oltre_token": 30000,   # oltre questa lunghezza (stimata) i vecchi risultati vengono accorciati; 0 = mai
+        "limite_memoria_mb": 1024,       # tetto di memoria per i programmi eseguiti dall'assistente
+        "limite_processi": 20,           # e numero massimo di processi che possono avviare
+        "storia": Vero,                  # copie di sicurezza per annullare le modifiche dell'assistente (.rad/storia)
         "registro": Vero,                # registro locale di token e codice generato (.rad/ai_registro.jsonl)
     },
     "finestra": {

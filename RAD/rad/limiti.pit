@@ -1,0 +1,92 @@
+"""Limiti alle risorse dei programmi eseguiti da PitStudio (memoria, numero di processi).
+
+Si usano i «Job Object» di Windows: il processo (e quelli che avvia) entra in un gruppo con un tetto di memoria e di processi
+attivi; se il programma esagera (per esempio una lista che cresce all'infinito o un programma che si moltiplica) viene fermato
+dal sistema senza bloccare il computer. Alla chiusura di PitStudio i programmi ancora in corso vengono terminati.
+"""
+importa ctypes
+importa sys
+da ctypes importa wintypes
+
+JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x00000008
+JOB_OBJECT_LIMIT_JOB_MEMORY = 0x00000200
+JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
+CLASSE_LIMITI_ESTESI = 9      # JobObjectExtendedLimitInformation
+
+
+classe _LimitiBase(ctypes.Structure):
+    _fields_ = [("PerProcessUserTimeLimit", ctypes.c_int64), ("PerJobUserTimeLimit", ctypes.c_int64),
+                ("LimitFlags", wintypes.DWORD), ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", wintypes.DWORD),
+                ("Affinity", ctypes.c_size_t), ("PriorityClass", wintypes.DWORD), ("SchedulingClass", wintypes.DWORD)]
+
+
+classe _ContatoriIO(ctypes.Structure):
+    _fields_ = [("ReadOperationCount", ctypes.c_uint64), ("WriteOperationCount", ctypes.c_uint64),
+                ("OtherOperationCount", ctypes.c_uint64), ("ReadTransferCount", ctypes.c_uint64),
+                ("WriteTransferCount", ctypes.c_uint64), ("OtherTransferCount", ctypes.c_uint64)]
+
+
+classe _LimitiEstesi(ctypes.Structure):
+    _fields_ = [("BasicLimitInformation", _LimitiBase), ("IoInfo", _ContatoriIO),
+                ("ProcessMemoryLimit", ctypes.c_size_t), ("JobMemoryLimit", ctypes.c_size_t),
+                ("PeakProcessMemoryUsed", ctypes.c_size_t), ("PeakJobMemoryUsed", ctypes.c_size_t)]
+
+
+classe Limite:
+    """Gruppo di limiti agganciato a un processo. chiudi() lo rilascia (e ferma ciò che è rimasto in vita)."""
+
+    definisci __inizializza__(se_stesso, maniglia):
+        se_stesso._maniglia = maniglia
+
+    definisci chiudi(se_stesso):
+        se se_stesso._maniglia:
+            ctypes.windll.kernel32.CloseHandle(se_stesso._maniglia)
+            se_stesso._maniglia = Nessuno
+
+
+definisci disponibile():
+    ritorna sys.platform == "win32"
+
+
+definisci applica(processo, memoria_mb=0, processi=0):
+    """Aggancia un subprocess.Popen a un gruppo con i limiti indicati (0 = nessun limite).
+
+    Ritorna un oggetto Limite (da chiudere a fine esecuzione) oppure Nessuno se non serve o non è possibile."""
+    se non disponibile() o (non memoria_mb e non processi):
+        ritorna Nessuno
+    prova:
+        k = ctypes.windll.kernel32
+        k.CreateJobObjectW.restype = wintypes.HANDLE
+        k.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+        k.SetInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+        k.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        k.CloseHandle.argtypes = [wintypes.HANDLE]
+        lavoro = k.CreateJobObjectW(Nessuno, Nessuno)
+        se non lavoro:
+            ritorna Nessuno
+        info = _LimitiEstesi()
+        flag = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        se memoria_mb:
+            flag |= JOB_OBJECT_LIMIT_JOB_MEMORY
+            info.JobMemoryLimit = int(memoria_mb) * 1024 * 1024
+        se processi:
+            flag |= JOB_OBJECT_LIMIT_ACTIVE_PROCESS
+            info.BasicLimitInformation.ActiveProcessLimit = int(processi)
+        info.BasicLimitInformation.LimitFlags = flag
+        se non k.SetInformationJobObject(lavoro, CLASSE_LIMITI_ESTESI, ctypes.byref(info), ctypes.sizeof(info)):
+            k.CloseHandle(lavoro)
+            ritorna Nessuno
+        se non k.AssignProcessToJobObject(lavoro, int(processo._handle)):
+            k.CloseHandle(lavoro)
+            ritorna Nessuno
+        ritorna Limite(lavoro)
+    eccetto (OSError, AttributeError, ValueError, ErroreDiTipo):
+        ritorna Nessuno
+
+
+definisci da_configurazione(config, prefisso):
+    """(memoria_mb, processi) letti dalla configurazione: prefisso 'esecuzione' o 'ai'. None se nessun limite."""
+    memoria = int(config.ottieni(f"{prefisso}.limite_memoria_mb", 0) o 0)
+    processi = int(config.ottieni(f"{prefisso}.limite_processi", 0) o 0)
+    ritorna (memoria, processi) se (memoria o processi) altrimenti Nessuno

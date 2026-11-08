@@ -57,8 +57,25 @@ L'assistente usa la tua chiave API e i costi dipendono dal modello e dal testo s
 - l'assistente legge solo le parti di file che servono e modifica poche righe invece di riscrivere tutto;
 - in basso nella chat vedi i token della conversazione, con quanti letti dalla cache;
 - con *Strumenti → Statistiche dell'assistente* vedi, per il progetto: richieste, token, quanti file erano **validi al primo tentativo**, quanti corretti da solo, quanti programmi eseguiti con successo. I dati restano sul tuo computer (`.rad\ai_registro.jsonl`) e si disattivano nelle impostazioni.
+- spuntando **⚡ economico** (sotto la chat) la richiesta usa il **modello economico** (impostazione *ai.modello_economico*, predefinito Haiku): ideale per spiegazioni e piccole correzioni. *Strumenti → Chiedi all'AI di spiegare* lo usa già da solo;
+- nelle **conversazioni lunghe** (oltre circa 30 000 token stimati) i vecchi risultati degli strumenti e i testi dei file già scritti vengono accorciati, e nella chat compare un avviso. Si regola o si spegne (0) nelle impostazioni.
 
-Per i lavori semplici (spiegare un errore, una piccola correzione) puoi scegliere dal menu della chat un modello più economico.
+## Vedi cosa cambia, e puoi annullare
+
+Quando l'assistente vuole scrivere un file, PitStudio ti mostra la finestra **prima / dopo**: a sinistra il file com'è, a destra come diventerebbe, con le righe tolte in rosso e quelle aggiunte in verde (le parti invariate lunghe sono nascoste). In alto leggi **«Perché»**: la spiegazione che l'assistente ha dato un attimo prima. Scegli *Applica la modifica* oppure *Rifiuta*.
+
+![La finestra prima / dopo](immagini/prima-dopo.png)
+
+Tutto ciò che l'assistente cambia in una richiesta (file modificati, creati, eliminati, finestre disegnate) forma un **gruppo che si annulla in un colpo solo**:
+
+- il pulsante **↶ Annulla** in alto nella chat, o *Strumenti → Annulla l'ultima modifica dell'assistente*: i file tornano come erano, quelli creati vengono tolti, quelli eliminati ricompaiono;
+- *Strumenti → Cronologia delle modifiche dell'assistente…* mostra le ultime 50 richieste con i file toccati (✎ modificato, ＋ creato, ✖ eliminato) e permette di annullare anche quelle più vecchie. Il simbolo ⚠ avvisa se un file è stato cambiato anche dopo l'assistente: annullando perderesti anche quei ritocchi.
+
+Le copie stanno nel progetto (cartella `.rad/storia`), senza bisogno di git. Si salvano i file di testo (codice, JSON, Markdown…) fino a 512 KB: immagini e altri file binari non sono coperti. Si disattiva con l'impostazione *ai.storia*.
+
+## Programmi sotto controllo
+
+I programmi che l'assistente esegue hanno un **limite di memoria** (1024 MB predefiniti) e un massimo di **20 processi**, oltre al tempo massimo: un programma sbagliato che riempie la memoria o si moltiplica viene fermato dal sistema senza bloccare il computer. Gli stessi limiti si possono mettere ai tuoi programmi dalle impostazioni (*Esecuzione*, 0 = nessun limite). Alla chiusura di PitStudio i programmi ancora in corso vengono terminati.
 
 ## Sicurezza e privacy
 

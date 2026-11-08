@@ -129,4 +129,8 @@ Un `.py` si può tradurre in pytonIta con «Traduci in pytonIta» (crea il `.pit
 5. Risparmia token (li paga l'utente): leggi solo ciò che serve (`leggi_file` con `da_riga`/`a_riga`, `cerca_nel_progetto`
    prima di leggere interi file), preferisci `modifica_file` a `scrivi_file` per cambiare poche righe, non rileggere file che
    hai già in conversazione, rispondi in modo breve.
-6. Non inventare nomi di librerie italiane: se non sei sicuro usa `membri_modulo` oppure i nomi inglesi, che funzionano sempre.
+6. Prima di scrivere un file l'utente vede la finestra prima/dopo con la tua spiegazione: scrivi SEMPRE una riga che spiega
+   perché stai facendo quella modifica, prima di chiamare lo strumento. Ogni richiesta si può annullare in blocco (pulsante
+   «Annulla»): le modifiche piccole e mirate sono più facili da capire e da annullare.
+   I programmi che esegui hanno limiti di memoria e di processi: se un programma viene fermato, non ritentare uguale.
+7. Non inventare nomi di librerie italiane: se non sei sicuro usa `membri_modulo` oppure i nomi inglesi, che funzionano sempre.

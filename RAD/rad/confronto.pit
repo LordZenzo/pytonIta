@@ -1,0 +1,57 @@
+"""Confronto «prima / dopo» di un file: serve a mostrare con chiarezza cosa cambia una modifica dell'assistente."""
+importa difflib
+
+CONTESTO = 3          # righe invariate mostrate attorno a ogni modifica
+
+
+definisci righe_affiancate(vecchio, nuovo, contesto=CONTESTO):
+    """Prepara due colonne allineate riga per riga.
+
+    Ritorna (colonna_prima, colonna_dopo, statistiche). Ogni colonna è una lista di (tipo, numero, testo) con tipo:
+    'uguale', 'rimossa', 'aggiunta', 'vuota' (riga di riempimento) o 'salto' (righe invariate nascoste).
+    statistiche = {"aggiunte": n, "rimosse": n}. Con vecchio=None il file è nuovo: tutte le righe sono aggiunte."""
+    nuove = nuovo.split(chr(10))
+    se vecchio è Nessuno:
+        ritorna ([("vuota", Nessuno, "")] * lunghezza(nuove),
+                 [("aggiunta", i + 1, r) per i, r in enumera(nuove)],
+                 {"aggiunte": lunghezza(nuove), "rimosse": 0})
+    vecchie = vecchio.split(chr(10))
+    ops = difflib.SequenceMatcher(Nessuno, vecchie, nuove, autojunk=Falso).get_opcodes()
+    sinistra, destra = [], []
+    aggiunte = rimosse = 0
+    per k, (tag, i1, i2, j1, j2) in enumera(ops):
+        se tag == "equal":
+            n = i2 - i1
+            prime = contesto se k > 0 altrimenti 0           # dopo una modifica
+            ultime = contesto se k < lunghezza(ops) - 1 altrimenti 0   # prima della prossima modifica
+            se n > prime + ultime + 1:
+                per t in intervallo(prime):
+                    sinistra.append(("uguale", i1 + t + 1, vecchie[i1 + t]))
+                    destra.append(("uguale", j1 + t + 1, nuove[j1 + t]))
+                nascoste = n - prime - ultime
+                sinistra.append(("salto", Nessuno, f"⋯ {nascoste} righe invariate ⋯"))
+                destra.append(("salto", Nessuno, f"⋯ {nascoste} righe invariate ⋯"))
+                per t in intervallo(n - ultime, n):
+                    sinistra.append(("uguale", i1 + t + 1, vecchie[i1 + t]))
+                    destra.append(("uguale", j1 + t + 1, nuove[j1 + t]))
+            altrimenti:
+                per t in intervallo(n):
+                    sinistra.append(("uguale", i1 + t + 1, vecchie[i1 + t]))
+                    destra.append(("uguale", j1 + t + 1, nuove[j1 + t]))
+        altrimenti:
+            rimosse += i2 - i1 se tag in ("delete", "replace") altrimenti 0
+            aggiunte += j2 - j1 se tag in ("insert", "replace") altrimenti 0
+            lunghe = max(i2 - i1, j2 - j1)
+            per t in intervallo(lunghe):
+                sinistra.append(("rimossa", i1 + t + 1, vecchie[i1 + t]) se i1 + t < i2 altrimenti ("vuota", Nessuno, ""))
+                destra.append(("aggiunta", j1 + t + 1, nuove[j1 + t]) se j1 + t < j2 altrimenti ("vuota", Nessuno, ""))
+    ritorna sinistra, destra, {"aggiunte": aggiunte, "rimosse": rimosse}
+
+
+definisci riassunto(statistiche, vecchio_esiste):
+    """Frase che descrive la modifica."""
+    se non vecchio_esiste:
+        ritorna f"File nuovo: {statistiche['aggiunte']} righe"
+    se non statistiche["aggiunte"] e non statistiche["rimosse"]:
+        ritorna "Nessuna differenza nel testo"
+    ritorna f"{statistiche['aggiunte']} righe aggiunte o cambiate, {statistiche['rimosse']} tolte o sostituite"
