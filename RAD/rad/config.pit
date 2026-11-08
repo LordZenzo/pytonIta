@@ -49,6 +49,7 @@ PREDEFINITI = {
         "compatta_oltre_token": 30000,   # oltre questa lunghezza (stimata) i vecchi risultati vengono accorciati; 0 = mai
         "limite_memoria_mb": 1024,       # tetto di memoria per i programmi eseguiti dall'assistente
         "limite_processi": 20,           # e numero massimo di processi che possono avviare
+        "prezzi": {},                    # prezzi per la stima dei costi: {"modello": [ingresso, uscita, cache_lettura, cache_scrittura]} in dollari per milione di token
         "storia": Vero,                  # copie di sicurezza per annullare le modifiche dell'assistente (.rad/storia)
         "registro": Vero,                # registro locale di token e codice generato (.rad/ai_registro.jsonl)
     },

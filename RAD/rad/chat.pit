@@ -10,6 +10,7 @@ da tkinter importa ttk, messagebox
 
 da rad importa ai
 da rad.registro_ai importa RegistroAI
+da rad importa registro_ai
 
 _RE_BLOCCO = re.compile(r"```([\w+-]*)\n(.*?)```", re.S)
 _RE_INLINE = re.compile(r"`([^`\n]+)`|\*\*([^*\n]+)\*\*")
@@ -31,6 +32,8 @@ classe PannelloChat(tk.Frame):
         se_stesso.token_ingresso = 0
         se_stesso.token_uscita = 0
         se_stesso.token_cache = 0
+        se_stesso.costo = 0.0
+        se_stesso.costo_ignoto = Falso
         se_stesso._costruisci()
         se_stesso.applica_colori(colori)
         se_stesso._pompa()
@@ -298,8 +301,9 @@ classe PannelloChat(tk.Frame):
 
     definisci _testo_token(se_stesso):
         se se_stesso.token_ingresso o se_stesso.token_uscita:
-            da_cache = f" (di cui {se_stesso.token_cache} da cache)" se se_stesso.token_cache altrimenti ""
-            ritorna f"token: {se_stesso.token_ingresso} in{da_cache} / {se_stesso.token_uscita} out"
+            da_cache = f" ({se_stesso.token_cache} cache)" se se_stesso.token_cache altrimenti ""
+            stima = f"  ≈ {registro_ai.formatta_costo(se_stesso.costo)}" + ("+" se se_stesso.costo_ignoto altrimenti "") se (se_stesso.costo o se_stesso.costo_ignoto) altrimenti ""
+            ritorna f"{se_stesso.token_ingresso} in{da_cache} / {se_stesso.token_uscita} out{stima}"
         ritorna ""
 
     definisci _pompa(se_stesso):
@@ -323,6 +327,11 @@ classe PannelloChat(tk.Frame):
         altrimenti_se tipo_ == "uso":
             se_stesso.token_ingresso += dati.get("input_tokens", 0) + dati.get("cache_read_input_tokens", 0) + dati.get("cache_creation_input_tokens", 0)
             se_stesso.token_cache += dati.get("cache_read_input_tokens", 0)
+            costo = registro_ai.costo_da_uso(dati, dati.get("modello", ""), se_stesso.config_.ottieni("ai.prezzi", {}))
+            se costo è Nessuno:
+                se_stesso.costo_ignoto = Vero
+            altrimenti:
+                se_stesso.costo += costo
             se_stesso.token_uscita += dati.get("output_tokens", 0)
         altrimenti_se tipo_ == "modifiche":
             se_stesso._scrivi(f"↶ L'assistente ha cambiato {dati['file']} file: puoi annullare con il pulsante «Annulla» "
@@ -357,6 +366,8 @@ classe PannelloChat(tk.Frame):
             ritorna
         se_stesso.messaggi = []
         se_stesso.token_ingresso = se_stesso.token_uscita = se_stesso.token_cache = 0
+        se_stesso.costo = 0.0
+        se_stesso.costo_ignoto = Falso
         se_stesso.t.configure(state="normal")
         se_stesso.t.delete("1.0", "end")
         se_stesso.t.configure(state="disabled")

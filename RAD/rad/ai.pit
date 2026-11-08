@@ -517,7 +517,7 @@ classe Agente:
             blocchi = risposta.get("content", [])
             messaggi.append({"role": "assistant", "content": blocchi})
             uso = risposta.get("usage", {})
-            se_stesso.su_evento("uso", uso)
+            se_stesso.su_evento("uso", dict(uso, modello=se_stesso.cliente.modello()))
             se se_stesso.registro:
                 se_stesso.registro.scrivi("chiamata", richiesta=se_stesso.id_richiesta, passo=passo + 1,
                                           modello=se_stesso.cliente.modello(),

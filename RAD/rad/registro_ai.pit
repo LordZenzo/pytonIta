@@ -9,6 +9,50 @@ importa threading
 importa time
 
 
+# Prezzi in dollari per milione di token: (ingresso, uscita, ingresso letto dalla cache, scrittura in cache).
+# Sono i prezzi pubblicati da Anthropic al momento della scrittura: si possono correggere o aggiungere in config.json (ai.prezzi),
+# per esempio {"claude-sonnet-5-5": [2, 10, 0.10, 2.50]}. Per i modelli senza prezzo la stima non viene calcolata.
+PREZZI_PREDEFINITI = {
+    "claude-sonnet-5-5": (2.0, 10.0, 0.10, 2.50),
+    "claude-haiku-5-5": (0.10, 0.50, 0.01, 0.125),
+    "claude-opus-5-5": (4.0, 20.0, 0.20, 5.0),
+}
+
+
+definisci prezzi_di(modello, personalizzati=Nessuno):
+    """(ingresso, uscita, cache_lettura, cache_scrittura) in dollari per milione di token, o Nessuno se il modello non ha prezzo."""
+    tabella = dict(PREZZI_PREDEFINITI)
+    per nome, valori in (personalizzati o {}).items():
+        se isinstance(valori, (lista, tupla)) e lunghezza(valori) == 4:
+            tabella[nome] = tuple(float(v) per v in valori)
+    se modello in tabella:
+        ritorna tabella[modello]
+    per nome in sorted(tabella, key=lunghezza, reverse=Vero):         # versioni datate: claude-sonnet-5-5-2026...
+        se modello e modello.startswith(nome):
+            ritorna tabella[nome]
+    ritorna Nessuno
+
+
+definisci costo_da_uso(uso, modello, personalizzati=Nessuno):
+    """Costo in dollari di una chiamata (dizionario «usage» dell'API) o Nessuno se il prezzo non è noto."""
+    prezzi = prezzi_di(modello, personalizzati)
+    se prezzi è Nessuno:
+        ritorna Nessuno
+    ingresso = uso.get("input_tokens", uso.get("input", 0))
+    uscita = uso.get("output_tokens", uso.get("output", 0))
+    lettura = uso.get("cache_read_input_tokens", uso.get("cache_lettura", 0))
+    scrittura = uso.get("cache_creation_input_tokens", uso.get("cache_scrittura", 0))
+    ritorna (ingresso * prezzi[0] + uscita * prezzi[1] + lettura * prezzi[2] + scrittura * prezzi[3]) / 1000000
+
+
+definisci formatta_costo(dollari):
+    se dollari è Nessuno:
+        ritorna "n.d."
+    se dollari < 0.01:
+        ritorna f"${dollari:.4f}"
+    ritorna f"${dollari:.2f}"
+
+
 classe RegistroAI:
     """Aggiunge eventi al file di registro (thread-safe). Con percorso Nessuno non fa nulla."""
 
@@ -54,11 +98,12 @@ definisci leggi_registro(percorso):
     ritorna eventi
 
 
-definisci riepilogo(eventi):
-    """Numeri riassuntivi di una lista di eventi."""
+definisci riepilogo(eventi, prezzi=Nessuno):
+    """Numeri riassuntivi di una lista di eventi. prezzi: eventuali prezzi personalizzati (vedi PREZZI_PREDEFINITI)."""
     r = {"richieste": 0, "chiamate": 0, "token_nuovi": 0, "token_cache_lettura": 0, "token_cache_scrittura": 0,
          "token_uscita": 0, "scritture": 0, "valide_al_primo": 0, "corrette_da_sole": 0, "forzate": 0, "rifiutate": 0,
-         "esecuzioni": 0, "esecuzioni_ok": 0, "scadute": 0, "passi_totali": 0, "durata_totale_s": 0.0}
+         "esecuzioni": 0, "esecuzioni_ok": 0, "scadute": 0, "passi_totali": 0, "durata_totale_s": 0.0,
+         "costo_usd": 0.0, "chiamate_senza_prezzo": 0, "costo_per_modello": {}, "costo_per_richiesta": {}}
     per e in eventi:
         t = e.get("tipo")
         se t == "richiesta":
@@ -69,6 +114,15 @@ definisci riepilogo(eventi):
             r["token_cache_lettura"] += e.get("cache_lettura", 0)
             r["token_cache_scrittura"] += e.get("cache_scrittura", 0)
             r["token_uscita"] += e.get("output", 0)
+            costo = costo_da_uso(e, e.get("modello", ""), prezzi)
+            se costo è Nessuno:
+                r["chiamate_senza_prezzo"] += 1
+            altrimenti:
+                r["costo_usd"] += costo
+                modello = e.get("modello", "?")
+                r["costo_per_modello"][modello] = r["costo_per_modello"].get(modello, 0.0) + costo
+                id_richiesta = e.get("richiesta", "")
+                r["costo_per_richiesta"][id_richiesta] = r["costo_per_richiesta"].get(id_richiesta, 0.0) + costo
         altrimenti_se t == "scrittura":
             esito = e.get("esito")
             se esito == "valido":
@@ -98,9 +152,9 @@ definisci percentuale(parte, totale):
     ritorna f"{round(100 * parte / totale)}%" se totale altrimenti "—"
 
 
-definisci testo_riepilogo(eventi):
+definisci testo_riepilogo(eventi, prezzi=Nessuno):
     """Descrizione in italiano delle statistiche dell'assistente."""
-    r = riepilogo(eventi)
+    r = riepilogo(eventi, prezzi)
     se non r["richieste"] e non r["chiamate"]:
         ritorna "Nessuna richiesta all'assistente registrata in questo progetto."
     in_totale = r["token_nuovi"] + r["token_cache_lettura"] + r["token_cache_scrittura"]
@@ -108,6 +162,18 @@ definisci testo_riepilogo(eventi):
         f"Richieste: {r['richieste']}   ·   chiamate all'API: {r['chiamate']}   ·   passi: {r['passi_totali']}",
         f"Token in ingresso: {in_totale}  (di cui {r['token_cache_lettura']} letti dalla cache, {r['token_cache_scrittura']} scritti in cache)",
         f"Token in uscita: {r['token_uscita']}",
+        "",
+        f"Costo stimato: {formatta_costo(r['costo_usd'])}" + (f"   (≈ {formatta_costo(r['costo_usd'] / r['richieste'])} per richiesta)" se r["richieste"] altrimenti ""),
+    ]
+    per modello, c in sorted(r["costo_per_modello"].items(), key=lambda x: -x[1]):
+        righe.append(f"   {modello}: {formatta_costo(c)}")
+    se r["costo_per_richiesta"]:
+        piu_cara = max(r["costo_per_richiesta"].values())
+        righe.append(f"   la richiesta più cara: {formatta_costo(piu_cara)}")
+    se r["chiamate_senza_prezzo"]:
+        righe.append(f"   ⚠ {r['chiamate_senza_prezzo']} chiamate di modelli senza prezzo noto non sono incluse (aggiungi il prezzo in config.json: ai.prezzi)")
+    righe += [
+        "Stima in dollari ai prezzi pubblicati da Anthropic; il conto reale è nella console.",
         "",
         f"File scritti: {r['scritture']}",
         f"   validi al primo tentativo: {r['valide_al_primo']}  ({percentuale(r['valide_al_primo'], r['scritture'])})",

@@ -47,6 +47,7 @@ per riportare PitStudio ai valori iniziali basta cancellare quel file.
 | Modello economico | usato dalla casella «⚡ economico» e da «Spiega» (per risparmiare) |
 | Accorcia la conversazione oltre questi token | quando la chat diventa lunga i vecchi risultati vengono accorciati (0 = mai) |
 | Limiti dei programmi dell'assistente | memoria (MB) e numero di processi che i programmi eseguiti dall'assistente possono usare (0 = nessun limite) |
+| Prezzi (solo in `config.json`, `ai.prezzi`) | per la stima dei costi: `{"modello": [ingresso, uscita, cache_lettura, cache_scrittura]}` in dollari per milione di token. Sono già inclusi Sonnet 5.5, Haiku 5.5 e Opus 5.5 ai prezzi pubblicati; aggiungi o correggi qui gli altri |
 | Registro | salva in locale token e validità del codice generato (`.rad\ai_registro.jsonl` nel progetto) |
 | Indirizzo dell'API | per usare un servizio compatibile diverso |
 | Istruzioni aggiuntive | testo che l'assistente legge a ogni richiesta (stile, convenzioni del tuo progetto…) |

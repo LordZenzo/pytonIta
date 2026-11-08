@@ -1244,7 +1244,7 @@ classe Applicazione:
             ritorna
         percorso = os.path.join(se_stesso.progetto.cartella, ".rad", "ai_registro.jsonl")
         eventi = registro_ai.leggi_registro(percorso)
-        messagebox.showinfo("Statistiche dell'assistente", registro_ai.testo_riepilogo(eventi) + f"\n\nRegistro: {percorso}",
+        messagebox.showinfo("Statistiche dell'assistente", registro_ai.testo_riepilogo(eventi, se_stesso.config_.ottieni("ai.prezzi", {})) + f"\n\nRegistro: {percorso}",
                             parent=se_stesso.radice)
 
     # ================================================================== interfaccia per l'assistente AI

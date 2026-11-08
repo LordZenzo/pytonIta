@@ -55,8 +55,8 @@ L'assistente usa la tua chiave API e i costi dipendono dal modello e dal testo s
 
 - la **conversazione già letta viene riusata** (cache dell'API): a ogni passo si paga solo ciò che è nuovo;
 - l'assistente legge solo le parti di file che servono e modifica poche righe invece di riscrivere tutto;
-- in basso nella chat vedi i token della conversazione, con quanti letti dalla cache;
-- con *Strumenti → Statistiche dell'assistente* vedi, per il progetto: richieste, token, quanti file erano **validi al primo tentativo**, quanti corretti da solo, quanti programmi eseguiti con successo. I dati restano sul tuo computer (`.rad\ai_registro.jsonl`) e si disattivano nelle impostazioni.
+- in basso nella chat vedi i token della conversazione, con quanti letti dalla cache, e una **stima in dollari** (≈ $0.03);
+- con *Strumenti → Statistiche dell'assistente* vedi, per il progetto: richieste, token, quanti file erano **validi al primo tentativo**, quanti corretti da solo, quanti programmi eseguiti con successo, e il **costo stimato** (totale, per richiesta, per modello, la richiesta più cara). I dati restano sul tuo computer (`.rad\ai_registro.jsonl`) e si disattivano nelle impostazioni.
 - spuntando **⚡ economico** (sotto la chat) la richiesta usa il **modello economico** (impostazione *ai.modello_economico*, predefinito Haiku): ideale per spiegazioni e piccole correzioni. *Strumenti → Chiedi all'AI di spiegare* lo usa già da solo;
 - nelle **conversazioni lunghe** (oltre circa 30 000 token stimati) i vecchi risultati degli strumenti e i testi dei file già scritti vengono accorciati, e nella chat compare un avviso. Si regola o si spegne (0) nelle impostazioni.
 
