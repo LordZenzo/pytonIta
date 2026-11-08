@@ -21,6 +21,7 @@ TITOLI_TESTO = {"codice": "Codice (una o più righe)", "espressione": "Espressio
 classe DialogoTesto(tk.Toplevel):
     """Finestra media per scrivere testo o codice; i bordi si trascinano per ingrandirla. Ctrl+Invio applica, Esc annulla."""
     ultima_misura = {}     # ricorda la misura scelta, per tipo di contenuto
+    a_capo = {}            # e se andare a capo automaticamente
 
     definisci __inizializza__(se_stesso, genitore, colori, titolo, valore, e_codice):
         tk.Toplevel.__init__(se_stesso, genitore)
@@ -50,15 +51,19 @@ classe DialogoTesto(tk.Toplevel):
         se_stesso.t.configure(yscrollcommand=sy.set)
         se_stesso.t.grid(row=0, column=0, sticky="nsew")
         sy.grid(row=0, column=1, sticky="ns")
-        se e_codice:
-            sx = ttk.Scrollbar(cornice, orient="horizontal", command=se_stesso.t.xview)
-            se_stesso.t.configure(xscrollcommand=sx.set)
-            sx.grid(row=1, column=0, sticky="we")
+        sx = ttk.Scrollbar(cornice, orient="horizontal", command=se_stesso.t.xview)
+        se_stesso.t.configure(xscrollcommand=sx.set)
+        sx.grid(row=1, column=0, sticky="we")
         se_stesso.t.insert("1.0", valore)
         se_stesso.t.edit_reset()
         se_stesso.t.mark_set("insert", "end-1c")
         barra = tk.Frame(se_stesso, background=colori["pannello"])
         barra.grid(row=1, column=0, sticky="we", padx=10, pady=(0, 10))
+        se_stesso.var_a_capo = tk.BooleanVar(value=DialogoTesto.a_capo.get(se_stesso._chiave, non e_codice))
+        se_stesso._imposta_a_capo()
+        tk.Checkbutton(barra, text="A capo automatico", variable=se_stesso.var_a_capo, command=se_stesso._imposta_a_capo,
+                       background=colori["pannello"], foreground=colori["primo_piano"], activebackground=colori["pannello"],
+                       activeforeground=colori["primo_piano"], selectcolor=colori["campo"]).pack(side="left", padx=(0, 12))
         tk.Label(barra, text="Ctrl+Invio per applicare · Esc per annullare", background=colori["pannello"],
                  foreground=colori["secondario"] se "secondario" in colori altrimenti colori["primo_piano"]).pack(side="left")
         tk.Button(barra, text="Annulla", command=se_stesso._chiudi, background=colori["pulsante"],
@@ -68,6 +73,13 @@ classe DialogoTesto(tk.Toplevel):
         se_stesso.bind("<Escape>", lambda e: se_stesso._chiudi())
         se_stesso.t.bind("<Control-Return>", lambda e: (se_stesso.applica(), "break")[1])
         se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
+
+    definisci _imposta_a_capo(se_stesso):
+        attivo = se_stesso.var_a_capo.get()
+        se_stesso.t.configure(wrap="word" se attivo altrimenti "none")
+        DialogoTesto.a_capo[se_stesso._chiave] = attivo
+        se attivo:
+            se_stesso.t.xview_moveto(0)
 
     definisci _ricorda_misura(se_stesso):
         prova:

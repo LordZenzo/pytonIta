@@ -66,7 +66,7 @@ La categoria Funzioni contiene anche **chiama** e **chiamata**: servono per usar
 - **⚙ Modulo** apre le *importazioni* e il *codice di modulo* (classi, costanti) del programma: serve soprattutto per i programmi [convertiti](#conversione).
 - **Salva e genera** scrive due file: `nome.mattonelle.json` (il disegno) e `nome.pit` (il codice, da non modificare a mano).
 - Le mattonelle **codice** ed **espressione** (categoria Altro) accettano pytonIta scritto a mano, per tutto ciò che non ha una mattonella.
-- Le mattonelle che contengono **testo scritto da te** (codice, espressione, commento, testo) si modificano in una **finestra**: clic sulla casella, scrivi (il codice può avere più righe), **Ctrl+Invio** applica, **Esc** annulla. La finestra si ingrandisce trascinando i bordi e ricorda la misura scelta. I nomi e i numeri brevi si scrivono ancora direttamente nella casella.
+- Le mattonelle che contengono **testo scritto da te** (codice, espressione, commento, testo) si modificano in una **finestra**: clic sulla casella, scrivi (il codice può avere più righe), **Ctrl+Invio** applica, **Esc** annulla. La finestra si ingrandisce trascinando i bordi e ricorda la misura scelta; la casella **A capo automatico** decide se le righe lunghe vanno a capo o scorrono di lato. I nomi e i numeri brevi si scrivono ancora direttamente nella casella.
 
 ## Esempio
 

@@ -68,6 +68,20 @@ stampa("codice: righe conservate:", m.campi["testo"] == "x = 1\nse x:\n    stamp
 # la finestra ricorda la misura scelta
 r = prova_finestra(m, "testo", "y = 2")
 stampa("codice: misura ricordata:", r["misura"][0] >= 850, "| testo di partenza:", r["testo_iniziale"].startswith("x = 1"))
+# a capo automatico: acceso/spento dalla casella, ricordato
+definisci pilota_a_capo():
+    d = v.finestra_testo
+    radice.update()
+    visto_a_capo.append(d.t.cget("wrap"))
+    d.var_a_capo.set(Vero)
+    d._imposta_a_capo()
+    visto_a_capo.append(d.t.cget("wrap"))
+    d._chiudi()
+visto_a_capo = []
+radice.after(300, pilota_a_capo)
+v._modifica_campo(m, "testo")
+stampa("a capo: codice parte senza, poi acceso:", visto_a_capo == ["none", "word"])
+stampa("a capo ricordato:", DialogoTesto.a_capo["codice"] è Vero)
 # annulla non cambia nulla
 prima = m.campi["testo"]
 prova_finestra(m, "testo", "ZZZ", azione="annulla")
