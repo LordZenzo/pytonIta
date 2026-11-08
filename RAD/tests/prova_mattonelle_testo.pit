@@ -1,0 +1,110 @@
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.mattonelle_modello importa *
+da rad.mattonelle_ui importa EditorMattonelle, DialogoTesto
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci esegui_file(se_stesso, p): passa
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1250x720+30+30")
+configura_stile(radice, c)
+percorso = os.path.join(tempfile.mkdtemp(), "demo.mattonelle.json")
+prog = programma_di_esempio("demo")
+ed = EditorMattonelle(radice, percorso, prog, c, cfg, Az())
+ed.pack(fill="both", expand=Vero)
+applica(radice, c)
+radice.update()
+v = ed.viste["principale"]
+cap = prog.principale.cappello
+
+definisci aggiungi(tipo_):
+    m = Mattonella(tipo_, prog)
+    cap.lista.append(m)
+    collega_pila(cap.lista, cap.padre, cap.ruolo)
+    ed.notifica()
+    radice.update()
+    ritorna m
+
+definisci prova_finestra(m, nome, nuovo, azione="applica", ridimensiona=Falso):
+    """Apre la finestra di modifica e la pilota dopo che è comparsa."""
+    visto = {}
+    definisci pilota():
+        d = v.finestra_testo
+        radice.update()
+        visto["misura"] = (d.winfo_width(), d.winfo_height())
+        visto["testo_iniziale"] = d.t.get("1.0", "end-1c")
+        visto["ridimensionabile"] = d.resizable()
+        se ridimensiona:
+            d.geometry("900x600")
+            d.update()
+            visto["nuova_misura"] = (d.winfo_width(), d.winfo_height())
+        d.t.delete("1.0", "end")
+        d.t.insert("1.0", nuovo)
+        se azione == "applica":
+            d.applica()
+        altrimenti:
+            d._chiudi()
+    radice.after(300, pilota)
+    prova_ = m.tipo
+    v._modifica_campo(m, nome)
+    radice.update()
+    ritorna visto
+
+# la mattonella «codice» si modifica in una finestra, anche su più righe
+m = aggiungi("codice")
+r = prova_finestra(m, "testo", "x = 1\nse x:\n    stampa(x)", ridimensiona=Vero)
+stampa("codice: finestra media:", 500 <= r["misura"][0] <= 800 e 280 <= r["misura"][1] <= 500, r["misura"])
+stampa("codice: ridimensionabile:", r["ridimensionabile"] == (Vero, Vero), "| ingrandita:", r["nuova_misura"][0] >= 850)
+stampa("codice: righe conservate:", m.campi["testo"] == "x = 1\nse x:\n    stampa(x)")
+# la finestra ricorda la misura scelta
+r = prova_finestra(m, "testo", "y = 2")
+stampa("codice: misura ricordata:", r["misura"][0] >= 850, "| testo di partenza:", r["testo_iniziale"].startswith("x = 1"))
+# annulla non cambia nulla
+prima = m.campi["testo"]
+prova_finestra(m, "testo", "ZZZ", azione="annulla")
+stampa("annulla: invariato:", m.campi["testo"] == prima)
+
+# espressione e commento stanno su una riga
+e = aggiungi("espressione")
+prova_finestra(e, "testo", "a +\n   b")
+stampa("espressione su una riga:", e.campi["testo"] == "a + b", repr(e.campi["testo"]))
+n = aggiungi("commento")
+prova_finestra(n, "testo", "nota lunga\nsu due righe")
+stampa("commento su una riga:", n.campi["testo"] == "nota lunga su due righe")
+
+# il testo letterale di uno slot (es. nel «stampa») si scrive nella finestra
+st = aggiungi("stampa")
+nome_slot = lista(st.letterali)[0]
+visto = {}
+definisci pilota2():
+    d = v.finestra_testo
+    d.t.delete("1.0", "end")
+    d.t.insert("1.0", "ciao a tutti")
+    d.applica()
+radice.after(300, pilota2)
+v._modifica_letterale(st, nome_slot)
+radice.update()
+stampa("testo di uno slot:", st.letterali[nome_slot] == "ciao a tutti")
+
+# i campi brevi (nome della funzione, numeri) restano in linea
+chiusi = []
+definisci _non_deve_aprire(*a, **k):
+    chiusi.append(1)
+v._finestra_testo = _non_deve_aprire
+v._edit_testo = lambda *a, **k: chiusi.append("in linea")
+v._modifica_campo(cap, "nome") se "nome" in cap.campi altrimenti Nessuno
+stampa("nome della funzione in linea (nessuna finestra):", 1 non in chiusi)
+
+# il codice generato riflette il testo scritto
+codice = genera_codice(prog)[0] se isinstance(genera_codice(prog), tuple) altrimenti genera_codice(prog)
+stampa("codice generato contiene il testo scritto:", "y = 2" in codice, "# nota lunga su due righe" in codice)
+radice.destroy()

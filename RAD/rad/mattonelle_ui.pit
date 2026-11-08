@@ -12,6 +12,83 @@ da rad.editor importa Editor
 
 CAPPELLI = ("avvio", "definisci_funzione")
 
+# mattonelle il cui contenuto è testo (o codice) scritto dall'utente: si modificano in una finestra
+TIPI_TESTO_LIBERO = ("codice", "espressione", "commento", "testo_lett")
+TITOLI_TESTO = {"codice": "Codice (una o più righe)", "espressione": "Espressione", "commento": "Commento",
+                "testo_lett": "Testo", "testo": "Testo"}
+
+
+classe DialogoTesto(tk.Toplevel):
+    """Finestra media per scrivere testo o codice; i bordi si trascinano per ingrandirla. Ctrl+Invio applica, Esc annulla."""
+    ultima_misura = {}     # ricorda la misura scelta, per tipo di contenuto
+
+    definisci __inizializza__(se_stesso, genitore, colori, titolo, valore, e_codice):
+        tk.Toplevel.__init__(se_stesso, genitore)
+        se_stesso.title(titolo)
+        se_stesso.transient(genitore)
+        se_stesso.risultato = Nessuno
+        se_stesso.configure(background=colori["pannello"])
+        se_stesso._chiave = "codice" se e_codice altrimenti "testo"
+        l, a = DialogoTesto.ultima_misura.get(se_stesso._chiave, (620, 340) se e_codice altrimenti (520, 260))
+        x = genitore.winfo_rootx() + max(0, (genitore.winfo_width() - l) // 2)
+        y = genitore.winfo_rooty() + max(0, (genitore.winfo_height() - a) // 3)
+        se_stesso.geometry(f"{l}x{a}+{x}+{y}")
+        se_stesso.minsize(320, 180)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.rowconfigure(0, weight=1)
+        se_stesso.columnconfigure(0, weight=1)
+        cornice = tk.Frame(se_stesso, background=colori["pannello"])
+        cornice.grid(row=0, column=0, sticky="nsew", padx=10, pady=(10, 4))
+        cornice.rowconfigure(0, weight=1)
+        cornice.columnconfigure(0, weight=1)
+        se_stesso.t = tk.Text(cornice, wrap="none" se e_codice altrimenti "word", undo=Vero, tabs=("1c",),
+                              font=("Consolas", 11) se e_codice altrimenti ("Segoe UI", 11),
+                              background=colori["campo"], foreground=colori["primo_piano"],
+                              insertbackground=colori["cursore"], relief="flat", highlightthickness=1,
+                              highlightbackground=colori["bordo"], highlightcolor=colori["accento"], padx=6, pady=4)
+        sy = ttk.Scrollbar(cornice, orient="vertical", command=se_stesso.t.yview)
+        se_stesso.t.configure(yscrollcommand=sy.set)
+        se_stesso.t.grid(row=0, column=0, sticky="nsew")
+        sy.grid(row=0, column=1, sticky="ns")
+        se e_codice:
+            sx = ttk.Scrollbar(cornice, orient="horizontal", command=se_stesso.t.xview)
+            se_stesso.t.configure(xscrollcommand=sx.set)
+            sx.grid(row=1, column=0, sticky="we")
+        se_stesso.t.insert("1.0", valore)
+        se_stesso.t.edit_reset()
+        se_stesso.t.mark_set("insert", "end-1c")
+        barra = tk.Frame(se_stesso, background=colori["pannello"])
+        barra.grid(row=1, column=0, sticky="we", padx=10, pady=(0, 10))
+        tk.Label(barra, text="Ctrl+Invio per applicare · Esc per annullare", background=colori["pannello"],
+                 foreground=colori["secondario"] se "secondario" in colori altrimenti colori["primo_piano"]).pack(side="left")
+        tk.Button(barra, text="Annulla", command=se_stesso._chiudi, background=colori["pulsante"],
+                  foreground=colori["primo_piano"], relief="flat", padx=12).pack(side="right", padx=(4, 0))
+        tk.Button(barra, text="Applica", command=se_stesso.applica, background=colori["accento"],
+                  foreground="#ffffff", relief="flat", padx=12).pack(side="right", padx=4)
+        se_stesso.bind("<Escape>", lambda e: se_stesso._chiudi())
+        se_stesso.t.bind("<Control-Return>", lambda e: (se_stesso.applica(), "break")[1])
+        se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
+
+    definisci _ricorda_misura(se_stesso):
+        prova:
+            DialogoTesto.ultima_misura[se_stesso._chiave] = (se_stesso.winfo_width(), se_stesso.winfo_height())
+        eccetto tk.TclError:
+            passa
+
+    definisci applica(se_stesso):
+        se_stesso.risultato = (se_stesso.t.get("1.0", "end-1c"),)
+        se_stesso._chiudi()
+
+    definisci _chiudi(se_stesso):
+        se_stesso._ricorda_misura()
+        se_stesso.destroy()
+
+    definisci mostra(se_stesso):
+        se_stesso.grab_set()
+        se_stesso.t.focus_set()
+        se_stesso.wait_window()
+        ritorna se_stesso.risultato
+
 
 # =========================================================================== area di lavoro
 classe AreaMattonelle(tk.Frame):
@@ -267,13 +344,29 @@ classe AreaMattonelle(tk.Frame):
             ritorna
         se modo.startswith("variabile"):
             se_stesso._menu_variabili(m, nome, rett)
+        altrimenti_se m.tipo in TIPI_TESTO_LIBERO e nome in ("testo", "valore"):
+            se_stesso._finestra_testo(m.tipo, testo(m.campi.get(nome, "")), lambda v: se_stesso._imposta_campo(m, nome, v, modo))
         altrimenti:
             se_stesso._edit_testo(rett, testo(m.campi.get(nome, "")), lambda v: se_stesso._imposta_campo(m, nome, v, modo))
 
     definisci _modifica_letterale(se_stesso, m, nome):
         rett = se_stesso._rett_campo(m, nome, "vuoto")
         se rett:
-            se_stesso._edit_testo(rett, m.letterali.get(nome, ""), lambda v: se_stesso._imposta_letterale(m, nome, v))
+            se_stesso._chiudi_modifica()
+            se_stesso._finestra_testo("testo", m.letterali.get(nome, ""), lambda v: se_stesso._imposta_letterale(m, nome, v))
+
+    definisci _finestra_testo(se_stesso, tipo, valore, alla_conferma):
+        """Finestra per scrivere testo o codice: media, ridimensionabile trascinando i bordi."""
+        se_stesso._chiudi_modifica()
+        d = DialogoTesto(se_stesso.winfo_toplevel(), se_stesso.colori, TITOLI_TESTO.get(tipo, "Modifica il testo"), valore,
+                         tipo in ("codice", "espressione"))
+        se_stesso.finestra_testo = d
+        v = d.mostra()
+        se v è non Nessuno:
+            nuovo = v[0]
+            se tipo in ("commento", "espressione"):      # devono stare su una riga
+                nuovo = " ".join(r.strip() per r in nuovo.splitlines()).strip()
+            alla_conferma(nuovo)
 
     definisci _imposta_campo(se_stesso, m, nome, valore, modo=""):
         valore = valore.strip() se modo != "testo" altrimenti valore

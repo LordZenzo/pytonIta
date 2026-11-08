@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.12
+
+- **Mattonelle: testo e codice in una finestra**. Codice, espressione, commento e testo si scrivono in una finestra media, ridimensionabile e che ricorda la misura; il codice può avere più righe (prima si apriva una sola riga).
+
 ## Novità della 1.11
 
 - **Conversione di un intero progetto Python in pytonIta** (*File → Converti un progetto Python in pytonIta…*): crea una nuova cartella con tutti i `.py` tradotti in `.pit` (pacchetti compresi), copia gli altri file, verifica ogni traduzione e produce il rapporto `CONVERSIONE.md`. L'originale non viene toccato; i file non convertibili restano `.py`. Provata su un progetto reale con interfaccia grafica e test.
