@@ -16,6 +16,12 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.16
+
+- **Quasi tutto il linguaggio a mattonelle**: frasi (f-string), `con … come …`, `solleva`, generatori (`produci`), `elimina`, `cambia … op= …`, dizionari con coppie, insiemi, `*args`/`**kwargs`, operatori `| & ^ << >>`, `per … altrimenti`, `mentre … altrimenti`, `da … importa …`, comprensioni di dizionario, tuple/liste fino a 12 elementi. Gli ingressi facoltativi vuoti non occupano più spazio.
+- **Prova di fedeltà**: le ~1.700 funzioni e metodi di PitStudio stesso, convertiti in mattonelle e rigenerati, hanno lo **stesso albero sintattico** degli originali (`tests/prova_mattonelle_fedelta.pit`); restano come testo circa lo 0,25 % delle istruzioni.
+- **Interprete**: `per w, in x:` (virgola finale prima di `in`) ora è accettato. `py2pit` traduce anche i `case (` con il pattern tra parentesi su più righe (249 moduli della libreria standard tradotti con struttura identica).
+
 ## Novità della 1.15
 
 - **Programmi a oggetti interamente a mattonelle**: classi con una pagina per metodo (＋ Classe, ＋ Metodo), categoria *Oggetti* (attributi, imposta su attributi/tuple, chiamata di metodi, opzioni `nome=valore`, tupla, lambda), comprensioni, `a se c altrimenti b`, catene di confronti, `è`, fette, dizionari, `eccetto Tipo come nome`.

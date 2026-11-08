@@ -1,0 +1,142 @@
+# Fedeltà della conversione in mattonelle: ogni funzione e metodo di PitStudio (rad/*.pit, ~1700) viene convertito in
+# mattonelle, rigenerato come codice e confrontato con l'originale a livello di albero sintattico (ignorando docstring,
+# nomi italiani/inglesi dei builtin, "non in" / "non è", annidamento di e/o, "ritorna Nessuno").
+importa sys, os, ast, glob
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.mattonelle_converti importa converti_sorgente
+da rad.mattonelle_modello importa genera_codice
+FL = 0x10000 | ast.PyCF_ONLY_AST
+_it = open(os.path.join(os.path.dirname(sys.executable), "Lib", "_italiano.py"), encoding="utf-8").read()
+_alb = ast.parse(_it)
+TAB = {}
+METODI_T = {}
+per _n in _alb.body:
+    se isinstance(_n, ast.Assign) e isinstance(_n.targets[0], ast.Name):
+        se _n.targets[0].id in ("FUNZIONI", "ECCEZIONI"):
+            TAB.update(ast.literal_eval(_n.value))
+        se _n.targets[0].id == "METODI":
+            METODI_T.update(ast.literal_eval(_n.value))
+classe Norm(ast.NodeTransformer):
+    definisci visit_Name(se_stesso, n):
+        n.id = TAB.get(n.id, n.id)
+        ritorna n
+    definisci visit_Attribute(se_stesso, n):
+        se_stesso.generic_visit(n)
+        n.attr = METODI_T.get(n.attr, n.attr)
+        ritorna n
+    definisci visit_BoolOp(se_stesso, n):
+        se_stesso.generic_visit(n)
+        valori = []
+        per v in n.values:
+            se isinstance(v, ast.BoolOp) e tipo(v.op) == tipo(n.op):
+                valori.extend(v.values)
+            altrimenti:
+                valori.append(v)
+        n.values = valori
+        ritorna n
+    definisci visit_Return(se_stesso, n):
+        se_stesso.generic_visit(n)
+        se isinstance(n.value, ast.Constant) e n.value.value è Nessuno:
+            n.value = Nessuno
+        ritorna n
+    definisci visit_keyword(se_stesso, n):
+        se_stesso.generic_visit(n)
+        ritorna n
+    definisci visit_UnaryOp(se_stesso, n):
+        se_stesso.generic_visit(n)
+        se isinstance(n.op, ast.Not) e isinstance(n.operand, ast.Compare) e lunghezza(n.operand.ops) == 1:
+            o = n.operand.ops[0]
+            se isinstance(o, ast.In):
+                n.operand.ops[0] = ast.NotIn()
+                ritorna n.operand
+            se isinstance(o, ast.Is):
+                n.operand.ops[0] = ast.IsNot()
+                ritorna n.operand
+        ritorna n
+definisci norm(nodo):
+    ritorna Norm().visit(nodo)
+definisci albero(src):
+    ritorna compile(src, "x", "exec", FL)
+definisci senza_doc(nodo):
+    per n in ast.walk(nodo):
+        se isinstance(n, (ast.FunctionDef, ast.ClassDef, ast.Module)) e n.body e isinstance(n.body[0], ast.Expr) e isinstance(n.body[0].value, ast.Constant) e isinstance(n.body[0].value.value, str):
+            n.body = n.body[1:] o [ast.Pass()]
+    ritorna nodo
+definisci funzioni(alb):
+    r = {}
+    per n in ast.walk(alb):
+        se isinstance(n, ast.ClassDef):
+            per f in n.body:
+                se isinstance(f, ast.FunctionDef):
+                    r[n.name + "." + f.name] = f
+        altrimenti_se isinstance(n, ast.FunctionDef) e n.name non in r:
+            r[n.name] = n
+    ritorna r
+definisci primo_diverso(n1, n2):
+    """Primo corpo di istruzioni che differisce (testo)."""
+    definisci rec(a, b):
+        se type(a) != type(b):
+            ritorna (a, b)
+        se isinstance(a, ast.AST):
+            se isinstance(a, ast.stmt) e ast.dump(a) != ast.dump(b):
+                # scendi se è un blocco con stessa forma
+                passa
+            per campo in a._fields:
+                r = rec(getattr(a, campo), getattr(b, campo))
+                se r:
+                    ritorna r
+            ritorna Nessuno
+        se isinstance(a, lista):
+            per x, y in zip(a, b):
+                r = rec(x, y)
+                se r:
+                    ritorna r
+            se lunghezza(a) != lunghezza(b):
+                ritorna (a[min(lunghezza(a), lunghezza(b)):][:1], b[min(lunghezza(a), lunghezza(b)):][:1])
+            ritorna Nessuno
+        ritorna Nessuno se a == b altrimenti (a, b)
+    r = rec(n1, n2)
+    se non r:
+        ritorna "?"
+    definisci u(x):
+        se isinstance(x, lista):
+            ritorna "[" + "; ".join(u(y) per y in x) + "]"
+        prova:
+            ritorna ast.unparse(x)[:90]
+        eccetto Exception:
+            ritorna repr(x)[:90]
+    ritorna u(r[0]) + "  ==>  " + u(r[1])
+
+tot = ok = 0
+diff = []
+per f in sorted(glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rad", "*.pit"))):
+    src = open(f, encoding="utf-8").read()
+    p, r = converti_sorgente(src, "m")
+    nuovo, av = genera_codice(p)
+    prova:
+        a1 = funzioni(albero(src)); a2 = funzioni(albero(nuovo))
+    eccetto SyntaxError come e:
+        stampa("NON COMPILA", os.path.basename(f), e.lineno, e)
+        righe = nuovo.split(chr(10))
+        stampa(chr(10).join(righe[max(0, e.lineno - 8):e.lineno + 2]))
+        continua
+    per k, n1 in a1.items():
+        se "." non in k e k in ("principale",):
+            continua
+        n2 = a2.get(k)
+        tot += 1
+        se n2 è Nessuno:
+            diff.append((os.path.basename(f), k, "mancante"))
+            continua
+        n1 = norm(senza_doc(ast.Module(body=[n1], type_ignores=[])))
+        n2 = norm(senza_doc(ast.Module(body=[n2], type_ignores=[])))
+        d1 = ast.dump(n1)
+        d2 = ast.dump(n2)
+        se d1 == d2:
+            ok += 1
+        altrimenti:
+            diff.append((os.path.basename(f), k, "diverso", primo_diverso(n1, n2)))
+stampa("funzioni confrontate:", tot, "| identiche (AST):", ok, "| diverse:", lunghezza(diff), "| tutte uguali:", ok == tot e tot > 1000)
+importa collections
+per x in diff[:60]:
+    stampa(x[0], x[1], "|", x[3])

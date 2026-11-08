@@ -1,0 +1,142 @@
+importa sys, os, tempfile, subprocess, ast
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.mattonelle_modello importa *
+da rad.mattonelle_converti importa converti_sorgente
+da rad importa mattonelle_ui
+
+PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
+
+sorgente = '''importa os
+importa tempfile
+
+
+definisci generatore(n):
+    per i in intervallo(n):
+        produci i
+    produci da [100, 200]
+
+
+definisci somma_tutto(*args, **kw):
+    ritorna sum(args) + sum(kw.values())
+
+
+definisci principale():
+    nome, voto = "Anna", 7.5
+    stampa(f"{nome} ha {voto:.1f} su {10} ({{ok}}) {nome!r} riga{chr(10)}due")
+    cartella = tempfile.mkdtemp()
+    percorso = os.path.join(cartella, "x.txt")
+    con open(percorso, "w") come f1, open(percorso + "2", "w") come f2:
+        f1.write("uno")
+        f2.write("due")
+    con open(percorso) come f:
+        stampa(f.read())
+    prova:
+        solleva ValueError("brutto")
+    eccetto ValueError come e:
+        stampa("preso", e)
+    prova:
+        prova:
+            solleva KeyError("k")
+        eccetto KeyError:
+            solleva
+    eccetto KeyError come e:
+        stampa("rilanciato", e)
+    stampa(lista(generatore(3)))
+    stampa(somma_tutto(1, 2, *[3, 4], a=5, **{"b": 6}))
+    d = {"x": 1, "y": 2, **{"z": 3}}
+    stampa(d, {k: v * 2 per k, v in d.items() se v > 1}, {1, 2, 3}, (1,), ())
+    elimina d["x"]
+    stampa(sorted(d))
+    per i in [1, 2, 3]:
+        se i == 5:
+            interrompi
+    altrimenti:
+        stampa("ciclo finito senza interrompi")
+    n = 0
+    mentre n < 3:
+        n += 1
+    altrimenti:
+        stampa("mentre finito", n)
+    a, b = 6, 3
+    stampa(a | b, a & b, a ^ b, a << 1, a >> 1, -a, a ** 2, a % 4, a // 4)
+    x = [1, 2, 3]
+    x *= 2
+    x[0] -= 5
+    stampa(x, x[1:3], x[::2], x[:-1])
+    da os importa path
+    importa json come j
+    stampa(path.basename("a/b.txt"), j.dumps([1]))
+    f = lambda v, w=2: v * w
+    stampa(f(4), (lambda: 9)())
+    stampa(*[1, 2], sep="-")
+
+
+se __nome__ == "__main__":
+    principale()
+'''
+prog, rap = converti_sorgente(sorgente, "prova")
+stampa("libere:", rap["righe_libere"], rap["espressioni_libere"], rap["libere"])
+tipi = set()
+per area in prog.aree():
+    per m in area.tutte():
+        tipi.add(m.tipo)
+atteso = {"testo_f", "con_blocco", "solleva", "produci", "produci_da", "spacchetta", "spacchetta_dizionario", "dizionario", "coppia",
+          "dizionario_da", "insieme_di", "tupla", "elimina", "operatore", "aumenta", "fetta", "da_importa", "importa", "funzione_anonima",
+          "per_ogni", "mentre"}
+stampa("mattonelle usate (tutte le attese):", atteso <= tipi, "| mancano:", sorted(atteso - tipi))
+codice, avvisi = genera_codice(prog)
+stampa("avvisi:", avvisi)
+cartella = tempfile.mkdtemp()
+per nome, testo_ in (("a.pit", sorgente), ("b.pit", codice)):
+    con open(os.path.join(cartella, nome), "w", encoding="utf-8") come f:
+        f.write(testo_)
+a = subprocess.run([PITONIT, "a.pit"], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella)
+b = subprocess.run([PITONIT, "b.pit"], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella)
+stampa("stessa uscita:", a.stdout == b.stdout e a.returncode == b.returncode == 0, "| codici:", a.returncode, b.returncode)
+se a.stdout != b.stdout o a.returncode:
+    stampa(a.stdout, a.stderr[-300:], "---", b.stdout, b.stderr[-300:])
+stampa(a.stdout.splitlines()[0])
+
+# la mattonella «frase»
+p = Programma("f")
+f = Mattonella("testo_f", p)
+f.campi["modello"] = 'Totale: {a:.2f} su {b} "virgolette" \\ {{graffe}}'
+n1 = Mattonella("numero", p); n1.campi["valore"] = "3.14159"
+f.ingressi["a"] = n1; n1.padre, n1.ruolo = f, "ingresso:a"
+f.letterali["b"] = "10"
+g = Generatore(p)
+stampa("frase:", g.espressione(f))
+
+# ingressi facoltativi: se ne vede solo uno vuoto dopo quelli pieni
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x700+10+10")
+configura_stile(radice, col)
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci esegui_file(se_stesso, p): passa
+
+ed = mattonelle_ui.EditorMattonelle(radice, os.path.join(tempfile.mkdtemp(), "p.mattonelle.json"), prog, col, cfg, Az())
+ed.pack(fill="both", expand=Vero)
+applica(radice, col)
+radice.update()
+dis = ed.viste["principale"].disegnatore
+t = Mattonella("tupla", prog)
+dis.misura(t)
+vuote = lunghezza([v per v in dis.lay[t.id].misure se v[0] == "vuoto"])
+t.letterali["a"] = "1"; t.letterali["b"] = "2"
+dis.misura(t)
+due = lunghezza([v per v in dis.lay[t.id].misure se v[0] == "vuoto"])
+stampa("ingressi facoltativi visibili: vuota", vuote, "| con due pieni", due)
+dis2 = dis
+c = Mattonella("chiama", prog)
+dis.misura(c)
+stampa("chiama vuota: un solo ingresso:", lunghezza([v per v in dis.lay[c.id].misure se v[0] == "vuoto"]) == 1)
+radice.destroy()

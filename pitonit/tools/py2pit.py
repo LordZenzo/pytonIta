@@ -257,6 +257,8 @@ def traduci(sorgente, rapporto):
     for r, c, kw in soft:
         soft_pos.setdefault(r, []).append((a_colonna(r, c), kw))
 
+    posizioni_pattern = sorted((r, a_colonna(r, c)) for r, cs in soft_pos.items() for c, kw in cs if kw == "case")
+
     toks = [t for t in tokenize.generate_tokens(io.StringIO(sorgente).readline)
             if t.type not in (tokenize.NL, tokenize.COMMENT)]
     righe = list(righe_orig)
@@ -286,6 +288,15 @@ def traduci(sorgente, rapporto):
                                                       tokenize.DEDENT))):
                     nuovo = SOFT[s]
                     break
+            if nuovo is None and s == "case" and toks[i - 1].type in (tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT):
+                # pattern tra parentesi su piu' righe: la sua posizione e' piu' avanti, ma sempre nella stessa istruzione
+                prossimo = next((q for q in posizioni_pattern if q > t.start), None)
+                if prossimo is not None:
+                    k = i + 1
+                    while k < len(toks) and toks[k].start < prossimo and toks[k].type != tokenize.NEWLINE:
+                        k += 1
+                    if k < len(toks) and toks[k].start >= prossimo:
+                        nuovo = SOFT["case"]
             if nuovo is None and s == "type":
                 # "type" come builtin (type(x)) e' gestito sotto
                 if t.start in rif:

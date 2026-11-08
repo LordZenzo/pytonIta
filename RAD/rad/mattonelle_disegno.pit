@@ -97,13 +97,27 @@ classe Disegnatore:
             t = t[:se_stesso.MAX_CARATTERI_RIGA - 1] + "…"
         ritorna t
 
+    definisci _ingressi_nascosti(se_stesso, m, d):
+        """Degli ingressi facoltativi si vedono quelli pieni e il primo vuoto: gli altri non occupano posto."""
+        opz = d.get("opzionali") o []
+        se non opz:
+            ritorna ()
+        ultimo = -1
+        per i, nome in enumera(opz):
+            se m.ingressi.get(nome) è non Nessuno o (m.letterali.get(nome) o "").strip():
+                ultimo = i
+        ritorna set(opz[ultimo + 2:])
+
     definisci misura(se_stesso, m):
         """Calcola (larghezza, altezza) di m e dei suoi contenuti; salva i dati intermedi."""
         d = se_stesso._def(m)
         lay = se_stesso.lay[m.id] = Disposizione()
         voci = []
         alto = 0
+        nascosti = se_stesso._ingressi_nascosti(m, d)
         per seg in d["seg"]:
+            se isinstance(seg, tuple) e seg[0] == "i" e seg[1] in nascosti:
+                continua
             se isinstance(seg, str):
                 w = se_stesso.f_testo.measure(seg)
                 voci.append(("etichetta", seg, w, se_stesso.s(se_stesso.CHIP_H)))

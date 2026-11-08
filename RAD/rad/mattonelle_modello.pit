@@ -29,9 +29,18 @@ FORME_ISTRUZIONE = ("cappello", "istruzione", "blocco", "fine")
 FORME_VALORE = ("valore", "booleano")
 
 
-definisci _d(forma, cat, seg, codice="", corpi=Nessuno, intestazioni=Nessuno, moduli=Nessuno, descrizione=""):
+SLOT_VARI = "abcdefghijkl"      # nomi degli ingressi delle mattonelle con un numero variabile di argomenti
+
+
+definisci _d(forma, cat, seg, codice="", corpi=Nessuno, intestazioni=Nessuno, moduli=Nessuno, descrizione="", opzionali=Nessuno):
+    """opzionali: nomi degli ingressi facoltativi, in ordine; sulla mattonella se ne vedono solo quelli pieni più il primo vuoto."""
     ritorna {"forma": forma, "cat": cat, "seg": seg, "codice": codice, "corpi": corpi o [],
-             "intestazioni": intestazioni o [], "importa": moduli o [], "descrizione": descrizione}
+             "intestazioni": intestazioni o [], "importa": moduli o [], "descrizione": descrizione,
+             "opzionali": opzionali o []}
+
+
+definisci _ingressi_vari(n=12):
+    ritorna [("i", c, "valore", "") per c in SLOT_VARI[:n]]
 
 
 # segmenti: "testo" = etichetta; ("i", nome, tipo_ingresso, predefinito) = ingresso (mattonella o valore);
@@ -50,11 +59,12 @@ TIPI = {
                         corpi=[("corpo", ""), ("altro", "altrimenti")],
                         intestazioni=["se {cond}:", "altrimenti:"], descrizione="Due strade"),
     "per_ogni": _d("blocco", "flusso", ["per ogni", ("c", "var", "elemento", "variabile_nuova"), "in", ("i", "elenco", "valore", "")],
-                   corpi=[("corpo", "")], intestazioni=["per {var} in {elenco}:"], descrizione="Ripete per ogni elemento"),
+                   corpi=[("corpo", ""), ("altro", "se non si interrompe")], intestazioni=["per {var} in {elenco}:", "altrimenti:"],
+                   descrizione="Ripete per ogni elemento"),
     "ripeti": _d("blocco", "flusso", ["ripeti", ("i", "n", "numero", "10"), "volte"], corpi=[("corpo", "")],
                  intestazioni=["per _ in intervallo({n}):"], descrizione="Ripete N volte"),
-    "mentre": _d("blocco", "flusso", ["mentre", ("i", "cond", "booleano", "")], corpi=[("corpo", "")],
-                 intestazioni=["mentre {cond}:"], descrizione="Ripete finché la condizione è vera"),
+    "mentre": _d("blocco", "flusso", ["mentre", ("i", "cond", "booleano", "")], corpi=[("corpo", ""), ("altro", "se non si interrompe")],
+                 intestazioni=["mentre {cond}:", "altrimenti:"], descrizione="Ripete finché la condizione è vera"),
     "prova": _d("blocco", "flusso", ["prova", "eccetto", ("c", "tipo", "Eccezione", "testo"), "come", ("c", "come", "errore", "testo")],
                 corpi=[("corpo", ""), ("errore", "se c'è un errore"), ("infine", "alla fine")],
                 intestazioni=["prova:", "eccetto {tipo} come {come}:", "infine:"],
@@ -157,11 +167,36 @@ TIPI = {
                 codice="@tupla", descrizione="Più valori insieme; gli ingressi vuoti vengono ignorati"),
     "fetta": _d("valore", "liste", [("i", "obj", "valore", ""), "[ da", ("i", "da", "valore", ""), "a", ("i", "a", "valore", ""), "]"],
                 codice="@fetta", descrizione="Una parte di una lista o di un testo: da…a (gli ingressi vuoti = inizio/fine)"),
-    "dizionario": _d("valore", "liste", ["dizionario", ("i", "k1", "valore", ""), ":", ("i", "v1", "valore", ""),
-                                         ("i", "k2", "valore", ""), ":", ("i", "v2", "valore", ""),
-                                         ("i", "k3", "valore", ""), ":", ("i", "v3", "valore", ""),
-                                         ("i", "k4", "valore", ""), ":", ("i", "v4", "valore", "")],
-                     codice="@dizionario", descrizione="Coppie chiave: valore; le coppie con la chiave vuota vengono ignorate"),
+    "testo_f": _d("valore", "testo", ["frase", ("c", "modello", "", "testo"), "con", ("i", "a", "valore", ""), ("i", "b", "valore", ""),
+                                      ("i", "c", "valore", ""), ("i", "d", "valore", ""), ("i", "e", "valore", ""), ("i", "f", "valore", "")],
+                  codice="@testo_f", opzionali=lista("abcdef"),
+                  descrizione="Un testo con dei valori dentro: nel modello scrivi {a}, {b}… dove vanno i valori (anche {a:.2f})"),
+    "con_blocco": _d("blocco", "flusso", ["con", ("i", "espr", "valore", ""), "come", ("c", "var", "", "testo")], corpi=[("corpo", "")],
+                     intestazioni=["con {espr} come {var}:"], descrizione="Usa una risorsa (file, blocco…) e la chiude alla fine"),
+    "solleva": _d("istruzione", "flusso", ["solleva", ("i", "eccezione", "valore", "")],
+                  codice="@solleva", descrizione="Segnala un errore (senza valore: ripete quello in corso)"),
+    "aumenta": _d("istruzione", "variabili", ["cambia", ("i", "dest", "valore", ""), ("c", "op", "-", "testo"), "=", ("i", "val", "valore", "")],
+                  codice="{dest} {op}= {val}", descrizione="Come cambia, ma per un attributo o un elemento e con un operatore a scelta (- * / ...)"),
+    "elimina": _d("istruzione", "variabili", ["elimina", ("i", "v", "valore", "")], codice="elimina {v}"),
+    "produci": _d("istruzione", "funzioni", ["produci", ("i", "v", "valore", "")], codice="produci {v}",
+                  descrizione="Restituisce un valore e riprende da qui alla prossima richiesta (generatore)"),
+    "produci_da": _d("istruzione", "funzioni", ["produci da", ("i", "v", "valore", "")], codice="produci da {v}"),
+    "coppia": _d("valore", "liste", [("i", "k", "valore", ""), ":", ("i", "v", "valore", "")], codice="{k}: {v}",
+                 descrizione="Una coppia chiave: valore, da mettere in un dizionario"),
+    "dizionario": _d("valore", "liste", ["dizionario"] + _ingressi_vari(), codice="@dizionario",
+                     opzionali=lista(SLOT_VARI), descrizione="Mettici delle «coppie» (chiave: valore)"),
+    "dizionario_da": _d("valore", "liste", ["dizionario di", ("i", "k", "valore", ""), ":", ("i", "v", "valore", ""), "per", ("c", "var", "x", "testo"),
+                                            "in", ("i", "elenco", "valore", ""), "se", ("i", "cond", "booleano", "")], codice="@dizionario_da"),
+    "insieme_di": _d("valore", "liste", ["insieme di"] + _ingressi_vari(), codice="@insieme_di",
+                     opzionali=lista(SLOT_VARI)),
+    "spacchetta": _d("valore", "oggetti", ["*", ("i", "v", "valore", "")], codice="*{v}",
+                     descrizione="Spacchetta una lista negli argomenti (*args)"),
+    "spacchetta_dizionario": _d("valore", "oggetti", ["**", ("i", "v", "valore", "")], codice="**{v}",
+                                descrizione="Spacchetta un dizionario negli argomenti (**kwargs)"),
+    "operatore": _d("valore", "operatori", [("i", "a", "valore", ""), ("c", "op", "|", "testo"), ("i", "b", "valore", "")],
+                    codice="({a} {op} {b})", descrizione="Un operatore a scelta: | & ^ << >> @"),
+    "da_importa": _d("istruzione", "altro", ["da", ("c", "modulo", "os", "testo"), "importa", ("c", "nomi", "path", "testo")],
+                     codice="da {modulo} importa {nomi}"),
     "negativo": _d("valore", "operatori", ["meno", ("i", "a", "valore", "")], codice="(-{a})"),
     "identico": _d("booleano", "operatori", [("i", "a", "valore", ""), "è", ("i", "b", "valore", "")], codice="({a} è {b})"),
     "non_identico": _d("booleano", "operatori", [("i", "a", "valore", ""), "non è", ("i", "b", "valore", "")],
@@ -201,6 +236,18 @@ TIPI = {
 
 # mattonelle da mostrare nella tavolozza (ordine) per ogni categoria
 PREFERITE_PER_CATEGORIA = {c: [t per t, d in TIPI.items() se d["cat"] == c] per c in ORDINE_CATEGORIE}
+
+definisci _slot_vari(tipo_, prima, dopo, n=12):
+    TIPI[tipo_]["seg"] = prima + _ingressi_vari(n) + dopo
+    TIPI[tipo_]["opzionali"] = lista(SLOT_VARI[:n])
+
+
+_slot_vari("chiama", ["chiama", ("c", "nome", "funzione", "testo"), "("], [")"])
+_slot_vari("chiamata", ["chiama", ("c", "nome", "funzione", "testo"), "("], [")"])
+_slot_vari("chiama_su", [("i", "obj", "valore", ""), ".", ("c", "nome", "metodo", "testo"), "("], [")"])
+_slot_vari("chiamata_su", [("i", "obj", "valore", ""), ".", ("c", "nome", "metodo", "testo"), "("], [")"])
+_slot_vari("tupla", ["tupla ("], [")"])
+_slot_vari("lista_di", ["lista di"], [])
 
 _contatore = itertools.count(1)
 
@@ -559,7 +606,7 @@ definisci senza_parentesi(codice):
             profondita -= 1
             se profondita == 0 e i < lunghezza(codice) - 1:
                 ritorna codice
-    ritorna codice[1:-1]
+    ritorna codice[1:-1] se codice[1:-1].strip() altrimenti codice
 
 
 definisci nome_variabile_valido(nome):
@@ -806,7 +853,7 @@ classe Generatore:
     # --- espressioni
     definisci _si_possono_togliere_parentesi(se_stesso, m, slot, figlio):
         """Le parentesi di un valore in una mattonella-istruzione si tolgono, tranne dove cambierebbero il significato."""
-        se figlio.tipo == "generatore_da":
+        se figlio.tipo in ("generatore_da", "espressione"):
             ritorna Falso
         se figlio.tipo == "tupla":
             ritorna (m.tipo == "assegna" e slot == "dest") o m.tipo in ("ritorna", "imposta")
@@ -841,13 +888,42 @@ classe Generatore:
             se_stesso.avvisi.append(f"{se_stesso._area}: ingresso «{slot}» vuoto in «{m.tipo}»")
         ritorna "Nessuno"
 
+    definisci _pieno(se_stesso, m, slot):
+        ritorna m.ingressi.get(slot) è non Nessuno o bool((m.letterali.get(slot) o "").strip())
+
+    definisci _voci(se_stesso, m, slots):
+        """Il codice degli ingressi facoltativi che hanno un contenuto."""
+        ritorna [se_stesso.ingresso(m, slot, "valore") per slot in slots se se_stesso._pieno(m, slot)]
+
+    definisci _frase(se_stesso, m):
+        """f-string: nel modello {a}, {b:.2f}… sono sostituiti dai valori collegati."""
+        modello = m.campi.get("modello") o ""
+        pezzi = []
+        ultimo = 0
+        per tr in re.finditer(r"\{([a-f])((?:![rsa])?(?::[^{}]*)?)\}", modello):
+            pezzi.append(se_stesso._lett_f(modello[ultimo:tr.start()]))
+            slot, resto = tr.group(1), tr.group(2)
+            se non se_stesso._pieno(m, slot):
+                se_stesso.avvisi.append(f"{se_stesso._area}: nella frase manca il valore {{{slot}}}")
+                pezzi.append("{Nessuno}")
+            altrimenti:
+                pezzi.append("{" + senza_parentesi(se_stesso.ingresso(m, slot, "valore")) + resto + "}")
+            ultimo = tr.end()
+        pezzi.append(se_stesso._lett_f(modello[ultimo:]))
+        ritorna 'f"' + "".join(pezzi) + '"'
+
+    definisci _lett_f(se_stesso, t):
+        """Testo letterale dentro una f-string: i caratteri speciali si scrivono con la barra; le graffe restano come scritte."""
+        ritorna (t.replace(chr(92), chr(92) * 2).replace('"', chr(92) + '"').replace(chr(10), chr(92) + "n")
+                 .replace(chr(9), chr(92) + "t").replace(chr(13), chr(92) + "r"))
+
     definisci espressione(se_stesso, m):
         d = m.def_(se_stesso.programma)
         se_stesso.importazioni.extend(x per x in d["importa"] se x non in se_stesso.importazioni)
         modello = d["codice"]
         se modello == "@lista_di":
             voci = []
-            per slot in ("a", "b", "c", "d", "e", "f"):
+            per slot in SLOT_VARI:
                 se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip():
                     voci.append(se_stesso.ingresso(m, slot, "valore"))
             ritorna "[" + ", ".join(voci) + "]"
@@ -856,17 +932,29 @@ classe Generatore:
             a_ = se_stesso.ingresso(m, "a", "valore") se (m.ingressi.get("a") è non Nessuno o (m.letterali.get("a") o "").strip()) altrimenti ""
             ritorna f"{se_stesso.ingresso(m, 'obj', 'valore')}[{da_}:{a_}]"
         se modello == "@dizionario":
-            coppie = []
-            per n in "1234":
-                se m.ingressi.get("k" + n) è non Nessuno o (m.letterali.get("k" + n) o "").strip():
-                    coppie.append(se_stesso.ingresso(m, "k" + n, "valore") + ": " + se_stesso.ingresso(m, "v" + n, "valore"))
-            ritorna "{" + ", ".join(coppie) + "}"
+            ritorna "{" + ", ".join(se_stesso._voci(m, SLOT_VARI)) + "}"
+        se modello == "@insieme_di":
+            voci = se_stesso._voci(m, SLOT_VARI)
+            ritorna "{" + ", ".join(voci) + "}" se voci altrimenti "insieme()"
+        se modello == "@dizionario_da":
+            testo_ = (se_stesso.ingresso(m, "k", "valore") + ": " + se_stesso.ingresso(m, "v", "valore") +
+                      f" per {(m.campi.get('var') o 'x').strip()} in " + se_stesso.ingresso(m, "elenco", "valore"))
+            se m.ingressi.get("cond") è non Nessuno o (m.letterali.get("cond") o "").strip():
+                testo_ += " se " + se_stesso.ingresso(m, "cond", "booleano")
+            ritorna "{" + testo_ + "}"
+        se modello == "@solleva":
+            r = "solleva"
+            se se_stesso._pieno(m, "eccezione"):
+                r += " " + senza_parentesi(se_stesso.ingresso(m, "eccezione", "valore"))
+            ritorna r
+        se modello == "@testo_f":
+            ritorna se_stesso._frase(m)
         se modello == "@tupla":
-            voci = [se_stesso.ingresso(m, slot, "valore") per slot in "abcdef"
+            voci = [se_stesso.ingresso(m, slot, "valore") per slot in SLOT_VARI
                     se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip()]
             ritorna "(" + ", ".join(voci) + ("," se lunghezza(voci) == 1 altrimenti "") + ")"
         se modello == "@chiama_su":
-            argomenti = [se_stesso.ingresso(m, slot, "valore") per slot in "abcdef"
+            argomenti = [se_stesso.ingresso(m, slot, "valore") per slot in SLOT_VARI
                          se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip()]
             ritorna f"{se_stesso.ingresso(m, 'obj', 'valore')}.{(m.campi.get('nome') o 'metodo').strip()}({', '.join(argomenti)})"
         se modello.startswith("@comprensione:"):
@@ -876,7 +964,7 @@ classe Generatore:
                 testo_ += " se " + se_stesso.ingresso(m, "cond", "booleano")
             ritorna apri + testo_ + chiudi
         se modello == "@chiama":
-            argomenti = [se_stesso.ingresso(m, slot, "valore") per slot in ("a", "b", "c", "d", "e", "f")
+            argomenti = [se_stesso.ingresso(m, slot, "valore") per slot in SLOT_VARI
                          se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip()]
             ritorna f"{(m.campi.get('nome') o 'funzione').strip()}({', '.join(argomenti)})"
         se modello == "@stampa":
@@ -918,6 +1006,8 @@ classe Generatore:
                     se i > 0 e non corpo e non (forza_eccetto e nome_corpo == "errore"):
                         continua
                     intestazione = se_stesso._applica(d["intestazioni"][i], m, d)
+                    se m.tipo == "con_blocco":
+                        intestazione = re.sub(r"\s+come\s*:", ":", intestazione)
                     se m.tipo == "prova" e nome_corpo == "errore":
                         intestazione = re.sub(r"\s+come\s*:", ":", intestazione)
                         intestazione = re.sub(r"eccetto\s+:", "eccetto:", intestazione)
@@ -933,7 +1023,7 @@ classe Generatore:
                 righe.append(pad + f"{nome}({', '.join(argomenti)})")
             altrimenti_se d["forma"] in FORME_VALORE:
                 se_stesso.avvisi.append(f"{se_stesso._area}: un valore ({m.tipo}) è finito tra le istruzioni")
-            altrimenti_se d["codice"] in ("@chiama", "@stampa", "@chiama_su"):
+            altrimenti_se d["codice"] in ("@chiama", "@stampa", "@chiama_su", "@solleva"):
                 righe.append(pad + se_stesso.espressione(m))
             altrimenti_se d["codice"]:
                 riga = se_stesso._applica(d["codice"], m, d)

@@ -53,3 +53,10 @@ con open(programma, "w", encoding="utf-8") come f:
     f.write("z = [1, 2]" + chr(10) + "elimina z[0]" + chr(10) + "y = 5" + chr(10) + "elimina y" + chr(10) + "stampa(z)" + chr(10))
 r = subprocess.run([sys.executable, programma], capture_output=Vero, text=Vero, encoding="utf-8")
 stampa("elimina x cancella:", r.stdout.split(), r.stderr[-100:])
+
+# bersaglio del ciclo con la virgola finale: "per w, in x" (la virgola chiude il bersaglio, "in" resta la parola chiave)
+programma = os.path.join(cartella, "virgola.pit")
+con open(programma, "w", encoding="utf-8") come f:
+    f.write("per w, in [(1,), (2,)]:" + chr(10) + "    stampa(w)" + chr(10) + "x = [v per v, in [(5,)]]" + chr(10) + "stampa(x, 3 in {3}, [1] == [1])" + chr(10))
+r = subprocess.run([sys.executable, programma], capture_output=Vero, text=Vero, encoding="utf-8")
+stampa("per w, in x:", r.stdout.split(chr(10)), r.stderr[-100:])
