@@ -1,0 +1,373 @@
+"""Pannello di chat con l'assistente AI (Claude)."""
+importa json
+importa os
+importa queue
+importa re
+importa threading
+importa tkinter come tk
+da tkinter importa ttk, messagebox
+
+da rad importa ai
+
+_RE_BLOCCO = re.compile(r"```([\w+-]*)\n(.*?)```", re.S)
+_RE_INLINE = re.compile(r"`([^`\n]+)`|\*\*([^*\n]+)\*\*")
+
+
+classe PannelloChat(tk.Frame):
+    """Cronologia, campo di scrittura, esecuzione dell'agente in un thread, rendering degli strumenti."""
+
+    definisci __inizializza__(se_stesso, genitore, config, colori, ambiente, ponte):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.config_ = config
+        se_stesso.colori = colori
+        se_stesso.ambiente = ambiente
+        se_stesso.ponte = ponte
+        se_stesso.messaggi = []
+        se_stesso.eventi = queue.Queue()
+        se_stesso.lavoro = Nessuno
+        se_stesso.agente = Nessuno
+        se_stesso.token_ingresso = 0
+        se_stesso.token_uscita = 0
+        se_stesso._costruisci()
+        se_stesso.applica_colori(colori)
+        se_stesso._pompa()
+        se_stesso._benvenuto()
+
+    # ------------------------------------------------------------ interfaccia
+    definisci _costruisci(se_stesso):
+        testata = tk.Frame(se_stesso)
+        testata.pack(fill="x")
+        se_stesso.testata = testata
+        se_stesso.titolo = tk.Label(testata, text="ASSISTENTE", anchor="w")
+        se_stesso.titolo.pack(side="left", padx=8, pady=4)
+        tk.Button(testata, text="Nuova chat", command=se_stesso.nuova_chat).pack(side="right", padx=3, pady=3)
+        se_stesso.var_modello = tk.StringVar(value=se_stesso.config_.ottieni("ai.modello"))
+        se_stesso.selettore = ttk.Combobox(testata, textvariable=se_stesso.var_modello, width=18,
+                                           values=se_stesso.config_.ottieni("ai.modelli", []))
+        se_stesso.selettore.pack(side="right", padx=3)
+        se_stesso.selettore.bind("<<ComboboxSelected>>", se_stesso._cambia_modello)
+        se_stesso.selettore.bind("<Return>", se_stesso._cambia_modello)
+
+        # campo di scrittura (in basso)
+        basso = tk.Frame(se_stesso)
+        basso.pack(side="bottom", fill="x")
+        se_stesso.basso = basso
+        opzioni = tk.Frame(basso)
+        opzioni.pack(fill="x")
+        se_stesso.opzioni = opzioni
+        se_stesso.var_contesto = tk.BooleanVar(value=se_stesso.config_.ottieni("ai.includi_file_attivo", Vero))
+        se_stesso.casella_contesto = tk.Checkbutton(opzioni, text="Includi file attivo e selezione",
+                                                    variable=se_stesso.var_contesto, anchor="w")
+        se_stesso.casella_contesto.pack(side="left", padx=6)
+        se_stesso.stato = tk.Label(opzioni, text="", anchor="e")
+        se_stesso.stato.pack(side="right", padx=8)
+        riga = tk.Frame(basso)
+        riga.pack(fill="x", padx=6, pady=(0, 6))
+        se_stesso.riga = riga
+        se_stesso.ingresso = tk.Text(riga, height=4, wrap="word", borderwidth=0, highlightthickness=1,
+                                     padx=6, pady=4, undo=Vero)
+        se_stesso.ingresso._tema_proprio = Vero
+        se_stesso.ingresso.bind("<Control-Return>", lambda e: se_stesso.invia() o "break")
+        se_stesso.ingresso.bind("<Return>", se_stesso._invio_semplice)
+        colonna = tk.Frame(riga)
+        colonna.pack(side="right", padx=(6, 0))
+        se_stesso.colonna = colonna
+        se_stesso.ingresso.configure(width=10)
+        se_stesso.ingresso.pack(side="left", fill="x", expand=Vero)
+        se_stesso.pulsante_invia = tk.Button(colonna, text="Invia ▶", command=se_stesso.invia, width=9)
+        se_stesso.pulsante_invia.pack(fill="x")
+        se_stesso.pulsante_ferma = tk.Button(colonna, text="■ Ferma", command=se_stesso.ferma, width=9, state="disabled")
+        se_stesso.pulsante_ferma.pack(fill="x", pady=(4, 0))
+
+        # cronologia
+        se_stesso.t = tk.Text(se_stesso, wrap="word", borderwidth=0, highlightthickness=0, padx=10, pady=8,
+                              state="disabled", cursor="arrow")
+        se_stesso.t._tema_proprio = Vero
+        by = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.t.yview)
+        se_stesso.t.configure(yscrollcommand=by.set)
+        by.pack(side="right", fill="y")
+        se_stesso.t.pack(fill="both", expand=Vero)
+
+    definisci _invio_semplice(se_stesso, e):
+        # Invio = invia, Maiusc+Invio = a capo
+        se e.state & 0x1:
+            ritorna Nessuno
+        se_stesso.invia()
+        ritorna "break"
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        per w in (se_stesso, se_stesso.testata, se_stesso.basso, se_stesso.opzioni, se_stesso.riga, se_stesso.colonna):
+            w.configure(background=c["pannello"])
+        se_stesso.titolo.configure(background=c["pannello"], foreground=c["tenue"])
+        se_stesso.stato.configure(background=c["pannello"], foreground=c["tenue"])
+        se_stesso.casella_contesto.configure(background=c["pannello"], foreground=c["tenue"],
+                                             activebackground=c["pannello"], activeforeground=c["primo_piano"],
+                                             selectcolor=c["campo"])
+        carattere = (se_stesso.config_.ottieni("editor.carattere", "Consolas"), 10)
+        se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"], font=("Segoe UI", 10),
+                              selectbackground=c["selezione"])
+        se_stesso.ingresso.configure(background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"],
+                                     font=("Segoe UI", 10), highlightbackground=c["bordo"], highlightcolor=c["accento"],
+                                     relief="flat")
+        per b in (se_stesso.pulsante_invia, se_stesso.pulsante_ferma) + tuple(
+                w per w in se_stesso.testata.winfo_children() se w.winfo_class() == "Button"):
+            b.configure(background=c["pulsante"], foreground=c["primo_piano"], relief="flat",
+                        activebackground=c["pulsante_attivo"], disabledforeground=c["tenue"])
+        se_stesso.pulsante_invia.configure(background=c["accento"], foreground="#ffffff", activebackground=c["accento"])
+        t = se_stesso.t
+        t.tag_configure("utente", background=c["chat_utente"], lmargin1=8, lmargin2=8, rmargin=8,
+                        spacing1=6, spacing3=6)
+        t.tag_configure("etichetta_utente", foreground=c["accento"], font=("Segoe UI", 9, "bold"))
+        t.tag_configure("etichetta_ai", foreground=c["ok"], font=("Segoe UI", 9, "bold"))
+        t.tag_configure("ai", lmargin1=8, lmargin2=8, spacing1=2, spacing3=4)
+        t.tag_configure("strumento", background=c["chat_strumento"], foreground=c["tenue"], font=(carattere[0], 9),
+                        lmargin1=14, lmargin2=14, spacing1=2, spacing3=2)
+        t.tag_configure("risultato_ok", foreground=c["ok"], background=c["chat_strumento"], font=(carattere[0], 9),
+                        lmargin1=14, lmargin2=14)
+        t.tag_configure("risultato_err", foreground=c["errore"], background=c["chat_strumento"], font=(carattere[0], 9),
+                        lmargin1=14, lmargin2=14)
+        t.tag_configure("errore", foreground=c["errore"], lmargin1=8, lmargin2=8, spacing1=4)
+        t.tag_configure("info", foreground=c["tenue"], lmargin1=8, lmargin2=8, font=("Segoe UI", 9, "italic"))
+        t.tag_configure("codice", background=c["campo"], foreground=c["editor_testo"], font=carattere,
+                        lmargin1=14, lmargin2=14, rmargin=8, spacing1=1, spacing3=1)
+        t.tag_configure("inline", background=c["campo"], font=carattere)
+        t.tag_configure("grassetto", font=("Segoe UI", 10, "bold"))
+
+    # ------------------------------------------------------------ scrittura nella cronologia
+    definisci _scrivi(se_stesso, testo_, *tag):
+        t = se_stesso.t
+        t.configure(state="normal")
+        t.insert("end", testo_, tag)
+        t.configure(state="disabled")
+        t.see("end")
+
+    definisci _scrivi_markdown(se_stesso, testo_):
+        """Testo dell'AI con blocchi di codice (con pulsanti Copia / Inserisci) e formattazione minima."""
+        posizione = 0
+        per m in _RE_BLOCCO.finditer(testo_):
+            se_stesso._scrivi_inline(testo_[posizione:m.start()])
+            se_stesso._blocco_codice(m.group(2).rstrip("\n"), m.group(1))
+            posizione = m.end()
+        se_stesso._scrivi_inline(testo_[posizione:])
+        se_stesso._scrivi("\n", "ai")
+
+    definisci _scrivi_inline(se_stesso, testo_):
+        posizione = 0
+        per m in _RE_INLINE.finditer(testo_):
+            se_stesso._scrivi(testo_[posizione:m.start()], "ai")
+            se m.group(1) è non Nessuno:
+                se_stesso._scrivi(m.group(1), "ai", "inline")
+            altrimenti:
+                se_stesso._scrivi(m.group(2), "ai", "grassetto")
+            posizione = m.end()
+        se_stesso._scrivi(testo_[posizione:], "ai")
+
+    definisci _blocco_codice(se_stesso, codice, linguaggio):
+        t = se_stesso.t
+        t.configure(state="normal")
+        c = se_stesso.colori
+        se_stesso._scrivi("\n", "ai")
+        t.configure(state="normal")
+        barra = tk.Frame(t, background=c["campo"])
+        tk.Label(barra, text=linguaggio o "codice", background=c["campo"], foreground=c["tenue"],
+                 font=("Segoe UI", 8)).pack(side="left", padx=4)
+        per etichetta, comando in (("Copia", lambda: se_stesso._copia(codice)),
+                                    ("Inserisci nell'editor", lambda: se_stesso.ambiente.inserisci_nell_editor(codice)),
+                                    ("Nuovo file", lambda: se_stesso.ambiente.codice_in_nuovo_file(codice))):
+            tk.Button(barra, text=etichetta, command=comando, relief="flat", font=("Segoe UI", 8),
+                      background=c["pulsante"], foreground=c["primo_piano"],
+                      activebackground=c["pulsante_attivo"], padx=6).pack(side="right", padx=2, pady=1)
+        t.window_create("end", window=barra)
+        t.insert("end", "\n")
+        t.insert("end", codice + "\n", "codice")
+        t.configure(state="disabled")
+        t.see("end")
+
+    definisci _copia(se_stesso, testo_):
+        se_stesso.clipboard_clear()
+        se_stesso.clipboard_append(testo_)
+
+    definisci _benvenuto(se_stesso):
+        se_stesso._scrivi("Ciao! Sono l'assistente di PitStudio.\n", "ai", "grassetto")
+        se_stesso._scrivi("Posso leggere e scrivere i file del progetto, eseguire i programmi, controllare la sintassi "
+                          "e disegnare finestre nel progettista. Chiedimi quello che ti serve.\n", "ai")
+        se non se_stesso.cliente_pronto():
+            se_stesso._scrivi("\nPer iniziare inserisci la chiave API in Impostazioni → Assistente AI.\n", "info")
+
+    definisci cliente_pronto(se_stesso):
+        ritorna bool(ai.ClienteClaude(se_stesso.config_).chiave())
+
+    # ------------------------------------------------------------ invio e agente
+    definisci _cambia_modello(se_stesso, e=Nessuno):
+        se_stesso.config_.imposta("ai.modello", se_stesso.var_modello.get().strip())
+        se_stesso.config_.salva()
+
+    definisci contesto_ide(se_stesso):
+        """Blocco di testo con file attivo, riga e selezione dell'utente."""
+        info = se_stesso.ponte.esegui(se_stesso.ambiente.contesto_corto)
+        se non info:
+            ritorna ""
+        ritorna info
+
+    definisci invia(se_stesso, testo_=Nessuno):
+        se se_stesso.lavoro e se_stesso.lavoro.is_alive():
+            ritorna
+        domanda = (testo_ se testo_ è non Nessuno altrimenti se_stesso.ingresso.get("1.0", "end")).strip()
+        se non domanda:
+            ritorna
+        se testo_ è Nessuno:
+            se_stesso.ingresso.delete("1.0", "end")
+        se_stesso._scrivi("Tu\n", "etichetta_utente")
+        se_stesso._scrivi(domanda + "\n", "utente")
+        contenuto = [{"type": "text", "text": domanda}]
+        se se_stesso.var_contesto.get():
+            contesto = se_stesso.contesto_ide()
+            se contesto:
+                contenuto.insert(0, {"type": "text", "text": "<contesto_ide>\n" + contesto + "\n</contesto_ide>"})
+        se_stesso.messaggi.append({"role": "user", "content": contenuto})
+        se_stesso._scrivi("Assistente\n", "etichetta_ai")
+        se_stesso._imposta_occupato(Vero)
+        cliente = ai.ClienteClaude(se_stesso.config_)
+        strumenti = ai.Strumenti(se_stesso.ambiente, se_stesso.config_, se_stesso.ponte)
+        se_stesso.agente = ai.Agente(cliente, strumenti, se_stesso.config_, lambda tipo_, dati: se_stesso.eventi.put((tipo_, dati)))
+        sistema = se_stesso.ponte.esegui(lambda: ai.prompt_di_sistema(se_stesso.config_, se_stesso.ambiente.progetto))
+        se_stesso.lavoro = threading.Thread(target=se_stesso._lavora, args=(sistema,), daemon=Vero)
+        se_stesso.lavoro.start()
+
+    definisci chiedi(se_stesso, domanda):
+        """Invia una domanda preparata dall'ambiente (es. 'spiega questo errore')."""
+        se_stesso.invia(domanda)
+
+    definisci _lavora(se_stesso, sistema):
+        prova:
+            se_stesso.agente.esegui(se_stesso.messaggi, sistema)
+        eccetto ai.ErroreAI come errore:
+            se_stesso.eventi.put(("errore", testo(errore)))
+        eccetto Eccezione come errore:
+            se_stesso.eventi.put(("errore", f"{tipo(errore).__name__}: {errore}"))
+        infine:
+            se_stesso.eventi.put(("fine", Nessuno))
+
+    definisci ferma(se_stesso):
+        se se_stesso.agente:
+            se_stesso.agente.arresto.set()
+            se_stesso.stato.configure(text="interruzione…")
+
+    definisci _imposta_occupato(se_stesso, occupato):
+        se_stesso.pulsante_invia.configure(state="disabled" se occupato altrimenti "normal")
+        se_stesso.pulsante_ferma.configure(state="normal" se occupato altrimenti "disabled")
+        se_stesso.stato.configure(text="sta lavorando…" se occupato altrimenti se_stesso._testo_token())
+
+    definisci _testo_token(se_stesso):
+        se se_stesso.token_ingresso o se_stesso.token_uscita:
+            ritorna f"token: {se_stesso.token_ingresso} in / {se_stesso.token_uscita} out"
+        ritorna ""
+
+    definisci _pompa(se_stesso):
+        prova:
+            mentre Vero:
+                tipo_, dati = se_stesso.eventi.get_nowait()
+                se_stesso._gestisci(tipo_, dati)
+        eccetto queue.Empty:
+            passa
+        se_stesso.after(40, se_stesso._pompa)
+
+    definisci _gestisci(se_stesso, tipo_, dati):
+        se tipo_ == "testo":
+            se_stesso._scrivi_markdown(dati)
+        altrimenti_se tipo_ == "strumento":
+            se_stesso._scrivi(f"🛠 {dati['nome']}  {se_stesso._riassunto(dati['parametri'])}\n", "strumento")
+        altrimenti_se tipo_ == "risultato":
+            primo = dati["testo"].strip().split("\n")[0][:160]
+            se_stesso._scrivi(f"{'✖' se dati['errore'] altrimenti '✔'} {primo}   ({dati['secondi']} s)\n",
+                              "risultato_err" se dati["errore"] altrimenti "risultato_ok")
+        altrimenti_se tipo_ == "uso":
+            se_stesso.token_ingresso += dati.get("input_tokens", 0) + dati.get("cache_read_input_tokens", 0) + dati.get("cache_creation_input_tokens", 0)
+            se_stesso.token_uscita += dati.get("output_tokens", 0)
+        altrimenti_se tipo_ == "info":
+            se_stesso._scrivi(dati + "\n", "info")
+        altrimenti_se tipo_ == "errore":
+            se_stesso._scrivi("⚠ " + dati + "\n", "errore")
+            # lascia la conversazione coerente: toglie l'ultimo messaggio utente se senza risposta
+            se se_stesso.messaggi e se_stesso.messaggi[-1]["role"] == "user" e isinstance(se_stesso.messaggi[-1]["content"], list) \
+                    e tutti(b.get("type") == "text" per b in se_stesso.messaggi[-1]["content"]):
+                se_stesso.messaggi.pop()
+        altrimenti_se tipo_ == "fine":
+            se_stesso._scrivi("\n", "ai")
+            se_stesso._imposta_occupato(Falso)
+            se_stesso.salva_cronologia()
+            se_stesso.ambiente.chat_finita()
+
+    @staticmethod
+    definisci _riassunto(parametri):
+        pezzi = []
+        per k, v in parametri.items():
+            s = json.dumps(v, ensure_ascii=Falso) se non isinstance(v, str) altrimenti v
+            s = s.replace("\n", "↵")
+            pezzi.append(f"{k}={s[:60] + '…' se lunghezza(s) > 60 altrimenti s}")
+        ritorna "  ".join(pezzi)
+
+    # ------------------------------------------------------------ conversazioni
+    definisci nuova_chat(se_stesso):
+        se se_stesso.lavoro e se_stesso.lavoro.is_alive():
+            ritorna
+        se_stesso.messaggi = []
+        se_stesso.token_ingresso = se_stesso.token_uscita = 0
+        se_stesso.t.configure(state="normal")
+        se_stesso.t.delete("1.0", "end")
+        se_stesso.t.configure(state="disabled")
+        se_stesso._benvenuto()
+        se_stesso.salva_cronologia()
+        se_stesso.stato.configure(text="")
+
+    definisci _file_cronologia(se_stesso):
+        p = se_stesso.ambiente.progetto
+        se p è Nessuno:
+            ritorna Nessuno
+        ritorna os.path.join(p.cartella, ".rad", "chat.json")
+
+    definisci salva_cronologia(se_stesso):
+        f = se_stesso._file_cronologia()
+        se non f:
+            ritorna
+        prova:
+            os.makedirs(os.path.dirname(f), exist_ok=Vero)
+            con open(f, "w", encoding="utf-8") come fl:
+                json.dump({"messaggi": se_stesso.messaggi}, fl, ensure_ascii=Falso)
+        eccetto (OSError, ErroreDiTipo, ErroreDiValore):
+            passa
+
+    definisci carica_cronologia(se_stesso):
+        """Ricarica la conversazione del progetto aperto e la riscrive a video."""
+        se se_stesso.lavoro e se_stesso.lavoro.is_alive():
+            ritorna
+        se_stesso.messaggi = []
+        se_stesso.t.configure(state="normal")
+        se_stesso.t.delete("1.0", "end")
+        se_stesso.t.configure(state="disabled")
+        f = se_stesso._file_cronologia()
+        prova:
+            con open(f, encoding="utf-8") come fl:
+                se_stesso.messaggi = json.load(fl).get("messaggi", [])
+        eccetto (OSError, ValueError, ErroreDiTipo):
+            se_stesso.messaggi = []
+        se non se_stesso.messaggi:
+            se_stesso._benvenuto()
+            ritorna
+        per m in se_stesso.messaggi:
+            contenuto = m["content"]
+            se isinstance(contenuto, str):
+                contenuto = [{"type": "text", "text": contenuto}]
+            se m["role"] == "user":
+                testi = [b["text"] per b in contenuto se b.get("type") == "text" e "<contesto_ide>" non in b["text"]]
+                se testi:
+                    se_stesso._scrivi("Tu\n", "etichetta_utente")
+                    se_stesso._scrivi("\n".join(testi) + "\n", "utente")
+            altrimenti:
+                se_stesso._scrivi("Assistente\n", "etichetta_ai")
+                per b in contenuto:
+                    se b.get("type") == "text":
+                        se_stesso._scrivi_markdown(b["text"])
+                    altrimenti_se b.get("type") == "tool_use":
+                        se_stesso._scrivi(f"🛠 {b['name']}  {se_stesso._riassunto(b.get('input', {}))}\n", "strumento")

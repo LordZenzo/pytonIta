@@ -1,0 +1,77 @@
+importa registro, test_unitari, thread, formato_json, tabelle_csv, coda, statistica
+importa decimali, enumerazioni, flussi, impronte, base64_testo, configurazione
+importa traccia_errori, calendario, stringhe, zipfile
+da html_testo.analizzatore importa AnalizzatoreHtml
+da tipi_annotazioni importa Lista, Opzionale
+da frazioni importa Frazione
+da decimali importa Decimale
+
+registro.configura_base(livello=registro.INFORMAZIONE, formato="%(levelname)s:%(message)s")
+
+# thread con metodo italiano "esegui"
+risultati = []
+classe Lavoro(thread.Filo):
+    definisci esegui(se_stesso):
+        risultati.aggiungi("lavoro")
+l = Lavoro(); l.avvia(); l.unisci()
+stampa("thread:", risultati)
+
+# unittest con prepara / asserisci_*
+classe Prova(test_unitari.CasoDiTest):
+    definisci prepara(se_stesso):
+        se_stesso.x = 41
+    definisci test_somma(se_stesso):
+        se_stesso.asserisci_uguale(se_stesso.x + 1, 42)
+        se_stesso.asserisci_vero(Vero)
+        con se_stesso.asserisci_solleva(DivisionePerZero):
+            1 / 0
+esito = test_unitari.EsecutoreTestTestuale(flusso=flussi.FlussoTesto()).esegui(test_unitari.CaricatoreTest().carica_test_da_caso(Prova))
+stampa("unittest:", esito.test_eseguiti, esito.è_riuscito())
+
+# json con predefinito
+classe Strano: passa
+stampa("json:", formato_json.scarica_testo({"a": [1, 2]}, rientro=Nessuno, ordina_chiavi=Vero),
+       formato_json.scarica_testo(Strano(), predefinito=lambda o: "strano"))
+
+# csv
+f = flussi.FlussoTesto()
+w = tabelle_csv.ScrittoreDizionario(f, ["a", "b"])
+w.scrivi_intestazione(); w.scrivi_riga({"a": 1, "b": 2})
+stampa("csv:", f.ottieni_valore().split())
+stampa("csv lettore:", lista(tabelle_csv.LettoreDizionario(flussi.FlussoTesto(f.ottieni_valore()))))
+
+# coda, statistica, decimali, frazioni
+q = coda.Coda(); q.inserisci(3); q.inserisci(4)
+stampa("coda:", q.ottieni(), q.dimensione(), q.è_vuota())
+stampa("stat:", statistica.media([1, 2, 3, 4]), statistica.mediana([1, 5, 2]))
+stampa("dec:", Decimale("1.10") + Decimale("2.20"), Frazione(3, 6).numeratore, Frazione(3, 6).denominatore)
+
+# enum
+classe Colore(enumerazioni.Enumerazione):
+    ROSSO = 1
+    VERDE = 2
+stampa("enum:", Colore.ROSSO.nome, Colore.VERDE.valore, Colore(2))
+
+# hash, base64, config
+stampa("hash:", impronte.sha256(b"ciao").digerisci_esadecimale()[:12], base64_testo.codifica_base64(b"ciao"))
+c = configurazione.AnalizzatoreConfigurazione()
+c.leggi_testo("[a]\nx = 5\n")
+stampa("config:", c.ottieni_intero("a", "x"), c.sezioni())
+
+# html
+classe P(AnalizzatoreHtml):
+    definisci __inizializza__(se_stesso):
+        genitore().__inizializza__()
+        se_stesso.tag = []
+    definisci gestisci_tag_iniziale(se_stesso, tag, attributi):
+        se_stesso.tag.aggiungi(tag)
+p = P(); p.alimenta("<a href='x'><b>t</b></a>")
+stampa("html:", p.tag)
+
+# traccia errori tradotta
+prova:
+    {}["k"]
+eccetto ErroreDiChiave:
+    stampa("traccia:", traccia_errori.formatta_eccezione().strip().splitlines()[-1])
+
+stampa("calendario:", calendario.è_bisestile(2024), calendario.intervallo_mese(2026, 2))

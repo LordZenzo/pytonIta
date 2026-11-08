@@ -1,0 +1,84 @@
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+tema_scelto = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti "scuro"
+cfg.imposta("tema", tema_scelto, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1400x860+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "Anagrafica")
+Progetto.nuovo(cart, "Anagrafica", "finestra")
+p = Progetto(cart)
+p.crea_file("risorse/dati.json", '{"nome": "Anagrafica", "versione": 1, "campi": ["nome", "cognome", {"tipo": "data"}]}')
+p.crea_file("util.pit", '''"""Funzioni di utilita."""
+importa json
+
+
+definisci carica_dati(percorso):
+    con open(percorso, encoding="utf-8") come f:
+        ritorna json.load(f)
+
+
+classe Persona:
+    definisci __inizializza__(se_stesso, nome, eta):
+        se_stesso.nome = nome
+        se_stesso.eta = eta
+
+    definisci saluta(se_stesso):
+        # un commento
+        se se_stesso.eta >= 18:
+            stampa(f"Ciao {se_stesso.nome}, sei maggiorenne", Vero)
+        altrimenti:
+            stampa("Ciao piccolo", se_stesso.nome)
+''')
+app.apri_progetto(cart)
+radice.update()
+ed = app.apri_file(os.path.join(cart, "util.pit"))
+ed.vai_a(18, 20)
+ed.t.insert("end", "\npersona = Persona('Anna', 30)\nlis")
+ed.t.mark_set("insert", "end-1c")
+radice.update()
+ed.suggerisci(forza=Vero)
+app.chat.t.configure(state="normal")
+app.chat.t.insert("end", "\n")
+app.chat.t.configure(state="disabled")
+app.chat._scrivi("Tu\n", "etichetta_utente")
+app.chat._scrivi("Aggiungi un pulsante Esci alla finestra principale\n", "utente")
+app.chat._scrivi("Assistente\n", "etichetta_ai")
+app.chat._gestisci("testo", "Aggiungo il pulsante con il **progettista**. Poi collego il gestore:\n```pit\ndefinisci al_clic_esci(se_stesso, evento=Nessuno):\n    se_stesso.radice.distruggi()\n```\nOra lo provo con `esegui_programma`.")
+app.chat._gestisci("strumento", {"nome": "imposta_form", "parametri": {"form": {"nome": "Principale"}}})
+app.chat._gestisci("risultato", {"nome": "imposta_form", "testo": "finestra salvata: principale.form.json", "errore": Falso, "secondi": 0.04})
+app.console.scrivi("▶ principale.pit\n", "info")
+app.console.scrivi("Ciao dal progettista\n", "out")
+app.console.scrivi('Traceback (ultima chiamata per ultima):\n  File "util.pit", riga 9, in carica_dati\nFileNonTrovato: dati.json\n', "err")
+app.console.scrivi("\n✖ terminato con codice 1 (0.4 s)\n", "err")
+radice.update()
+time.sleep(0.3)
+radice.update()
+def_nome = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs")
+definisci cattura(nome):
+    radice.update()
+    time.sleep(0.4)
+    radice.update()
+    x, y = radice.winfo_rootx(), radice.winfo_rooty()
+    img = ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height()))
+    img.save(os.path.join(def_nome, nome))
+    stampa("salvata", nome, img.size)
+cattura(f"editor_{tema_scelto}.png")
+ed.chiudi_suggerimenti()
+w = app.apri_file(os.path.join(cart, "principale.form.json"))
+w.seleziona(["pulsante1"])
+radice.update()
+cattura(f"progettista_{tema_scelto}.png")
+j = app.apri_file(os.path.join(cart, "risorse", "dati.json"))
+radice.update()
+cattura(f"json_{tema_scelto}.png")
+app.chat.t.configure(state="normal")
+radice.destroy()

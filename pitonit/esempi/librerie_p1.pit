@@ -1,0 +1,65 @@
+importa interfaccia come tk
+da interfaccia importa tema, messaggi
+da data_ora importa Data, OraData, Differenza
+importa database, argomenti, percorso, operazioni_file
+da rapporti_pdf.tela importa Tela
+da rapporti_pdf.dimensioni_pagina importa A4
+importa tempfile
+
+# tkinter con opzioni italiane
+f = tk.Finestra()
+f.nascondi()
+f.titolo("prova")
+etichetta = tk.Etichetta(f, testo="Ciao", sfondo="white")
+etichetta.impacchetta(lato=tk.SINISTRA, riempi="entrambi", espandi=Vero)
+p = tema.Pulsante(f, testo="OK", comando=lambda: Nessuno)
+p.impacchetta(lato="destra")
+r2 = tk.Riquadro(f)
+e2 = tk.Etichetta(r2, testo="x")
+e2.griglia(riga=0, colonna=1, aggancia="nsew")
+f.aggiorna()
+stampa("tk:", etichetta.ottieni_opzione("text"), etichetta.informazioni_impacchettato()["side"])
+campo = tk.CampoTesto(f)
+campo.inserisci(0, "abc")
+stampa("campo:", campo.ottieni())
+f.distruggi()
+
+# datetime
+d = Data(2026, 11, 8)
+stampa("data:", d.anno, d.mese, d.giorno, d.giorno_settimana(), d.formatta("%d/%m/%Y"))
+stampa("diff:", (OraData(2026, 1, 2) - OraData(2026, 1, 1)).giorni)
+
+# sqlite3
+db = database.connetti(":memory:")
+db.esegui("create table t(a, b)")
+db.esegui_molti("insert into t values (?, ?)", [(1, "x"), (2, "y")])
+db.conferma()
+c = db.cursore()
+c.esegui("select * from t order by a")
+stampa("db:", c.ottieni_tutti(), c.descrizione[0][0])
+db.chiudi()
+
+# argparse
+a = argomenti.AnalizzatoreArgomenti(descrizione="prova")
+a.aggiungi_argomento("--n", tipo=intero, predefinito=3, aiuto="numero")
+a.aggiungi_argomento("--v", azione="memorizza_vero")
+r = a.analizza_argomenti(["--n", "7", "--v"])
+stampa("args:", r.n, r.v)
+
+# pathlib + shutil
+cartella = percorso.Percorso(tempfile.mkdtemp())
+file = cartella / "a.txt"
+file.scrivi_testo("ciao")
+stampa("path:", file.esiste(), file.leggi_testo(), file.suffisso, file.nome_senza_estensione)
+operazioni_file.copia(file, cartella / "b.txt")
+stampa("copia:", (cartella / "b.txt").esiste())
+operazioni_file.elimina_albero(cartella)
+
+# reportlab
+pdf = tempfile.mktemp(suffix=".pdf")
+t = Tela(pdf, dimensione_pagina=A4)
+t.imposta_carattere("Helvetica", 12)
+t.disegna_testo(72, 750, "Ciao dal PDF")
+t.nuova_pagina()
+t.salva()
+stampa("pdf:", percorso.Percorso(pdf).statistiche().st_size > 500)

@@ -1,0 +1,39 @@
+da matematica importa radice_quadrata, pigreco
+importa casuale come c
+da collections importa Counter
+
+classe Punto:
+    definisci __inizializza__(se_stesso, x, y):
+        se_stesso.x, se_stesso.y = x, y
+    definisci __testo__(se_stesso):
+        ritorna f"({se_stesso.x}, {se_stesso.y})"
+    definisci __somma__(se_stesso, altro):
+        ritorna Punto(se_stesso.x + altro.x, se_stesso.y + altro.y)
+
+stampa(Punto(1, 2) + Punto(3, 4))
+stampa(radice_quadrata(16), arrotonda(pigreco, 2))
+stampa(Counter("ciao ciao").most_common(1))
+stampa([Vero, Falso, Nessuno], {"a": Vero})
+stampa(Vero e Falso, Vero o Falso, non Vero)
+
+definisci genera(n):
+    per i in intervallo(n):
+        produci i * i
+
+stampa(lista(genera(5)), somma(genera(4)))
+x = [3, 1, 2]
+x.ordina()
+stampa(x, ordinato(x, reverse=Vero))
+confronta (1, 2):
+    caso (a, b):
+        stampa("coppia", a, b)
+tipo Numero = intero
+stampa(valuta("1 + 2"))
+esegui("stampa('dentro esegui')")
+prova:
+    intero("abc")
+eccetto ErroreDiValore come errore:
+    stampa("catturato:", errore)
+infine:
+    stampa("fine")
+asserisci Falso, "boom"

@@ -1,0 +1,13 @@
+importa importlib
+importa sistema
+
+moduli = apri(sistema.argomenti[1], encoding="utf-8").leggi_tutto().split()
+errori = 0
+per nome in moduli:
+    prova:
+        importlib.import_module(nome)
+    eccetto Eccezione come e:
+        errori += 1
+        stampa(f"ERRORE {nome}: {tipo(e).__name__}: {e}")
+stampa(f"{lunghezza(moduli) - errori}/{lunghezza(moduli)} moduli importati correttamente")
+sistema.termina(1 se errori altrimenti 0)

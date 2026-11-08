@@ -1,0 +1,674 @@
+"""La guida di PitStudio: argomenti in Markdown, visualizzatore con ricerca e F1 contestuale, esportazione in HTML."""
+importa html
+importa json
+importa os
+importa re
+importa shutil
+importa time
+importa tkinter come tk
+importa webbrowser
+da tkinter importa ttk
+
+da PIL importa Image, ImageTk
+
+da rad importa NOME, VERSIONE, markdown_mini, stile
+
+CARTELLA_AIUTO = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "aiuto")
+CARTELLA_HTML = os.path.join(CARTELLA_AIUTO, "html")
+
+# --------------------------------------------------------------------------- riferimento delle parole
+KEYWORDS = {
+    "se": ("if", "Esegue il blocco solo se la condizione è vera.", "se età >= 18:\n    stampa(\"maggiorenne\")"),
+    "altrimenti_se": ("elif", "Un'altra condizione da provare se le precedenti sono false.", "se x < 0:\n    stampa(\"negativo\")\naltrimenti_se x == 0:\n    stampa(\"zero\")"),
+    "altrimenti": ("else", "Il blocco da eseguire se nessuna condizione è vera (anche dopo `per` e `mentre`).", "se piove:\n    stampa(\"ombrello\")\naltrimenti:\n    stampa(\"occhiali da sole\")"),
+    "per": ("for", "Ripete il blocco per ogni elemento di una sequenza.", "per nome in [\"Anna\", \"Luca\"]:\n    stampa(nome)"),
+    "mentre": ("while", "Ripete il blocco finché la condizione è vera.", "n = 3\nmentre n > 0:\n    stampa(n)\n    n -= 1"),
+    "interrompi": ("break", "Esce subito dal ciclo.", "per i in intervallo(10):\n    se i == 3:\n        interrompi"),
+    "continua": ("continue", "Salta al prossimo giro del ciclo.", "per i in intervallo(5):\n    se i % 2:\n        continua\n    stampa(i)"),
+    "definisci": ("def", "Crea una funzione.", "definisci saluta(nome):\n    stampa(\"Ciao\", nome)"),
+    "ritorna": ("return", "Termina la funzione restituendo un valore.", "definisci doppio(n):\n    ritorna n * 2"),
+    "produci": ("yield", "Fa produrre alla funzione un valore alla volta (generatore).", "definisci conta(n):\n    per i in intervallo(n):\n        produci i"),
+    "classe": ("class", "Crea una classe.", "classe Cane:\n    definisci __inizializza__(se_stesso, nome):\n        se_stesso.nome = nome"),
+    "importa": ("import", "Usa un modulo.", "importa matematica\nstampa(matematica.radice_quadrata(9))"),
+    "da": ("from", "Importa solo alcuni nomi da un modulo (`da modulo importa nome`).", "da percorso importa Percorso"),
+    "come": ("as", "Dà un altro nome a ciò che importi o a un errore/file aperto.", "importa interfaccia come tk\ncon apri(\"a.txt\") come f:\n    stampa(f.leggi_tutto())"),
+    "prova": ("try", "Prova a eseguire il blocco; se c'è un errore passa a `eccetto`.", "prova:\n    n = intero(leggi())\neccetto ErroreDiValore:\n    stampa(\"non è un numero\")"),
+    "eccetto": ("except", "Gestisce un errore sollevato nel blocco `prova`.", "prova:\n    1 / 0\neccetto DivisionePerZero come errore:\n    stampa(errore)"),
+    "infine": ("finally", "Si esegue sempre, con o senza errori.", "prova:\n    lavora()\ninfine:\n    stampa(\"fatto\")"),
+    "solleva": ("raise", "Provoca un errore.", "se età < 0:\n    solleva ErroreDiValore(\"età negativa\")"),
+    "con": ("with", "Usa una risorsa e la chiude da sola alla fine (file, blocchi…).", "con apri(\"dati.txt\") come f:\n    righe = f.leggi_righe()"),
+    "e": ("and", "Vero se entrambe le condizioni sono vere.", "se età >= 18 e patente:\n    stampa(\"può guidare\")"),
+    "o": ("or", "Vero se almeno una condizione è vera.", "se sabato o domenica:\n    stampa(\"weekend\")"),
+    "non": ("not", "Inverte una condizione (`non in` e `è non` sono le forme composte).", "se non pieno:\n    riempi()"),
+    "è": ("is", "Verifica che due nomi siano lo stesso oggetto (tipico: `è Nessuno`).", "se risultato è Nessuno:\n    stampa(\"niente\")"),
+    "in": ("in", "Appartenenza (`x in lista`) e anche parte di `per … in …`.", "se \"a\" in \"banana\":\n    stampa(\"c'è\")"),
+    "Vero": ("True", "La costante vero.", "attivo = Vero"),
+    "Falso": ("False", "La costante falso.", "attivo = Falso"),
+    "Nessuno": ("None", "Il valore «niente».", "risultato = Nessuno"),
+    "passa": ("pass", "Non fa nulla (serve dove la sintassi vuole un blocco).", "se Vero:\n    passa"),
+    "globale": ("global", "Dice che una variabile è quella globale del programma.", "contatore = 0\ndefinisci incrementa():\n    globale contatore\n    contatore += 1"),
+    "nonlocale": ("nonlocal", "Come `globale`, ma per una variabile della funzione che contiene questa.", "definisci esterna():\n    n = 0\n    definisci interna():\n        nonlocale n\n        n += 1"),
+    "lambda": ("lambda", "Funzione breve senza nome.", "doppio = lambda x: x * 2"),
+    "asserisci": ("assert", "Verifica una condizione e segnala un errore se è falsa.", "asserisci n > 0, \"n deve essere positivo\""),
+    "elimina": ("del", "Elimina un nome, un elemento di lista o una chiave di dizionario.", "elimina lista[0]"),
+    "asincrono": ("async", "Dichiara una funzione asincrona.", "asincrono definisci scarica():\n    passa"),
+    "attendi": ("await", "Aspetta il risultato di un'operazione asincrona.", "asincrono definisci principale():\n    risultato = attendi scarica()"),
+    "confronta": ("match", "Confronta un valore con vari schemi (usato con `caso`).", "confronta comando:\n    caso \"via\":\n        stampa(\"parto\")\n    caso _:\n        stampa(\"?\")"),
+    "caso": ("case", "Uno degli schemi di un `confronta`.", "confronta punto:\n    caso [x, y]:\n        stampa(x, y)"),
+    "tipo": ("type", "Definisce un alias di tipo (`tipo Punto = tupla`); `tipo(x)` dice di che tipo è x.", "tipo Numeri = lista[intero]"),
+}
+
+DESCRIZIONI = {
+    "stampa": "Mostra uno o più valori a video.", "leggi": "Legge una riga scritta dall'utente.",
+    "lunghezza": "Quanti elementi ha una lista, un testo, un dizionario…", "intervallo": "La sequenza di numeri da inizio a fine (esclusa).",
+    "intero": "Converte in numero intero.", "decimale": "Converte in numero con la virgola.", "testo": "Converte in testo.",
+    "booleano": "Converte in Vero/Falso.", "lista": "Crea una lista.", "dizionario": "Crea un dizionario.", "insieme": "Crea un insieme.",
+    "tupla": "Crea una tupla.", "somma": "Somma gli elementi di una sequenza.", "minimo": "Il più piccolo.", "massimo": "Il più grande.",
+    "ordinato": "Una nuova lista con gli elementi in ordine.", "assoluto": "Il valore senza segno.", "arrotonda": "Arrotonda un numero.",
+    "apri": "Apre un file.", "tipo": "Di che tipo è un valore.", "enumera": "Coppie (posizione, elemento).",
+    "mappa": "Applica una funzione a ogni elemento.", "filtra": "Tiene gli elementi per cui la funzione dà Vero.",
+    "qualsiasi": "Vero se almeno un elemento è vero.", "tutti": "Vero se tutti gli elementi sono veri.", "inverso": "Gli elementi in ordine inverso.",
+    "abbina": "Mette insieme più sequenze elemento per elemento.", "è_istanza": "Vero se l'oggetto è di quella classe.",
+    "ha_attributo": "Vero se l'oggetto ha quell'attributo.", "ottieni_attributo": "Legge un attributo per nome.",
+    "imposta_attributo": "Scrive un attributo per nome.", "genitore": "Accede alla classe madre (usato dentro i metodi).",
+    "valuta": "Calcola il valore di un'espressione scritta come testo.", "esegui": "Esegue codice scritto come testo.",
+    "potenza": "Elevamento a potenza.", "divisione_resto": "Quoziente e resto di una divisione.", "carattere": "Il carattere di un codice Unicode.",
+    "codice_carattere": "Il codice Unicode di un carattere.", "aiuto": "Mostra la documentazione di un oggetto.", "elenca": "Elenca i nomi di un oggetto.",
+    "iteratore": "Crea un iteratore da una sequenza.", "prossimo": "Prossimo elemento di un iteratore.", "identità": "Numero che identifica un oggetto.",
+    "formatta": "Formatta un valore secondo un modello.", "binario": "Un numero come testo binario.", "esadecimale": "Un numero come testo esadecimale.",
+    "variabili": "Il dizionario delle variabili di un oggetto.", "globali": "Le variabili globali.", "locali": "Le variabili locali.",
+    "Eccezione": "Base di quasi tutti gli errori.", "ErroreDiValore": "Valore giusto per il tipo ma non accettabile (es. `intero(\"a\")`).",
+    "ErroreDiTipo": "Operazione su un tipo sbagliato.", "ErroreDiIndice": "Posizione fuori dalla lista.", "ErroreDiChiave": "Chiave non presente nel dizionario.",
+    "ErroreDiNome": "Nome non definito.", "ErroreDiAttributo": "Attributo inesistente.", "DivisionePerZero": "Divisione per zero.",
+    "FileNonTrovato": "Il file non esiste.", "ErroreDiSistema": "Errore del sistema operativo.", "ModuloNonTrovato": "Il modulo non esiste.",
+    "ErroreDiImportazione": "Non è possibile importare un nome.", "InterruzioneDaTastiera": "L'utente ha premuto Ctrl+C.",
+    "ErroreDiRicorsione": "Troppe chiamate ricorsive.", "ErroreDiAsserzione": "Un `asserisci` è fallito.", "ErroreDiSintassi": "Codice scritto male.",
+    "ErroreDiIndentazione": "Rientro sbagliato.", "ErroreDiEsecuzione": "Errore generico durante l'esecuzione.", "FineIterazione": "Non ci sono più elementi.",
+    "ErroreDiPermesso": "Operazione non consentita.", "FileEsistente": "Il file esiste già.", "ErroreDiMemoria": "Memoria esaurita.",
+    "ErroreDiOverflow": "Numero troppo grande.", "FineDelFile": "Fine dell'input mentre si leggeva.", "ErroreNonImplementato": "Funzionalità non scritta.",
+}
+
+
+definisci _tabella_funzioni():
+    prova:
+        importa _italiano
+    eccetto ImportError:
+        ritorna "(elenco non disponibile)"
+    righe = ["| Italiano | Inglese | Cosa fa |", "|---|---|---|"]
+    per en, it in sorted(_italiano.FUNZIONI.items(), key=lambda x: x[1]):
+        se en in ("copyright", "credits", "license", "NotImplemented", "Ellipsis", "breakpoint"):
+            continua
+        righe.append(f"| `{it}` | `{en}` | {DESCRIZIONI.get(it, '')} |")
+    ritorna "\n".join(righe)
+
+
+definisci _tabella_eccezioni():
+    prova:
+        importa _italiano
+    eccetto ImportError:
+        ritorna "(elenco non disponibile)"
+    righe = ["| Italiano | Inglese | Quando |", "|---|---|---|"]
+    per en, it in sorted(_italiano.ECCEZIONI.items(), key=lambda x: x[1]):
+        se en.endswith("Warning"):
+            continua
+        righe.append(f"| `{it}` | `{en}` | {DESCRIZIONI.get(it, '')} |")
+    ritorna "\n".join(righe)
+
+
+definisci _tabella_librerie():
+    prova:
+        da _mappa_moduli importa MAPPA
+    eccetto ImportError:
+        ritorna "(elenco non disponibile)"
+    righe = ["| Modulo italiano | Libreria originale |", "|---|---|"]
+    per orig, it in sorted(MAPPA.items(), key=lambda x: x[1]):
+        righe.append(f"| `{it}` | `{orig}` |")
+    ritorna "\n".join(righe)
+
+
+definisci espandi_segnaposto(testo_):
+    testo_ = testo_.replace("{{funzioni_predefinite}}", _tabella_funzioni())
+    testo_ = testo_.replace("{{eccezioni}}", _tabella_eccezioni())
+    testo_ = testo_.replace("{{librerie}}", _tabella_librerie())
+    ritorna testo_
+
+
+# --------------------------------------------------------------------------- argomenti
+definisci carica_indice():
+    con open(os.path.join(CARTELLA_AIUTO, "indice.json"), encoding="utf-8") come f:
+        ritorna json.load(f)
+
+
+definisci testo_argomento(id_):
+    con open(os.path.join(CARTELLA_AIUTO, id_ + ".md"), encoding="utf-8") come f:
+        ritorna espandi_segnaposto(f.read())
+
+
+definisci blocchi_parola(parola):
+    """Scheda di una parola (parola chiave, funzione, eccezione). None se sconosciuta."""
+    se parola in KEYWORDS:
+        en, descr, esempio = KEYWORDS[parola]
+        ritorna [("h", 1, parola), ("p", f"In pytonIta: **parola chiave**. Equivale a `{en}` di Python."), ("p", descr),
+                 ("h", 3, "Esempio"), ("codice", "pit", esempio),
+                 ("p", "Vedi tutte le parole chiave nel [riferimento del linguaggio](#linguaggio).")]
+    prova:
+        importa _italiano
+        tabella = {**{it: en per en, it in _italiano.FUNZIONI.items()}, **{it: en per en, it in _italiano.ECCEZIONI.items()}}
+    eccetto ImportError:
+        tabella = {}
+    se parola in tabella:
+        tipo_ = "eccezione" se parola in _italiano.ECCEZIONI.values() altrimenti "funzione predefinita"
+        blocchi = [("h", 1, parola), ("p", f"In pytonIta: **{tipo_}**. Equivale a `{tabella[parola]}` di Python.")]
+        se parola in DESCRIZIONI:
+            blocchi.append(("p", DESCRIZIONI[parola]))
+        blocchi.append(("p", "Vedi l'elenco completo nel [riferimento del linguaggio](#linguaggio)."))
+        ritorna blocchi
+    ritorna Nessuno
+
+
+# --------------------------------------------------------------------------- visualizzatore
+classe FinestraAiuto(tk.Toplevel):
+    """La guida: indice a sinistra, argomento a destra, ricerca nel testo, cronologia avanti/indietro."""
+
+    definisci __inizializza__(se_stesso, app):
+        tk.Toplevel.__init__(se_stesso, app.radice)
+        se_stesso.app = app
+        se_stesso.colori = app.colori
+        se_stesso.title(f"Guida di {NOME}")
+        stile.imposta_icona_finestra(se_stesso)
+        x = app.radice.winfo_rootx() + 60
+        y = app.radice.winfo_rooty() + 40
+        se_stesso.geometry(f"1040x720+{x}+{y}")
+        se_stesso.minsize(720, 460)
+        se_stesso.indice = carica_indice()
+        se_stesso.argomenti = {a["id"]: a per a in se_stesso.indice}
+        se_stesso.testi = {}
+        se_stesso.corrente = Nessuno
+        se_stesso.storia = []
+        se_stesso.posizione = -1
+        se_stesso._immagini = []
+        se_stesso._costruisci()
+        se_stesso.applica_colori(app.colori)
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.bind("<Alt-Left>", lambda e: se_stesso.indietro())
+        se_stesso.bind("<Alt-Right>", lambda e: se_stesso.avanti())
+        se_stesso.bind("<Control-f>", lambda e: se_stesso.campo.focus_set())
+        se_stesso.bind("<F1>", lambda e: se_stesso.vai("benvenuto"))
+
+    # ------------------------------------------------------------ struttura
+    definisci _costruisci(se_stesso):
+        c = se_stesso.colori
+        se_stesso.barra = tk.Frame(se_stesso)
+        se_stesso.barra.pack(fill="x")
+        se_stesso.pulsanti = []
+        per icona, aiuto, comando in (("annulla", "Indietro  (Alt+←)", se_stesso.indietro), ("ripeti", "Avanti  (Alt+→)", se_stesso.avanti),
+                                      ("casa", "Inizio della guida", lambda: se_stesso.vai("benvenuto")),
+                                      ("finestra", "Apri la guida nel browser", lambda: apri_nel_browser())):
+            b = stile.PulsanteIcona(se_stesso.barra, icona, "", comando, c, Falso, aiuto)
+            b.pack(side="left", padx=1, pady=4)
+            se_stesso.pulsanti.append(b)
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="", anchor="w", font=("Segoe UI Semibold", 11))
+        se_stesso.titolo.pack(side="left", padx=14)
+        se_stesso.var_cerca = tk.StringVar()
+        se_stesso.campo = tk.Entry(se_stesso.barra, textvariable=se_stesso.var_cerca, width=30, relief="flat", font=("Segoe UI", 10))
+        se_stesso.campo.pack(side="right", padx=(4, 12), pady=8, ipady=3)
+        se_stesso.etichetta_cerca = tk.Label(se_stesso.barra, text=stile.glifo("cerca"), font=(stile.famiglia_icone() o "Segoe UI Symbol", 11))
+        se_stesso.etichetta_cerca.pack(side="right")
+        se_stesso.campo.bind("<KeyRelease>", se_stesso._cerca_digitando)
+        se_stesso.campo.bind("<Return>", lambda e: se_stesso._apri_primo_risultato())
+        se_stesso.riga = tk.Frame(se_stesso, height=1)
+        se_stesso.riga.pack(fill="x")
+        se_stesso.corpo = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=4, borderwidth=0)
+        se_stesso.corpo.pack(fill="both", expand=Vero)
+        # indice e risultati
+        sinistra = tk.Frame(se_stesso.corpo)
+        se_stesso.sinistra = sinistra
+        se_stesso.albero = ttk.Treeview(sinistra, show="tree", selectmode="browse")
+        se_stesso.albero.pack(fill="both", expand=Vero)
+        se_stesso._nodi = {}
+        gruppi = {}
+        per a in se_stesso.indice:
+            g = a["gruppo"]
+            se g non in gruppi:
+                gruppi[g] = se_stesso.albero.insert("", "end", text=g.upper(), open=Vero, tags=("gruppo",))
+            se_stesso._nodi[a["id"]] = se_stesso.albero.insert(gruppi[g], "end", text="   " + a["titolo"], values=(a["id"],))
+        se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._scelta_albero)
+        se_stesso.risultati = tk.Listbox(sinistra, activestyle="none", exportselection=Falso, font=("Segoe UI", 10), borderwidth=0,
+                                         highlightthickness=0)
+        se_stesso.risultati.bind("<<ListboxSelect>>", se_stesso._scelta_risultato)
+        se_stesso._risultati = []
+        se_stesso.corpo.add(sinistra, minsize=200, width=270)
+        # testo
+        destra = tk.Frame(se_stesso.corpo)
+        se_stesso.t = tk.Text(destra, wrap="word", borderwidth=0, highlightthickness=0, padx=34, pady=22, cursor="arrow",
+                              font=("Segoe UI", 11), spacing1=2, spacing3=3, state="disabled")
+        barra_y = ttk.Scrollbar(destra, orient="vertical", command=se_stesso.t.yview)
+        se_stesso.t.configure(yscrollcommand=barra_y.set)
+        barra_y.pack(side="right", fill="y")
+        se_stesso.t.pack(fill="both", expand=Vero)
+        se_stesso.corpo.add(destra, minsize=420, stretch="always")
+        se_stesso.t.bind("<Configure>", lambda e: se_stesso._ridimensiona_tabelle())
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.barra.configure(background=c["sfondo"])
+        se_stesso.riga.configure(background=c["bordo"])
+        se_stesso.corpo.configure(background=c["sfondo"])
+        se_stesso.sinistra.configure(background=c["pannello"])
+        se_stesso.titolo.configure(background=c["sfondo"], foreground=c["primo_piano"])
+        se_stesso.etichetta_cerca.configure(background=c["sfondo"], foreground=c["tenue"])
+        se_stesso.campo.configure(background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"],
+                                  highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
+        per b in se_stesso.pulsanti:
+            b.applica_colori(c)
+        se_stesso.albero.tag_configure("gruppo", foreground=c["tenue"], font=("Segoe UI Semibold", 9))
+        se_stesso.risultati.configure(background=c["campo"], foreground=c["primo_piano"], selectbackground=c["accento"],
+                                      selectforeground="#ffffff")
+        t = se_stesso.t
+        t.configure(background=c["editor"], foreground=c["editor_testo"], selectbackground=c["selezione"],
+                    insertbackground=c["editor"])
+        t.tag_configure("h1", font=("Segoe UI Semibold", 22), spacing1=4, spacing3=12, foreground=c["primo_piano"])
+        t.tag_configure("h2", font=("Segoe UI Semibold", 16), spacing1=22, spacing3=8, foreground=c["primo_piano"])
+        t.tag_configure("h3", font=("Segoe UI Semibold", 12), spacing1=14, spacing3=4, foreground=c["accento"])
+        t.tag_configure("h4", font=("Segoe UI Semibold", 11), spacing1=10, spacing3=2, foreground=c["tenue"])
+        t.tag_configure("p", font=("Segoe UI", 11), spacing1=3, spacing3=6, lmargin1=0, lmargin2=0)
+        t.tag_configure("b", font=("Segoe UI Semibold", 11))
+        t.tag_configure("i", font=("Segoe UI", 11, "italic"))
+        t.tag_configure("inline", font=("Consolas", 10), background=c["campo"], foreground=c["costante"])
+        t.tag_configure("blocco", font=("Consolas", 10), background=c["campo"], foreground=c["editor_testo"], lmargin1=18, lmargin2=18,
+                        rmargin=18, spacing1=0, spacing3=0)
+        t.tag_configure("uscita", font=("Consolas", 10), background=c["sfondo"], foreground=c["ok"], lmargin1=18, lmargin2=18, rmargin=18,
+                        spacing1=0, spacing3=0)
+        t.tag_configure("etichetta_uscita", font=("Segoe UI", 8), foreground=c["tenue"], lmargin1=18, spacing1=2)
+        t.tag_configure("barra_codice", background=c["campo"], lmargin1=18, rmargin=18, justify="right", spacing1=8)
+        t.tag_configure("nota", background=c["chat_strumento"], lmargin1=20, lmargin2=20, rmargin=20, spacing1=8, spacing3=8,
+                        font=("Segoe UI", 10))
+        t.tag_configure("elenco", lmargin1=22, lmargin2=40, spacing1=1, spacing3=1)
+        t.tag_configure("link", foreground=c["accento"], underline=Vero)
+        t.tag_configure("tenue", foreground=c["tenue"])
+        t.tag_configure("evidenzia", background=c["avviso"], foreground="#000000")
+        t.tag_configure("figura", justify="center", spacing1=8, spacing3=2)
+        t.tag_configure("didascalia", foreground=c["tenue"], font=("Segoe UI", 9, "italic"), justify="center", spacing3=10)
+        se se_stesso.corrente:
+            se_stesso.mostra(se_stesso.corrente, mantieni=Vero)
+
+    # ------------------------------------------------------------ navigazione
+    definisci vai(se_stesso, destinazione, evidenzia="", registra=Vero):
+        """Apre un argomento ('id'), una scheda di parola ('@parola:x') o un indirizzo web."""
+        se destinazione.startswith("http"):
+            webbrowser.open(destinazione)
+            ritorna
+        se destinazione.startswith("#"):
+            destinazione = destinazione[1:]
+        se destinazione.startswith("@parola:"):
+            parola = destinazione.split(":", 1)[1]
+            se blocchi_parola(parola) è Nessuno:
+                se_stesso.var_cerca.set(parola)
+                se_stesso._cerca_digitando()
+                ritorna
+        altrimenti_se destinazione non in se_stesso.argomenti:
+            ritorna
+        se registra:
+            elimina se_stesso.storia[se_stesso.posizione + 1:]
+            se_stesso.storia.append((destinazione, evidenzia))
+            se_stesso.posizione = lunghezza(se_stesso.storia) - 1
+        se_stesso.mostra(destinazione, evidenzia)
+        se_stesso._aggiorna_pulsanti()
+
+    definisci indietro(se_stesso):
+        se se_stesso.posizione > 0:
+            se_stesso.posizione -= 1
+            d, ev = se_stesso.storia[se_stesso.posizione]
+            se_stesso.mostra(d, ev)
+            se_stesso._aggiorna_pulsanti()
+
+    definisci avanti(se_stesso):
+        se se_stesso.posizione < lunghezza(se_stesso.storia) - 1:
+            se_stesso.posizione += 1
+            d, ev = se_stesso.storia[se_stesso.posizione]
+            se_stesso.mostra(d, ev)
+            se_stesso._aggiorna_pulsanti()
+
+    definisci _aggiorna_pulsanti(se_stesso):
+        se_stesso.pulsanti[0].imposta_attivo(se_stesso.posizione > 0)
+        se_stesso.pulsanti[1].imposta_attivo(se_stesso.posizione < lunghezza(se_stesso.storia) - 1)
+
+    # ------------------------------------------------------------ disegno dell'argomento
+    definisci mostra(se_stesso, destinazione, evidenzia="", mantieni=Falso):
+        se_stesso.corrente = destinazione
+        t = se_stesso.t
+        t.configure(state="normal")
+        t.delete("1.0", "end")
+        per w in lista(se_stesso.t.winfo_children()):
+            w.destroy()
+        se_stesso._immagini = []
+        se_stesso._tabelle = []
+        se_stesso._n_link = 0
+        t.tag_remove("evidenzia", "1.0", "end")
+        se destinazione.startswith("@parola:"):
+            blocchi = blocchi_parola(destinazione.split(":", 1)[1])
+            titolo = destinazione.split(":", 1)[1]
+            cartella_immagini = CARTELLA_AIUTO
+        altrimenti:
+            testo_ = se_stesso._testo(destinazione)
+            blocchi = markdown_mini.analizza(testo_)
+            titolo = se_stesso.argomenti[destinazione]["titolo"]
+            cartella_immagini = CARTELLA_AIUTO
+            se destinazione in se_stesso._nodi:
+                se_stesso.albero.selection_set(se_stesso._nodi[destinazione])
+                se_stesso.albero.see(se_stesso._nodi[destinazione])
+        se_stesso.titolo.configure(text=titolo)
+        se_stesso._disegna(blocchi)
+        t.configure(state="disabled")
+        t.yview_moveto(0)
+        se evidenzia:
+            se_stesso._evidenzia(evidenzia)
+
+    definisci _testo(se_stesso, id_):
+        se id_ non in se_stesso.testi:
+            se_stesso.testi[id_] = testo_argomento(id_)
+        ritorna se_stesso.testi[id_]
+
+    definisci _scrivi_inline(se_stesso, testo_, base=("p",)):
+        t = se_stesso.t
+        per s in markdown_mini.segmenti(testo_):
+            se s[0] == "t":
+                t.insert("end", s[1], base)
+            altrimenti_se s[0] == "codice":
+                t.insert("end", s[1], base + ("inline",))
+            altrimenti_se s[0] == "b":
+                t.insert("end", s[1], base + ("b",))
+            altrimenti_se s[0] == "i":
+                t.insert("end", s[1], base + ("i",))
+            altrimenti:
+                se_stesso._n_link += 1
+                nome = f"lk{se_stesso._n_link}"
+                t.tag_configure(nome)
+                t.tag_bind(nome, "<Button-1>", lambda e, d=s[2]: se_stesso.vai(d))
+                t.tag_bind(nome, "<Enter>", lambda e: t.configure(cursor="hand2"))
+                t.tag_bind(nome, "<Leave>", lambda e: t.configure(cursor="arrow"))
+                t.insert("end", s[1], base + ("link", nome))
+
+    definisci _disegna(se_stesso, blocchi):
+        t = se_stesso.t
+        c = se_stesso.colori
+        per b in blocchi:
+            tipo_ = b[0]
+            se tipo_ == "h":
+                t.insert("end", "\n" se b[1] > 1 altrimenti "")
+                se_stesso._scrivi_inline(b[2], (f"h{min(b[1], 4)}",))
+                t.insert("end", "\n")
+            altrimenti_se tipo_ == "p":
+                se_stesso._scrivi_inline(b[1])
+                t.insert("end", "\n", ("p",))
+            altrimenti_se tipo_ == "lista":
+                n = {}
+                per livello, ordinata, marca, testo_ in b[1]:
+                    se ordinata:
+                        n[livello] = n.get(livello, 0) + 1
+                        simbolo = f"{n[livello]}."
+                    altrimenti:
+                        simbolo = "•" se livello == 0 altrimenti "–"
+                    t.insert("end", "    " * livello + simbolo + "  ", ("elenco", "tenue"))
+                    se_stesso._scrivi_inline(testo_, ("elenco",))
+                    t.insert("end", "\n", ("elenco",))
+                t.insert("end", "\n", ("p",))
+            altrimenti_se tipo_ == "codice":
+                se_stesso._blocco_codice(b[1], b[2])
+            altrimenti_se tipo_ == "nota":
+                se_stesso._scrivi_inline("💡  " + b[1], ("nota",))
+                t.insert("end", "\n", ("nota",))
+            altrimenti_se tipo_ == "hr":
+                t.insert("end", "─" * 70 + "\n", ("tenue",))
+            altrimenti_se tipo_ == "img":
+                se_stesso._immagine(b[1], b[2])
+            altrimenti_se tipo_ == "tabella":
+                se_stesso._tabella(b[1])
+
+    definisci _blocco_codice(se_stesso, lingua, codice):
+        t = se_stesso.t
+        c = se_stesso.colori
+        se lingua in ("output", "esempio"):
+            t.insert("end", "Risultato\n", ("etichetta_uscita",))
+            t.insert("end", codice + "\n", ("uscita",))
+            t.insert("end", "\n", ("p",))
+            ritorna
+        t.insert("end", "\n", ("p",))
+        bottone = tk.Button(t, text="Copia", font=("Segoe UI", 8), relief="flat", background=c["pulsante"], foreground=c["primo_piano"],
+                            activebackground=c["pulsante_attivo"], cursor="hand2",
+                            command=lambda: (se_stesso.clipboard_clear(), se_stesso.clipboard_append(codice)))
+        t.window_create("end", window=bottone)
+        t.insert("end", "\n", ("barra_codice",))
+        t.tag_add("barra_codice", "end-2l linestart", "end-1c")
+        t.insert("end", codice + "\n", ("blocco",))
+        t.insert("end", "\n", ("p",))
+
+    definisci _immagine(se_stesso, didascalia, percorso):
+        t = se_stesso.t
+        p = os.path.join(CARTELLA_AIUTO, percorso)
+        se non os.path.exists(p):
+            t.insert("end", f"[immagine mancante: {percorso}]\n", ("tenue",))
+            ritorna
+        prova:
+            img = Image.open(p)
+            larghezza_max = max(300, se_stesso.t.winfo_width() - 90)
+            se img.width > larghezza_max:
+                img = img.resize((larghezza_max, int(img.height * larghezza_max / img.width)), Image.LANCZOS)
+            foto = ImageTk.PhotoImage(img)
+        eccetto Eccezione:
+            ritorna
+        se_stesso._immagini.append(foto)
+        t.insert("end", "\n", ("p",))
+        t.image_create("end", image=foto)
+        t.tag_add("figura", "end-2c linestart", "end-1c")
+        t.insert("end", "\n", ("figura",))
+        t.insert("end", didascalia + "\n", ("didascalia",))
+
+    definisci _tabella(se_stesso, righe):
+        t = se_stesso.t
+        c = se_stesso.colori
+        cornice = tk.Frame(t, background=c["bordo"])
+        colonne = max(lunghezza(r) per r in righe)
+        per i, riga in enumera(righe):
+            per j in intervallo(colonne):
+                cella = riga[j] se j < lunghezza(riga) altrimenti ""
+                testo_ = markdown_mini.testo_semplice(cella)
+                intestazione = i == 0
+                l = tk.Label(cornice, text=testo_, anchor="w", justify="left", padx=8, pady=4, wraplength=300,
+                             background=c["pulsante"] se intestazione altrimenti (c["editor"] se i % 2 altrimenti c["campo"]),
+                             foreground=c["primo_piano"] se intestazione altrimenti c["editor_testo"],
+                             font=("Segoe UI Semibold", 10) se intestazione altrimenti (("Consolas", 9) se "`" in cella altrimenti ("Segoe UI", 10)))
+                l.grid(row=i, column=j, sticky="nsew", padx=(0, 1), pady=(0, 1))
+        per j in intervallo(colonne):
+            cornice.grid_columnconfigure(j, weight=1 se j == colonne - 1 altrimenti 0)
+        t.insert("end", "\n", ("p",))
+        t.window_create("end", window=cornice, stretch=Vero)
+        se_stesso._tabelle.append((cornice, colonne))
+        t.insert("end", "\n", ("p",))
+
+    definisci _ridimensiona_tabelle(se_stesso):
+        larghezza = max(300, se_stesso.t.winfo_width() - 80)
+        per cornice, colonne in getattr(se_stesso, "_tabelle", []):
+            prova:
+                per l in cornice.winfo_children():
+                    l.configure(wraplength=max(120, larghezza // max(1, colonne) + 60))
+            eccetto tk.TclError:
+                passa
+
+    # ------------------------------------------------------------ ricerca
+    definisci _scelta_albero(se_stesso, e=Nessuno):
+        sel = se_stesso.albero.selection()
+        se sel:
+            valori = se_stesso.albero.item(sel[0], "values")
+            se valori e valori[0] != se_stesso.corrente:
+                se_stesso.vai(valori[0])
+
+    definisci _cerca_digitando(se_stesso, e=Nessuno):
+        q = se_stesso.var_cerca.get().strip().lower()
+        se_stesso.risultati.delete(0, "end")
+        se_stesso._risultati = []
+        se non q:
+            se_stesso.risultati.pack_forget()
+            se_stesso.albero.pack(fill="both", expand=Vero)
+            ritorna
+        parole = q.split()
+        trovati = []
+        per a in se_stesso.indice:
+            testo_ = markdown_mini.testo_dei_blocchi(markdown_mini.analizza(se_stesso._testo(a["id"]))).lower()
+            titolo = a["titolo"].lower()
+            se tutti(p in testo_ o p in titolo per p in parole):
+                punti = sum(testo_.count(p) per p in parole) + 25 * sum(1 per p in parole se p in titolo)
+                i = testo_.find(parole[0])
+                brano = testo_[max(0, i - 40):i + 70].replace("\n", " ").strip() se i >= 0 altrimenti ""
+                trovati.append((punti, a, brano))
+        trovati.sort(key=lambda x: -x[0])
+        # una parola chiave o una funzione ha anche una scheda propria
+        se q in KEYWORDS o blocchi_parola(q) è non Nessuno:
+            se_stesso._risultati.append(("@parola:" + q, q))
+            se_stesso.risultati.insert("end", f"★  {q}  —  scheda della parola")
+        per punti, a, brano in trovati:
+            se_stesso._risultati.append((a["id"], q))
+            se_stesso.risultati.insert("end", f"{a['titolo']}")
+            se brano:
+                se_stesso.risultati.insert("end", f"      …{brano}…")
+                se_stesso._risultati.append((a["id"], q))
+        se non se_stesso._risultati:
+            se_stesso.risultati.insert("end", "Nessun risultato")
+        se_stesso.albero.pack_forget()
+        se_stesso.risultati.pack(fill="both", expand=Vero)
+
+    definisci _scelta_risultato(se_stesso, e=Nessuno):
+        sel = se_stesso.risultati.curselection()
+        se sel e sel[0] < lunghezza(se_stesso._risultati):
+            d, q = se_stesso._risultati[sel[0]]
+            se_stesso.vai(d, evidenzia=q)
+
+    definisci _apri_primo_risultato(se_stesso):
+        se se_stesso._risultati:
+            d, q = se_stesso._risultati[0]
+            se_stesso.vai(d, evidenzia=q)
+
+    definisci _evidenzia(se_stesso, q):
+        t = se_stesso.t
+        primo = Nessuno
+        per parola in q.lower().split():
+            i = "1.0"
+            mentre Vero:
+                i = t.search(parola, i, stopindex="end", nocase=Vero)
+                se non i:
+                    interrompi
+                fine = f"{i}+{lunghezza(parola)}c"
+                t.tag_add("evidenzia", i, fine)
+                se primo è Nessuno:
+                    primo = i
+                i = fine
+        se primo:
+            t.see(primo)
+            t.yview_moveto(max(0.0, t.yview()[0]))
+
+
+# --------------------------------------------------------------------------- ingressi dell'applicazione
+definisci apri_aiuto(app, argomento=Nessuno):
+    """Apre la guida (una sola finestra). argomento: id, '@parola:x' oppure '@browser'."""
+    se argomento == "@browser":
+        apri_nel_browser()
+        ritorna
+    finestra = getattr(app, "_finestra_aiuto", Nessuno)
+    se finestra è Nessuno o non finestra.winfo_exists():
+        finestra = FinestraAiuto(app)
+        app._finestra_aiuto = finestra
+    altrimenti:
+        finestra.applica_colori(app.colori)
+    finestra.deiconify()
+    finestra.lift()
+    finestra.focus_force()
+    finestra.vai(argomento o "benvenuto")
+
+
+definisci apri_nel_browser(argomento="benvenuto"):
+    """Genera (se serve) la guida HTML e la apre nel browser."""
+    pagina = os.path.join(CARTELLA_HTML, argomento + ".html")
+    se non os.path.exists(pagina) o guida_html_vecchia():
+        genera_html()
+    webbrowser.open("file:///" + pagina.replace("\\", "/"))
+
+
+definisci guida_html_vecchia():
+    prova:
+        ultimo = max(os.path.getmtime(os.path.join(CARTELLA_AIUTO, f)) per f in os.listdir(CARTELLA_AIUTO)
+                     se f.endswith((".md", ".json")))
+        ritorna os.path.getmtime(os.path.join(CARTELLA_HTML, "index.html")) < ultimo
+    eccetto (OSError, ValueError):
+        ritorna Vero
+
+
+# --------------------------------------------------------------------------- guida in HTML
+CSS = """
+:root{--sf:#ffffff;--pn:#f4f5f7;--tx:#1f2328;--te:#6a6f76;--bo:#d8dbe0;--ac:#1a62d6;--cod:#f1f3f5;--nota:#fff6dc}
+@media (prefers-color-scheme: dark){:root{--sf:#1b1c1f;--pn:#25272b;--tx:#dfe1e5;--te:#8c8f94;--bo:#393b40;--ac:#6ea8ff;--cod:#26282c;--nota:#322f20}}
+*{box-sizing:border-box}body{margin:0;font:16px/1.65 "Segoe UI",system-ui,sans-serif;background:var(--sf);color:var(--tx);display:flex;min-height:100vh}
+nav{width:290px;background:var(--pn);border-right:1px solid var(--bo);padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto;flex-shrink:0}
+nav .logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:20px;margin:0 6px 14px}nav .logo img{width:34px;height:34px}
+nav input{width:100%;padding:8px 10px;border:1px solid var(--bo);border-radius:8px;background:var(--sf);color:var(--tx);margin-bottom:12px}
+nav h4{margin:16px 6px 4px;font-size:11px;letter-spacing:.08em;color:var(--te)}nav a{display:block;padding:6px 10px;border-radius:7px;color:var(--tx);text-decoration:none;font-size:14.5px}
+nav a:hover{background:var(--bo)}nav a.att{background:var(--ac);color:#fff}
+main{flex:1;min-width:0;padding:34px 48px 70px;max-width:980px}h1{font-size:34px;margin:.1em 0 .5em}h2{margin-top:1.7em;border-bottom:1px solid var(--bo);padding-bottom:.2em}h3{color:var(--ac)}
+a{color:var(--ac)}code{font:14px Consolas,monospace;background:var(--cod);padding:1px 6px;border-radius:5px}pre{background:var(--cod);padding:14px 16px;border-radius:10px;overflow:auto;border:1px solid var(--bo)}pre code{background:none;padding:0}pre.uscita{background:transparent;border-left:4px solid #16a34a;color:#15803d}pre.uscita::before{content:"Risultato";display:block;font:11px sans-serif;opacity:.7}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:15px}th,td{border:1px solid var(--bo);padding:7px 11px;text-align:left;vertical-align:top}th{background:var(--pn)}tr:nth-child(even) td{background:color-mix(in srgb,var(--pn) 45%,transparent)}
+.nota{background:var(--nota);border-left:4px solid #e0a800;padding:10px 16px;border-radius:6px;margin:1em 0}figure{margin:1.4em 0;text-align:center}figure img{max-width:100%;border:1px solid var(--bo);border-radius:10px;box-shadow:0 4px 18px #0003}figcaption{color:var(--te);font-size:13px;margin-top:6px}
+.pn{display:flex;justify-content:space-between;margin-top:3em;padding-top:1em;border-top:1px solid var(--bo)}
+@media(max-width:820px){body{display:block}nav{width:auto;height:auto;position:static}main{padding:20px}}
+@media print{nav,.pn{display:none}main{max-width:none;padding:0}}
+"""
+
+JS = """
+const idx=INDICE;const q=document.getElementById('q');
+q.addEventListener('input',()=>{const t=q.value.toLowerCase().trim().split(/\\s+/).filter(Boolean);
+document.querySelectorAll('nav a[data-id]').forEach(a=>{const d=idx[a.dataset.id];a.style.display=(!t.length||t.every(w=>d.includes(w)))?'':'none'})});
+"""
+
+
+definisci genera_html(destinazione=Nessuno):
+    """Genera la guida come sito statico (una pagina per argomento + ricerca). Ritorna il percorso di index.html."""
+    destinazione = destinazione o CARTELLA_HTML
+    os.makedirs(os.path.join(destinazione, "immagini"), exist_ok=Vero)
+    indice = carica_indice()
+    sorgente_img = os.path.join(CARTELLA_AIUTO, "immagini")
+    se os.path.isdir(sorgente_img):
+        per f in os.listdir(sorgente_img):
+            shutil.copy2(os.path.join(sorgente_img, f), os.path.join(destinazione, "immagini", f))
+    prova:
+        da rad.stile importa assicura_icone
+        shutil.copy2(assicura_icone(), os.path.join(destinazione, "immagini", "rad.png"))
+    eccetto Eccezione:
+        passa
+    testi, ricerca = {}, {}
+    per a in indice:
+        blocchi = markdown_mini.analizza(testo_argomento(a["id"]))
+        testi[a["id"]] = blocchi
+        ricerca[a["id"]] = (a["titolo"] + " " + markdown_mini.testo_dei_blocchi(blocchi)).lower()
+    per n, a in enumera(indice):
+        navigazione = []
+        gruppo = Nessuno
+        per b in indice:
+            se b["gruppo"] != gruppo:
+                gruppo = b["gruppo"]
+                navigazione.append(f"<h4>{html.escape(gruppo.upper())}</h4>")
+            att = ' class="att"' se b["id"] == a["id"] altrimenti ""
+            navigazione.append(f'<a{att} data-id="{b["id"]}" href="{b["id"]}.html">{html.escape(b["titolo"])}</a>')
+        corpo = markdown_mini.in_html(testi[a["id"]], prefisso_immagini="")
+        prec = indice[n - 1] se n > 0 altrimenti Nessuno
+        succ = indice[n + 1] se n + 1 < lunghezza(indice) altrimenti Nessuno
+        a_prec = (f'<a href="{prec["id"]}.html">← {html.escape(prec["titolo"])}</a>' se prec altrimenti "")
+        a_succ = (f'<a href="{succ["id"]}.html">{html.escape(succ["titolo"])} →</a>' se succ altrimenti "")
+        pn = f'<div class="pn"><span>{a_prec}</span><span>{a_succ}</span></div>'
+        pagina = (f'<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+                  f'<title>{html.escape(a["titolo"])} — Guida di {NOME}</title><style>{CSS}</style></head><body>'
+                  f'<nav><div class="logo"><img src="immagini/rad.png" alt="">{NOME}</div><input id="q" placeholder="Cerca nella guida…">'
+                  + "".join(navigazione) + f'</nav><main>{corpo}{pn}</main>'
+                  f'<script>{JS.replace("INDICE", json.dumps(ricerca, ensure_ascii=Falso))}</script></body></html>')
+        con open(os.path.join(destinazione, a["id"] + ".html"), "w", encoding="utf-8") come f:
+            f.write(pagina)
+    shutil.copy2(os.path.join(destinazione, indice[0]["id"] + ".html"), os.path.join(destinazione, "index.html"))
+    ritorna os.path.join(destinazione, "index.html")

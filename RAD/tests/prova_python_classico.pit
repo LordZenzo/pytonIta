@@ -1,0 +1,30 @@
+importa sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.editor importa Editor, linguaggio_di
+da rad importa esecuzione, parole, progetto
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+radice = tk.Tk()
+c = colori(cfg)
+ed = Editor(radice, cfg, c, percorso="x.py")
+ed.pack(fill="both", expand=Vero)
+stampa("linguaggio:", ed.linguaggio, linguaggio_di("a.pit"), linguaggio_di("b.txt"))
+ed.imposta_contenuto('import os\n\ndef saluta(nome):\n    print("ciao", nome, 42)\n    return True\n\nif __name__ == "__main__":\n    saluta(None)\n')
+radice.update()
+ed.evidenzia()
+per tag in ("parola_chiave", "builtin", "costante", "definizione"):
+    r = ed.t.tag_ranges(tag)
+    stampa(tag, [testo(ed.t.get(r[i], r[i + 1])) per i in intervallo(0, lunghezza(r), 2)])
+stampa("sintassi py ok:", esecuzione.controlla_sintassi("if True:\n    print(1)\n", "a.py"))
+stampa("sintassi py errore:", esecuzione.controlla_sintassi("se x:\n    pass\n", "a.py"))
+stampa("sintassi pit ok:", esecuzione.controlla_sintassi("se Vero:\n    stampa(1)\n", "a.pit"))
+stampa("sugg:", [v[0] per v in parole.suggerisci("whi", "", linguaggio="py")][:4])
+stampa("tipo:", progetto.tipo_file("a.py"))
+ed.t.insert("end", "wh")
+ed.t.mark_set("insert", "end-1c")
+ed.suggerisci(forza=Vero)
+radice.update()
+stampa("popup:", [v[0] per v in ed._voci[:4]])

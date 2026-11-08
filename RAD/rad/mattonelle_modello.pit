@@ -1,0 +1,993 @@
+"""Programmi a mattonelle: modello, collegamenti staccabili, funzioni e generazione del codice pytonIta.
+
+Senza grafica: tutto quello che serve per costruire, modificare, salvare e trasformare in codice un programma
+fatto di mattonelle. La parte visiva sta in mattonelle_disegno.pit e mattonelle_ui.pit.
+"""
+importa copy
+importa itertools
+importa json
+importa os
+importa re
+
+# --------------------------------------------------------------------------- forme e categorie
+# forma: cappello (inizio di una pila) | istruzione | blocco (contiene altre mattonelle) |
+#        fine (non ha mattonelle dopo) | valore (si inserisce in un ingresso) | booleano (idem, esagonale)
+CATEGORIE = {
+    "eventi": ("Inizio", "#e8b923"),
+    "flusso": ("Flusso", "#e98a2b"),
+    "variabili": ("Variabili", "#e04a3f"),
+    "io": ("Ingresso/Uscita", "#3fae5a"),
+    "operatori": ("Operatori", "#3d9be0"),
+    "testo": ("Testo", "#26a69a"),
+    "liste": ("Liste", "#8e5fd1"),
+    "funzioni": ("Funzioni", "#d6409f"),
+    "altro": ("Altro", "#7a8088"),
+}
+ORDINE_CATEGORIE = ["eventi", "flusso", "variabili", "io", "operatori", "testo", "liste", "funzioni", "altro"]
+FORME_ISTRUZIONE = ("cappello", "istruzione", "blocco", "fine")
+FORME_VALORE = ("valore", "booleano")
+
+
+definisci _d(forma, cat, seg, codice="", corpi=Nessuno, intestazioni=Nessuno, moduli=Nessuno, descrizione=""):
+    ritorna {"forma": forma, "cat": cat, "seg": seg, "codice": codice, "corpi": corpi o [],
+             "intestazioni": intestazioni o [], "importa": moduli o [], "descrizione": descrizione}
+
+
+# segmenti: "testo" = etichetta; ("i", nome, tipo_ingresso, predefinito) = ingresso (mattonella o valore);
+# ("c", nome, predefinito, modo) = campo modificabile. modo: testo | numero | variabile | variabile_nuova | scelta:a,b
+# tipo_ingresso: valore | booleano | numero | testo
+TIPI = {
+    # --- eventi / struttura
+    "avvio": _d("cappello", "eventi", ["Quando parte il programma"], descrizione="Da qui comincia il programma"),
+    "definisci_funzione": _d("cappello", "eventi", ["definisci", ("c", "nome", "funzione", "testo"), "(",
+                                                      ("c", "parametri", "", "testo"), ")"],
+                             descrizione="Inizio di una funzione"),
+    # --- flusso
+    "se": _d("blocco", "flusso", ["se", ("i", "cond", "booleano", "")], corpi=[("corpo", "")],
+             intestazioni=["se {cond}:"], descrizione="Esegue se la condizione è vera"),
+    "se_altrimenti": _d("blocco", "flusso", ["se", ("i", "cond", "booleano", "")],
+                        corpi=[("corpo", ""), ("altro", "altrimenti")],
+                        intestazioni=["se {cond}:", "altrimenti:"], descrizione="Due strade"),
+    "per_ogni": _d("blocco", "flusso", ["per ogni", ("c", "var", "elemento", "variabile_nuova"), "in", ("i", "elenco", "valore", "")],
+                   corpi=[("corpo", "")], intestazioni=["per {var} in {elenco}:"], descrizione="Ripete per ogni elemento"),
+    "ripeti": _d("blocco", "flusso", ["ripeti", ("i", "n", "numero", "10"), "volte"], corpi=[("corpo", "")],
+                 intestazioni=["per _ in intervallo({n}):"], descrizione="Ripete N volte"),
+    "mentre": _d("blocco", "flusso", ["mentre", ("i", "cond", "booleano", "")], corpi=[("corpo", "")],
+                 intestazioni=["mentre {cond}:"], descrizione="Ripete finché la condizione è vera"),
+    "prova": _d("blocco", "flusso", ["prova"], corpi=[("corpo", ""), ("errore", "se c'è un errore"), ("infine", "alla fine")],
+                intestazioni=["prova:", "eccetto Eccezione come errore:", "infine:"],
+                descrizione="Gestione degli errori"),
+    "con_file": _d("blocco", "flusso", ["con file", ("i", "nome", "testo", "dati.txt"), "come", ("c", "var", "f", "variabile_nuova")],
+                   corpi=[("corpo", "")], intestazioni=['con apri({nome}, encoding="utf-8") come {var}:'],
+                   descrizione="Apre un file"),
+    "interrompi": _d("fine", "flusso", ["esci dal ciclo"], codice="interrompi"),
+    "continua": _d("fine", "flusso", ["salta al prossimo giro"], codice="continua"),
+    "ritorna": _d("fine", "flusso", ["restituisci", ("i", "valore", "valore", "")], codice="ritorna {valore}",
+                  descrizione="Termina la funzione restituendo un valore"),
+    "passa": _d("istruzione", "flusso", ["non fare nulla"], codice="passa"),
+    "attendi": _d("istruzione", "flusso", ["aspetta", ("i", "secondi", "numero", "1"), "secondi"],
+                  codice="tempo.aspetta({secondi})", moduli=["tempo"]),
+    # --- variabili
+    "imposta": _d("istruzione", "variabili", ["imposta", ("c", "var", "x", "variabile_nuova"), "a", ("i", "valore", "valore", "0")],
+                  codice="{var} = {valore}", descrizione="Assegna un valore a una variabile"),
+    "cambia": _d("istruzione", "variabili", ["cambia", ("c", "var", "x", "variabile"), "di", ("i", "valore", "numero", "1")],
+                 codice="{var} += {valore}"),
+    "globale": _d("istruzione", "variabili", ["usa la variabile globale", ("c", "var", "x", "variabile")], codice="globale {var}"),
+    "variabile": _d("valore", "variabili", [("c", "nome", "x", "variabile")], codice="{nome}",
+                    descrizione="Il valore di una variabile"),
+    # --- ingresso / uscita
+    "stampa": _d("istruzione", "io", ["scrivi", ("i", "valore", "valore", "ciao"), ("i", "valore2", "valore", ""),
+                                      ("i", "valore3", "valore", "")], codice="@stampa",
+                 descrizione="Mostra uno, due o tre valori (gli ingressi vuoti dopo il primo si ignorano)"),
+    "leggi": _d("valore", "io", ["chiedi", ("i", "messaggio", "testo", "")], codice="leggi({messaggio})",
+                descrizione="Legge una riga scritta dall'utente"),
+    # --- valori e operatori
+    "numero": _d("valore", "operatori", [("c", "valore", "0", "numero")], codice="{valore}"),
+    "testo_lett": _d("valore", "operatori", ["«", ("c", "valore", "ciao", "testo"), "»"], codice="{valore!r}"),
+    "vero": _d("booleano", "operatori", ["Vero"], codice="Vero"),
+    "falso": _d("booleano", "operatori", ["Falso"], codice="Falso"),
+    "nessuno": _d("valore", "operatori", ["Nessuno"], codice="Nessuno"),
+    "somma": _d("valore", "operatori", [("i", "a", "valore", ""), "+", ("i", "b", "valore", "")], codice="({a} + {b})"),
+    "sottrai": _d("valore", "operatori", [("i", "a", "valore", ""), "−", ("i", "b", "valore", "")], codice="({a} - {b})"),
+    "moltiplica": _d("valore", "operatori", [("i", "a", "valore", ""), "×", ("i", "b", "valore", "")], codice="({a} * {b})"),
+    "dividi": _d("valore", "operatori", [("i", "a", "valore", ""), "÷", ("i", "b", "valore", "")], codice="({a} / {b})"),
+    "dividi_intero": _d("valore", "operatori", [("i", "a", "valore", ""), "div", ("i", "b", "valore", "")], codice="({a} // {b})"),
+    "resto": _d("valore", "operatori", [("i", "a", "valore", ""), "resto", ("i", "b", "valore", "")], codice="({a} % {b})"),
+    "potenza": _d("valore", "operatori", [("i", "a", "valore", ""), "elevato a", ("i", "b", "valore", "")], codice="({a} ** {b})"),
+    "uguale": _d("booleano", "operatori", [("i", "a", "valore", ""), "=", ("i", "b", "valore", "")], codice="({a} == {b})"),
+    "diverso": _d("booleano", "operatori", [("i", "a", "valore", ""), "≠", ("i", "b", "valore", "")], codice="({a} != {b})"),
+    "minore": _d("booleano", "operatori", [("i", "a", "valore", ""), "<", ("i", "b", "valore", "")], codice="({a} < {b})"),
+    "maggiore": _d("booleano", "operatori", [("i", "a", "valore", ""), ">", ("i", "b", "valore", "")], codice="({a} > {b})"),
+    "minore_uguale": _d("booleano", "operatori", [("i", "a", "valore", ""), "≤", ("i", "b", "valore", "")], codice="({a} <= {b})"),
+    "maggiore_uguale": _d("booleano", "operatori", [("i", "a", "valore", ""), "≥", ("i", "b", "valore", "")], codice="({a} >= {b})"),
+    "e_logico": _d("booleano", "operatori", [("i", "a", "booleano", ""), "e", ("i", "b", "booleano", "")], codice="({a} e {b})"),
+    "o_logico": _d("booleano", "operatori", [("i", "a", "booleano", ""), "o", ("i", "b", "booleano", "")], codice="({a} o {b})"),
+    "non_logico": _d("booleano", "operatori", ["non", ("i", "a", "booleano", "")], codice="(non {a})"),
+    "contiene": _d("booleano", "operatori", [("i", "a", "valore", ""), "è in", ("i", "b", "valore", "")], codice="({a} in {b})"),
+    "intero_di": _d("valore", "operatori", ["intero di", ("i", "v", "valore", "")], codice="intero({v})"),
+    "decimale_di": _d("valore", "operatori", ["decimale di", ("i", "v", "valore", "")], codice="decimale({v})"),
+    "arrotonda": _d("valore", "operatori", ["arrotonda", ("i", "v", "valore", "")], codice="arrotonda({v})"),
+    "assoluto": _d("valore", "operatori", ["valore assoluto di", ("i", "v", "valore", "")], codice="assoluto({v})"),
+    "massimo_di": _d("valore", "operatori", ["massimo tra", ("i", "a", "valore", ""), "e", ("i", "b", "valore", "")], codice="massimo({a}, {b})"),
+    "minimo_di": _d("valore", "operatori", ["minimo tra", ("i", "a", "valore", ""), "e", ("i", "b", "valore", "")], codice="minimo({a}, {b})"),
+    "casuale_tra": _d("valore", "operatori", ["numero a caso tra", ("i", "a", "numero", "1"), "e", ("i", "b", "numero", "10")],
+                      codice="casuale.intero_casuale({a}, {b})", moduli=["casuale"]),
+    "intervallo": _d("valore", "operatori", ["numeri da", ("i", "a", "numero", "0"), "a", ("i", "b", "numero", "10")],
+                     codice="intervallo({a}, {b})"),
+    # --- testo
+    "unisci": _d("valore", "testo", ["unisci", ("i", "a", "valore", "ciao "), "e", ("i", "b", "valore", "mondo")],
+                 codice="(testo({a}) + testo({b}))"),
+    "testo_di": _d("valore", "testo", ["testo di", ("i", "v", "valore", "")], codice="testo({v})"),
+    "lunghezza_di": _d("valore", "testo", ["lunghezza di", ("i", "v", "valore", "")], codice="lunghezza({v})"),
+    "maiuscolo": _d("valore", "testo", ["maiuscolo", ("i", "v", "valore", "")], codice="testo({v}).maiuscolo()"),
+    "minuscolo": _d("valore", "testo", ["minuscolo", ("i", "v", "valore", "")], codice="testo({v}).minuscolo()"),
+    "sostituisci": _d("valore", "testo", ["in", ("i", "v", "valore", ""), "sostituisci", ("i", "a", "testo", ""), "con", ("i", "b", "testo", "")],
+                      codice="testo({v}).sostituisci({a}, {b})"),
+    "separa": _d("valore", "testo", ["separa", ("i", "v", "valore", ""), "con", ("i", "sep", "testo", " ")],
+                 codice="testo({v}).separa({sep})"),
+    # --- liste
+    "lista_vuota": _d("valore", "liste", ["lista vuota"], codice="[]"),
+    "lista_di": _d("valore", "liste", ["lista di", ("i", "a", "valore", ""), ("i", "b", "valore", ""), ("i", "c", "valore", "")],
+                   codice="@lista_di", descrizione="Gli ingressi vuoti vengono ignorati"),
+    "aggiungi_a_lista": _d("istruzione", "liste", ["aggiungi", ("i", "valore", "valore", ""), "alla lista", ("i", "lista", "valore", "")],
+                           codice="{lista}.aggiungi({valore})"),
+    "elemento_di": _d("valore", "liste", ["elemento", ("i", "n", "numero", "0"), "di", ("i", "lista", "valore", "")], codice="{lista}[{n}]"),
+    "ordina_lista": _d("valore", "liste", ["ordina", ("i", "lista", "valore", "")], codice="ordinato({lista})"),
+    "somma_lista": _d("valore", "liste", ["somma di", ("i", "lista", "valore", "")], codice="somma({lista})"),
+    # --- altro
+    "chiama": _d("istruzione", "funzioni", ["chiama", ("c", "nome", "funzione", "testo"), "(", ("i", "a", "valore", ""),
+                                           ("i", "b", "valore", ""), ("i", "c", "valore", ""), ")"], codice="@chiama",
+                 descrizione="Chiama qualsiasi funzione o metodo per nome (es. f.write, sqrt, Contatore)"),
+    "chiamata": _d("valore", "funzioni", ["chiama", ("c", "nome", "funzione", "testo"), "(", ("i", "a", "valore", ""),
+                                          ("i", "b", "valore", ""), ("i", "c", "valore", ""), ")"], codice="@chiama",
+                   descrizione="Come «chiama», ma restituisce un valore"),
+    "importa": _d("istruzione", "altro", ["importa", ("c", "modulo", "json", "testo")], codice="importa {modulo}"),
+    "commento": _d("istruzione", "altro", ["#", ("c", "testo", "nota", "testo")], codice="# {testo}"),
+    "codice": _d("istruzione", "altro", ["codice", ("c", "testo", "", "testo")], codice="@riga_libera",
+                 descrizione="Una riga di pytonIta scritta a mano"),
+    "espressione": _d("valore", "altro", ["espressione", ("c", "testo", "", "testo")], codice="@espressione_libera",
+                      descrizione="Un'espressione pytonIta scritta a mano"),
+}
+
+# mattonelle da mostrare nella tavolozza (ordine) per ogni categoria
+PREFERITE_PER_CATEGORIA = {c: [t per t, d in TIPI.items() se d["cat"] == c] per c in ORDINE_CATEGORIE}
+
+_contatore = itertools.count(1)
+
+
+definisci definizione(tipo_, programma=Nessuno):
+    """Definizione di un tipo di mattonella, comprese quelle dinamiche delle funzioni dell'utente."""
+    se tipo_ in TIPI:
+        ritorna TIPI[tipo_]
+    se programma e (tipo_.startswith("fn:") o tipo_.startswith("fnv:")):
+        nome = tipo_.split(":", 1)[1]
+        f = programma.funzione(nome)
+        se f:
+            seg = [nome, "("]
+            per i, par in enumera(f.parametri()):
+                se i:
+                    seg.append(",")
+                seg.append(("i", f"p{i}", "valore", ""))
+            seg.append(")")
+            forma = "istruzione" se tipo_.startswith("fn:") altrimenti "valore"
+            ritorna _d(forma, "funzioni", seg, codice="@chiamata:" + nome,
+                       descrizione=f"Chiama la funzione {nome}")
+    ritorna _d("istruzione", "altro", [f"?{tipo_}?"], codice="passa", descrizione="mattonella sconosciuta")
+
+
+definisci ingressi_di(d):
+    ritorna [s per s in d["seg"] se isinstance(s, tuple) e s[0] == "i"]
+
+
+definisci campi_di(d):
+    ritorna [s per s in d["seg"] se isinstance(s, tuple) e s[0] == "c"]
+
+
+# --------------------------------------------------------------------------- mattonelle
+classe Mattonella:
+    """Una mattonella con i suoi campi, ingressi (collegamenti a valori) e corpi (pile di mattonelle)."""
+
+    definisci __inizializza__(se_stesso, tipo_, programma=Nessuno):
+        se_stesso.id = next(_contatore)
+        se_stesso.tipo = tipo_
+        d = definizione(tipo_, programma)
+        se_stesso.campi = {c[1]: c[2] per c in campi_di(d)}
+        se_stesso.letterali = {i[1]: i[3] per i in ingressi_di(d)}
+        se_stesso.ingressi = {i[1]: Nessuno per i in ingressi_di(d)}   # slot -> Mattonella
+        se_stesso.corpi = {c[0]: [] per c in d["corpi"]}
+        se_stesso.padre = Nessuno      # Mattonella o Radice che la contiene
+        se_stesso.ruolo = ""           # "ingresso:slot" | "corpo:nome" | "radice"
+        se_stesso.lista = Nessuno      # lista (pila) che contiene questa istruzione
+
+    # --- struttura
+    definisci def_(se_stesso, programma=Nessuno):
+        ritorna definizione(se_stesso.tipo, programma)
+
+    definisci è_istruzione(se_stesso, programma=Nessuno):
+        ritorna se_stesso.def_(programma)["forma"] in FORME_ISTRUZIONE
+
+    definisci è_valore(se_stesso, programma=Nessuno):
+        ritorna se_stesso.def_(programma)["forma"] in FORME_VALORE
+
+    definisci figli(se_stesso):
+        """Tutte le mattonelle contenute (ingressi e corpi), in profondità."""
+        per m in se_stesso.ingressi.values():
+            se m è non Nessuno:
+                produci m
+                produci da m.figli()
+        per pila in se_stesso.corpi.values():
+            per m in pila:
+                produci m
+                produci da m.figli()
+
+    # --- serializzazione
+    definisci a_dizionario(se_stesso):
+        d = {"t": se_stesso.tipo}
+        se se_stesso.campi:
+            d["c"] = dict(se_stesso.campi)
+        predefiniti = {i[1]: i[3] per i in ingressi_di(definizione(se_stesso.tipo))}
+        lett = {k: v per k, v in se_stesso.letterali.items() se v != predefiniti.get(k, "")}
+        se lett:
+            d["l"] = lett
+        ingressi = {k: m.a_dizionario() per k, m in se_stesso.ingressi.items() se m è non Nessuno}
+        se ingressi:
+            d["i"] = ingressi
+        corpi = {k: [m.a_dizionario() per m in pila] per k, pila in se_stesso.corpi.items() se pila}
+        se corpi:
+            d["b"] = corpi
+        ritorna d
+
+    @staticmethod
+    definisci da_dizionario(d, programma=Nessuno):
+        m = Mattonella(d["t"], programma)
+        m.campi.update(d.get("c", {}))
+        m.letterali.update(d.get("l", {}))
+        per k, sub in d.get("i", {}).items():
+            se k in m.ingressi:
+                figlio = Mattonella.da_dizionario(sub, programma)
+                m.ingressi[k] = figlio
+                figlio.padre, figlio.ruolo = m, f"ingresso:{k}"
+        per k, pila in d.get("b", {}).items():
+            se k in m.corpi:
+                m.corpi[k] = [Mattonella.da_dizionario(x, programma) per x in pila]
+                collega_pila(m.corpi[k], m, f"corpo:{k}")
+        ritorna m
+
+
+definisci collega_pila(pila, padre, ruolo):
+    """Imposta padre, ruolo e lista di ogni mattonella di una pila."""
+    per m in pila:
+        m.padre = padre
+        m.ruolo = ruolo
+        m.lista = pila
+
+
+classe Radice:
+    """Un gruppo libero sull'area di lavoro: una pila di istruzioni o un valore sciolto, con posizione."""
+
+    definisci __inizializza__(se_stesso, x=20, y=20, pila=Nessuno, valore=Nessuno):
+        se_stesso.x = x
+        se_stesso.y = y
+        se_stesso.pila = pila se pila è non Nessuno altrimenti []
+        se_stesso.valore = valore
+        se se_stesso.valore è non Nessuno:
+            se_stesso.valore.padre, se_stesso.valore.ruolo = se_stesso, "radice"
+        collega_pila(se_stesso.pila, se_stesso, "radice")
+
+    @property
+    definisci è_valore(se_stesso):
+        ritorna se_stesso.valore è non Nessuno
+
+    definisci mattonelle_di_testa(se_stesso):
+        ritorna [se_stesso.valore] se se_stesso.valore è non Nessuno altrimenti lista(se_stesso.pila)
+
+    definisci a_dizionario(se_stesso):
+        d = {"x": se_stesso.x, "y": se_stesso.y}
+        se se_stesso.valore è non Nessuno:
+            d["valore"] = se_stesso.valore.a_dizionario()
+        altrimenti:
+            d["pila"] = [m.a_dizionario() per m in se_stesso.pila]
+        ritorna d
+
+    @staticmethod
+    definisci da_dizionario(d, programma=Nessuno):
+        se "valore" in d:
+            ritorna Radice(d["x"], d["y"], valore=Mattonella.da_dizionario(d["valore"], programma))
+        ritorna Radice(d["x"], d["y"], pila=[Mattonella.da_dizionario(m, programma) per m in d.get("pila", [])])
+
+
+# --------------------------------------------------------------------------- area di lavoro
+classe Area:
+    """Una "finestra" di lavoro: il flusso principale oppure una funzione. Contiene le radici libere."""
+
+    definisci __inizializza__(se_stesso, tipo_cappello):
+        se_stesso.radici = []
+        se_stesso.dichiarate = []        # variabili create dall'utente e non ancora usate
+        se_stesso.cappello = Mattonella(tipo_cappello)
+        se_stesso.radici.append(Radice(30, 30, pila=[se_stesso.cappello]))
+
+    # --- ricerca
+    definisci tutte(se_stesso):
+        """Tutte le mattonelle dell'area."""
+        per r in se_stesso.radici:
+            per m in r.mattonelle_di_testa():
+                produci m
+                produci da m.figli()
+
+    definisci radice_di(se_stesso, m):
+        while_ = m
+        mentre while_.padre è non Nessuno e non isinstance(while_.padre, Radice):
+            while_ = while_.padre
+        ritorna while_.padre
+
+    definisci è_cappello_fisso(se_stesso, m):
+        ritorna m.tipo in ("avvio", "definisci_funzione")
+
+    # --- operazioni sui collegamenti
+    definisci _estrai_da_pila(se_stesso, m):
+        """Toglie m (e tutto ciò che la segue) dalla sua pila. Ritorna la catena estratta."""
+        lista_ = m.lista
+        i = lista_.index(m)
+        catena = lista_[i:]
+        elimina lista_[i:]
+        ritorna catena
+
+    definisci stacca(se_stesso, m, solo_questa=Falso, x=0, y=0):
+        """Stacca una mattonella dal suo posto e ne fa una radice libera. Ritorna la radice creata.
+
+        Istruzione: porta con sé quelle che la seguono (con solo_questa=Vero solo lei).
+        Valore: lascia vuoto l'ingresso da cui esce."""
+        se m.tipo in ("avvio", "definisci_funzione"):
+            ritorna Nessuno
+        se m.è_valore():
+            padre = m.padre
+            se isinstance(padre, Mattonella) e m.ruolo.startswith("ingresso:"):
+                padre.ingressi[m.ruolo.split(":", 1)[1]] = Nessuno
+            altrimenti_se isinstance(padre, Radice):
+                se_stesso.radici.remove(padre)
+            r = Radice(x, y, valore=m)
+            se_stesso.radici.append(r)
+            ritorna r
+        # istruzione
+        lista_ = m.lista
+        se solo_questa:
+            i = lista_.index(m)
+            catena = [m]
+            elimina lista_[i]
+            collega_pila(lista_, m.padre, m.ruolo)
+            m.padre = Nessuno
+        altrimenti:
+            padre_attuale = m.padre
+            se isinstance(padre_attuale, Radice) e padre_attuale.pila[0] è m:
+                # è la testa di una radice: la sposta e basta
+                ritorna padre_attuale
+            catena = se_stesso._estrai_da_pila(m)
+        r = Radice(x, y, pila=catena)
+        se_stesso.radici.append(r)
+        ritorna r
+
+    definisci _ultima(se_stesso, catena):
+        ritorna catena[-1]
+
+    definisci puo_attaccare_dopo(se_stesso, catena, bersaglio):
+        ritorna bersaglio.def_()["forma"] != "fine" e (non bersaglio.lista[bersaglio.lista.index(bersaglio) + 1:]
+                                                       o catena[-1].def_()["forma"] != "fine")
+
+    definisci attacca_dopo(se_stesso, radice, bersaglio):
+        """Mette la pila della radice subito dopo 'bersaglio'. Le mattonelle che seguivano vanno dopo la catena."""
+        catena = radice.pila
+        se_stesso.radici.remove(radice)
+        lista_ = bersaglio.lista
+        i = lista_.index(bersaglio) + 1
+        resto = lista_[i:]
+        elimina lista_[i:]
+        padre, ruolo = bersaglio.padre, bersaglio.ruolo
+        lista_.extend(catena)
+        lista_.extend(resto)
+        collega_pila(lista_, padre, ruolo)
+
+    definisci attacca_in_corpo(se_stesso, radice, blocco, nome_corpo):
+        """Mette la pila all'inizio di un corpo di blocco (es. dentro un 'se')."""
+        catena = radice.pila
+        se_stesso.radici.remove(radice)
+        corpo = blocco.corpi[nome_corpo]
+        resto = lista(corpo)
+        corpo.clear()
+        corpo.extend(catena)
+        corpo.extend(resto)
+        collega_pila(corpo, blocco, f"corpo:{nome_corpo}")
+
+    definisci attacca_sopra(se_stesso, radice, radice_bersaglio):
+        """Mette la pila sopra la testa di un'altra pila libera (che segue la catena)."""
+        catena = radice.pila
+        se_stesso.radici.remove(radice)
+        radice_bersaglio.pila[0:0] = catena
+        radice_bersaglio.x, radice_bersaglio.y = radice.x, radice.y
+        collega_pila(radice_bersaglio.pila, radice_bersaglio, "radice")
+
+    definisci inserisci_in_ingresso(se_stesso, radice, padre, slot):
+        """Collega un valore a un ingresso. Un valore già presente esce e resta libero vicino."""
+        espr = radice.valore
+        se_stesso.radici.remove(radice)
+        vecchio = padre.ingressi.get(slot)
+        se vecchio è non Nessuno:
+            vecchio.padre, vecchio.ruolo = Nessuno, ""
+            se_stesso.radici.append(Radice(radice.x + 30, radice.y + 30, valore=vecchio))
+        padre.ingressi[slot] = espr
+        espr.padre, espr.ruolo = padre, f"ingresso:{slot}"
+
+    definisci cancella(se_stesso, m, con_seguito=Falso):
+        """Elimina una mattonella con ciò che contiene. Le seguenti si richiudono (o vanno via con lei)."""
+        se m.tipo in ("avvio", "definisci_funzione"):
+            ritorna
+        se m.è_valore():
+            padre = m.padre
+            se isinstance(padre, Mattonella):
+                padre.ingressi[m.ruolo.split(":", 1)[1]] = Nessuno
+            altrimenti_se isinstance(padre, Radice):
+                se_stesso.radici.remove(padre)
+            m.padre = Nessuno
+            ritorna
+        lista_ = m.lista
+        i = lista_.index(m)
+        padre, ruolo = m.padre, m.ruolo
+        se con_seguito:
+            elimina lista_[i:]
+        altrimenti:
+            elimina lista_[i]
+        collega_pila(lista_, padre, ruolo)
+        se isinstance(padre, Radice) e non padre.pila e padre in se_stesso.radici:
+            se_stesso.radici.remove(padre)
+
+    definisci duplica(se_stesso, m, con_seguito=Falso, x=0, y=0, programma=Nessuno):
+        """Copia profonda: ritorna la nuova radice (già aggiunta all'area)."""
+        se m.è_valore():
+            copia = Mattonella.da_dizionario(m.a_dizionario(), programma)
+            r = Radice(x, y, valore=copia)
+        altrimenti:
+            lista_ = m.lista
+            i = lista_.index(m)
+            origine = lista_[i:] se con_seguito altrimenti [m]
+            r = Radice(x, y, pila=[Mattonella.da_dizionario(o.a_dizionario(), programma) per o in origine])
+        se_stesso.radici.append(r)
+        ritorna r
+
+    # --- variabili usate
+    definisci variabili(se_stesso):
+        """Nomi di variabili impostate o usate in quest'area."""
+        nomi = []
+        per m in se_stesso.tutte():
+            per chiave in ("var", "nome"):
+                se chiave in m.campi e m.tipo in ("imposta", "cambia", "per_ogni", "con_file", "variabile", "globale"):
+                    n = (m.campi[chiave] o "").strip()
+                    se n e n non in nomi e nome_variabile_valido(n):
+                        nomi.append(n)
+        ritorna nomi
+
+    # --- serializzazione
+    definisci a_dizionario(se_stesso):
+        ritorna {"radici": [r.a_dizionario() per r in se_stesso.radici], "dichiarate": lista(se_stesso.dichiarate)}
+
+    @staticmethod
+    definisci da_dizionario(d, tipo_cappello, programma=Nessuno):
+        a = Area.__new__(Area)
+        a.dichiarate = lista(d.get("dichiarate", []))
+        a.radici = [Radice.da_dizionario(r, programma) per r in d.get("radici", [])]
+        a.cappello = Nessuno
+        per m in a.tutte():
+            se m.tipo == tipo_cappello e a.cappello è Nessuno:
+                a.cappello = m
+        se a.cappello è Nessuno:
+            a.cappello = Mattonella(tipo_cappello, programma)
+            a.radici.insert(0, Radice(30, 30, pila=[a.cappello]))
+        ritorna a
+
+
+_RE_NOME = re.compile(r"^[^\W\d]\w*$")
+PAROLE_RISERVATE = {"classe", "definisci", "se", "per", "da", "con", "e", "o", "non", "in", "passa", "prova", "mentre",
+                    "ritorna", "importa", "lambda", "elimina", "attendi", "asincrono", "Vero", "Falso", "Nessuno",
+                    "come", "eccetto", "infine", "solleva", "produci", "globale", "interrompi", "continua",
+                    "altrimenti", "altrimenti_se", "è", "nonlocale", "asserisci", "confronta", "caso"}
+
+
+definisci senza_parentesi(codice):
+    """Toglie le parentesi esterne di '(a + b)' quando racchiudono tutto il testo."""
+    se non (codice.startswith("(") e codice.endswith(")")):
+        ritorna codice
+    profondita = 0
+    virgolette = ""
+    per i, c in enumera(codice):
+        se virgolette:
+            se c == virgolette e codice[i - 1] != "\\":
+                virgolette = ""
+            continua
+        se c in "\"'":
+            virgolette = c
+        altrimenti_se c == "(":
+            profondita += 1
+        altrimenti_se c == ")":
+            profondita -= 1
+            se profondita == 0 e i < lunghezza(codice) - 1:
+                ritorna codice
+    ritorna codice[1:-1]
+
+
+definisci nome_variabile_valido(nome):
+    ritorna bool(_RE_NOME.match(nome)) e nome non in PAROLE_RISERVATE
+
+
+# --------------------------------------------------------------------------- funzioni e programma
+classe Funzione:
+    """Una funzione costruita a mattonelle: la sua area ha come cappello 'definisci_funzione'."""
+
+    definisci __inizializza__(se_stesso, nome="funzione", parametri=""):
+        se_stesso.area = Area("definisci_funzione")
+        se_stesso.area.cappello.campi["nome"] = nome
+        se_stesso.area.cappello.campi["parametri"] = parametri
+
+    @property
+    definisci nome(se_stesso):
+        ritorna (se_stesso.area.cappello.campi.get("nome") o "").strip()
+
+    definisci parametri_testo(se_stesso):
+        """I parametri come sono scritti (possono avere valori predefiniti)."""
+        ritorna (se_stesso.area.cappello.campi.get("parametri") o "").strip()
+
+    definisci parametri(se_stesso):
+        """Solo i nomi dei parametri."""
+        nomi = []
+        profondita = 0
+        pezzo = ""
+        per c in se_stesso.parametri_testo() + ",":
+            se c in "([{":
+                profondita += 1
+            altrimenti_se c in ")]}":
+                profondita -= 1
+            se c == "," e profondita == 0:
+                n = pezzo.strip().lstrip("*").strip()
+                n = re.split(r"[=:]", n)[0].strip()
+                se n e n != "/":
+                    nomi.append(n)
+                pezzo = ""
+            altrimenti:
+                pezzo += c
+        ritorna nomi
+
+    definisci restituisce_valore(se_stesso):
+        ritorna any(m.tipo == "ritorna" e (m.ingressi.get("valore") è non Nessuno o (m.letterali.get("valore") o "").strip())
+                    per m in se_stesso.area.tutte())
+
+
+classe Programma:
+    """Il programma intero: funzioni (ognuna nella sua finestra) e flusso principale."""
+
+    definisci __inizializza__(se_stesso, nome="programma"):
+        se_stesso.nome = nome
+        se_stesso.variabili_globali = []
+        se_stesso.importazioni = []        # righe di import a livello di modulo ("importa x", "da a importa b")
+        se_stesso.codice_iniziale = ""     # codice di modulo scritto a mano (classi, costanti...)
+        se_stesso.funzioni = []
+        se_stesso.principale = Area("avvio")
+        se_stesso.versione = 1
+
+    # --- funzioni
+    definisci funzione(se_stesso, nome):
+        per f in se_stesso.funzioni:
+            se f.nome == nome:
+                ritorna f
+        ritorna Nessuno
+
+    definisci nome_funzione_libero(se_stesso, base="funzione"):
+        n = 1
+        mentre se_stesso.funzione(f"{base}{n}"):
+            n += 1
+        ritorna f"{base}{n}"
+
+    definisci aggiungi_funzione(se_stesso, nome=Nessuno, parametri=""):
+        nome = nome o se_stesso.nome_funzione_libero()
+        se non nome_variabile_valido(nome) o se_stesso.funzione(nome):
+            nome = se_stesso.nome_funzione_libero()
+        f = Funzione(nome, parametri)
+        se_stesso.funzioni.append(f)
+        ritorna f
+
+    definisci rimuovi_funzione(se_stesso, nome):
+        se_stesso.funzioni = [f per f in se_stesso.funzioni se f.nome != nome]
+
+    definisci rinomina_funzione(se_stesso, vecchio, nuovo):
+        """Rinomina e aggiorna tutte le chiamate. Ritorna Falso se il nome non è valido o è già usato."""
+        f = se_stesso.funzione(vecchio)
+        se f è Nessuno o non nome_variabile_valido(nuovo) o (se_stesso.funzione(nuovo) e nuovo != vecchio):
+            ritorna Falso
+        f.area.cappello.campi["nome"] = nuovo
+        per area in se_stesso.aree():
+            per m in area.tutte():
+                per prefisso in ("fn:", "fnv:"):
+                    se m.tipo == prefisso + vecchio:
+                        m.tipo = prefisso + nuovo
+        ritorna Vero
+
+    definisci aree(se_stesso):
+        ritorna [se_stesso.principale] + [f.area per f in se_stesso.funzioni]
+
+    definisci mattonelle_funzione(se_stesso):
+        """Tipi dinamici (chiamata come istruzione e come valore) per la tavolozza."""
+        risultato = []
+        per f in se_stesso.funzioni:
+            se f.nome:
+                risultato.append("fn:" + f.nome)
+                risultato.append("fnv:" + f.nome)
+        ritorna risultato
+
+    # --- variabili
+    definisci variabili_visibili(se_stesso, area):
+        """Parametri della funzione + variabili usate nell'area + variabili globali del programma."""
+        nomi = []
+        per f in se_stesso.funzioni:
+            se f.area è area:
+                nomi.extend(f.parametri())
+        nomi.extend(se_stesso.variabili_globali)
+        nomi.extend(area.dichiarate)
+        nomi.extend(area.variabili())
+        visti = []
+        per n in nomi:
+            se n non in visti:
+                visti.append(n)
+        ritorna visti
+
+    # --- serializzazione
+    definisci a_dizionario(se_stesso):
+        ritorna {"versione": se_stesso.versione, "nome": se_stesso.nome, "variabili_globali": se_stesso.variabili_globali,
+                 "importazioni": lista(se_stesso.importazioni), "codice_iniziale": se_stesso.codice_iniziale,
+                 "principale": se_stesso.principale.a_dizionario(),
+                 "funzioni": [f.area.a_dizionario() per f in se_stesso.funzioni]}
+
+    definisci a_json(se_stesso):
+        ritorna json.dumps(se_stesso.a_dizionario(), indent=1, ensure_ascii=Falso)
+
+    @staticmethod
+    definisci da_dizionario(d):
+        p = Programma(d.get("nome", "programma"))
+        p.variabili_globali = lista(d.get("variabili_globali", []))
+        p.importazioni = lista(d.get("importazioni", []))
+        p.codice_iniziale = d.get("codice_iniziale", "")
+        dati = d.get("funzioni", [])
+        # prima si registrano nome e parametri di ogni funzione, cosi' le chiamate trovano la definizione
+        per ad in dati:
+            f = Funzione()
+            per r in ad.get("radici", []):
+                per m in r.get("pila", []):
+                    se m.get("t") == "definisci_funzione":
+                        f.area.cappello.campi.update(m.get("c", {}))
+            p.funzioni.append(f)
+        # poi si ricostruiscono le aree complete
+        per f, ad in zip(p.funzioni, dati):
+            f.area = Area.da_dizionario(ad, "definisci_funzione", p)
+        p.principale = Area.da_dizionario(d.get("principale", {}), "avvio", p)
+        ritorna p
+
+    @staticmethod
+    definisci da_json(testo_):
+        ritorna Programma.da_dizionario(json.loads(testo_))
+
+
+# --------------------------------------------------------------------------- generazione del codice
+classe Generatore:
+    """Trasforma un Programma in codice pytonIta. Raccoglie anche gli avvisi (ingressi vuoti, pile sciolte...)."""
+    RIENTRO = "    "
+
+    definisci __inizializza__(se_stesso, programma):
+        se_stesso.programma = programma
+        se_stesso.avvisi = []
+        se_stesso.importazioni = []
+        se_stesso._area = ""
+
+    # --- espressioni
+    definisci ingresso(se_stesso, m, slot, tipo_slot):
+        """Codice di un ingresso: la mattonella collegata oppure il valore scritto a mano."""
+        figlio = m.ingressi.get(slot)
+        se figlio è non Nessuno:
+            codice = se_stesso.espressione(figlio)
+            se m.def_(se_stesso.programma)["forma"] in FORME_ISTRUZIONE:
+                codice = senza_parentesi(codice)
+            ritorna codice
+        letterale = (m.letterali.get(slot) o "")
+        se tipo_slot == "numero":
+            l = letterale.strip()
+            se re.fullmatch(r"-?\d+(\.\d+)?", l):
+                ritorna l
+            se l:
+                ritorna l           # espressione scritta a mano
+            se_stesso.avvisi.append(f"{se_stesso._area}: numero mancante in «{m.tipo}»")
+            ritorna "0"
+        se tipo_slot == "testo":
+            ritorna repr(letterale)
+        # valore / booleano: testo libero
+        se letterale.strip():
+            l = letterale.strip()
+            se re.fullmatch(r"-?\d+(\.\d+)?|Vero|Falso|Nessuno|[^\W\d]\w*(\.\w+)*(\(.*\))?|\[.*\]|\{.*\}|\".*\"|'.*'", l):
+                ritorna l
+            ritorna repr(letterale)         # frase libera: diventa testo
+        se m.def_(se_stesso.programma)["forma"] != "fine" o slot != "valore":
+            se_stesso.avvisi.append(f"{se_stesso._area}: ingresso «{slot}» vuoto in «{m.tipo}»")
+        ritorna "Nessuno"
+
+    definisci espressione(se_stesso, m):
+        d = m.def_(se_stesso.programma)
+        se_stesso.importazioni.extend(x per x in d["importa"] se x non in se_stesso.importazioni)
+        modello = d["codice"]
+        se modello == "@lista_di":
+            voci = []
+            per slot in ("a", "b", "c"):
+                se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip():
+                    voci.append(se_stesso.ingresso(m, slot, "valore"))
+            ritorna "[" + ", ".join(voci) + "]"
+        se modello == "@chiama":
+            argomenti = [se_stesso.ingresso(m, slot, "valore") per slot in ("a", "b", "c")
+                         se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip()]
+            ritorna f"{(m.campi.get('nome') o 'funzione').strip()}({', '.join(argomenti)})"
+        se modello == "@stampa":
+            argomenti = [se_stesso.ingresso(m, "valore", "valore")]
+            per slot in ("valore2", "valore3"):
+                se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip():
+                    argomenti.append(se_stesso.ingresso(m, slot, "valore"))
+            ritorna f"stampa({', '.join(argomenti)})"
+        se modello == "@espressione_libera":
+            ritorna (m.campi.get("testo") o "").strip() o "Nessuno"
+        se modello.startswith("@chiamata:"):
+            nome = modello.split(":", 1)[1]
+            argomenti = [se_stesso.ingresso(m, f"p{i}", "valore") per i in intervallo(lunghezza(ingressi_di(d)))]
+            ritorna f"{nome}({', '.join(argomenti)})"
+        ritorna se_stesso._applica(modello, m, d)
+
+    definisci _applica(se_stesso, modello, m, d):
+        tipi_slot = {i[1]: i[2] per i in ingressi_di(d)}
+        valori = {}
+        per slot, t in tipi_slot.items():
+            valori[slot] = se_stesso.ingresso(m, slot, t)
+        per k, v in m.campi.items():
+            valori[k] = v
+        # {campo!r} = repr del valore del campo
+        def_sost = lambda mm: (repr(testo(valori.get(mm.group(1), ""))) se mm.group(2) == "!r" altrimenti testo(valori.get(mm.group(1), "")))
+        ritorna re.sub(r"\{(\w+)(!r)?\}", def_sost, modello)
+
+    # --- istruzioni
+    definisci istruzioni(se_stesso, pila, livello):
+        righe = []
+        pad = se_stesso.RIENTRO * livello
+        per m in pila:
+            d = m.def_(se_stesso.programma)
+            se_stesso.importazioni.extend(x per x in d["importa"] se x non in se_stesso.importazioni)
+            se d["forma"] == "blocco":
+                forza_eccetto = m.tipo == "prova" e non m.corpi.get("errore") e non m.corpi.get("infine")
+                per i, (nome_corpo, etichetta) in enumera(d["corpi"]):
+                    corpo = m.corpi.get(nome_corpo, [])
+                    se i > 0 e non corpo e non (forza_eccetto e nome_corpo == "errore"):
+                        continua
+                    intestazione = se_stesso._applica(d["intestazioni"][i], m, d)
+                    righe.append(pad + intestazione)
+                    interno = se_stesso.istruzioni(corpo, livello + 1)
+                    righe.extend(interno o [pad + se_stesso.RIENTRO + "passa"])
+            altrimenti_se d["codice"] == "@riga_libera":
+                testo_ = (m.campi.get("testo") o "").rstrip()
+                righe.extend(pad + riga per riga in (testo_.split("\n") se testo_ altrimenti ["passa"]))
+            altrimenti_se d["codice"].startswith("@chiamata:") o m.tipo.startswith("fn:"):
+                nome = m.tipo.split(":", 1)[1]
+                argomenti = [se_stesso.ingresso(m, f"p{i}", "valore") per i in intervallo(lunghezza(ingressi_di(d)))]
+                righe.append(pad + f"{nome}({', '.join(argomenti)})")
+            altrimenti_se d["forma"] in FORME_VALORE:
+                se_stesso.avvisi.append(f"{se_stesso._area}: un valore ({m.tipo}) è finito tra le istruzioni")
+            altrimenti_se d["codice"] in ("@chiama", "@stampa"):
+                righe.append(pad + se_stesso.espressione(m))
+            altrimenti_se d["codice"]:
+                riga = se_stesso._applica(d["codice"], m, d)
+                se m.tipo == "ritorna" e riga.strip() in ("ritorna Nessuno",):
+                    riga = "ritorna"
+                righe.append(pad + riga)
+        ritorna righe
+
+    definisci avvisi_pile_sciolte(se_stesso, area, nome_area):
+        per r in area.radici:
+            se r.è_valore:
+                se_stesso.avvisi.append(f"{nome_area}: valore sciolto «{r.valore.tipo}» non collegato")
+            altrimenti_se r.pila e r.pila[0].tipo non in ("avvio", "definisci_funzione"):
+                se_stesso.avvisi.append(f"{nome_area}: gruppo di {lunghezza(r.pila)} mattonelle non collegato a nulla (non verrà eseguito)")
+
+    definisci dichiarazioni_globali(se_stesso, area, parametri):
+        """Righe 'globale x' per le variabili globali che l'area modifica."""
+        nomi = []
+        gia = {(m.campi.get("var") o "").strip() per m in area.tutte() se m.tipo == "globale"}
+        per m in area.tutte():
+            se m.tipo in ("imposta", "cambia", "per_ogni", "con_file"):
+                n = (m.campi.get("var") o "").strip()
+                se n in se_stesso.programma.variabili_globali e n non in parametri e n non in nomi e n non in gia:
+                    nomi.append(n)
+        ritorna [se_stesso.RIENTRO + f"globale {n}" per n in nomi]
+
+    # --- programma intero
+    definisci genera(se_stesso):
+        p = se_stesso.programma
+        parti_funzioni = []
+        per f in p.funzioni:
+            se_stesso._area = f"funzione {f.nome}"
+            se non nome_variabile_valido(f.nome):
+                se_stesso.avvisi.append(f"nome di funzione non valido: «{f.nome}»")
+            corpo = se_stesso.dichiarazioni_globali(f.area, f.parametri()) + se_stesso.istruzioni(f.area.cappello.lista[1:], 1)
+            se_stesso.avvisi_pile_sciolte(f.area, f"funzione {f.nome}")
+            parametri = f.parametri_testo()
+            parti_funzioni.append(f"definisci {f.nome}({parametri}):\n" + "\n".join(corpo o [se_stesso.RIENTRO + "passa"]))
+        se_stesso._area = "programma principale"
+        principale = se_stesso.dichiarazioni_globali(p.principale, []) + se_stesso.istruzioni(p.principale.cappello.lista[1:], 1)
+        se_stesso.avvisi_pile_sciolte(p.principale, "programma principale")
+        righe = ['"""' + p.nome + " — generato da PitStudio (mattonelle). Modifica il disegno, non questo file.\"\"\""]
+        per riga_import in p.importazioni:
+            se riga_import.strip():
+                righe.append(riga_import.strip())
+        per modulo in se_stesso.importazioni:
+            righe.append(f"importa {modulo}")
+        se p.variabili_globali:
+            righe.append("")
+            per v in p.variabili_globali:
+                righe.append(f"{v} = Nessuno")
+        se p.codice_iniziale.strip():
+            righe.append("")
+            righe.append("")
+            righe.extend(p.codice_iniziale.rstrip().split("\n"))
+        per blocco in parti_funzioni:
+            righe.append("")
+            righe.append("")
+            righe.append(blocco)
+        nome_main = "avvia_programma" se p.funzione("principale") altrimenti "principale"
+        righe.append("")
+        righe.append("")
+        righe.append(f"definisci {nome_main}():")
+        righe.extend(principale o [se_stesso.RIENTRO + "passa"])
+        righe.append("")
+        righe.append("")
+        righe.append('se __nome__ == "__main__":')
+        righe.append(f"    {nome_main}()")
+        ritorna "\n".join(righe) + "\n"
+
+
+definisci genera_codice(programma):
+    """(codice, avvisi)"""
+    g = Generatore(programma)
+    codice = g.genera()
+    ritorna codice, g.avvisi
+
+
+# --------------------------------------------------------------------------- validazione
+definisci valida_dizionario(d):
+    """Controlla un programma descritto come dizionario (es. scritto dall'AI). Ritorna l'elenco dei problemi."""
+    problemi = []
+    nomi_funzioni = set()
+    per ad in d.get("funzioni", []):
+        per r in ad.get("radici", []):
+            per m in r.get("pila", []):
+                se m.get("t") == "definisci_funzione":
+                    nomi_funzioni.add(m.get("c", {}).get("nome", ""))
+
+    definisci tessera(t, percorso, atteso):
+        se non isinstance(t, dict) o "t" non in t:
+            problemi.append(f"{percorso}: mattonella senza tipo ('t')")
+            ritorna
+        tipo_ = t["t"]
+        se tipo_ in TIPI:
+            d_ = TIPI[tipo_]
+            slot = {i[1] per i in ingressi_di(d_)}
+            campi = {c[1] per c in campi_di(d_)}
+            corpi = {c[0] per c in d_["corpi"]}
+            libero = Falso
+        altrimenti_se (tipo_.startswith("fn:") o tipo_.startswith("fnv:")) e tipo_.split(":", 1)[1] in nomi_funzioni:
+            d_ = {"forma": "istruzione" se tipo_.startswith("fn:") altrimenti "valore"}
+            slot, campi, corpi, libero = set(), set(), set(), Vero
+        altrimenti:
+            problemi.append(f"{percorso}: tipo sconosciuto «{tipo_}»")
+            ritorna
+        forma = d_["forma"]
+        se atteso == "valore" e forma non in FORME_VALORE:
+            problemi.append(f"{percorso}: «{tipo_}» non è un valore e non può stare in un ingresso")
+        se atteso == "istruzione" e forma non in FORME_ISTRUZIONE:
+            problemi.append(f"{percorso}: «{tipo_}» è un valore e non può stare tra le istruzioni")
+        per k, sub in t.get("i", {}).items():
+            se k non in slot e non (libero e re.fullmatch(r"p\d+", k)):
+                problemi.append(f"{percorso}.{tipo_}: ingresso sconosciuto «{k}» (validi: {', '.join(sorted(slot)) o 'nessuno'})")
+            tessera(sub, f"{percorso}.{tipo_}.{k}", "valore")
+        per k in t.get("l", {}):
+            se k non in slot e non libero:
+                problemi.append(f"{percorso}.{tipo_}: valore scritto in ingresso sconosciuto «{k}»")
+        per k in t.get("c", {}):
+            se k non in campi:
+                problemi.append(f"{percorso}.{tipo_}: campo sconosciuto «{k}» (validi: {', '.join(sorted(campi)) o 'nessuno'})")
+        per k, pila in t.get("b", {}).items():
+            se k non in corpi:
+                problemi.append(f"{percorso}.{tipo_}: corpo sconosciuto «{k}» (validi: {', '.join(sorted(corpi)) o 'nessuno'})")
+                continua
+            per j, sub in enumera(pila):
+                tessera(sub, f"{percorso}.{tipo_}.{k}[{j}]", "istruzione")
+
+    per nome, area in [("principale", d.get("principale", {}))] + [(f"funzione {i}", a) per i, a in enumera(d.get("funzioni", []))]:
+        per ri, r in enumera(area.get("radici", [])):
+            se "valore" in r:
+                tessera(r["valore"], f"{nome}.radice{ri}", "valore")
+            altrimenti:
+                per j, m in enumera(r.get("pila", [])):
+                    tessera(m, f"{nome}.radice{ri}[{j}]", "istruzione")
+    ritorna problemi
+
+
+definisci catalogo_tipi():
+    """Descrizione compatta di tutti i tipi di mattonella (per l'AI)."""
+    righe = []
+    per tipo_, d_ in TIPI.items():
+        ingressi = ", ".join(f"{i[1]}:{i[2]}" per i in ingressi_di(d_))
+        campi = ", ".join(f"{c[1]}" per c in campi_di(d_))
+        corpi = ", ".join(c[0] per c in d_["corpi"])
+        righe.append(f"{tipo_} [{d_['forma']}/{d_['cat']}]" + (f" ingressi({ingressi})" se ingressi altrimenti "")
+                     + (f" campi({campi})" se campi altrimenti "") + (f" corpi({corpi})" se corpi altrimenti "")
+                     + (f" — {d_['descrizione']}" se d_["descrizione"] altrimenti ""))
+    ritorna "\n".join(righe)
+
+
+# --------------------------------------------------------------------------- file
+SUFFISSO = ".mattonelle.json"
+
+
+definisci percorsi_programma(cartella, nome):
+    base = nome.lower()
+    ritorna {"json": os.path.join(cartella, base + SUFFISSO), "codice": os.path.join(cartella, base + ".pit")}
+
+
+definisci salva_programma(programma, cartella):
+    """Scrive nome.mattonelle.json e nome.pit. Ritorna ((percorsi), avvisi)."""
+    p = percorsi_programma(cartella, programma.nome)
+    codice, avvisi = genera_codice(programma)
+    con open(p["json"], "w", encoding="utf-8") come f:
+        f.write(programma.a_json())
+    con open(p["codice"], "w", encoding="utf-8", newline="\n") come f:
+        f.write(codice)
+    ritorna [p["json"], p["codice"]], avvisi
+
+
+definisci carica_programma(percorso_json):
+    con open(percorso_json, encoding="utf-8") come f:
+        ritorna Programma.da_json(f.read())
+
+
+# --------------------------------------------------------------------------- esempio
+definisci programma_di_esempio(nome="principale"):
+    """Un piccolo programma completo: una funzione 'saluta' e un flusso che la usa."""
+    p = Programma(nome)
+    f = p.aggiungi_funzione("saluta", "nome")
+    cap = f.area.cappello
+    stampa_ = Mattonella("stampa", p)
+    uni = Mattonella("unisci", p)
+    uni.letterali["a"] = "Ciao, "
+    var = Mattonella("variabile", p)
+    var.campi["nome"] = "nome"
+    uni.ingressi["b"] = var
+    var.padre, var.ruolo = uni, "ingresso:b"
+    stampa_.ingressi["valore"] = uni
+    uni.padre, uni.ruolo = stampa_, "ingresso:valore"
+    cap.lista.append(stampa_)
+    collega_pila(cap.lista, cap.padre, "radice")
+    # flusso principale
+    cp = p.principale.cappello
+    leggi = Mattonella("leggi", p)
+    leggi.letterali["messaggio"] = "Come ti chiami? "
+    imposta = Mattonella("imposta", p)
+    imposta.campi["var"] = "persona"
+    imposta.ingressi["valore"] = leggi
+    leggi.padre, leggi.ruolo = imposta, "ingresso:valore"
+    ripeti = Mattonella("ripeti", p)
+    ripeti.letterali["n"] = "3"
+    chiama = Mattonella("fn:saluta", p)
+    v2 = Mattonella("variabile", p)
+    v2.campi["nome"] = "persona"
+    chiama.ingressi["p0"] = v2
+    v2.padre, v2.ruolo = chiama, "ingresso:p0"
+    ripeti.corpi["corpo"].append(chiama)
+    collega_pila(ripeti.corpi["corpo"], ripeti, "corpo:corpo")
+    cp.lista.extend([imposta, ripeti])
+    collega_pila(cp.lista, cp.padre, "radice")
+    ritorna p

@@ -1,0 +1,85 @@
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x860+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "ProvaDebug")
+Progetto.nuovo(cart, "ProvaDebug", "vuoto")
+p = Progetto(cart)
+p.crea_file("principale.pit", '''definisci somma(a, b):
+    r = a + b
+    ritorna r
+
+
+totale = 0
+per i in intervallo(3):
+    totale = somma(totale, i)
+    stampa("giro", i, totale)
+stampa("fine", totale)
+''')
+p.manifesto["principale"] = "principale.pit"
+p.salva_manifesto()
+app.apri_progetto(cart)
+principale = os.path.join(cart, "principale.pit")
+ed = app.apri_file(principale)
+radice.update()
+
+definisci aspetta_che(condizione, secondi=15):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione():
+            ritorna Vero
+        time.sleep(0.03)
+    ritorna Falso
+
+ed.alterna_punto_arresto(8)
+stampa("punti nell'editor:", sorted(ed.punti_arresto), "| nell'app:", {os.path.basename(k): sorted(v) per k, v in app.punti_arresto.items()})
+stampa("avvio:", app.debug.avvia(principale))
+stampa("fermo alla prima sosta:", aspetta_che(lambda: app.debug.fermo))
+pan = app.debug.pannello
+stampa("stato:", pan.stato.cget("text"), "| riga evidenziata:", ed.riga_debug)
+stampa("variabili:", [" = ".join(pan.variabili.item(i, "values")[:2]) per i in pan.variabili.get_children()])
+app.debug.aggiungi_osservata("totale * 10")
+stampa("osservata:", aspetta_che(lambda: pan.osservate.get_children() e pan.osservate.item(pan.osservate.get_children()[0], "values")[0] != "…"),
+       [pan.osservate.item(i, "values") per i in pan.osservate.get_children()])
+# entra nella funzione somma
+app.debug.comando("entra")
+stampa("dentro la funzione:", aspetta_che(lambda: app.debug.fermo), ed.riga_debug, "| pila:", pan.pila.size())
+app.debug.comando("entra")
+aspetta_che(lambda: app.debug.fermo)
+stampa("variabili in somma:", [" = ".join(pan.variabili.item(i, "values")[:2]) per i in pan.variabili.get_children()], "| pila:", [pan.pila.get(i) per i in intervallo(pan.pila.size())])
+radice.update(); time.sleep(0.3); radice.update()
+x, y = radice.winfo_rootx(), radice.winfo_rooty()
+ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(tempfile.gettempdir(), "debug_prova.png"))
+app.debug.comando("esci")
+stampa("uscito:", aspetta_che(lambda: app.debug.fermo), ed.riga_debug)
+app.debug.comando("continua")
+aspetta_che(lambda: app.debug.fermo)
+app.debug.comando("continua")
+aspetta_che(lambda: app.debug.fermo)
+app.debug.comando("continua")
+stampa("terminato:", aspetta_che(lambda: non app.debug.attiva))
+radice.update()
+testo_ = app.console.t.get("1.0", "end")
+stampa("console contiene output:", "giro 2 3" in testo_, "fine 3" in testo_, "terminato" in testo_)
+stampa("senza residui di protocollo:", chr(1) non in testo_ e "DBG" non in testo_)
+stampa("pannello nascosto:", str(pan) non in [testo(x) per x in app.centro.panes()], "| marcatore tolto:", ed.riga_debug è Nessuno)
+app.salva_sessione()
+app.punti_arresto = {}
+app.ripristina_sessione()
+stampa("punti dopo ripristino:", {os.path.basename(k): sorted(v) per k, v in app.punti_arresto.items()})
+# avvio passo passo dalla prima riga
+stampa("avvio inizio:", app.debug.avvia(principale, Vero), aspetta_che(lambda: app.debug.fermo), ed.riga_debug)
+app.debug.comando("ferma")
+radice.update()
+stampa("fermato:", non app.debug.attiva)
+radice.destroy()

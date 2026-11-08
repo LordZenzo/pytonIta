@@ -1,0 +1,41 @@
+importa sys, os, tempfile, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.mattonelle_modello importa *
+
+p = programma_di_esempio("demo")
+codice, avvisi = genera_codice(p)
+stampa(codice)
+stampa("avvisi:", avvisi)
+cartella = tempfile.mkdtemp()
+percorsi, av = salva_programma(p, cartella)
+r = subprocess.run([sys.executable, percorsi[1]], input="Anna\n", capture_output=Vero, text=Vero)
+stampa("esecuzione:", r.returncode, repr(r.stdout), r.stderr[-200:])
+q = carica_programma(percorsi[0])
+stampa("ricaricato uguale:", q.a_json() == p.a_json(), genera_codice(q)[0] == codice)
+
+a = q.principale
+cap = a.cappello
+stampa("pila principale:", [m.tipo per m in cap.lista])
+ripeti = cap.lista[2]
+chiama = ripeti.corpi["corpo"][0]
+r1 = a.stacca(chiama, x=300, y=40)
+stampa("dopo stacca:", ripeti.corpi["corpo"], [x.tipo per x in r1.pila], lunghezza(a.radici))
+a.attacca_dopo(r1, cap.lista[1])
+stampa("ricollegata:", [m.tipo per m in cap.lista])
+imposta = cap.lista[1]
+leggi = imposta.ingressi["valore"]
+rv = a.stacca(leggi, x=200, y=200)
+stampa("valore staccato:", imposta.ingressi["valore"], rv.valore.tipo, rv.è_valore)
+g, av2 = genera_codice(q)
+stampa("avvisi con ingresso vuoto:", av2)
+a.inserisci_in_ingresso(rv, imposta, "valore")
+stampa("rimesso:", imposta.ingressi["valore"].tipo, lunghezza(a.radici))
+radice_ripeti = a.stacca(ripeti, x=10, y=300)
+stampa("pila ripeti staccata:", [m.tipo per m in radice_ripeti.pila], [m.tipo per m in cap.lista])
+se_ = Mattonella("se", q)
+r_se = Radice(400, 100, pila=[se_])
+a.radici.append(r_se)
+a.attacca_in_corpo(radice_ripeti, se_, "corpo")
+stampa("dentro il se:", [m.tipo per m in se_.corpi["corpo"]])
+stampa("rinomina:", q.rinomina_funzione("saluta", "dai_il_benvenuto"), "dai_il_benvenuto" in genera_codice(q)[0])
+stampa("tipi:", lunghezza(TIPI), "categorie", lunghezza(CATEGORIE))

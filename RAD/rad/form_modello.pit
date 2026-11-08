@@ -1,0 +1,499 @@
+"""Modello dei form (finestre disegnate) e generazione del codice pytonIta. Senza grafica."""
+importa copy
+importa json
+importa os
+importa re
+
+# Tipi di componenti: classe tkinter (in italiano), modulo, proprietà con valori predefiniti
+# proprietà: nome -> (tipo, predefinito, descrizione). tipo: testo | numero | si_no | scelta:a,b | colore |
+#            elenco | file | evento
+COMUNI = {
+    "stato": ("scelta:normale,disabilitato", "normale", "Stato"),
+    "sfondo": ("colore", "", "Colore di sfondo"),
+    "primo_piano": ("colore", "", "Colore del testo"),
+    "carattere": ("testo", "", "Carattere (es. Segoe UI 11 bold)"),
+}
+
+TIPI = {
+    "Pulsante": dict(classe_tk="Pulsante", modulo="tk", larghezza=100, altezza=30, icona="▭",
+                     proprieta={"testo": ("testo", "Pulsante", "Testo"),
+                                "al_clic": ("evento", "", "Evento: clic")}),
+    "Etichetta": dict(classe_tk="Etichetta", modulo="tk", larghezza=100, altezza=24, icona="A",
+                      proprieta={"testo": ("testo", "Etichetta", "Testo"),
+                                 "allineamento": ("scelta:sinistra,centro,destra", "sinistra", "Allineamento"),
+                                 "ancora": ("scelta:w,center,e", "w", "Ancora")}),
+    "CampoTesto": dict(classe_tk="CampoTesto", modulo="tk", larghezza=160, altezza=26, icona="▁",
+                       proprieta={"testo": ("testo", "", "Testo iniziale"),
+                                  "nascondi": ("si_no", Falso, "Nascondi (password)"),
+                                  "al_invio": ("evento", "", "Evento: Invio")}),
+    "AreaTesto": dict(classe_tk="AreaTesto", modulo="tk", larghezza=240, altezza=120, icona="¶",
+                      proprieta={"testo": ("testo", "", "Testo iniziale"),
+                                 "a_capo": ("si_no", Vero, "A capo automatico")}),
+    "Elenco": dict(classe_tk="Elenco", modulo="tk", larghezza=140, altezza=120, icona="☰",
+                   proprieta={"elementi": ("elenco", [], "Elementi"),
+                              "al_selezione": ("evento", "", "Evento: selezione")}),
+    "CasellaSelezione": dict(classe_tk="CasellaSelezione", modulo="tk", larghezza=140, altezza=24, icona="☑",
+                             proprieta={"testo": ("testo", "Casella", "Testo"),
+                                        "selezionata": ("si_no", Falso, "Selezionata"),
+                                        "al_clic": ("evento", "", "Evento: clic")}),
+    "PulsanteOpzione": dict(classe_tk="PulsanteOpzione", modulo="tk", larghezza=140, altezza=24, icona="◉",
+                            proprieta={"testo": ("testo", "Opzione", "Testo"),
+                                       "gruppo": ("testo", "gruppo1", "Gruppo"),
+                                       "valore": ("testo", "1", "Valore"),
+                                       "selezionata": ("si_no", Falso, "Selezionata"),
+                                       "al_clic": ("evento", "", "Evento: clic")}),
+    "Cursore": dict(classe_tk="Cursore", modulo="tk", larghezza=180, altezza=48, icona="⎯●",
+                    proprieta={"da": ("numero", 0, "Minimo"), "a": ("numero", 100, "Massimo"),
+                               "valore": ("numero", 0, "Valore"),
+                               "orientamento": ("scelta:orizzontale,verticale", "orizzontale", "Orientamento"),
+                               "al_cambio": ("evento", "", "Evento: cambio")}),
+    "CasellaCombinata": dict(classe_tk="CasellaCombinata", modulo="tema", larghezza=160, altezza=26, icona="▾",
+                             proprieta={"valori": ("elenco", ["uno", "due"], "Valori"),
+                                        "valore": ("testo", "", "Valore iniziale"),
+                                        "al_selezione": ("evento", "", "Evento: selezione")}),
+    "BarraProgresso": dict(classe_tk="BarraProgresso", modulo="tema", larghezza=200, altezza=20, icona="▰",
+                           proprieta={"massimo": ("numero", 100, "Massimo"), "valore": ("numero", 30, "Valore")}),
+    "Albero": dict(classe_tk="Albero", modulo="tema", larghezza=240, altezza=140, icona="⊞",
+                   proprieta={"colonne": ("elenco", ["Nome", "Valore"], "Colonne"),
+                              "al_selezione": ("evento", "", "Evento: selezione")}),
+    "Tela": dict(classe_tk="Tela", modulo="tk", larghezza=200, altezza=140, icona="◩",
+                 proprieta={"sfondo": ("colore", "#ffffff", "Sfondo")}),
+    "Riquadro": dict(classe_tk="Riquadro", modulo="tk", larghezza=200, altezza=120, icona="□",
+                     proprieta={"rilievo": ("scelta:piatto,rialzato,incavato,solido", "solido", "Rilievo"),
+                                "bordo": ("numero", 1, "Spessore bordo")}),
+    "Immagine": dict(classe_tk="Etichetta", modulo="tk", larghezza=120, altezza=90, icona="🖼",
+                     proprieta={"file": ("file", "", "File immagine (relativo al progetto)")}),
+    "Separatore": dict(classe_tk="Separatore", modulo="tema", larghezza=200, altezza=4, icona="─",
+                       proprieta={"orientamento": ("scelta:orizzontale,verticale", "orizzontale", "Orientamento")}),
+}
+ORDINE_PALETTE = ["Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione",
+                  "PulsanteOpzione", "Cursore", "CasellaCombinata", "BarraProgresso", "Albero",
+                  "Tela", "Riquadro", "Immagine", "Separatore"]
+
+_RE_NOME = re.compile(r"^[^\W\d]\w*$")
+PAROLE_RISERVATE = {"classe", "definisci", "se", "per", "da", "con", "e", "o", "non", "in", "passa",
+                    "prova", "mentre", "ritorna", "importa", "lambda", "elimina", "attendi",
+                    "asincrono", "Vero", "Falso", "Nessuno"}
+
+
+definisci nome_valido(nome):
+    ritorna bool(_RE_NOME.match(nome)) e nome non in PAROLE_RISERVATE
+
+
+definisci proprieta_di(tipo_):
+    """Proprietà specifiche del tipo + quelle comuni (tranne dove non hanno senso)."""
+    p = dict(TIPI[tipo_]["proprieta"])
+    se tipo_ non in ("Riquadro", "Tela", "Separatore", "Immagine", "BarraProgresso", "Albero"):
+        per k, v in COMUNI.items():
+            p.setdefault(k, v)
+    se tipo_ in ("Riquadro", "Immagine", "BarraProgresso"):
+        p.setdefault("sfondo", COMUNI["sfondo"])
+    ritorna p
+
+
+classe Componente:
+    definisci __inizializza__(se_stesso, tipo_, nome, x=10, y=10, larghezza=Nessuno, altezza=Nessuno, valori=Nessuno):
+        info = TIPI[tipo_]
+        se_stesso.tipo = tipo_
+        se_stesso.nome = nome
+        se_stesso.x = x
+        se_stesso.y = y
+        se_stesso.larghezza = larghezza o info["larghezza"]
+        se_stesso.altezza = altezza o info["altezza"]
+        se_stesso.valori = {}
+        per k, (t, predefinito, d) in proprieta_di(tipo_).items():
+            se_stesso.valori[k] = copy.deepcopy(predefinito)
+        se valori:
+            se_stesso.valori.update(valori)
+
+    definisci a_dizionario(se_stesso):
+        ritorna {"tipo": se_stesso.tipo, "nome": se_stesso.nome, "x": se_stesso.x, "y": se_stesso.y,
+                 "larghezza": se_stesso.larghezza, "altezza": se_stesso.altezza,
+                 "valori": copy.deepcopy(se_stesso.valori)}
+
+    @staticmethod
+    definisci da_dizionario(d):
+        ritorna Componente(d["tipo"], d["nome"], d.get("x", 10), d.get("y", 10),
+                           d.get("larghezza"), d.get("altezza"), d.get("valori"))
+
+
+classe Form:
+    """Una finestra: titolo, dimensioni e componenti posizionati in modo assoluto."""
+
+    definisci __inizializza__(se_stesso, nome="Principale", titolo=Nessuno):
+        se_stesso.nome = nome
+        se_stesso.titolo = titolo o nome
+        se_stesso.larghezza = 480
+        se_stesso.altezza = 320
+        se_stesso.sfondo = ""
+        se_stesso.componenti = []
+        se_stesso.ridimensionabile = Vero
+
+    # --- modifica
+    definisci nome_libero(se_stesso, tipo_):
+        base = tipo_[0].lower() + tipo_[1:]
+        usati = {c.nome per c in se_stesso.componenti}
+        n = 1
+        mentre f"{base}{n}" in usati:
+            n += 1
+        ritorna f"{base}{n}"
+
+    definisci aggiungi(se_stesso, tipo_, x=10, y=10, **valori):
+        se tipo_ non in TIPI:
+            solleva ErroreDiValore(f"tipo di componente sconosciuto: {tipo_}")
+        c = Componente(tipo_, valori.pop("nome", Nessuno) o se_stesso.nome_libero(tipo_), x, y,
+                       valori.pop("larghezza", Nessuno), valori.pop("altezza", Nessuno), valori)
+        se non nome_valido(c.nome) o se_stesso.trova(c.nome):
+            c.nome = se_stesso.nome_libero(tipo_)
+        se_stesso.componenti.append(c)
+        ritorna c
+
+    definisci trova(se_stesso, nome):
+        per c in se_stesso.componenti:
+            se c.nome == nome:
+                ritorna c
+        ritorna Nessuno
+
+    definisci rimuovi(se_stesso, nome):
+        se_stesso.componenti = [c per c in se_stesso.componenti se c.nome != nome]
+
+    definisci rinomina(se_stesso, vecchio, nuovo):
+        se non nome_valido(nuovo) o (se_stesso.trova(nuovo) e nuovo != vecchio):
+            ritorna Falso
+        c = se_stesso.trova(vecchio)
+        se c è Nessuno:
+            ritorna Falso
+        c.nome = nuovo
+        ritorna Vero
+
+    # --- serializzazione
+    definisci a_dizionario(se_stesso):
+        ritorna {"versione": 1, "nome": se_stesso.nome, "titolo": se_stesso.titolo,
+                 "larghezza": se_stesso.larghezza, "altezza": se_stesso.altezza,
+                 "sfondo": se_stesso.sfondo, "ridimensionabile": se_stesso.ridimensionabile,
+                 "componenti": [c.a_dizionario() per c in se_stesso.componenti]}
+
+    @staticmethod
+    definisci da_dizionario(d):
+        f = Form(d.get("nome", "Principale"), d.get("titolo"))
+        f.larghezza = d.get("larghezza", 480)
+        f.altezza = d.get("altezza", 320)
+        f.sfondo = d.get("sfondo", "")
+        f.ridimensionabile = d.get("ridimensionabile", Vero)
+        per cd in d.get("componenti", []):
+            se cd.get("tipo") in TIPI:
+                f.componenti.append(Componente.da_dizionario(cd))
+        ritorna f
+
+    definisci a_json(se_stesso):
+        ritorna json.dumps(se_stesso.a_dizionario(), indent=2, ensure_ascii=Falso)
+
+    @staticmethod
+    definisci da_json(testo_):
+        ritorna Form.da_dizionario(json.loads(testo_))
+
+    definisci eventi(se_stesso):
+        """Elenco (componente, proprieta_evento, nome_funzione) dei gestori richiesti."""
+        risultato = []
+        per c in se_stesso.componenti:
+            per k, (t, d, desc) in proprieta_di(c.tipo).items():
+                se t == "evento":
+                    nome_fn = (c.valori.get(k) o "").strip()
+                    se nome_fn e nome_valido(nome_fn):
+                        risultato.append((c, k, nome_fn))
+        ritorna risultato
+
+    definisci problemi(se_stesso):
+        """Controlli di coerenza: nomi duplicati, fuori dalla finestra, gestori non validi."""
+        p = []
+        visti = set()
+        per c in se_stesso.componenti:
+            se c.nome in visti:
+                p.append(f"nome duplicato: {c.nome}")
+            visti.add(c.nome)
+            se c.x + c.larghezza > se_stesso.larghezza o c.y + c.altezza > se_stesso.altezza:
+                p.append(f"{c.nome} esce dalla finestra")
+            per k, (t, d, desc) in proprieta_di(c.tipo).items():
+                se t == "evento" e c.valori.get(k) e non nome_valido(c.valori[k]):
+                    p.append(f"{c.nome}.{k}: nome di funzione non valido")
+        ritorna p
+
+
+# --------------------------------------------------------------------------- generazione
+definisci _lit(valore):
+    """Letterale pytonIta per un valore Python."""
+    se valore è Vero:
+        ritorna "Vero"
+    se valore è Falso:
+        ritorna "Falso"
+    se valore è Nessuno:
+        ritorna "Nessuno"
+    ritorna repr(valore)
+
+
+definisci _nome_classe(nome_form):
+    ritorna "".join(p[:1].upper() + p[1:] per p in re.split(r"[^\w]+", nome_form) se p) o "Form"
+
+
+definisci nome_file_ui(nome_form):
+    ritorna nome_form.lower() + "_ui"
+
+
+definisci genera_ui(form):
+    """Codice della classe che costruisce la finestra. Si rigenera: non modificarlo a mano."""
+    cl = _nome_classe(form.nome)
+    r = []
+    r.append(f'"""Finestra {form.nome} - generato da PitStudio. NON modificare: i cambi vanno nel progettista."""')
+    r.append("importa interfaccia come tk")
+    r.append("da interfaccia importa tema")
+    r.append("importa os")
+    r.append("")
+    r.append("")
+    r.append(f"classe {cl}UI:")
+    r.append(f"    definisci costruisci_ui(se_stesso, radice, cartella=Nessuno):")
+    r.append('        """Crea tutti i componenti dentro \'radice\'."""')
+    r.append("        se_stesso.radice = radice")
+    r.append("        se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))")
+    r.append(f"        radice.titolo({_lit(form.titolo)})")
+    r.append(f'        radice.geometria("{form.larghezza}x{form.altezza}")')
+    r.append(f"        radice.ridimensionabile({_lit(form.ridimensionabile)}, {_lit(form.ridimensionabile)})")
+    se form.sfondo:
+        r.append(f"        radice.configura(sfondo={_lit(form.sfondo)})")
+    r.append("        se_stesso.immagini = []")
+    per c in form.componenti:
+        r.extend(_codice_componente(c))
+    r.append("        ritorna radice")
+    r.append("")
+    # gestori predefiniti (vuoti): la classe di logica li ridefinisce
+    gestori = []
+    per comp, k, nome_fn in form.eventi():
+        se nome_fn non in gestori:
+            gestori.append(nome_fn)
+    per nome_fn in gestori:
+        r.append(f"    definisci {nome_fn}(se_stesso, evento=Nessuno):")
+        r.append("        passa")
+        r.append("")
+    ritorna "\n".join(r).rstrip() + "\n"
+
+
+definisci _opzioni_comuni(c):
+    o = []
+    v = c.valori
+    se v.get("sfondo"):
+        o.append(f"sfondo={_lit(v['sfondo'])}")
+    se v.get("primo_piano"):
+        o.append(f"primo_piano={_lit(v['primo_piano'])}")
+    se v.get("carattere"):
+        o.append(f"carattere={_lit(v['carattere'])}")
+    se v.get("stato") e v["stato"] != "normale":
+        o.append(f"stato={_lit('disabled' se v['stato'] == 'disabilitato' altrimenti 'normal')}")
+    ritorna o
+
+
+definisci _codice_componente(c):
+    v = c.valori
+    n = c.nome
+    ind = "        "
+    nome_att = f"se_stesso.{n}"
+    info = TIPI[c.tipo]
+    cl = f"{info['modulo']}.{info['classe_tk']}"
+    r = []
+    ev = lambda chiave: (v.get(chiave) o "").strip()
+    gestore = lambda chiave: f"se_stesso.{ev(chiave)}" se ev(chiave) e nome_valido(ev(chiave)) altrimenti Nessuno
+    opz = _opzioni_comuni(c)
+    se c.tipo == "Pulsante":
+        o = [f"testo={_lit(v['testo'])}"] + opz
+        se gestore("al_clic"):
+            o.append(f"comando={gestore('al_clic')}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+    altrimenti_se c.tipo == "Etichetta":
+        o = [f"testo={_lit(v['testo'])}", f"justify={_lit({'sinistra': 'left', 'centro': 'center', 'destra': 'right'}[v['allineamento']])}",
+             f"anchor={_lit(v['ancora'])}"] + opz
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+    altrimenti_se c.tipo == "CampoTesto":
+        o = opz[:]
+        se v.get("nascondi"):
+            o.append('show="*"')
+        r.append(f"{ind}{nome_att} = {cl}(radice{', ' + ', '.join(o) se o altrimenti ''})")
+        se v.get("testo"):
+            r.append(f"{ind}{nome_att}.inserisci(0, {_lit(v['testo'])})")
+        se gestore("al_invio"):
+            r.append(f"{ind}{nome_att}.associa('<Return>', {gestore('al_invio')})")
+    altrimenti_se c.tipo == "AreaTesto":
+        o = [f"wrap={_lit('word' se v.get('a_capo') altrimenti 'none')}"] + opz
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+        se v.get("testo"):
+            r.append(f"{ind}{nome_att}.inserisci('1.0', {_lit(v['testo'])})")
+    altrimenti_se c.tipo == "Elenco":
+        r.append(f"{ind}{nome_att} = {cl}(radice{', ' + ', '.join(opz) se opz altrimenti ''}, exportselection=Falso)")
+        r.append(f"{ind}per voce in {_lit(list(v.get('elementi', [])))}:")
+        r.append(f"{ind}    {nome_att}.inserisci('end', voce)")
+        se gestore("al_selezione"):
+            r.append(f"{ind}{nome_att}.associa('<<ListboxSelect>>', {gestore('al_selezione')})")
+    altrimenti_se c.tipo == "CasellaSelezione":
+        r.append(f"{ind}se_stesso.var_{n} = tk.VariabileBooleana(value={_lit(bool(v.get('selezionata')))})")
+        o = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{n}"] + opz
+        se gestore("al_clic"):
+            o.append(f"comando={gestore('al_clic')}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+    altrimenti_se c.tipo == "PulsanteOpzione":
+        g = v.get("gruppo") o "gruppo1"
+        r.append(f"{ind}se non hasattr(se_stesso, 'var_{g}'):")
+        r.append(f"{ind}    se_stesso.var_{g} = tk.VariabileTesto(value='')")
+        o = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{g}", f"value={_lit(v['valore'])}"] + opz
+        se gestore("al_clic"):
+            o.append(f"comando={gestore('al_clic')}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+        se v.get("selezionata"):
+            r.append(f"{ind}se_stesso.var_{g}.imposta({_lit(v['valore'])})")
+    altrimenti_se c.tipo == "Cursore":
+        o = [f"from_={v['da']}", f"to={v['a']}",
+             f"orient={_lit('horizontal' se v['orientamento'] == 'orizzontale' altrimenti 'vertical')}"] + opz
+        se gestore("al_cambio"):
+            o.append(f"command=lambda valore: {gestore('al_cambio')}(valore)")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+        r.append(f"{ind}{nome_att}.imposta({v['valore']})")
+    altrimenti_se c.tipo == "CasellaCombinata":
+        r.append(f"{ind}{nome_att} = {cl}(radice, values={_lit(list(v.get('valori', [])))})")
+        se v.get("valore"):
+            r.append(f"{ind}{nome_att}.set({_lit(v['valore'])})")
+        se gestore("al_selezione"):
+            r.append(f"{ind}{nome_att}.associa('<<ComboboxSelected>>', {gestore('al_selezione')})")
+    altrimenti_se c.tipo == "BarraProgresso":
+        r.append(f"{ind}{nome_att} = {cl}(radice, maximum={v['massimo']}, value={v['valore']})")
+    altrimenti_se c.tipo == "Albero":
+        colonne = list(v.get("colonne", []))
+        r.append(f"{ind}{nome_att} = {cl}(radice, columns={_lit(colonne)}, show='headings')")
+        r.append(f"{ind}per colonna in {_lit(colonne)}:")
+        r.append(f"{ind}    {nome_att}.heading(colonna, text=colonna)")
+        se gestore("al_selezione"):
+            r.append(f"{ind}{nome_att}.associa('<<TreeviewSelect>>', {gestore('al_selezione')})")
+    altrimenti_se c.tipo == "Tela":
+        r.append(f"{ind}{nome_att} = {cl}(radice, background={_lit(v.get('sfondo') o '#ffffff')}, highlightthickness=0)")
+    altrimenti_se c.tipo == "Riquadro":
+        rilievo = {"piatto": "flat", "rialzato": "raised", "incavato": "sunken", "solido": "solid"}[v["rilievo"]]
+        o = [f"relief={_lit(rilievo)}", f"borderwidth={v['bordo']}"]
+        se v.get("sfondo"):
+            o.append(f"background={_lit(v['sfondo'])}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+    altrimenti_se c.tipo == "Immagine":
+        r.append(f"{ind}{nome_att} = {cl}(radice)")
+        se v.get("file"):
+            r.append(f"{ind}se_stesso.carica_immagine({nome_att}, {_lit(v['file'])}, {c.larghezza}, {c.altezza})")
+    altrimenti_se c.tipo == "Separatore":
+        r.append(f"{ind}{nome_att} = {cl}(radice, orient={_lit('horizontal' se v['orientamento'] == 'orizzontale' altrimenti 'vertical')})")
+    r.append(f"{ind}{nome_att}.posiziona(x={c.x}, y={c.y}, width={c.larghezza}, height={c.altezza})")
+    ritorna r
+
+
+definisci genera_ui_completa(form):
+    """genera_ui + il metodo di supporto per le immagini (se serve)."""
+    codice = genera_ui(form)
+    se any(c.tipo == "Immagine" per c in form.componenti):
+        aiuto = '''
+    definisci carica_immagine(se_stesso, etichetta, file, larghezza, altezza):
+        """Mostra un'immagine ridimensionata dentro un'etichetta."""
+        percorso = file se os.path.isabs(file) altrimenti os.path.join(se_stesso.cartella, file)
+        prova:
+            da PIL importa Image, ImageTk
+            img = Image.open(percorso)
+            img.thumbnail((larghezza, altezza))
+            foto = ImageTk.PhotoImage(img)
+        eccetto Eccezione:
+            etichetta.configura(testo="[immagine]")
+            ritorna
+        se_stesso.immagini.append(foto)
+        etichetta.configura(image=foto)
+'''
+        marca = "        ritorna radice\n"
+        punto = codice.index(marca) + lunghezza(marca)
+        codice = codice[:punto] + aiuto + codice[punto:]
+    ritorna codice
+
+
+definisci genera_logica(form):
+    """Classe di logica con i gestori degli eventi (si crea una volta sola)."""
+    cl = _nome_classe(form.nome)
+    r = []
+    r.append(f'"""Logica della finestra {form.nome}. Qui scrivi il codice: PitStudio aggiunge solo i gestori mancanti."""')
+    r.append("importa interfaccia come tk")
+    r.append(f"da {nome_file_ui(form.nome)} importa {cl}UI")
+    r.append("")
+    r.append("")
+    r.append(f"classe {cl}({cl}UI):")
+    r.append("    definisci __inizializza__(se_stesso, radice):")
+    r.append("        se_stesso.costruisci_ui(radice)")
+    r.append("")
+    gestori = []
+    per comp, k, nome_fn in form.eventi():
+        se nome_fn non in gestori:
+            gestori.append(nome_fn)
+            r.append(f"    definisci {nome_fn}(se_stesso, evento=Nessuno):")
+            r.append(f"        # {comp.nome}: {proprieta_di(comp.tipo)[k][2]}")
+            r.append("        passa")
+            r.append("")
+    r.append("")
+    r.append('se __nome__ == "__main__":')
+    r.append("    radice = tk.Finestra()")
+    r.append(f"    {cl}(radice)")
+    r.append("    radice.ciclo_principale()")
+    ritorna "\n".join(r).rstrip() + "\n"
+
+
+definisci aggiorna_logica(form, sorgente):
+    """Aggiunge alla logica esistente solo i gestori che mancano."""
+    cl = _nome_classe(form.nome)
+    presenti = set(re.findall(r"^\s+definisci\s+(\w+)\s*\(", sorgente, re.M))
+    nuovi = []
+    visti = set()
+    per comp, k, nome_fn in form.eventi():
+        se nome_fn non in presenti e nome_fn non in visti:
+            visti.add(nome_fn)
+            nuovi.append(f"    definisci {nome_fn}(se_stesso, evento=Nessuno):\n"
+                         f"        # {comp.nome}: {proprieta_di(comp.tipo)[k][2]}\n"
+                         f"        passa\n")
+    se non nuovi:
+        ritorna sorgente
+    blocco = "\n" + "\n".join(nuovi)
+    m = re.search(r'^se __nome__ == ["\']__main__["\']:', sorgente, re.M)
+    se m:
+        ritorna sorgente[:m.start()].rstrip() + "\n" + blocco + "\n\n" + sorgente[m.start():]
+    ritorna sorgente.rstrip() + "\n" + blocco
+
+
+# --------------------------------------------------------------------------- file
+definisci percorsi_form(cartella, nome_form):
+    base = nome_form.lower()
+    ritorna {"json": os.path.join(cartella, base + ".form.json"),
+             "ui": os.path.join(cartella, nome_file_ui(nome_form) + ".pit"),
+             "logica": os.path.join(cartella, base + ".pit")}
+
+
+definisci salva_form(form, cartella):
+    """Scrive form.json, la UI generata e (se manca) la logica. Ritorna i percorsi scritti."""
+    p = percorsi_form(cartella, form.nome)
+    scritti = []
+    con open(p["json"], "w", encoding="utf-8") come f:
+        f.write(form.a_json())
+    scritti.append(p["json"])
+    con open(p["ui"], "w", encoding="utf-8", newline="\n") come f:
+        f.write(genera_ui_completa(form))
+    scritti.append(p["ui"])
+    se os.path.exists(p["logica"]):
+        con open(p["logica"], encoding="utf-8") come f:
+            attuale = f.read()
+        nuovo = aggiorna_logica(form, attuale)
+        se nuovo != attuale:
+            con open(p["logica"], "w", encoding="utf-8", newline="\n") come f:
+                f.write(nuovo)
+            scritti.append(p["logica"])
+    altrimenti:
+        con open(p["logica"], "w", encoding="utf-8", newline="\n") come f:
+            f.write(genera_logica(form))
+        scritti.append(p["logica"])
+    ritorna scritti
+
+
+definisci carica_form(percorso_json):
+    con open(percorso_json, encoding="utf-8") come f:
+        ritorna Form.da_json(f.read())

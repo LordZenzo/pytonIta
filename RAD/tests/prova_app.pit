@@ -1,0 +1,128 @@
+importa sys, os, tempfile, time, json, threading
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da http.server importa BaseHTTPRequestHandler, HTTPServer
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.editor importa Editor
+da rad.progettista importa Progettista
+
+def_ = Nessuno
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+cfg.imposta("finestra.geometria", "1300x800", notifica=Falso)
+
+# --- falso server dell'API Anthropic: prima chiede strumenti, poi risponde
+classe FalsoServer(BaseHTTPRequestHandler):
+    chiamate = []
+    definisci log_message(se_stesso, *a): passa
+    definisci do_POST(se_stesso):
+        corpo = json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])))
+        FalsoServer.chiamate.append(corpo)
+        passo = lunghezza(FalsoServer.chiamate)
+        se se_stesso.headers.get("x-api-key") != "chiave-di-prova":
+            r = (401, {"error": {"type": "authentication_error", "message": "chiave non valida"}})
+        altrimenti_se passo == 1:
+            r = (200, {"stop_reason": "tool_use", "usage": {"input_tokens": 100, "output_tokens": 20}, "content": [
+                {"type": "text", "text": "Guardo il progetto."},
+                {"type": "tool_use", "id": "t1", "name": "elenca_file", "input": {}},
+                {"type": "tool_use", "id": "t2", "name": "scrivi_file", "input": {"percorso": "nuovo.pit", "contenuto": "stampa('creato dall AI')\n"}}]})
+        altrimenti_se passo == 2:
+            r = (200, {"stop_reason": "tool_use", "usage": {"input_tokens": 150, "output_tokens": 30}, "content": [
+                {"type": "tool_use", "id": "t3", "name": "esegui_programma", "input": {"file": "nuovo.pit"}},
+                {"type": "tool_use", "id": "t4", "name": "imposta_form", "input": {"form": {"nome": "Dialogo", "titolo": "Dialogo AI", "larghezza": 300, "altezza": 200,
+                    "componenti": [{"tipo": "Pulsante", "nome": "ok", "x": 20, "y": 20, "valori": {"testo": "OK", "al_clic": "premi_ok"}}]}}},
+                {"type": "tool_use", "id": "t5", "name": "controlla_sintassi", "input": {"percorso": "dialogo.pit"}},
+                {"type": "tool_use", "id": "t6", "name": "modifica_file", "input": {"percorso": "nuovo.pit", "vecchio": "creato", "nuovo": "MODIFICATO"}}]})
+        altrimenti:
+            r = (200, {"stop_reason": "end_turn", "usage": {"input_tokens": 200, "output_tokens": 40}, "content": [
+                {"type": "text", "text": "Fatto! Ecco un esempio:\n```pit\nstampa('ciao')\n```\nUsa `stampa` per scrivere."}]})
+        dati = json.dumps(r[1]).encode()
+        se_stesso.send_response(r[0])
+        se_stesso.send_header("Content-Type", "application/json")
+        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+server = HTTPServer(("127.0.0.1", 0), FalsoServer)
+threading.Thread(target=server.serve_forever, daemon=Vero).start()
+cfg.imposta("ai.url", f"http://127.0.0.1:{server.server_address[1]}/v1/messages", notifica=Falso)
+cfg.imposta("ai.chiave_api", "chiave-di-prova", notifica=Falso)
+cfg.imposta("ai.conferma_scrittura", Falso, notifica=Falso)
+cfg.imposta("ai.conferma_esecuzione", Falso, notifica=Falso)
+
+radice = tk.Tk()
+app = Applicazione(radice, cfg)
+radice.update()
+stampa("avvio ok; schede:", lunghezza(app.schede))
+
+# --- progetto con finestra
+cart = os.path.join(cartella_temp, "ProgettoProva")
+Progetto.nuovo(cart, "ProgettoProva", "finestra")
+app.apri_progetto(cart)
+radice.update()
+stampa("schede dopo apertura:", sorted(os.path.basename(p) per p in app.schede))
+stampa("albero:", lunghezza(app.pannello_progetto.albero.get_children("")))
+
+# --- apri form e codice, esegui
+form_p = os.path.join(cart, "principale.form.json")
+w = app.apri_file(form_p)
+stampa("progettista:", isinstance(w, Progettista), lunghezza(w.form.componenti))
+ed = app.apri_file(os.path.join(cart, "principale.pit"))
+stampa("editor:", isinstance(ed, Editor), "al_clic_saluta" in ed.contenuto())
+
+# --- esecuzione di un programma da console
+Progetto(cart).crea_file("somma.pit", "n = intero(leggi())\nstampa('somma', n + 1)\n")
+app.esegui_file(os.path.join(cart, "somma.pit"))
+app.console.esecutore.invia("41")
+t0 = time.time()
+mentre app.console.in_esecuzione e time.time() - t0 < 20:
+    radice.update()
+    time.sleep(0.02)
+radice.update()
+stampa("console:", "somma 42" in app.console.t.get("1.0", "end"))
+
+# --- errore di sintassi in tempo reale
+ed.t.insert("end", "\nse Vero\n    passa\n")
+radice.update()
+time.sleep(0.9)
+radice.update()
+stampa("errore sintassi segnato:", lunghezza(ed._righe_errore) > 0)
+
+# --- assistente AI con falso server
+app.mostra_chat() se testo(app.chat) non in [testo(x) per x in app.corpo.panes()] altrimenti Nessuno
+app.chat.invia("Crea un file e una finestra")
+t0 = time.time()
+mentre (app.chat.lavoro.is_alive() o (non app.chat.eventi.empty())) e time.time() - t0 < 30:
+    radice.update()
+    time.sleep(0.02)
+radice.update()
+radice.update()
+cr = app.chat.t.get("1.0", "end")
+stampa("chiamate API:", lunghezza(FalsoServer.chiamate), "token:", app.chat.token_ingresso, app.chat.token_uscita)
+stampa("chat mostra strumenti:", "🛠 elenca_file" in cr, "🛠 scrivi_file" in cr, "Fatto!" in cr)
+stampa("file creato dall'AI:", open(os.path.join(cart, "nuovo.pit")).read().strip())
+stampa("finestra creata:", sorted(f per f in os.listdir(cart) se f.startswith("dialogo")))
+stampa("scheda dialogo aperta:", any(os.path.basename(p) == "dialogo.form.json" per p in app.schede))
+primo = FalsoServer.chiamate[0]
+stampa("richiesta: modello", primo["model"], "strumenti", lunghezza(primo["tools"]), "sistema ha manuale:", "pytonIta" in primo["system"][0]["text"])
+ultimo = FalsoServer.chiamate[-1]["messages"][-1]["content"]
+stampa("risultati strumenti:", [(r["tool_use_id"], r.get("is_error", Falso)) per r in ultimo])
+# chiave sbagliata
+cfg.imposta("ai.chiave_api", "sbagliata", notifica=Falso)
+app.chat.invia("prova")
+t0 = time.time()
+mentre app.chat.lavoro.is_alive() e time.time() - t0 < 10:
+    radice.update()
+    time.sleep(0.02)
+t0 = time.time()
+mentre time.time() - t0 < 1.0:
+    radice.update()
+    time.sleep(0.02)
+stampa("errore API mostrato:", "chiave non valida" in app.chat.t.get("1.0", "end"))
+app.chat.salva_cronologia()
+stampa("cronologia salvata:", os.path.exists(os.path.join(cart, ".rad", "chat.json")))
+server.shutdown()
+app.salva_sessione()
+radice.destroy()

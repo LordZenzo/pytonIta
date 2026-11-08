@@ -1,0 +1,82 @@
+"""Programma di prova per la conversione in mattonelle."""
+importa json
+da math importa sqrt
+
+LIMITE = 3
+_nascosto = 7
+
+
+classe Contatore:
+    definisci __inizializza__(se_stesso):
+        se_stesso.n = 0
+
+    definisci incrementa(se_stesso):
+        se_stesso.n += 1
+        ritorna se_stesso.n
+
+
+# calcola il fattoriale
+definisci fattoriale(n):
+    """Fattoriale di n."""
+    se n <= 1:
+        ritorna 1
+    ritorna n * fattoriale(n - 1)
+
+
+definisci somma_lista(valori, extra=10, *altri):
+    totale = 0
+    per v in valori:
+        totale += v
+    totale += extra
+    ritorna totale
+
+
+definisci pari_o_dispari(n):
+    se n % 2 == 0:
+        ritorna "pari"
+    altrimenti:
+        ritorna "dispari"
+
+
+definisci con_errore(x):
+    prova:
+        ritorna 10 / x
+    eccetto Eccezione come errore:
+        ritorna -1
+    infine:
+        stampa("controllo fatto")
+
+
+definisci usa_globale():
+    globale conta
+    conta = conta + 1
+
+
+# ---- flusso principale
+conta = 0
+nomi = ["Anna", "Luca"]
+nomi.aggiungi("Sara")
+stampa("fattoriale di 5:", fattoriale(5))
+stampa(somma_lista([1, 2, 3]), somma_lista([1], 5))
+per nome in nomi:
+    stampa(f"Ciao {nome}!", lunghezza(nome))
+per _ in intervallo(LIMITE):
+    usa_globale()
+stampa("conta =", conta)
+i = 0
+mentre i < 3 e non i == 5:
+    i += 1
+    se i == 2:
+        continua
+    stampa("i =", i, pari_o_dispari(i))
+stampa(con_errore(0), con_errore(5))
+c = Contatore()
+c.incrementa()
+stampa("contatore:", c.incrementa(), sqrt(16), testo(3).maiuscolo(), (1, 2), json.dumps({"a": 1}))
+con apri("prova_conv.txt", "w", encoding="utf-8") come f:
+    f.write("ciao")
+x = intero("7") + 1 se Vero altrimenti 0
+stampa("x =", x, nomi[0], assoluto(-4), massimo(3, 9))
+
+se __nome__ == "__main__":
+    stampa("fine programma")

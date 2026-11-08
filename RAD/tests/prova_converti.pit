@@ -1,0 +1,33 @@
+importa sys, os, tempfile, subprocess, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.mattonelle_converti importa converti_sorgente, descrivi_rapporto
+da rad.mattonelle_modello importa genera_codice, salva_programma, carica_programma, valida_dizionario
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+sorgente = open(os.path.join(QUI, "campioni", "esempio_completo.pit"), encoding="utf-8").read()
+programma, rapporto = converti_sorgente(sorgente, "esempio_mattonelle")
+stampa(descrivi_rapporto(rapporto))
+stampa("funzioni:", [f.nome per f in programma.funzioni], "globali:", programma.variabili_globali)
+stampa("validazione del dizionario:", valida_dizionario(programma.a_dizionario()))
+d = tempfile.mkdtemp()
+percorsi, avvisi = salva_programma(programma, d)
+stampa("avvisi del generatore:", avvisi)
+codice = open(percorsi[1], encoding="utf-8").read()
+stampa("---- inizio codice generato ----")
+stampa(codice[:1900])
+stampa("---- fine ----")
+def_dir = d
+originale = os.path.join(d, "originale.pit")
+shutil.copy(os.path.join(QUI, "campioni", "esempio_completo.pit"), originale)
+r1 = subprocess.run([sys.executable, originale], capture_output=Vero, text=Vero, cwd=d)
+r2 = subprocess.run([sys.executable, percorsi[1]], capture_output=Vero, text=Vero, cwd=d)
+stampa("originale  :", r1.returncode, lunghezza(r1.stdout.splitlines()), "righe")
+stampa("convertito :", r2.returncode, lunghezza(r2.stdout.splitlines()), "righe", r2.stderr[-300:])
+stampa("OUTPUT IDENTICO:", r1.stdout == r2.stdout)
+se r1.stdout != r2.stdout:
+    stampa(r1.stdout)
+    stampa("-----")
+    stampa(r2.stdout)
+# ricarico il json e rigenero: stesso codice
+q = carica_programma(percorsi[0])
+stampa("json -> codice uguale:", genera_codice(q)[0] == codice)

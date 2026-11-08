@@ -1,0 +1,22 @@
+importa sys, os, tempfile, subprocess, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.mattonelle_converti importa converti_sorgente, descrivi_rapporto
+da rad.mattonelle_modello importa salva_programma, valida_dizionario
+
+ORIGINE = r"C:\AppPython\ModFile2_pit"
+se non os.path.isdir(ORIGINE):
+    stampa("cartella ModFile2_pit non trovata: prova saltata")
+    sistema_ = sys.exit(0)
+sorgente = open(os.path.join(ORIGINE, "modfile_core.pit"), encoding="utf-8").read()
+programma, rapporto = converti_sorgente(sorgente, "modfile_core")
+stampa(descrivi_rapporto(rapporto))
+stampa("righe originali:", lunghezza(sorgente.splitlines()), "| funzioni:", lunghezza(programma.funzioni))
+stampa("validazione:", valida_dizionario(programma.a_dizionario()))
+d = tempfile.mkdtemp()
+shutil.copytree(os.path.join(ORIGINE, "data"), os.path.join(d, "data"))
+shutil.copy(os.path.join(ORIGINE, "test_core.pit"), d)
+percorsi, avvisi = salva_programma(programma, d)
+stampa("avvisi del generatore:", avvisi[:5])
+r = subprocess.run([sys.executable, os.path.join(d, "test_core.pit")], capture_output=Vero, text=Vero, cwd=d)
+ultime = r.stderr.strip().splitlines()[-3:]
+stampa("test di ModFile2 sul modulo CONVERTITO a mattonelle:", r.returncode, ultime)

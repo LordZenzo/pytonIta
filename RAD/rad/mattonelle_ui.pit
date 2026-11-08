@@ -1,0 +1,1037 @@
+"""Interfaccia dei programmi a mattonelle: area di lavoro, tavolozza, finestre delle funzioni e finestra principale."""
+importa copy
+importa os
+importa tkinter come tk
+da tkinter importa ttk, messagebox, simpledialog
+
+da rad.mattonelle_modello importa (CATEGORIE, ORDINE_CATEGORIE, PREFERITE_PER_CATEGORIA, TIPI, Mattonella, Radice, Area,
+                                   Programma, definizione, genera_codice, salva_programma, percorsi_programma,
+                                   SUFFISSO, nome_variabile_valido, collega_pila, FORME_VALORE)
+da rad.mattonelle_disegno importa Disegnatore, scurisci, schiarisci
+da rad.editor importa Editor
+
+CAPPELLI = ("avvio", "definisci_funzione")
+
+
+# =========================================================================== area di lavoro
+classe AreaMattonelle(tk.Frame):
+    """Una finestra di lavoro: il flusso principale o una funzione. Si trascinano, staccano e agganciano le mattonelle."""
+
+    definisci __inizializza__(se_stesso, genitore, editor, nome_area, colori):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.editor = editor
+        se_stesso.nome_area = nome_area           # "principale" oppure il nome di una funzione
+        se_stesso.colori = colori
+        se_stesso.selezione = set()
+        se_stesso._attesa = Nessuno
+        se_stesso._trasc = Nessuno
+        se_stesso._candidato = Nessuno
+        se_stesso._edit = Nessuno
+        se_stesso._panoramica = Falso
+        se_stesso.tela = tk.Canvas(se_stesso, highlightthickness=0, background=colori["campo"])
+        se_stesso.tela._tema_proprio = Vero
+        bx = ttk.Scrollbar(se_stesso, orient="horizontal", command=se_stesso.tela.xview)
+        by = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.tela.yview)
+        se_stesso.tela.configure(xscrollcommand=bx.set, yscrollcommand=by.set)
+        bx.pack(side="bottom", fill="x")
+        by.pack(side="right", fill="y")
+        se_stesso.tela.pack(fill="both", expand=Vero)
+        se_stesso.disegnatore = Disegnatore(se_stesso.tela, editor.programma, colori)
+        se_stesso.disegnatore.imposta_zoom(editor.zoom)
+        t = se_stesso.tela
+        t.bind("<ButtonPress-1>", se_stesso._premi)
+        t.bind("<B1-Motion>", se_stesso._muovi_mouse)
+        t.bind("<ButtonRelease-1>", se_stesso._rilascia)
+        t.bind("<Double-Button-1>", se_stesso._doppio)
+        t.bind("<Button-3>", se_stesso._menu)
+        t.bind("<MouseWheel>", se_stesso._rotella)
+        t.bind("<Shift-MouseWheel>", lambda e: t.xview_scroll(-1 se e.delta > 0 altrimenti 1, "units"))
+        t.bind("<Control-MouseWheel>", se_stesso._zoom_rotella)
+        t.bind("<Delete>", lambda e: se_stesso.cancella_selezione())
+        t.bind("<Control-d>", lambda e: se_stesso.duplica_selezione())
+        t.bind("<Control-z>", lambda e: se_stesso.editor.annulla())
+        t.bind("<Control-y>", lambda e: se_stesso.editor.ripeti())
+        t.bind("<Escape>", lambda e: se_stesso._chiudi_modifica())
+        t.bind("<Configure>", lambda e: se_stesso.ridisegna())
+
+    # ------------------------------------------------------------ accesso al modello
+    definisci area(se_stesso):
+        ritorna se_stesso.editor.area_di(se_stesso.nome_area)
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.tela.configure(background=c["campo"])
+        se_stesso.disegnatore.colori = c
+        se_stesso.ridisegna()
+
+    definisci imposta_zoom(se_stesso, z):
+        se_stesso.disegnatore.imposta_zoom(z)
+        se_stesso.ridisegna()
+
+    # ------------------------------------------------------------ disegno
+    definisci ridisegna(se_stesso):
+        a = se_stesso.area()
+        se a è Nessuno:
+            ritorna
+        se_stesso.disegnatore.imposta_programma(se_stesso.editor.programma)
+        w, h = se_stesso.disegnatore.disegna_area(a, se_stesso.selezione)
+        se se_stesso._trasc e se_stesso._candidato:
+            se_stesso.disegnatore.disegna_aggancio(se_stesso._candidato)
+        se_stesso.tela.configure(scrollregion=(0, 0, max(w + 260, se_stesso.tela.winfo_width()), max(h + 260, se_stesso.tela.winfo_height())))
+        # avviso visivo sulle pile non collegate
+        se non se_stesso._trasc:
+            se_stesso._segna_pile_sciolte(a)
+
+    definisci _segna_pile_sciolte(se_stesso, a):
+        se_stesso.tela.delete("sciolta")
+        per r in a.radici:
+            se r.è_valore:
+                continua
+            se r.pila e r.pila[0].tipo non in CAPPELLI:
+                lay = se_stesso.disegnatore.lay.get(r.pila[0].id)
+                se lay:
+                    se_stesso.tela.create_text(lay.x, lay.y - 6, text="non collegato: non verrà eseguito", anchor="sw",
+                                               fill=se_stesso.colori["avviso"], font=("Segoe UI", 8, "italic"), tags=("m", "sciolta"))
+
+    definisci _coord(se_stesso, e):
+        ritorna se_stesso.tela.canvasx(e.x), se_stesso.tela.canvasy(e.y)
+
+    # ------------------------------------------------------------ selezione
+    definisci seleziona(se_stesso, ids):
+        se_stesso.selezione = set(ids)
+        se_stesso.ridisegna()
+
+    # ------------------------------------------------------------ mouse
+    definisci _premi(se_stesso, e):
+        se_stesso.tela.focus_set()
+        se_stesso._chiudi_modifica()
+        cx, cy = se_stesso._coord(e)
+        hit = se_stesso.disegnatore.trova(se_stesso.area(), cx, cy)
+        se hit è Nessuno:
+            se_stesso.seleziona(())
+            se_stesso.tela.scan_mark(e.x, e.y)
+            se_stesso._panoramica = Vero
+            ritorna
+        m, zona, nome = hit
+        se zona == "campo":
+            se_stesso.seleziona((m.id,))
+            se_stesso._modifica_campo(m, nome)
+            ritorna
+        se zona == "ingresso_vuoto":
+            se_stesso.seleziona((m.id,))
+            se_stesso._modifica_letterale(m, nome)
+            ritorna
+        se_stesso.seleziona((m.id,))
+        se_stesso._attesa = {"m": m, "x0": cx, "y0": cy, "ex": e.x, "ey": e.y, "alt": bool(e.state & 0x20000)}
+
+    definisci _muovi_mouse(se_stesso, e):
+        se se_stesso._panoramica:
+            se_stesso.tela.scan_dragto(e.x, e.y, gain=1)
+            ritorna
+        cx, cy = se_stesso._coord(e)
+        se se_stesso._trasc è Nessuno e se_stesso._attesa:
+            a = se_stesso._attesa
+            se abs(e.x - a["ex"]) + abs(e.y - a["ey"]) < 5:
+                ritorna
+            se_stesso._inizia_distacco()
+        se se_stesso._trasc:
+            se_stesso._sposta_a(cx, cy)
+
+    definisci _inizia_distacco(se_stesso):
+        """Al primo movimento la mattonella si stacca dal suo posto e segue il mouse."""
+        a = se_stesso._attesa
+        se_stesso._attesa = Nessuno
+        m = a["m"]
+        area = se_stesso.area()
+        lay = se_stesso.disegnatore.lay[m.id]
+        se m.è_valore():
+            radice = m.padre se isinstance(m.padre, Radice) altrimenti area.stacca(m, x=lay.x, y=lay.y)
+        altrimenti_se m.tipo in CAPPELLI:
+            radice = area.radice_di(m)
+        altrimenti_se isinstance(m.padre, Radice) e m.lista[0] è m:
+            radice = m.padre
+        altrimenti:
+            radice = area.stacca(m, solo_questa=a["alt"], x=lay.x, y=lay.y)
+        se radice è Nessuno:
+            ritorna
+        radice.x, radice.y = lay.x, lay.y
+        se_stesso._trasc = {"radice": radice, "offset": (a["x0"] - lay.x, a["y0"] - lay.y), "esterno": Falso,
+                            "id": m.id, "inizio": (lay.x, lay.y)}
+
+    definisci _ids_esclusi(se_stesso, radice):
+        ids = set()
+        per m in radice.mattonelle_di_testa():
+            ids.add(m.id)
+            per f in m.figli():
+                ids.add(f.id)
+        ritorna ids
+
+    definisci _sposta_a(se_stesso, cx, cy):
+        t = se_stesso._trasc
+        radice = t["radice"]
+        radice.x = max(4, cx - t["offset"][0])
+        radice.y = max(4, cy - t["offset"][1])
+        se_stesso.ridisegna()
+        cands = se_stesso.disegnatore.candidati(se_stesso.area(), radice, se_stesso._ids_esclusi(radice))
+        se_stesso._candidato = se_stesso.disegnatore.miglior_candidato(cands, (radice.x, radice.y), punto_mouse=(cx, cy))
+        se_stesso.disegnatore.disegna_aggancio(se_stesso._candidato)
+        se_stesso.editor.suggerimento_trascinamento(se_stesso._candidato)
+
+    definisci _rilascia(se_stesso, e):
+        se se_stesso._panoramica:
+            se_stesso._panoramica = Falso
+            ritorna
+        se_stesso._attesa = Nessuno
+        se non se_stesso._trasc:
+            ritorna
+        t = se_stesso._trasc
+        # rilasciata sopra la tavolozza = cestino
+        sotto = se_stesso.winfo_containing(e.x_root, e.y_root)
+        se sotto è non Nessuno e se_stesso.editor.è_tavolozza(sotto):
+            se_stesso.editor.cestina(se_stesso.area(), t["radice"])
+        altrimenti:
+            se_stesso._concludi(t)
+        se_stesso._trasc = Nessuno
+        se_stesso._candidato = Nessuno
+        se_stesso.editor.suggerimento_trascinamento(Nessuno)
+        se_stesso.editor.registra()
+        se_stesso.editor.notifica()
+
+    definisci _concludi(se_stesso, t):
+        """Applica l'aggancio scelto (se c'è); altrimenti la pila resta libera dove è stata lasciata."""
+        radice = t["radice"]
+        c = se_stesso._candidato
+        a = se_stesso.area()
+        se c è non Nessuno e radice in a.radici:
+            tipo_ = c["tipo"]
+            se tipo_ == "dopo":
+                a.attacca_dopo(radice, c["mattonella"])
+            altrimenti_se tipo_ == "corpo":
+                a.attacca_in_corpo(radice, c["mattonella"], c["nome"])
+            altrimenti_se tipo_ == "sopra":
+                a.attacca_sopra(radice, c["radice"])
+            altrimenti_se tipo_ == "ingresso":
+                a.inserisci_in_ingresso(radice, c["mattonella"], c["nome"])
+            se_stesso.selezione = {radice.mattonelle_di_testa()[0].id} se non c["tipo"] == "ingresso" altrimenti set()
+
+    # ------------------------------------------------------------ trascinamento che parte dalla tavolozza
+    definisci inizia_esterno(se_stesso, mattonella, x_root, y_root):
+        """Una mattonella nuova (dalla tavolozza) viene portata nell'area: ritorna Vero se è partita."""
+        area = se_stesso.area()
+        r = Radice(40, 40, valore=mattonella) se mattonella.è_valore() altrimenti Radice(40, 40, pila=[mattonella])
+        area.radici.append(r)
+        se_stesso.selezione = {mattonella.id}
+        se_stesso._trasc = {"radice": r, "offset": (14, 12), "esterno": Vero, "id": mattonella.id, "inizio": (40, 40)}
+        se_stesso._candidato = Nessuno
+        se_stesso.muovi_esterno(x_root, y_root)
+
+    definisci muovi_esterno(se_stesso, x_root, y_root):
+        se non se_stesso._trasc:
+            ritorna
+        cx = se_stesso.tela.canvasx(x_root - se_stesso.tela.winfo_rootx())
+        cy = se_stesso.tela.canvasy(y_root - se_stesso.tela.winfo_rooty())
+        se_stesso._sposta_a(cx, cy)
+
+    definisci rilascia_esterno(se_stesso, x_root, y_root):
+        se non se_stesso._trasc:
+            ritorna
+        t = se_stesso._trasc
+        dentro = (se_stesso.tela.winfo_rootx() <= x_root <= se_stesso.tela.winfo_rootx() + se_stesso.tela.winfo_width()
+                  e se_stesso.tela.winfo_rooty() <= y_root <= se_stesso.tela.winfo_rooty() + se_stesso.tela.winfo_height())
+        se dentro:
+            se_stesso._concludi(t)
+        altrimenti:
+            se_stesso.area().radici.remove(t["radice"]) se t["radice"] in se_stesso.area().radici altrimenti Nessuno
+        se_stesso._trasc = Nessuno
+        se_stesso._candidato = Nessuno
+        se_stesso.editor.suggerimento_trascinamento(Nessuno)
+        se_stesso.editor.registra()
+        se_stesso.editor.notifica()
+
+    # ------------------------------------------------------------ modifica dei campi
+    definisci _rett_campo(se_stesso, m, nome, tipo_):
+        lay = se_stesso.disegnatore.lay[m.id]
+        per t, n, x, y, w, h in lay.segmenti:
+            se t == tipo_ e n == nome:
+                ritorna x, y, w, h
+        ritorna Nessuno
+
+    definisci _modifica_campo(se_stesso, m, nome):
+        d = definizione(m.tipo, se_stesso.editor.programma)
+        modo = ""
+        per c in d["seg"]:
+            se isinstance(c, tuple) e c[0] == "c" e c[1] == nome:
+                modo = c[3]
+        rett = se_stesso._rett_campo(m, nome, "campo")
+        se non rett:
+            ritorna
+        se modo.startswith("variabile"):
+            se_stesso._menu_variabili(m, nome, rett)
+        altrimenti:
+            se_stesso._edit_testo(rett, testo(m.campi.get(nome, "")), lambda v: se_stesso._imposta_campo(m, nome, v, modo))
+
+    definisci _modifica_letterale(se_stesso, m, nome):
+        rett = se_stesso._rett_campo(m, nome, "vuoto")
+        se rett:
+            se_stesso._edit_testo(rett, m.letterali.get(nome, ""), lambda v: se_stesso._imposta_letterale(m, nome, v))
+
+    definisci _imposta_campo(se_stesso, m, nome, valore, modo=""):
+        valore = valore.strip() se modo != "testo" altrimenti valore
+        se modo == "numero":
+            prova:
+                float(valore)
+            eccetto ValueError:
+                ritorna
+        se m.tipo in CAPPELLI:
+            se non se_stesso.editor.modifica_cappello(m, nome, valore):
+                ritorna
+        altrimenti:
+            m.campi[nome] = valore
+        se_stesso.editor.registra()
+        se_stesso.editor.notifica()
+
+    definisci _imposta_letterale(se_stesso, m, nome, valore):
+        m.letterali[nome] = valore
+        se_stesso.editor.registra()
+        se_stesso.editor.notifica()
+
+    definisci _edit_testo(se_stesso, rett, valore, alla_conferma):
+        se_stesso._chiudi_modifica()
+        x, y, w, h = rett
+        e = tk.Entry(se_stesso.tela, font=se_stesso.disegnatore.f_campo, relief="solid", borderwidth=1,
+                     background="#ffffff", foreground="#111111", insertbackground="#111111")
+        e.insert(0, valore)
+        larghezza = max(w + 24, se_stesso.disegnatore.s(110))
+        id_ = se_stesso.tela.create_window(x - 2, y - 2, anchor="nw", window=e, width=larghezza, height=h + 4, tags="edit")
+        e.focus_set()
+        e.select_range(0, "end")
+
+        definisci conferma(ev=Nessuno):
+            se se_stesso._edit è Nessuno:
+                ritorna
+            v = e.get()
+            se_stesso._edit = Nessuno
+            e.destroy()
+            se_stesso.tela.delete("edit")
+            alla_conferma(v)
+        e.bind("<Return>", conferma)
+        e.bind("<FocusOut>", conferma)
+        e.bind("<Escape>", lambda ev: se_stesso._chiudi_modifica())
+        se_stesso._edit = (e, id_)
+
+    definisci _chiudi_modifica(se_stesso):
+        se se_stesso._edit:
+            e, id_ = se_stesso._edit
+            se_stesso._edit = Nessuno
+            prova:
+                e.destroy()
+            eccetto tk.TclError:
+                passa
+            se_stesso.tela.delete("edit")
+
+    definisci _menu_variabili(se_stesso, m, nome, rett):
+        """Elenco delle variabili note + 'Nuova variabile…'."""
+        menu = tk.Menu(se_stesso, tearoff=0)
+        c = se_stesso.colori
+        menu.configure(background=c["pannello"], foreground=c["primo_piano"], activebackground=c["accento"],
+                       activeforeground="#ffffff")
+        noti = se_stesso.editor.programma.variabili_visibili(se_stesso.area())
+        per v in noti:
+            menu.add_command(label=v, command=lambda v=v: se_stesso._imposta_campo(m, nome, v))
+        se noti:
+            menu.add_separator()
+        menu.add_command(label="Nuova variabile…", command=lambda: se_stesso._nuova_variabile(m, nome))
+        x, y, w, h = rett
+        px = se_stesso.tela.winfo_rootx() + int(x - se_stesso.tela.canvasx(0))
+        py = se_stesso.tela.winfo_rooty() + int(y + h - se_stesso.tela.canvasy(0))
+        menu.tk_popup(px, py)
+
+    definisci _nuova_variabile(se_stesso, m, nome):
+        v = se_stesso.editor.chiedi_variabile()
+        se v:
+            se_stesso._imposta_campo(m, nome, v)
+
+    definisci _doppio(se_stesso, e):
+        cx, cy = se_stesso._coord(e)
+        hit = se_stesso.disegnatore.trova(se_stesso.area(), cx, cy)
+        se hit e hit[0].tipo.startswith("fn"):
+            se_stesso.editor.vai_alla_funzione(hit[0].tipo.split(":", 1)[1])
+
+    # ------------------------------------------------------------ menu e comandi
+    definisci _menu(se_stesso, e):
+        cx, cy = se_stesso._coord(e)
+        hit = se_stesso.disegnatore.trova(se_stesso.area(), cx, cy)
+        menu = tk.Menu(se_stesso, tearoff=0)
+        c = se_stesso.colori
+        menu.configure(background=c["pannello"], foreground=c["primo_piano"], activebackground=c["accento"],
+                       activeforeground="#ffffff")
+        se hit:
+            m = hit[0]
+            se_stesso.seleziona((m.id,))
+            se m.tipo non in CAPPELLI:
+                menu.add_command(label="Stacca (porta via anche le seguenti)", command=lambda: se_stesso.stacca(m, Falso))
+                se non m.è_valore() e m.lista è non Nessuno e lunghezza(m.lista) > 1:
+                    menu.add_command(label="Stacca solo questa", command=lambda: se_stesso.stacca(m, Vero))
+                menu.add_separator()
+                menu.add_command(label="Duplica", command=lambda: se_stesso.duplica(m, Falso))
+                se non m.è_valore():
+                    menu.add_command(label="Duplica con le seguenti", command=lambda: se_stesso.duplica(m, Vero))
+                menu.add_separator()
+                menu.add_command(label="Elimina", command=lambda: se_stesso.cancella(m, Falso))
+                se non m.è_valore():
+                    menu.add_command(label="Elimina con le seguenti", command=lambda: se_stesso.cancella(m, Vero))
+            se m.tipo.startswith("fn"):
+                menu.add_separator()
+                menu.add_command(label="Apri la funzione", command=lambda: se_stesso.editor.vai_alla_funzione(m.tipo.split(":", 1)[1]))
+        altrimenti:
+            menu.add_command(label="Ordina le pile libere", command=se_stesso.ordina_pile)
+            menu.add_command(label="Elimina tutto ciò che non è collegato", command=se_stesso.pulisci_sciolte)
+            menu.add_separator()
+            menu.add_command(label="Zoom +", command=lambda: se_stesso.editor.cambia_zoom(1.15))
+            menu.add_command(label="Zoom −", command=lambda: se_stesso.editor.cambia_zoom(1 / 1.15))
+        menu.tk_popup(e.x_root, e.y_root)
+
+    definisci stacca(se_stesso, m, solo_questa):
+        lay = se_stesso.disegnatore.lay[m.id]
+        r = se_stesso.area().stacca(m, solo_questa=solo_questa, x=lay.x + 40, y=lay.y + 20)
+        se r:
+            r.x, r.y = lay.x + 40, lay.y + 24
+        se_stesso._finito()
+
+    definisci duplica(se_stesso, m, con_seguito):
+        lay = se_stesso.disegnatore.lay[m.id]
+        se_stesso.area().duplica(m, con_seguito=con_seguito, x=lay.x + 30, y=lay.y + 30, programma=se_stesso.editor.programma)
+        se_stesso._finito()
+
+    definisci duplica_selezione(se_stesso):
+        per i in lista(se_stesso.selezione):
+            m = se_stesso._trova_per_id(i)
+            se m è non Nessuno e m.tipo non in CAPPELLI:
+                se_stesso.duplica(m, Falso)
+
+    definisci cancella(se_stesso, m, con_seguito):
+        se_stesso.area().cancella(m, con_seguito=con_seguito)
+        se_stesso.selezione = set()
+        se_stesso._finito()
+
+    definisci cancella_selezione(se_stesso):
+        per i in lista(se_stesso.selezione):
+            m = se_stesso._trova_per_id(i)
+            se m è non Nessuno e m.tipo non in CAPPELLI:
+                se_stesso.area().cancella(m, con_seguito=Falso)
+        se_stesso.selezione = set()
+        se_stesso._finito()
+
+    definisci _trova_per_id(se_stesso, id_):
+        per m in se_stesso.area().tutte():
+            se m.id == id_:
+                ritorna m
+        ritorna Nessuno
+
+    definisci ordina_pile(se_stesso):
+        y = 30
+        a = se_stesso.area()
+        per r in a.radici:
+            r.x = 30
+            r.y = y
+            tot = 0
+            per m in r.mattonelle_di_testa():
+                l = se_stesso.disegnatore.lay.get(m.id)
+                tot += l.h se l altrimenti 40
+            y += tot + 40
+        se_stesso._finito()
+
+    definisci pulisci_sciolte(se_stesso):
+        a = se_stesso.area()
+        sciolte = [r per r in a.radici se (r.è_valore o (r.pila e r.pila[0].tipo non in CAPPELLI))]
+        se sciolte e messagebox.askyesno("Elimina", f"Eliminare {lunghezza(sciolte)} gruppi non collegati?", parent=se_stesso):
+            per r in sciolte:
+                a.radici.remove(r)
+            se_stesso._finito()
+
+    definisci _finito(se_stesso):
+        se_stesso.editor.registra()
+        se_stesso.editor.notifica()
+
+    definisci _rotella(se_stesso, e):
+        se_stesso.tela.yview_scroll(-1 se e.delta > 0 altrimenti 1, "units")
+
+    definisci _zoom_rotella(se_stesso, e):
+        se_stesso.editor.cambia_zoom(1.1 se e.delta > 0 altrimenti 1 / 1.1)
+        ritorna "break"
+
+
+# =========================================================================== tavolozza
+classe Tavolozza(tk.Frame):
+    """Le mattonelle disponibili, per categoria. Si trascinano nell'area di lavoro."""
+
+    definisci __inizializza__(se_stesso, genitore, editor, colori):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.editor = editor
+        se_stesso.colori = colori
+        se_stesso.categoria = "flusso"
+        se_stesso._voci = []              # [(rettangolo, tipo, campi)]
+        se_stesso._attiva = Nessuno
+        se_stesso.bottoni = {}
+        se_stesso.colonna = tk.Frame(se_stesso)
+        se_stesso.colonna.pack(side="left", fill="y")
+        per cat in ORDINE_CATEGORIE:
+            nome, col = CATEGORIE[cat]
+            b = tk.Label(se_stesso.colonna, text=nome, anchor="w", padx=8, pady=5, cursor="hand2", font=("Segoe UI", 9, "bold"))
+            b.pack(fill="x")
+            b.bind("<Button-1>", lambda e, c=cat: se_stesso.scegli(c))
+            se_stesso.bottoni[cat] = b
+        se_stesso.tela = tk.Canvas(se_stesso, highlightthickness=0, width=270)
+        se_stesso.tela._tema_proprio = Vero
+        by = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.tela.yview)
+        se_stesso.tela.configure(yscrollcommand=by.set)
+        by.pack(side="right", fill="y")
+        se_stesso.tela.pack(side="left", fill="both", expand=Vero)
+        se_stesso.disegnatore = Disegnatore(se_stesso.tela, editor.programma, colori)
+        se_stesso.tela.bind("<ButtonPress-1>", se_stesso._premi)
+        se_stesso.tela.bind("<B1-Motion>", se_stesso._muovi)
+        se_stesso.tela.bind("<ButtonRelease-1>", se_stesso._rilascia)
+        se_stesso.tela.bind("<MouseWheel>", lambda e: se_stesso.tela.yview_scroll(-1 se e.delta > 0 altrimenti 1, "units"))
+        se_stesso.tela.bind("<Motion>", se_stesso._passa)
+        se_stesso.applica_colori(colori)
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.colonna.configure(background=c["pannello"])
+        se_stesso.tela.configure(background=c["pannello"])
+        se_stesso.disegnatore.colori = c
+        se_stesso._colora_bottoni()
+        se_stesso.aggiorna()
+
+    definisci _colora_bottoni(se_stesso):
+        per cat, b in se_stesso.bottoni.items():
+            col = CATEGORIE[cat][1]
+            scelta = cat == se_stesso.categoria
+            b.configure(background=col se scelta altrimenti scurisci(col, 0.55),
+                        foreground="#ffffff", relief="flat")
+
+    definisci scegli(se_stesso, cat):
+        se_stesso.categoria = cat
+        se_stesso._colora_bottoni()
+        se_stesso.tela.yview_moveto(0)
+        se_stesso.aggiorna()
+
+    definisci imposta_zoom(se_stesso, z):
+        se_stesso.disegnatore.imposta_zoom(z)
+        se_stesso.aggiorna()
+
+    # ------------------------------------------------------------ contenuto
+    definisci _elenco_voci(se_stesso):
+        """[(tipo, campi, etichetta_gruppo)] da mostrare per la categoria scelta."""
+        p = se_stesso.editor.programma
+        cat = se_stesso.categoria
+        voci = []
+        se cat == "variabili":
+            per t in ("imposta", "cambia", "globale"):
+                voci.append((t, {}))
+            area = se_stesso.editor.area_corrente()
+            per v in p.variabili_visibili(area) se area altrimenti []:
+                voci.append(("variabile", {"nome": v}))
+        altrimenti_se cat == "funzioni":
+            per t in ("chiama", "chiamata") + tuple(p.mattonelle_funzione()):
+                voci.append((t, {}))
+        altrimenti_se cat == "eventi":
+            ritorna []
+        altrimenti:
+            per t in PREFERITE_PER_CATEGORIA.get(cat, []):
+                voci.append((t, {}))
+        ritorna voci
+
+    definisci aggiorna(se_stesso):
+        t = se_stesso.tela
+        t.delete("all")
+        se_stesso.disegnatore.imposta_programma(se_stesso.editor.programma)
+        se_stesso._voci = []
+        y = 12
+        c = se_stesso.colori
+        voci = se_stesso._elenco_voci()
+        se non voci:
+            testo_ = {"eventi": "Il blocco di inizio c'è già:\nè il cappello giallo in cima a ogni finestra.",
+                      "funzioni": "Nessuna funzione ancora.\nCreane una con «＋ Funzione»:\nogni funzione ha la sua finestra."}.get(se_stesso.categoria, "")
+            t.create_text(14, 20, text=testo_, anchor="nw", fill=c["tenue"], font=("Segoe UI", 9), width=200)
+        per tipo_, campi in voci:
+            m = Mattonella(tipo_, se_stesso.editor.programma)
+            m.campi.update(campi)
+            lay = se_stesso.disegnatore.disponi_singola(m, 14, y)
+            se_stesso.disegnatore.disegna_mattonella(m, (), "m")
+            se_stesso._voci.append(((lay.x, lay.y - lay.sopra, lay.x + lay.w, lay.y + lay.h), tipo_, campi))
+            y += lay.h + 16
+        se se_stesso.categoria == "variabili":
+            b = tk.Button(t, text="＋ Nuova variabile…", command=se_stesso.editor.nuova_variabile, relief="flat",
+                          background=c["pulsante"], foreground=c["primo_piano"], activebackground=c["pulsante_attivo"])
+            t.create_window(14, y + 4, anchor="nw", window=b)
+            y += 40
+        t.configure(scrollregion=(0, 0, 240, y + 20))
+
+    # ------------------------------------------------------------ mouse
+    definisci _voce_sotto(se_stesso, e):
+        x, y = se_stesso.tela.canvasx(e.x), se_stesso.tela.canvasy(e.y)
+        per rett, tipo_, campi in se_stesso._voci:
+            se rett[0] <= x <= rett[2] e rett[1] <= y <= rett[3]:
+                ritorna tipo_, campi
+        ritorna Nessuno
+
+    definisci _passa(se_stesso, e):
+        v = se_stesso._voce_sotto(e)
+        se_stesso.tela.configure(cursor="hand2" se v altrimenti "")
+        se v:
+            se_stesso.editor.mostra_descrizione(definizione(v[0], se_stesso.editor.programma)["descrizione"])
+
+    definisci _premi(se_stesso, e):
+        v = se_stesso._voce_sotto(e)
+        se non v:
+            ritorna
+        area = se_stesso.editor.area_corrente()
+        se non area:
+            ritorna
+        m = Mattonella(v[0], se_stesso.editor.programma)
+        m.campi.update(v[1])
+        se_stesso._attiva = se_stesso.editor.vista_corrente()
+        se_stesso._attiva.inizia_esterno(m, e.x_root, e.y_root)
+
+    definisci _muovi(se_stesso, e):
+        se se_stesso._attiva:
+            se_stesso._attiva.muovi_esterno(e.x_root, e.y_root)
+
+    definisci _rilascia(se_stesso, e):
+        se se_stesso._attiva:
+            se_stesso._attiva.rilascia_esterno(e.x_root, e.y_root)
+            se_stesso._attiva = Nessuno
+
+
+# =========================================================================== editor del programma a mattonelle
+classe EditorMattonelle(tk.Frame):
+    """Una scheda con: tavolozza, una finestra per il flusso principale e una per ogni funzione, codice generato."""
+
+    definisci __inizializza__(se_stesso, genitore, percorso, programma, colori, config, azioni):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.percorso = percorso
+        se_stesso.cartella = os.path.dirname(percorso)
+        se_stesso.programma = programma
+        se_stesso.colori = colori
+        se_stesso.config_ = config
+        se_stesso.azioni = azioni
+        se_stesso.modificato = Falso
+        se_stesso.zoom = 1.0
+        se_stesso.viste = {}              # nome area -> AreaMattonelle
+        se_stesso.finestre = []           # Toplevel staccate: (finestra, vista)
+        se_stesso.cronologia = [programma.a_json()]
+        se_stesso.indice = 0
+        se_stesso._lavoro = Nessuno
+        se_stesso._costruisci()
+        se_stesso.ricostruisci_viste()
+        se_stesso.applica_colori(colori)
+        se_stesso.notifica()
+
+    # ------------------------------------------------------------ struttura
+    definisci _costruisci(se_stesso):
+        barra = tk.Frame(se_stesso)
+        barra.pack(fill="x")
+        se_stesso.barra = barra
+        se_stesso.titolo = tk.Label(barra, text="", anchor="w")
+        se_stesso.titolo.pack(side="left", padx=8)
+        per testo_, comando in (("💾 Salva e genera", se_stesso.salva), ("▶ Esegui", se_stesso.esegui),
+                                ("＋ Funzione", se_stesso.nuova_funzione), ("⚙ Modulo", se_stesso.modulo),
+                                ("‹/› Codice", se_stesso.vedi_codice),
+                                ("↶", se_stesso.annulla), ("↷", se_stesso.ripeti),
+                                ("🔍＋", lambda: se_stesso.cambia_zoom(1.15)), ("🔍－", lambda: se_stesso.cambia_zoom(1 / 1.15))):
+            tk.Button(barra, text=testo_, command=comando, relief="flat", padx=8).pack(side="left", padx=2, pady=3)
+        se_stesso.stato = tk.Label(barra, anchor="e", text="")
+        se_stesso.stato.pack(side="right", padx=8)
+        se_stesso.selettore = ttk.Combobox(barra, state="readonly", width=26)
+        se_stesso.selettore.pack(side="right", padx=4)
+        se_stesso.selettore.bind("<<ComboboxSelected>>", se_stesso._scelta_selettore)
+        tk.Label(barra, text="Finestra:", background=se_stesso.colori["pannello"], foreground=se_stesso.colori["tenue"]).pack(side="right")
+        se_stesso.corpo = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=5, borderwidth=0)
+        se_stesso.corpo.pack(fill="both", expand=Vero)
+        se_stesso.tavolozza = Tavolozza(se_stesso.corpo, se_stesso, se_stesso.colori)
+        se_stesso.corpo.add(se_stesso.tavolozza, minsize=220, width=390)
+        centro = tk.Frame(se_stesso.corpo)
+        se_stesso.blocco = ttk.Notebook(centro)
+        se_stesso.blocco.pack(fill="both", expand=Vero)
+        se_stesso.blocco.bind("<<NotebookTabChanged>>", lambda e: (se_stesso.tavolozza.aggiorna(), se_stesso._aggiorna_selettore()))
+        se_stesso.blocco.bind("<Button-3>", se_stesso._menu_scheda)
+        se_stesso.descrizione = tk.Label(centro, anchor="w", text="Trascina le mattonelle dalla tavolozza. Per staccare un collegamento "
+                                         "afferra la mattonella e portala via; per ricollegarla lasciala vicino al punto giusto.")
+        se_stesso.descrizione.pack(fill="x", side="bottom")
+        se_stesso.corpo.add(centro, minsize=400, stretch="always")
+        se_stesso.pannello_codice = tk.Frame(se_stesso.corpo)
+        se_stesso.avvisi = tk.Label(se_stesso.pannello_codice, anchor="w", justify="left", wraplength=360)
+        se_stesso.avvisi.pack(side="bottom", fill="x", padx=6, pady=4)
+        se_stesso.codice = Editor(se_stesso.pannello_codice, se_stesso.config_, se_stesso.colori, Nessuno)
+        se_stesso.codice.pack(fill="both", expand=Vero)
+        se_stesso.codice.t.configure(state="disabled")
+        se_stesso._codice_visibile = Falso
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        per w in (se_stesso, se_stesso.barra, se_stesso.pannello_codice):
+            w.configure(background=c["pannello"])
+        se_stesso.corpo.configure(background=c["sfondo"])
+        se_stesso.titolo.configure(background=c["pannello"], foreground=c["primo_piano"])
+        se_stesso.stato.configure(background=c["pannello"], foreground=c["tenue"])
+        se_stesso.descrizione.configure(background=c["pannello"], foreground=c["tenue"], font=("Segoe UI", 9))
+        se_stesso.avvisi.configure(background=c["pannello"], foreground=c["avviso"])
+        per b in se_stesso.barra.winfo_children():
+            se b.winfo_class() == "Button":
+                b.configure(background=c["pulsante"], foreground=c["primo_piano"], activebackground=c["pulsante_attivo"])
+        se_stesso.tavolozza.applica_colori(c)
+        per v in se_stesso.viste.values():
+            v.applica_colori(c)
+        per f, v in se_stesso.finestre:
+            v.applica_colori(c)
+        se_stesso.codice.applica_colori(c)
+
+    # ------------------------------------------------------------ accesso alle aree
+    definisci area_di(se_stesso, nome):
+        se nome == "principale":
+            ritorna se_stesso.programma.principale
+        f = se_stesso.programma.funzione(nome)
+        ritorna f.area se f altrimenti Nessuno
+
+    definisci vista_corrente(se_stesso):
+        prova:
+            nome = se_stesso.blocco.select()
+            se non nome:
+                ritorna Nessuno
+            w = se_stesso.blocco.nametowidget(nome)
+            ritorna w se isinstance(w, AreaMattonelle) altrimenti Nessuno
+        eccetto (tk.TclError, KeyError):
+            ritorna Nessuno
+
+    definisci area_corrente(se_stesso):
+        v = se_stesso.vista_corrente()
+        ritorna v.area() se v altrimenti Nessuno
+
+    definisci è_tavolozza(se_stesso, widget):
+        w = widget
+        mentre w è non Nessuno:
+            se w è se_stesso.tavolozza:
+                ritorna Vero
+            w = w.master
+        ritorna Falso
+
+    # ------------------------------------------------------------ viste (finestre di lavoro)
+    definisci ricostruisci_viste(se_stesso):
+        """Una scheda per il flusso principale e una per ogni funzione; mantiene la scelta corrente se possibile."""
+        scelta = se_stesso.vista_corrente().nome_area se se_stesso.vista_corrente() altrimenti "principale"
+        per v in se_stesso.viste.values():
+            prova:
+                se_stesso.blocco.forget(v)
+            eccetto tk.TclError:
+                passa
+            v.destroy()
+        se_stesso.viste = {}
+        se_stesso._aggiungi_vista("principale", "▶ Principale")
+        per f in se_stesso.programma.funzioni:
+            se_stesso._aggiungi_vista(f.nome, f"ƒ {f.nome}")
+        # con molte funzioni le linguette non bastano: si usa solo il selettore
+        stile = ttk.Style(se_stesso)
+        stile.layout("Nascosto.TNotebook.Tab", [])
+        se_stesso.blocco.configure(style="Nascosto.TNotebook" se lunghezza(se_stesso.viste) > 8 altrimenti "TNotebook")
+        se_stesso.selettore.configure(values=[se_stesso._etichetta(n) per n in se_stesso.viste])
+        se_stesso.vai_alla_funzione(scelta se scelta in se_stesso.viste altrimenti "principale")
+
+    definisci _etichetta(se_stesso, nome):
+        ritorna "▶ Principale" se nome == "principale" altrimenti f"ƒ {nome}"
+
+    definisci _scelta_selettore(se_stesso, e=Nessuno):
+        scelta = se_stesso.selettore.get()
+        per nome in se_stesso.viste:
+            se se_stesso._etichetta(nome) == scelta:
+                se_stesso.vai_alla_funzione(nome)
+
+    definisci _aggiorna_selettore(se_stesso):
+        v = se_stesso.vista_corrente()
+        se v:
+            se_stesso.selettore.set(se_stesso._etichetta(v.nome_area))
+
+    definisci _aggiungi_vista(se_stesso, nome, titolo):
+        v = AreaMattonelle(se_stesso.blocco, se_stesso, nome, se_stesso.colori)
+        se_stesso.viste[nome] = v
+        se_stesso.blocco.add(v, text=titolo)
+
+    definisci vai_alla_funzione(se_stesso, nome):
+        v = se_stesso.viste.get(nome)
+        se v:
+            se_stesso.blocco.select(v)
+
+    definisci nuova_funzione(se_stesso):
+        nome = simpledialog.askstring("Nuova funzione", "Nome della funzione:", initialvalue=se_stesso.programma.nome_funzione_libero(),
+                                      parent=se_stesso)
+        se non nome:
+            ritorna
+        nome = nome.strip()
+        se non nome_variabile_valido(nome) o se_stesso.programma.funzione(nome):
+            messagebox.showwarning("Nome non valido", "Usa lettere, cifre e _, senza iniziare con una cifra, "
+                                   "senza parole riservate e senza ripetere il nome di un'altra funzione.", parent=se_stesso)
+            ritorna
+        par = simpledialog.askstring("Nuova funzione", "Parametri separati da virgola (anche nessuno):", parent=se_stesso) o ""
+        f = se_stesso.programma.aggiungi_funzione(nome, par)
+        se_stesso.registra()
+        se_stesso.ricostruisci_viste()
+        se_stesso.vai_alla_funzione(f.nome)
+        se_stesso.notifica()
+
+    definisci modifica_cappello(se_stesso, m, campo, valore):
+        """Rinomina la funzione o cambia i suoi parametri. Ritorna Falso se il valore non è valido."""
+        se m.tipo != "definisci_funzione":
+            ritorna Vero
+        se campo == "nome":
+            vecchio = m.campi.get("nome", "")
+            se valore == vecchio:
+                ritorna Vero
+            se non se_stesso.programma.rinomina_funzione(vecchio, valore):
+                messagebox.showwarning("Nome non valido", "Nome non valido o già usato.", parent=se_stesso)
+                ritorna Falso
+            se_stesso.registra()
+            se_stesso.ricostruisci_viste()
+            se_stesso.vai_alla_funzione(valore)
+            ritorna Vero
+        pulito = ", ".join(p.strip() per p in valore.split(",") se p.strip())
+        se tutti(nome_variabile_valido(p) per p in pulito.split(", ") se p) o non pulito:
+            m.campi["parametri"] = pulito
+            ritorna Vero
+        messagebox.showwarning("Parametri non validi", "Ogni parametro deve essere un nome valido.", parent=se_stesso)
+        ritorna Falso
+
+    definisci _menu_scheda(se_stesso, e):
+        prova:
+            indice = se_stesso.blocco.index(f"@{e.x},{e.y}")
+            v = se_stesso.blocco.nametowidget(se_stesso.blocco.tabs()[indice])
+        eccetto (tk.TclError, IndexError, KeyError):
+            ritorna
+        m = tk.Menu(se_stesso, tearoff=0)
+        m.add_command(label="Apri in una finestra separata", command=lambda: se_stesso.stacca_vista(v.nome_area))
+        se v.nome_area != "principale":
+            m.add_command(label="Elimina la funzione", command=lambda: se_stesso.elimina_funzione(v.nome_area))
+        m.tk_popup(e.x_root, e.y_root)
+
+    definisci elimina_funzione(se_stesso, nome):
+        se messagebox.askyesno("Elimina funzione", f"Eliminare la funzione «{nome}»? Le chiamate resteranno ma non funzioneranno.", parent=se_stesso):
+            se_stesso.programma.rimuovi_funzione(nome)
+            se_stesso._chiudi_finestre_di(nome)
+            se_stesso.registra()
+            se_stesso.ricostruisci_viste()
+            se_stesso.notifica()
+
+    # ------------------------------------------------------------ finestre separate
+    definisci stacca_vista(se_stesso, nome):
+        """Apre la stessa finestra di lavoro in una finestra a sé (resta sincronizzata)."""
+        finestra = tk.Toplevel(se_stesso)
+        finestra.title(f"{se_stesso.programma.nome} — {'Principale' se nome == 'principale' altrimenti nome}")
+        finestra.geometry("720x520")
+        v = AreaMattonelle(finestra, se_stesso, nome, se_stesso.colori)
+        v.pack(fill="both", expand=Vero)
+        se_stesso.finestre.append((finestra, v))
+        finestra.protocol("WM_DELETE_WINDOW", lambda: se_stesso._chiudi_finestra(finestra, v))
+        v.ridisegna()
+
+    definisci _chiudi_finestra(se_stesso, finestra, v):
+        se_stesso.finestre = [(f, x) per f, x in se_stesso.finestre se x è non v]
+        finestra.destroy()
+
+    definisci _chiudi_finestre_di(se_stesso, nome):
+        per f, v in lista(se_stesso.finestre):
+            se v.nome_area == nome:
+                se_stesso._chiudi_finestra(f, v)
+
+    # ------------------------------------------------------------ cronologia e modifiche
+    definisci registra(se_stesso):
+        stato_ = se_stesso.programma.a_json()
+        se stato_ == se_stesso.cronologia[se_stesso.indice]:
+            ritorna
+        elimina se_stesso.cronologia[se_stesso.indice + 1:]
+        se_stesso.cronologia.append(stato_)
+        se lunghezza(se_stesso.cronologia) > 150:
+            se_stesso.cronologia.pop(0)
+        se_stesso.indice = lunghezza(se_stesso.cronologia) - 1
+        se_stesso._segna_modificato(Vero)
+
+    definisci _segna_modificato(se_stesso, valore):
+        se se_stesso.modificato != valore:
+            se_stesso.modificato = valore
+            se_stesso.azioni.scheda_modificata(se_stesso)
+
+    definisci annulla(se_stesso):
+        se se_stesso.indice > 0:
+            se_stesso.indice -= 1
+            se_stesso._ripristina()
+
+    definisci ripeti(se_stesso):
+        se se_stesso.indice < lunghezza(se_stesso.cronologia) - 1:
+            se_stesso.indice += 1
+            se_stesso._ripristina()
+
+    definisci _ripristina(se_stesso):
+        se_stesso.programma = Programma.da_json(se_stesso.cronologia[se_stesso.indice])
+        se_stesso.ricostruisci_viste()
+        per f, v in lista(se_stesso.finestre):
+            se v.area() è Nessuno:
+                se_stesso._chiudi_finestra(f, v)
+        se_stesso._segna_modificato(Vero)
+        se_stesso.notifica()
+
+    definisci cambia_zoom(se_stesso, fattore):
+        se_stesso.zoom = max(0.6, min(1.8, se_stesso.zoom * fattore))
+        per v in se_stesso.viste.values():
+            v.imposta_zoom(se_stesso.zoom)
+        per f, v in se_stesso.finestre:
+            v.imposta_zoom(se_stesso.zoom)
+        se_stesso.tavolozza.imposta_zoom(se_stesso.zoom)
+
+    definisci cestina(se_stesso, area, radice):
+        """Mattonelle lasciate sulla tavolozza: eliminate (i cappelli no)."""
+        se radice.è_valore o radice.pila[0].tipo non in CAPPELLI:
+            se radice in area.radici:
+                area.radici.remove(radice)
+
+    # ------------------------------------------------------------ variabili
+    definisci chiedi_variabile(se_stesso):
+        """Chiede il nome di una nuova variabile; ritorna il nome oppure Nessuno."""
+        nome = simpledialog.askstring("Nuova variabile", "Nome della variabile:", parent=se_stesso)
+        se non nome:
+            ritorna Nessuno
+        nome = nome.strip()
+        se non nome_variabile_valido(nome):
+            messagebox.showwarning("Nome non valido", "Usa lettere, cifre e _ (senza iniziare con una cifra e senza parole riservate).", parent=se_stesso)
+            ritorna Nessuno
+        condivisa = messagebox.askyesno("Nuova variabile", f"«{nome}» deve essere globale (condivisa tra tutte le funzioni)?\n\n"
+                                      "Sì = globale · No = solo in questa finestra", parent=se_stesso)
+        se condivisa:
+            se nome non in se_stesso.programma.variabili_globali:
+                se_stesso.programma.variabili_globali.append(nome)
+        altrimenti:
+            a = se_stesso.area_corrente()
+            se a e nome non in a.dichiarate:
+                a.dichiarate.append(nome)
+        se_stesso.registra()
+        se_stesso.notifica()
+        ritorna nome
+
+    definisci nuova_variabile(se_stesso):
+        se_stesso.chiedi_variabile()
+
+    # ------------------------------------------------------------ aggiornamenti
+    definisci suggerimento_trascinamento(se_stesso, candidato):
+        se candidato è Nessuno:
+            se_stesso.descrizione.configure(text="Lascia la mattonella dove vuoi: se è vicina a un punto di aggancio si collega da sola.")
+            ritorna
+        testi = {"dopo": "si collega sotto «{t}»", "corpo": "va dentro «{t}»", "sopra": "si collega sopra «{t}»",
+                 "ingresso": "entra nell'ingresso «{n}» di «{t}»"}
+        se_stesso.descrizione.configure(text="↳ " + testi[candidato["tipo"]].format(t=candidato["mattonella"].tipo,
+                                                                                    n=candidato.get("nome", "")))
+
+    definisci mostra_descrizione(se_stesso, testo_):
+        se testo_:
+            se_stesso.descrizione.configure(text=testo_)
+
+    definisci notifica(se_stesso):
+        """Ridisegna tutto e aggiorna il codice generato (con un piccolo ritardo)."""
+        per v in se_stesso.viste.values():
+            v.ridisegna()
+        per f, v in se_stesso.finestre:
+            v.ridisegna()
+        se_stesso.tavolozza.aggiorna()
+        se se_stesso._lavoro:
+            se_stesso.after_cancel(se_stesso._lavoro)
+        se_stesso._lavoro = se_stesso.after(120, se_stesso._aggiorna_codice)
+        se_stesso.titolo.configure(text=f"{se_stesso.programma.nome}  —  programma a mattonelle")
+
+    definisci _aggiorna_codice(se_stesso):
+        se_stesso._lavoro = Nessuno
+        prova:
+            codice, avvisi = genera_codice(se_stesso.programma)
+        eccetto Eccezione come errore:
+            codice, avvisi = f"# errore nella generazione: {errore}\n", []
+        t = se_stesso.codice.t
+        t.configure(state="normal")
+        se_stesso.codice.imposta_contenuto(codice)
+        t.configure(state="disabled")
+        se_stesso.avvisi.configure(text=("⚠ " + "\n⚠ ".join(avvisi[:6])) se avvisi altrimenti "")
+        se_stesso.stato.configure(text=f"{lunghezza(avvisi)} avvisi" se avvisi altrimenti "tutto collegato ✔")
+
+    definisci modulo(se_stesso):
+        """Importazioni e codice di modulo (utile per i programmi convertiti da .pit)."""
+        da rad.dialoghi importa DialogoModulo
+        risultato = DialogoModulo(se_stesso, se_stesso.colori, "\n".join(se_stesso.programma.importazioni),
+                                  se_stesso.programma.codice_iniziale).mostra()
+        se risultato è non Nessuno:
+            se_stesso.programma.importazioni, se_stesso.programma.codice_iniziale = risultato
+            se_stesso.registra()
+            se_stesso.notifica()
+
+    definisci vedi_codice(se_stesso):
+        se se_stesso._codice_visibile:
+            se_stesso.corpo.forget(se_stesso.pannello_codice)
+        altrimenti:
+            se_stesso.corpo.add(se_stesso.pannello_codice, minsize=260, width=380)
+        se_stesso._codice_visibile = non se_stesso._codice_visibile
+
+    # ------------------------------------------------------------ file
+    definisci contenuto(se_stesso):
+        ritorna se_stesso.programma.a_json()
+
+    definisci nome_base(se_stesso):
+        n = os.path.basename(se_stesso.percorso)
+        ritorna n[:-len(SUFFISSO)] se n.lower().endswith(SUFFISSO) altrimenti os.path.splitext(n)[0]
+
+    definisci salva(se_stesso, percorso=Nessuno):
+        se_stesso.programma.nome = se_stesso.nome_base()
+        scritti, avvisi = salva_programma(se_stesso.programma, se_stesso.cartella)
+        se_stesso._segna_modificato(Falso)
+        se_stesso.azioni.file_scritti(scritti)
+        se_stesso.azioni.info("Salvato: " + ", ".join(os.path.basename(p) per p in scritti)
+                              + (f"   ⚠ {lunghezza(avvisi)} avvisi" se avvisi altrimenti ""))
+        ritorna Vero
+
+    definisci percorso_codice(se_stesso):
+        ritorna percorsi_programma(se_stesso.cartella, se_stesso.nome_base())["codice"]
+
+    definisci esegui(se_stesso):
+        se_stesso.salva()
+        se_stesso.azioni.esegui_file(se_stesso.percorso_codice())
+
+    definisci imposta_programma(se_stesso, programma):
+        """Sostituisce l'intero programma (usato dall'AI)."""
+        se_stesso.programma = programma
+        se_stesso.registra()
+        se_stesso.ricostruisci_viste()
+        se_stesso.notifica()
+
+    definisci ricarica_se_cambiato_su_disco(se_stesso):
+        se se_stesso.modificato o non os.path.exists(se_stesso.percorso):
+            ritorna Falso
+        prova:
+            testo_ = open(se_stesso.percorso, encoding="utf-8").read()
+            nuovo = Programma.da_json(testo_)
+        eccetto (OSError, ValueError, KeyError):
+            ritorna Falso
+        se nuovo.a_json() != se_stesso.programma.a_json():
+            se_stesso.programma = nuovo
+            se_stesso.cronologia = [nuovo.a_json()]
+            se_stesso.indice = 0
+            se_stesso.ricostruisci_viste()
+            se_stesso.notifica()
+            ritorna Vero
+        ritorna Falso
+
+    definisci chiudi(se_stesso):
+        per f, v in lista(se_stesso.finestre):
+            prova:
+                f.destroy()
+            eccetto tk.TclError:
+                passa
+        se_stesso.finestre = []
+        se se_stesso._lavoro:
+            prova:
+                se_stesso.after_cancel(se_stesso._lavoro)
+            eccetto tk.TclError:
+                passa
+        se_stesso.codice.chiudi()

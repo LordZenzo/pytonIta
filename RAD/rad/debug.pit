@@ -1,0 +1,269 @@
+"""Debugger di PitStudio: punti di arresto, esecuzione passo-passo, variabili, pila delle chiamate ed espressioni osservate.
+
+Il programma gira in un processo separato sotto rad/debug_runner.py; gli eventi arrivano dalla console (vedi Console.gestore_debug)
+e i comandi tornano sullo stesso canale di ingresso, prefissati da un carattere di controllo.
+"""
+importa json
+importa os
+importa tempfile
+importa tkinter come tk
+da tkinter importa ttk
+
+RUNNER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug_runner.py")
+INIZIO_EVENTO = chr(1) + "DBG"
+FINE_EVENTO = chr(2)
+PREFISSO_COMANDO = chr(1) + "CMD "
+
+COMANDI = [("continua", "▶", "Continua", "F5"), ("passo", "⤼", "Passo", "F10"), ("entra", "↧", "Entra", "F11"),
+           ("esci", "↥", "Esci", "Maiusc+F11"), ("ferma", "■", "Ferma", "Maiusc+F5")]
+
+
+classe PannelloDebug(tk.Frame):
+    """Barra dei comandi + variabili, pila e espressioni osservate."""
+
+    definisci __inizializza__(se_stesso, genitore, sessione):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.sessione = sessione
+        se_stesso.barra = tk.Frame(se_stesso)
+        se_stesso.barra.pack(fill="x")
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="🐞 Debug", font=("Segoe UI Semibold", 9))
+        se_stesso.titolo.pack(side="left", padx=(8, 12), pady=3)
+        se_stesso.pulsanti = {}
+        per nome, simbolo, etichetta, tasto in COMANDI:
+            b = tk.Button(se_stesso.barra, text=f"{simbolo} {etichetta}", relief="flat", padx=8, pady=1,
+                          command=lambda n=nome: sessione.comando(n))
+            b.pack(side="left", padx=1, pady=2)
+            se_stesso.pulsanti[nome] = b
+        se_stesso.stato = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.stato.pack(side="right", padx=8)
+        se_stesso.corpo = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=4, borderwidth=0)
+        se_stesso.corpo.pack(fill="both", expand=Vero)
+
+        a = tk.Frame(se_stesso.corpo)
+        se_stesso.variabili = ttk.Treeview(a, columns=("nome", "valore", "tipo"), show="headings", height=6, selectmode="browse")
+        se_stesso.variabili.heading("nome", text="Variabile")
+        se_stesso.variabili.heading("valore", text="Valore")
+        se_stesso.variabili.heading("tipo", text="Tipo")
+        se_stesso.variabili.column("nome", width=110, stretch=Falso)
+        se_stesso.variabili.column("valore", width=220, stretch=Vero)
+        se_stesso.variabili.column("tipo", width=70, stretch=Falso)
+        sb = ttk.Scrollbar(a, orient="vertical", command=se_stesso.variabili.yview)
+        se_stesso.variabili.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        se_stesso.variabili.pack(fill="both", expand=Vero)
+        se_stesso.corpo.add(a, minsize=200, stretch="always")
+
+        b = tk.Frame(se_stesso.corpo)
+        tk.Label(b, text="Pila delle chiamate", anchor="w", font=("Segoe UI", 9)).pack(fill="x", padx=4)
+        se_stesso.pila = tk.Listbox(b, height=5, activestyle="none", exportselection=Falso, borderwidth=0, highlightthickness=0, font=("Segoe UI", 9))
+        se_stesso.pila.pack(fill="both", expand=Vero)
+        se_stesso.pila.bind("<<ListboxSelect>>", se_stesso._scelta_pila)
+        se_stesso._etichetta_pila = b.winfo_children()[0]
+        se_stesso.corpo.add(b, minsize=150, stretch="never", width=230)
+
+        c = tk.Frame(se_stesso.corpo)
+        se_stesso._etichetta_osserva = tk.Label(c, text="Espressioni osservate (Invio per aggiungere)", anchor="w", font=("Segoe UI", 9))
+        se_stesso._etichetta_osserva.pack(fill="x", padx=4)
+        se_stesso.var_osserva = tk.StringVar()
+        se_stesso.campo = tk.Entry(c, textvariable=se_stesso.var_osserva, relief="flat", font=("Segoe UI", 9))
+        se_stesso.campo.pack(fill="x", padx=4, ipady=2)
+        se_stesso.campo.bind("<Return>", se_stesso._aggiungi_osservata)
+        se_stesso.osservate = ttk.Treeview(c, columns=("valore",), show="tree headings", height=4, selectmode="browse")
+        se_stesso.osservate.heading("#0", text="Espressione")
+        se_stesso.osservate.heading("valore", text="Valore")
+        se_stesso.osservate.column("#0", width=120)
+        se_stesso.osservate.column("valore", width=140)
+        se_stesso.osservate.pack(fill="both", expand=Vero, padx=4, pady=(2, 0))
+        se_stesso.osservate.bind("<Delete>", se_stesso._rimuovi_osservata)
+        se_stesso.corpo.add(c, minsize=200, stretch="never", width=300)
+        se_stesso._frame_pila = []
+        se_stesso.attiva_comandi(Falso)
+
+    definisci attiva_comandi(se_stesso, fermo):
+        per nome, b in se_stesso.pulsanti.items():
+            b.configure(state="normal" se (fermo o nome == "ferma") altrimenti "disabled")
+        se_stesso.stato.configure(text="fermo" se fermo altrimenti "in esecuzione…")
+
+    definisci mostra_stato(se_stesso, ev):
+        se_stesso.attiva_comandi(Vero)
+        se_stesso.variabili.delete(*se_stesso.variabili.get_children())
+        per v in ev.get("variabili", []):
+            se_stesso.variabili.insert("", "end", values=(v["nome"], v["valore"], v["tipo"]))
+        se_stesso.pila.delete(0, "end")
+        se_stesso._frame_pila = ev.get("pila", [])
+        per f in se_stesso._frame_pila:
+            se_stesso.pila.insert("end", f"{f['funzione']}   ·   {os.path.basename(f['file'])}:{f['riga']}")
+        se_stesso.aggiorna_osservate(ev.get("osservate", []))
+        se_stesso.stato.configure(text=f"fermo alla riga {ev.get('riga')}")
+
+    definisci aggiorna_osservate(se_stesso, osservate):
+        se_stesso.osservate.delete(*se_stesso.osservate.get_children())
+        per o in osservate:
+            se_stesso.osservate.insert("", "end", text=o["espressione"], values=(o["valore"],))
+
+    definisci _scelta_pila(se_stesso, e=Nessuno):
+        sel = se_stesso.pila.curselection()
+        se sel e sel[0] < lunghezza(se_stesso._frame_pila):
+            f = se_stesso._frame_pila[sel[0]]
+            se_stesso.sessione.mostra_posizione(f["file"], f["riga"])
+
+    definisci _aggiungi_osservata(se_stesso, e=Nessuno):
+        espressione = se_stesso.var_osserva.get().strip()
+        se espressione:
+            se_stesso.sessione.aggiungi_osservata(espressione)
+            se_stesso.var_osserva.set("")
+
+    definisci _rimuovi_osservata(se_stesso, e=Nessuno):
+        sel = se_stesso.osservate.selection()
+        se sel:
+            se_stesso.sessione.rimuovi_osservata(se_stesso.osservate.item(sel[0], "text"))
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.configure(background=c["pannello"])
+        per w in (se_stesso.barra, se_stesso.corpo):
+            w.configure(background=c["pannello"])
+        per w in (se_stesso.titolo, se_stesso.stato, se_stesso._etichetta_pila, se_stesso._etichetta_osserva):
+            w.configure(background=c["pannello"], foreground=c["primo_piano"] se w è se_stesso.titolo altrimenti c["tenue"])
+        per b in se_stesso.pulsanti.values():
+            b.configure(background=c["pulsante"], foreground=c["primo_piano"], activebackground=c["pulsante_attivo"],
+                        disabledforeground=c["tenue"])
+        se_stesso.pila.configure(background=c["sfondo"], foreground=c["primo_piano"], selectbackground=c["accento"])
+        se_stesso.campo.configure(background=c["sfondo"], foreground=c["primo_piano"], insertbackground=c["primo_piano"])
+        per f in se_stesso.corpo.winfo_children():
+            f.configure(background=c["pannello"])
+
+
+classe SessioneDebug:
+    """Una sessione di debug: avvia il programma sotto il debugger e coordina editor, console e pannello."""
+
+    definisci __inizializza__(se_stesso, app):
+        se_stesso.app = app
+        se_stesso.pannello = Nessuno
+        se_stesso.attiva = Falso          # il programma è in corso sotto il debugger
+        se_stesso.fermo = Falso           # ed è fermo, in attesa di un comando
+        se_stesso.osservate = []
+        se_stesso.file_fermo = Nessuno
+
+    # ------------------------------------------------------------ avvio
+    definisci avvia(se_stesso, percorso, inizio=Falso):
+        app = se_stesso.app
+        se app.console.in_esecuzione:
+            app.info("Un programma è già in esecuzione: fermalo prima.")
+            ritorna Falso
+        se app.config_.ottieni("esecuzione.salva_prima", Vero):
+            app.salva_tutto()
+        file_punti = os.path.join(tempfile.mkdtemp(prefix="pitstudio_dbg_"), "punti.json")
+        con open(file_punti, "w", encoding="utf-8") come f:
+            json.dump(se_stesso.punti_arresto(), f)
+        argomenti = [app.config_.interprete(), "-u", RUNNER, percorso, "--punti", file_punti]
+        se inizio:
+            argomenti.append("--inizio")
+        extra = (app.config_.ottieni("esecuzione.argomenti", "") o "").split()
+        argomenti += extra
+        cartella = app.progetto.cartella se app.progetto e app.progetto.contiene(percorso) altrimenti os.path.dirname(percorso)
+        per w in app.schede.values():
+            se hasattr(w, "cancella_errori"):
+                w.cancella_errori()
+        se_stesso._mostra_pannello()
+        app.console.gestore_debug = se_stesso.gestisci_evento
+        se non app.console.esegui(argomenti, cartella, f"🐞 {os.path.basename(percorso)}  (debug)"):
+            se_stesso._nascondi_pannello()
+            app.console.gestore_debug = Nessuno
+            ritorna Falso
+        se_stesso.attiva = Vero
+        se_stesso.fermo = Falso
+        se_stesso.pannello.attiva_comandi(Falso)
+        ritorna Vero
+
+    definisci punti_arresto(se_stesso):
+        """{percorso: [righe]} di tutti i punti di arresto (anche dei file non aperti)."""
+        ritorna {p: sorted(r) per p, r in se_stesso.app.punti_arresto.items() se r}
+
+    # ------------------------------------------------------------ eventi dal programma
+    definisci gestisci_evento(se_stesso, ev):
+        tipo_ = ev.get("evento")
+        se tipo_ == "fermo":
+            se_stesso.fermo = Vero
+            se_stesso.file_fermo = ev["file"]
+            se_stesso.mostra_posizione(ev["file"], ev["riga"], segna=Vero)
+            se se_stesso.pannello:
+                se_stesso.pannello.mostra_stato(ev)
+        altrimenti_se tipo_ in ("fine", "fine_processo"):
+            se_stesso.termina()
+
+    definisci mostra_posizione(se_stesso, percorso, riga, segna=Falso):
+        app = se_stesso.app
+        se_stesso._cancella_marcatore()
+        se os.path.exists(percorso):
+            w = app.apri_file(percorso, riga)
+            se hasattr(w, "imposta_riga_debug"):
+                w.imposta_riga_debug(riga)
+                se_stesso._editor_marcato = w
+
+    definisci _cancella_marcatore(se_stesso):
+        w = getattr(se_stesso, "_editor_marcato", Nessuno)
+        se w è non Nessuno:
+            prova:
+                w.imposta_riga_debug(Nessuno)
+            eccetto tk.TclError:
+                passa
+        se_stesso._editor_marcato = Nessuno
+
+    definisci termina(se_stesso):
+        se_stesso.attiva = Falso
+        se_stesso.fermo = Falso
+        se_stesso._cancella_marcatore()
+        se_stesso.app.console.gestore_debug = Nessuno
+        se_stesso._nascondi_pannello()
+
+    # ------------------------------------------------------------ comandi
+    definisci comando(se_stesso, nome):
+        se non se_stesso.attiva:
+            ritorna
+        se nome == "ferma":
+            se_stesso.fermo = Falso
+            se_stesso.app.console.ferma()
+            se_stesso.termina()
+            ritorna
+        se non se_stesso.fermo:
+            ritorna
+        c = se_stesso.app.console.esecutore
+        c.invia(PREFISSO_COMANDO + "punti " + json.dumps(se_stesso.punti_arresto()))
+        c.invia(PREFISSO_COMANDO + nome)
+        se_stesso.fermo = Falso
+        se_stesso._cancella_marcatore()
+        se se_stesso.pannello:
+            se_stesso.pannello.attiva_comandi(Falso)
+
+    definisci aggiungi_osservata(se_stesso, espressione):
+        se espressione non in se_stesso.osservate:
+            se_stesso.osservate.append(espressione)
+        se_stesso._invia_osservate()
+
+    definisci rimuovi_osservata(se_stesso, espressione):
+        se espressione in se_stesso.osservate:
+            se_stesso.osservate.remove(espressione)
+        se_stesso._invia_osservate()
+
+    definisci _invia_osservate(se_stesso):
+        se se_stesso.attiva e se_stesso.fermo:
+            se_stesso.app.console.esecutore.invia(PREFISSO_COMANDO + "osserva " + json.dumps(se_stesso.osservate))
+        altrimenti_se se_stesso.pannello:
+            se_stesso.pannello.aggiorna_osservate([{"espressione": e, "valore": "…"} per e in se_stesso.osservate])
+
+    # ------------------------------------------------------------ pannello
+    definisci _mostra_pannello(se_stesso):
+        app = se_stesso.app
+        se se_stesso.pannello è Nessuno:
+            se_stesso.pannello = PannelloDebug(app.centro, se_stesso)
+            se_stesso.pannello.applica_colori(app.colori)
+        se str(se_stesso.pannello) non in [testo(x) per x in app.centro.panes()]:
+            app.centro.add(se_stesso.pannello, before=app.console, minsize=110, height=210)
+        se_stesso.pannello.aggiorna_osservate([{"espressione": e, "valore": "…"} per e in se_stesso.osservate])
+
+    definisci _nascondi_pannello(se_stesso):
+        se se_stesso.pannello è non Nessuno e se_stesso.pannello.winfo_exists():
+            prova:
+                se_stesso.app.centro.forget(se_stesso.pannello)
+            eccetto tk.TclError:
+                passa

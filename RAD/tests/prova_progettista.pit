@@ -1,0 +1,63 @@
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.form_modello importa Form, ORDINE_PALETTE
+da rad.progettista importa Progettista
+
+classe Az:
+    registro = []
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): se_stesso.registro.append(m)
+    definisci file_scritti(se_stesso, p): se_stesso.registro.append(("scritti", [os.path.basename(x) per x in p]))
+    definisci apri_file(se_stesso, p): se_stesso.registro.append(("apri", os.path.basename(p)))
+    definisci apri_file_a_funzione(se_stesso, p, f): se_stesso.registro.append(("funzione", os.path.basename(p), f))
+    definisci esegui_file(se_stesso, p): se_stesso.registro.append(("esegui", os.path.basename(p)))
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x650")
+configura_stile(radice, c)
+d = tempfile.mkdtemp()
+f = Form("Demo", "Demo")
+az = Az()
+p = Progettista(radice, os.path.join(d, "demo.form.json"), f, c, cfg, az)
+p.pack(fill="both", expand=Vero)
+applica(radice, c)
+radice.update()
+per i, t in enumera(ORDINE_PALETTE):
+    p.aggiungi_componente(t, 10 + (i % 4) * 110, 10 + (i // 4) * 60)
+radice.update()
+stampa("componenti:", lunghezza(f.componenti), "widget:", lunghezza(p.widget))
+p.seleziona(["pulsante1"])
+stampa("maniglie:", lunghezza(p.maniglie))
+p.sposta_selezione(10, 0)
+stampa("spostato:", f.trova("pulsante1").x)
+p.imposta_proprieta("pulsante1", "testo", "Invia")
+p.imposta_proprieta("pulsante1", "al_clic", "al_clic_invia")
+stampa("testo widget:", p.widget["pulsante1"].cget("text"))
+p.seleziona(["pulsante1", "etichetta1"])
+p.allinea("sinistra")
+stampa("allineati:", f.trova("pulsante1").x == f.trova("etichetta1").x)
+p.seleziona([])
+p.annulla()
+p.annulla()
+stampa("annullato:", f.__class__ == p.form.__class__, p.form.trova("pulsante1").valori["testo"])
+p.ripeti()
+p.ripeti()
+stampa("ripetuto:", p.form.trova("pulsante1").valori["testo"], p.form.trova("pulsante1").valori.get("al_clic"))
+radice.update()
+p.seleziona(["campoTesto1"])
+radice.update()
+stampa("ispettore righe:", lunghezza(p.righe_ispettore.winfo_children()))
+p.salva()
+stampa("registro:", az.registro)
+stampa("file:", sorted(os.listdir(d)))
+# schermata
+radice.update()
+p.seleziona(["pulsante1"])
+radice.update()
+radice.destroy()

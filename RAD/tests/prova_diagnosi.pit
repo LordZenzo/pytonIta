@@ -1,0 +1,40 @@
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa diagnosi, esecuzione
+
+casi = [
+    ("ErroreDiNome: il nome 'if' non è definito", "importa matematica", "inglese"),
+    ("ErroreDiTipo: si può concatenare solo testo a testo (trovato \"int\")", "", "unire testo e numero"),
+    ("DivisionePerZero: divisione per zero", "", "divisore"),
+    ("ErroreDiIndice: indice di list fuori intervallo", "", "gli indici partono da 0"),
+    ("ErroreDiChiave: 'b'", "", "ottieni"),
+    ("ModuloNonTrovato: nessun modulo chiamato 'matematic'", "", "matematica"),
+    ("ErroreDiValore: letterale non valido per intero() in base 10: 'abc'", "", "non rappresenta un numero"),
+    ("ErroreDiIndentazione: indentazione inattesa", "", "rientrata"),
+    ("ErroreVariabileNonAssegnata: impossibile accedere alla variabile locale 'a' prima dell'assegnazione", "", "globale"),
+    ("FileNonTrovato: [Errno 2] File o cartella inesistente: 'x.txt'", "", "cartella"),
+]
+ok = 0
+per testo_errore, _, atteso in casi:
+    h = diagnosi.analizza("Traceback (ultima chiamata per ultima):\n" + testo_errore + "\n", "C:/prova")
+    bene = h è non Nessuno e atteso.lower() in h.lower()
+    ok += 1 se bene altrimenti 0
+    se non bene:
+        stampa("MANCA", atteso, "in", h)
+stampa(f"diagnosi traceback: {ok}/{lunghezza(casi)}")
+sint = [
+    ("if 1:\n    passa\n", "if", "se"),
+    ("se x\n    passa\n", ":", ""),
+    ("stampa(\"ciao\n", "virgoletta", ""),
+    ("stampa(1\n", "parentesi", ""),
+    ("se x = 1:\n    passa\n", "==", ""),
+]
+ok2 = 0
+per codice, atteso, _ in sint:
+    errore = esecuzione.controlla_sintassi(codice, "a.pit")
+    bene = errore è non Nessuno e atteso in errore[2]
+    ok2 += 1 se bene altrimenti 0
+    se non bene:
+        stampa("MANCA sintassi", atteso, "in", errore)
+stampa(f"diagnosi sintassi: {ok2}/{lunghezza(sint)}")
+stampa("python classico:", esecuzione.controlla_sintassi("if x\n    pass\n", "a.py")[2])

@@ -1,0 +1,483 @@
+"""Disegno delle mattonelle: misure, posizioni, forme e colori, ricerca sotto il mouse e punti di aggancio."""
+importa math
+importa tkinter come tk
+importa tkinter.font come tkfont
+
+da rad.mattonelle_modello importa (CATEGORIE, FORME_ISTRUZIONE, FORME_VALORE, definizione, ingressi_di, campi_di,
+                                   Mattonella, Radice)
+
+
+definisci _rgb(colore):
+    colore = colore.lstrip("#")
+    ritorna int(colore[0:2], 16), int(colore[2:4], 16), int(colore[4:6], 16)
+
+
+definisci _esa(r, g, b):
+    ritorna "#%02x%02x%02x" % (max(0, min(255, int(r))), max(0, min(255, int(g))), max(0, min(255, int(b))))
+
+
+definisci scurisci(colore, f=0.75):
+    r, g, b = _rgb(colore)
+    ritorna _esa(r * f, g * f, b * f)
+
+
+definisci schiarisci(colore, f=0.7):
+    """Mescola il colore con il bianco (f = quanto bianco)."""
+    r, g, b = _rgb(colore)
+    ritorna _esa(r + (255 - r) * f, g + (255 - g) * f, b + (255 - b) * f)
+
+
+classe Disposizione:
+    """Posizione e misure di una mattonella già disposta (coordinate dell'area di lavoro)."""
+
+    definisci __inizializza__(se_stesso):
+        se_stesso.x = se_stesso.y = 0
+        se_stesso.w = se_stesso.h = 0
+        se_stesso.testa_h = 0          # altezza della riga d'intestazione
+        se_stesso.sopra = 0            # extra sopra (cappello)
+        se_stesso.segmenti = []        # (tipo, nome/testo, x, y, w, h)
+        se_stesso.corpi = []           # (nome, x, y, w, h, y_barra, h_barra, etichetta)
+        se_stesso.parti = []           # rettangoli cliccabili (x, y, w, h)
+        se_stesso.misure = Nessuno
+
+
+classe Disegnatore:
+    """Calcola il layout e disegna le mattonelle su un Canvas tkinter."""
+    # misure di base (moltiplicate per lo zoom)
+    PAD_X = 10
+    VPAD = 5
+    GAP = 6
+    RIGA = 30
+    SLOT_H = 22
+    SLOT_MIN = 26
+    CHIP_H = 20
+    RIENTRO = 20
+    PIEDE = 14
+    CORPO_VUOTO = 26
+    BARRA = 24
+    CAPPELLO = 14
+    ASOLA = 5          # profondità di incastro
+
+    definisci __inizializza__(se_stesso, tela, programma, colori):
+        se_stesso.tela = tela
+        se_stesso.programma = programma
+        se_stesso.colori = colori
+        se_stesso.zoom = 1.0
+        se_stesso.lay = {}
+        se_stesso._font()
+
+    # ------------------------------------------------------------ misure
+    definisci _font(se_stesso):
+        z = se_stesso.zoom
+        dim = max(7, int(round(10 * z)))
+        se_stesso.f_testo = tkfont.Font(family="Segoe UI", size=dim, weight="bold")
+        se_stesso.f_campo = tkfont.Font(family="Segoe UI", size=dim)
+        se_stesso.f_cod = tkfont.Font(family="Consolas", size=dim)
+
+    definisci imposta_zoom(se_stesso, z):
+        se_stesso.zoom = max(0.5, min(2.0, z))
+        se_stesso._font()
+
+    definisci s(se_stesso, v):
+        """Valore scalato dallo zoom."""
+        ritorna int(round(v * se_stesso.zoom))
+
+    definisci imposta_programma(se_stesso, programma):
+        se_stesso.programma = programma
+
+    definisci _def(se_stesso, m):
+        ritorna definizione(m.tipo, se_stesso.programma)
+
+    definisci misura(se_stesso, m):
+        """Calcola (larghezza, altezza) di m e dei suoi contenuti; salva i dati intermedi."""
+        d = se_stesso._def(m)
+        lay = se_stesso.lay[m.id] = Disposizione()
+        voci = []
+        alto = 0
+        per seg in d["seg"]:
+            se isinstance(seg, str):
+                w = se_stesso.f_testo.measure(seg)
+                voci.append(("etichetta", seg, w, se_stesso.s(se_stesso.CHIP_H)))
+            altrimenti_se seg[0] == "c":
+                valore = testo(m.campi.get(seg[1], ""))
+                w = max(se_stesso.s(26), se_stesso.f_campo.measure(valore) + se_stesso.s(14))
+                voci.append(("campo", seg[1], w, se_stesso.s(se_stesso.CHIP_H)))
+            altrimenti:
+                nome = seg[1]
+                figlio = m.ingressi.get(nome)
+                se figlio è non Nessuno:
+                    fw, fh = se_stesso.misura(figlio)
+                    voci.append(("ingresso", nome, fw, fh))
+                altrimenti:
+                    letterale = m.letterali.get(nome, "")
+                    w = max(se_stesso.s(se_stesso.SLOT_MIN), se_stesso.f_campo.measure(letterale) + se_stesso.s(14))
+                    voci.append(("vuoto", nome, w, se_stesso.s(se_stesso.SLOT_H)))
+        alto = max([v[3] per v in voci] + [0])
+        testa_h = max(se_stesso.s(se_stesso.RIGA), alto + 2 * se_stesso.s(se_stesso.VPAD))
+        se d["forma"] in FORME_VALORE:
+            testa_h = max(se_stesso.s(se_stesso.SLOT_H) + 2, alto + 2 * se_stesso.s(3))
+        larghezza = 2 * se_stesso.s(se_stesso.PAD_X) + sum(v[2] per v in voci) + se_stesso.s(se_stesso.GAP) * max(0, lunghezza(voci) - 1)
+        se d["forma"] == "booleano":
+            larghezza += testa_h // 2
+        lay.misure = voci
+        lay.testa_h = testa_h
+        lay.sopra = se_stesso.s(se_stesso.CAPPELLO) se d["forma"] == "cappello" altrimenti 0
+        se d["forma"] == "blocco":
+            altezza = lay.sopra + testa_h
+            largo = larghezza
+            lay.corpi = []
+            per i, (nome_corpo, etichetta) in enumera(d["corpi"]):
+                barra_h = se_stesso.s(se_stesso.BARRA) se i > 0 altrimenti 0
+                pw, ph = se_stesso.misura_pila(m.corpi.get(nome_corpo, []))
+                corpo_h = max(se_stesso.s(se_stesso.CORPO_VUOTO), ph)
+                lay.corpi.append([nome_corpo, 0, 0, pw, corpo_h, 0, barra_h, etichetta])
+                largo = max(largo, se_stesso.s(se_stesso.RIENTRO) + pw + se_stesso.s(8))
+                se barra_h:
+                    largo = max(largo, 2 * se_stesso.s(se_stesso.PAD_X) + se_stesso.f_testo.measure(etichetta) + se_stesso.s(10))
+                altezza += barra_h + corpo_h
+            altezza += se_stesso.s(se_stesso.PIEDE)
+            lay.w, lay.h = largo, altezza
+        altrimenti:
+            lay.w, lay.h = larghezza, lay.sopra + testa_h
+        ritorna lay.w, lay.h
+
+    definisci misura_pila(se_stesso, pila):
+        w = h = 0
+        per m in pila:
+            mw, mh = se_stesso.misura(m)
+            w = max(w, mw)
+            h += mh
+        ritorna w, h
+
+    # ------------------------------------------------------------ posizioni
+    definisci disponi(se_stesso, m, x, y):
+        """Assegna le coordinate a m e a tutto ciò che contiene."""
+        lay = se_stesso.lay[m.id]
+        d = se_stesso._def(m)
+        lay.x, lay.y = x, y
+        lay.segmenti = []
+        lay.parti = []
+        riga_y = y + lay.sopra
+        cx = x + se_stesso.s(se_stesso.PAD_X)
+        se d["forma"] == "booleano":
+            cx += lay.testa_h // 4
+        per tipo_, nome, w, h in lay.misure:
+            sy = riga_y + (lay.testa_h - h) // 2
+            se tipo_ == "ingresso":
+                lay.segmenti.append(("ingresso", nome, cx, sy, w, h))
+                se_stesso.disponi(m.ingressi[nome], cx, sy)
+            altrimenti:
+                lay.segmenti.append((tipo_, nome, cx, sy, w, h))
+            cx += w + se_stesso.s(se_stesso.GAP)
+        se d["forma"] in FORME_VALORE:
+            lay.parti = [(x, y, lay.w, lay.h)]
+            ritorna
+        lay.parti.append((x, y, lay.w, lay.sopra + lay.testa_h))
+        se d["forma"] == "blocco":
+            yb = riga_y + lay.testa_h
+            rientro = se_stesso.s(se_stesso.RIENTRO)
+            per c in lay.corpi:
+                nome_corpo, _x, _y, pw, corpo_h, _yb, barra_h, etichetta = c
+                se barra_h:
+                    c[5] = yb
+                    lay.parti.append((x, yb, lay.w, barra_h))
+                    yb += barra_h
+                c[1], c[2] = x + rientro, yb
+                se_stesso.disponi_pila(m.corpi.get(nome_corpo, []), x + rientro, yb)
+                lay.parti.append((x, yb, rientro, corpo_h))
+                yb += corpo_h
+            lay.parti.append((x, yb, lay.w, se_stesso.s(se_stesso.PIEDE)))
+
+    definisci disponi_pila(se_stesso, pila, x, y):
+        per m in pila:
+            se_stesso.disponi(m, x, y)
+            y += se_stesso.lay[m.id].h
+        ritorna y
+
+    definisci disponi_area(se_stesso, area):
+        se_stesso.lay = {}
+        per r in area.radici:
+            per m in r.mattonelle_di_testa():
+                se_stesso.misura(m)
+            se r.è_valore:
+                se_stesso.disponi(r.valore, r.x, r.y)
+            altrimenti:
+                se_stesso.disponi_pila(r.pila, r.x, r.y)
+        ritorna se_stesso.limiti(area)
+
+    definisci limiti(se_stesso, area):
+        """(larghezza, altezza) occupate dalle mattonelle, per la regione scorrevole."""
+        w = h = 0
+        per r in area.radici:
+            per m in r.mattonelle_di_testa():
+                l = se_stesso.lay.get(m.id)
+                se l:
+                    w = max(w, l.x + l.w)
+                    h = max(h, l.y + l.h)
+        ritorna w, h
+
+    # ------------------------------------------------------------ forme
+    definisci _colore(se_stesso, m):
+        ritorna CATEGORIE.get(se_stesso._def(m)["cat"], CATEGORIE["altro"])[1]
+
+    definisci _punti_istruzione(se_stesso, lay, forma, con_sopra=Vero):
+        """Contorno di un'istruzione (cappello, istruzione, fine)."""
+        x, y, w = lay.x, lay.y + lay.sopra, lay.w
+        h = lay.testa_h
+        a = se_stesso.s(se_stesso.ASOLA)
+        n0 = x + se_stesso.s(14)
+        n1 = n0 + se_stesso.s(4)
+        n2 = n1 + se_stesso.s(12)
+        n3 = n2 + se_stesso.s(4)
+        punti = []
+        se forma == "cappello":
+            cup = lay.sopra
+            punti += [x, y, x + w * 0.15, y - cup * 0.9, x + w * 0.4, y - cup, x + w * 0.6, y - cup, x + w * 0.85, y - cup * 0.9,
+                      x + w, y]
+        altrimenti:
+            punti += [x, y, n0, y, n1, y + a, n2, y + a, n3, y]
+            punti += [x + w, y]
+        punti += [x + w, y + h]
+        se forma != "fine":
+            punti += [n3, y + h, n2, y + h + a, n1, y + h + a, n0, y + h]
+        punti += [x, y + h]
+        ritorna punti
+
+    definisci _punti_blocco(se_stesso, lay):
+        x, y, w = lay.x, lay.y, lay.w
+        a = se_stesso.s(se_stesso.ASOLA)
+        piede = se_stesso.s(se_stesso.PIEDE)
+        n0 = x + se_stesso.s(14)
+        n1, n2, n3 = n0 + se_stesso.s(4), n0 + se_stesso.s(16), n0 + se_stesso.s(20)
+        rientro = se_stesso.s(se_stesso.RIENTRO)
+        i0 = x + rientro + se_stesso.s(14)
+        i1, i2, i3 = i0 + se_stesso.s(4), i0 + se_stesso.s(16), i0 + se_stesso.s(20)
+        punti = [x, y, n0, y, n1, y + a, n2, y + a, n3, y, x + w, y, x + w, y + lay.testa_h]
+        yb = y + lay.testa_h
+        totale = lunghezza(lay.corpi)
+        per i, c in enumera(lay.corpi):
+            nome_corpo, cx, cy, pw, corpo_h, ybarra, barra_h, etichetta = c
+            punti += [i3, cy, i2, cy + a, i1, cy + a, i0, cy, x + rientro, cy, x + rientro, cy + corpo_h]
+            yb = cy + corpo_h
+            se i + 1 < totale:
+                punti += [x + w, yb, x + w, lay.corpi[i + 1][2]]
+        punti += [x + w, yb, x + w, yb + piede, n3, yb + piede, n2, yb + piede + a, n1, yb + piede + a,
+                  n0, yb + piede, x, yb + piede]
+        ritorna punti
+
+    definisci _esagono(se_stesso, x, y, w, h):
+        r = h / 2
+        ritorna [x + r, y, x + w - r, y, x + w, y + r, x + w - r, y + h, x + r, y + h, x, y + r]
+
+    # ------------------------------------------------------------ disegno
+    definisci disegna_mattonella(se_stesso, m, selezione=(), tag="m", trasparente=Falso):
+        c = se_stesso.tela
+        d = se_stesso._def(m)
+        lay = se_stesso.lay[m.id]
+        colore = se_stesso._colore(m)
+        bordo = scurisci(colore, 0.72)
+        sel = m.id in selezione
+        contorno = "#ffffff" se sel altrimenti bordo
+        larghezza_c = 3 se sel altrimenti 1
+        forma = d["forma"]
+        se forma == "valore":
+            punti = se_stesso._pillola_semplice(lay.x, lay.y, lay.w, lay.h)
+        altrimenti_se forma == "booleano":
+            punti = se_stesso._esagono(lay.x, lay.y, lay.w, lay.h)
+        altrimenti_se forma == "blocco":
+            punti = se_stesso._punti_blocco(lay)
+        altrimenti:
+            punti = se_stesso._punti_istruzione(lay, forma)
+        stipple = "gray50" se trasparente altrimenti ""
+        c.create_polygon(punti, fill=colore, outline=contorno, width=larghezza_c, tags=(tag, f"t{m.id}"), joinstyle="round",
+                         stipple=stipple)
+        se forma == "blocco":
+            se_stesso._barre_blocco(m, lay, colore, bordo, tag)
+        # contenuti dell'intestazione
+        per tipo_, nome, x, y, w, h in lay.segmenti:
+            se tipo_ == "etichetta":
+                c.create_text(x, y + h / 2, text=nome, anchor="w", fill="#ffffff", font=se_stesso.f_testo, tags=(tag,))
+            altrimenti_se tipo_ == "campo":
+                valore = testo(m.campi.get(nome, ""))
+                c.create_polygon(se_stesso._pillola_semplice(x, y, w, h), fill=schiarisci(colore, 0.82), outline=bordo,
+                                 tags=(tag,))
+                c.create_text(x + w / 2, y + h / 2, text=valore, fill="#222222", font=se_stesso.f_campo, tags=(tag,))
+            altrimenti_se tipo_ == "vuoto":
+                booleano = se_stesso._tipo_ingresso(d, nome) == "booleano"
+                punti_slot = se_stesso._esagono(x, y, w, h) se booleano altrimenti se_stesso._pillola_semplice(x, y, w, h)
+                c.create_polygon(punti_slot, fill=scurisci(colore, 0.82) se booleano altrimenti "#ffffff",
+                                 outline=bordo, tags=(tag, f"s{m.id}_{nome}"))
+                letterale = m.letterali.get(nome, "")
+                c.create_text(x + w / 2, y + h / 2, text=letterale, fill="#222222", font=se_stesso.f_campo, tags=(tag,))
+        # figli
+        per nome, figlio in m.ingressi.items():
+            se figlio è non Nessuno:
+                se_stesso.disegna_mattonella(figlio, selezione, tag, trasparente)
+        per pila in m.corpi.values():
+            per f in pila:
+                se_stesso.disegna_mattonella(f, selezione, tag, trasparente)
+
+    definisci _tipo_ingresso(se_stesso, d, nome):
+        per i in ingressi_di(d):
+            se i[1] == nome:
+                ritorna i[2]
+        ritorna "valore"
+
+    definisci _barre_blocco(se_stesso, m, lay, colore, bordo, tag):
+        """Testi delle barre dei rami successivi (es. 'altrimenti')."""
+        c = se_stesso.tela
+        per nome_corpo, cx, cy, pw, corpo_h, ybarra, barra_h, etichetta in lay.corpi:
+            se barra_h:
+                c.create_text(lay.x + se_stesso.s(se_stesso.PAD_X), cy - barra_h / 2, text=etichetta, anchor="w",
+                              fill="#ffffff", font=se_stesso.f_testo, tags=(tag,))
+
+    definisci _pillola_semplice(se_stesso, x, y, w, h):
+        """Rettangolo dagli angoli arrotondati, come elenco di punti."""
+        r = min(h / 2, 12)
+        punti = []
+        per cx, cy, inizio in ((x + w - r, y + r, -90), (x + w - r, y + h - r, 0), (x + r, y + h - r, 90), (x + r, y + r, 180)):
+            per passo in intervallo(0, 7):
+                ang = math.radians(inizio + passo * 15)
+                punti += [cx + r * math.cos(ang), cy + r * math.sin(ang)]
+        ritorna punti
+
+    definisci disponi_singola(se_stesso, m, x, y):
+        """Misura e posiziona una mattonella sola (per la tavolozza)."""
+        se_stesso.misura(m)
+        se_stesso.disponi(m, x, y)
+        ritorna se_stesso.lay[m.id]
+
+    definisci disegna_area(se_stesso, area, selezione=(), tratteggio=Nessuno):
+        """Ridisegna l'intera area (le pile libere in ordine). Ritorna (larghezza, altezza) occupate."""
+        se_stesso.tela.delete("m")
+        limiti = se_stesso.disponi_area(area)
+        per r in area.radici:
+            per m in r.mattonelle_di_testa():
+                se_stesso.disegna_mattonella(m, selezione)
+        ritorna limiti
+
+    # ------------------------------------------------------------ ricerca sotto il mouse
+    definisci _dentro(se_stesso, rett, px, py):
+        x, y, w, h = rett
+        ritorna x <= px <= x + w e y <= py <= y + h
+
+    definisci trova(se_stesso, area, px, py):
+        """(mattonella, zona, nome): zona = 'campo' | 'ingresso_vuoto' | 'corpo' | 'testa'. None se nulla."""
+        per r in reversed(area.radici):
+            per m in reversed(r.mattonelle_di_testa()):
+                trovato = se_stesso._trova_in(m, px, py)
+                se trovato:
+                    ritorna trovato
+        ritorna Nessuno
+
+    definisci _trova_in(se_stesso, m, px, py):
+        lay = se_stesso.lay.get(m.id)
+        se lay è Nessuno:
+            ritorna Nessuno
+        se non (lay.x - 2 <= px <= lay.x + lay.w + 2 e lay.y - lay.sopra - 2 <= py <= lay.y + lay.h + se_stesso.s(6)):
+            ritorna Nessuno
+        per nome, figlio in m.ingressi.items():
+            se figlio è non Nessuno:
+                t = se_stesso._trova_in(figlio, px, py)
+                se t:
+                    ritorna t
+        per pila in m.corpi.values():
+            per f in reversed(pila):
+                t = se_stesso._trova_in(f, px, py)
+                se t:
+                    ritorna t
+        per tipo_, nome, x, y, w, h in lay.segmenti:
+            se tipo_ == "campo" e se_stesso._dentro((x, y, w, h), px, py):
+                ritorna (m, "campo", nome)
+            se tipo_ == "vuoto" e se_stesso._dentro((x, y, w, h), px, py):
+                ritorna (m, "ingresso_vuoto", nome)
+        per rett in lay.parti:
+            se se_stesso._dentro(rett, px, py):
+                ritorna (m, "testa", "")
+        ritorna Nessuno
+
+    # ------------------------------------------------------------ punti di aggancio
+    definisci tutte_le_mattonelle(se_stesso, area):
+        per r in area.radici:
+            per m in r.mattonelle_di_testa():
+                produci m
+                produci da m.figli()
+
+    definisci candidati(se_stesso, area, trascinata, esclusi):
+        """Punti dove la mattonella (o catena) trascinata si può agganciare.
+
+        trascinata: la Radice in movimento. esclusi: id delle mattonelle da ignorare (quelle trascinate)."""
+        risultati = []
+        se trascinata.è_valore:
+            per m in se_stesso.tutte_le_mattonelle(area):
+                se m.id in esclusi:
+                    continua
+                lay = se_stesso.lay.get(m.id)
+                se lay è Nessuno:
+                    continua
+                per tipo_, nome, x, y, w, h in lay.segmenti:
+                    se tipo_ in ("vuoto", "ingresso"):
+                        risultati.append({"tipo": "ingresso", "punto": (x, y), "rett": (x, y, w, h), "mattonella": m, "nome": nome})
+            ritorna risultati
+        catena = trascinata.pila
+        coda_fine = se_stesso._def(catena[-1])["forma"] == "fine"
+        altezza_catena = sum(se_stesso.lay[x.id].h per x in catena se x.id in se_stesso.lay)
+        per m in se_stesso.tutte_le_mattonelle(area):
+            se m.id in esclusi:
+                continua
+            lay = se_stesso.lay.get(m.id)
+            d = se_stesso._def(m)
+            se lay è Nessuno:
+                continua
+            se d["forma"] in FORME_ISTRUZIONE e d["forma"] != "fine":
+                # sotto la mattonella (se dopo c'è altro, la catena non deve finire con una chiusura)
+                lista_ = m.lista
+                segue = lista_ è non Nessuno e lista_.index(m) + 1 < lunghezza(lista_)
+                se non (coda_fine e segue):
+                    risultati.append({"tipo": "dopo", "punto": (lay.x, lay.y + lay.h), "mattonella": m})
+            se d["forma"] == "blocco":
+                per nome_corpo, cx, cy, pw, corpo_h, yb, barra_h, etichetta in lay.corpi:
+                    corpo = m.corpi.get(nome_corpo, [])
+                    se non (coda_fine e corpo):
+                        risultati.append({"tipo": "corpo", "punto": (cx, cy), "mattonella": m, "nome": nome_corpo})
+        # sopra la testa di una pila libera (non un cappello)
+        se non coda_fine:
+            per r in area.radici:
+                se r è trascinata:
+                    continua
+                se r.pila e se_stesso._def(r.pila[0])["forma"] != "cappello" e r.pila[0].id non in esclusi:
+                    lay = se_stesso.lay.get(r.pila[0].id)
+                    se lay:
+                        risultati.append({"tipo": "sopra", "punto": (lay.x, lay.y), "radice": r, "mattonella": r.pila[0],
+                                          "altezza_catena": altezza_catena})
+        ritorna risultati
+
+    definisci miglior_candidato(se_stesso, candidati_, px_alto_sinistra, soglia=36, punto_mouse=Nessuno):
+        """Il punto più vicino entro la soglia (scalata dallo zoom)."""
+        soglia = soglia * se_stesso.zoom
+        migliore, dist_min = Nessuno, soglia * soglia
+        per c in candidati_:
+            cx, cy = c["punto"]
+            se c["tipo"] == "sopra":
+                # per "sopra" conta il basso della catena trascinata
+                cy = cy - c.get("altezza_catena", 0)
+            dx, dy = cx - px_alto_sinistra[0], cy - px_alto_sinistra[1]
+            dist = dx * dx + dy * dy
+            se c["tipo"] == "ingresso" e punto_mouse è non Nessuno e se_stesso._dentro(c["rett"], punto_mouse[0], punto_mouse[1]):
+                dist = dist * 0.15
+            se dist < dist_min:
+                migliore, dist_min = c, dist
+        ritorna migliore
+
+    definisci disegna_aggancio(se_stesso, candidato, larghezza=70):
+        """Evidenzia dove si aggancerà la mattonella."""
+        se candidato è Nessuno:
+            ritorna
+        c = se_stesso.tela
+        se candidato["tipo"] == "ingresso":
+            x, y, w, h = candidato["rett"]
+            c.create_rectangle(x - 3, y - 3, x + w + 3, y + h + 3, outline="#fff176", width=3, tags=("m",))
+        altrimenti:
+            x, y = candidato["punto"]
+            c.create_line(x, y, x + se_stesso.s(larghezza), y, fill="#fff176", width=5, capstyle="round", tags=("m",))
+            c.create_oval(x - 4, y - 4, x + 4, y + 4, fill="#fff176", outline="", tags=("m",))

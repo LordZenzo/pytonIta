@@ -1,0 +1,20 @@
+stampa("a", "b", separatore="-", fine="!\n")
+stampa(ordinato([3, 1, 2], chiave=lambda x: -x, inverso=Vero))
+stampa(massimo([1, 5, 3], chiave=lambda x: -x))
+stampa(massimo([], predefinito=0))
+x = [3, 1, 2]
+x.ordina(chiave=lambda v: v, inverso=Vero)
+stampa(x)
+stampa("a b c".separa(max_divisioni=1))
+stampa("a-b-c".separa(separatore="-"))
+stampa(arrotonda(2.567, cifre=1))
+stampa(lista(enumera(["a", "b"], inizio=1)))
+stampa(somma([1, 2], inizio=10))
+stampa("ciao".codifica(codifica="utf-8"))
+stampa(lista(abbina([1, 2], [3, 4], rigoroso=Vero)))
+stampa(sorted([3, 1, 2], reverse=Vero))
+con apri("opzioni_prova.txt", modalita="w", codifica="utf-8") come f:
+    f.scrivi("riga")
+con apri("opzioni_prova.txt", codifica="utf-8") come f:
+    stampa(f.leggi_tutto())
+stampa("x".sostituisci("x", "y", conteggio=1), isinstance(enumera([1]), enumerate))

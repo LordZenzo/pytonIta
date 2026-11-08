@@ -1,0 +1,26 @@
+definisci fattoriale(n):
+    se n <= 1:
+        ritorna 1
+    ritorna n * fattoriale(n - 1)
+
+classe Animale:
+    definisci __inizializza__(se_stesso, nome):
+        se_stesso.nome = nome
+
+    definisci parla(se_stesso):
+        ritorna f"{se_stesso.nome} fa miao"
+
+stampa(fattoriale(5), Vero e non Falso, Nessuno è Nessuno)
+l = lista(intervallo(4))
+l.aggiungi(9)
+stampa(l, lunghezza(l), ", ".unisci(["a", "b"]).maiuscolo())
+stampa(Animale("Micio").parla())
+prova:
+    1 / 0
+eccetto DivisionePerZero come e:
+    stampa("errore:", e)
+per i in intervallo(3):
+    se i == 1:
+        continua
+    stampa(i)
+stampa(print)

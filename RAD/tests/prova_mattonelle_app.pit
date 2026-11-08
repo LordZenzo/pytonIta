@@ -1,0 +1,63 @@
+importa sys, os, tempfile, time, subprocess, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.mattonelle_ui importa EditorMattonelle
+da rad importa ai
+
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+cfg.imposta("ai.conferma_scrittura", Falso, notifica=Falso)
+cfg.imposta("ai.conferma_esecuzione", Falso, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1400x860+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "Mattoni")
+Progetto.nuovo(cart, "Mattoni", "mattonelle")
+app.apri_progetto(cart)
+radice.update()
+stampa("file del modello:", sorted(os.listdir(cart)))
+w = app.nuovo_mattonelle(nome="calcolo")
+radice.update()
+stampa("scheda mattonelle:", isinstance(w, EditorMattonelle), sorted(os.path.basename(p) per p in app.schede))
+
+programma = {"principale": {"radici": [{"x": 30, "y": 30, "pila": [
+    {"t": "avvio"},
+    {"t": "stampa", "i": {"valore": {"t": "unisci", "l": {"a": "5! = "}, "i": {"b": {"t": "fnv:fattoriale", "l": {"p0": "5"}}}}}}]}]},
+    "funzioni": [{"radici": [{"x": 30, "y": 30, "pila": [
+        {"t": "definisci_funzione", "c": {"nome": "fattoriale", "parametri": "n"}},
+        {"t": "se", "i": {"cond": {"t": "minore_uguale", "i": {"a": {"t": "variabile", "c": {"nome": "n"}}}, "l": {"b": "1"}}},
+         "b": {"corpo": [{"t": "ritorna", "l": {"valore": "1"}}]}},
+        {"t": "ritorna", "i": {"valore": {"t": "moltiplica", "i": {"a": {"t": "variabile", "c": {"nome": "n"}},
+         "b": {"t": "fnv:fattoriale", "i": {"p0": {"t": "sottrai", "i": {"a": {"t": "variabile", "c": {"nome": "n"}}}, "l": {"b": "1"}}}}}}}}]}]}]}
+# strumenti dell'AI (senza rete): usa direttamente la classe Strumenti
+strumenti = ai.Strumenti(app, cfg, app.ponte)
+stampa("catalogo:", lunghezza(strumenti.esegui("tipi_mattonelle", {})[0].splitlines()), "tipi")
+esito, errore = strumenti.esegui("imposta_mattonelle", {"nome": "calcolo", "programma": programma})
+stampa("imposta_mattonelle:", errore, esito)
+esito, errore = strumenti.esegui("imposta_mattonelle", {"nome": "sbagliato", "programma": {"principale": {"radici": [{"pila": [{"t": "avvio"}, {"t": "inesistente"}]}]}}})
+stampa("programma non valido rifiutato:", errore, esito.splitlines()[0])
+codice = open(os.path.join(cart, "calcolo.pit"), encoding="utf-8").read()
+r = subprocess.run([sys.executable, os.path.join(cart, "calcolo.pit")], capture_output=Vero, text=Vero)
+stampa("esecuzione del codice generato:", r.returncode, repr(r.stdout.strip()), r.stderr[-100:])
+esito, errore = strumenti.esegui("esegui_programma", {"file": "calcolo.pit"})
+stampa("esegui_programma:", errore, esito.splitlines()[-1])
+esito, errore = strumenti.esegui("ottieni_mattonelle", {"nome": "calcolo"})
+stampa("ottieni_mattonelle:", errore, json.loads(esito)["funzioni"][0]["radici"][0]["pila"][0]["c"])
+radice.update()
+ed = app.schede[os.path.abspath(os.path.join(cart, "calcolo.mattonelle.json"))]
+stampa("viste nell'editor:", lista(ed.viste))
+ed.vai_alla_funzione("fattoriale")
+ed.vedi_codice()
+app.chat.t.configure(state="normal")
+app.chat._gestisci("testo", "Ho creato la funzione `fattoriale` e il flusso principale: tutto a **mattonelle**.")
+radice.update()
+time.sleep(0.6)
+radice.update()
+x, y = radice.winfo_rootx(), radice.winfo_rooty()
+ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "mattonelle_app.png"))
+app.chiudi_tutte_le_schede()
+radice.destroy()

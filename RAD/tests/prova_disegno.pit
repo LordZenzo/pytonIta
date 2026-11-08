@@ -1,0 +1,57 @@
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.mattonelle_modello importa *
+da rad.mattonelle_disegno importa Disegnatore
+
+p = programma_di_esempio("demo")
+a = p.principale
+se_ = Mattonella("se_altrimenti", p)
+cond = Mattonella("maggiore", p)
+v = Mattonella("variabile", p); v.campi["nome"] = "persona"
+cond.ingressi["a"] = v; v.padre, v.ruolo = cond, "ingresso:a"
+cond.letterali["b"] = "5"
+se_.ingressi["cond"] = cond; cond.padre, cond.ruolo = se_, "ingresso:cond"
+st1 = Mattonella("stampa", p); st1.letterali["valore"] = "grande"
+st2 = Mattonella("stampa", p); st2.letterali["valore"] = "piccolo"
+se_.corpi["corpo"].append(st1); se_.corpi["altro"].append(st2)
+collega_pila(se_.corpi["corpo"], se_, "corpo:corpo"); collega_pila(se_.corpi["altro"], se_, "corpo:altro")
+a.cappello.lista.append(se_)
+collega_pila(a.cappello.lista, a.cappello.padre, "radice")
+a.radici.append(Radice(420, 40, valore=Mattonella("e_logico", p)))
+a.radici.append(Radice(420, 100, pila=[Mattonella("mentre", p)]))
+a.radici.append(Radice(420, 200, pila=[Mattonella("prova", p), Mattonella("interrompi", p)]))
+radice = tk.Tk()
+radice.geometry("900x560+40+40")
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+c = colori(cfg)
+tela = tk.Canvas(radice, background="#2b2d30", highlightthickness=0)
+tela.pack(fill="both", expand=Vero)
+d = Disegnatore(tela, p, c)
+w, h = d.disegna_area(a)
+stampa("area occupata:", w, h)
+radice.update()
+l_se = d.lay[se_.id]
+hit = d.trova(a, l_se.x + 8, l_se.y + 8)
+stampa("hit su 'se':", hit[0].tipo, hit[1])
+l_c = d.lay[cond.id]
+hit2 = d.trova(a, l_c.x + 4, l_c.y + 4)
+stampa("hit sulla condizione:", hit2[0].tipo se hit2 altrimenti Nessuno, hit2[1] se hit2 altrimenti "")
+nuova = Radice(0, 0, pila=[Mattonella("stampa", p)])
+a.radici.append(nuova)
+d.disegna_area(a)
+cands = d.candidati(a, nuova, {nuova.pila[0].id})
+stampa("candidati:", sorted(set(x["tipo"] per x in cands)), lunghezza(cands))
+imp = a.cappello.lista[1]
+best = d.miglior_candidato(cands, (d.lay[imp.id].x, d.lay[imp.id].y + d.lay[imp.id].h + 6))
+stampa("miglior candidato:", best["tipo"], best["mattonella"].tipo)
+d.disegna_aggancio(best)
+radice.update()
+time.sleep(0.4)
+radice.update()
+x, y = radice.winfo_rootx(), radice.winfo_rooty()
+ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "mattonelle_prova.png"))
+radice.destroy()

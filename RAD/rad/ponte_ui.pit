@@ -1,0 +1,42 @@
+"""Ponte fra thread di lavoro e interfaccia grafica: esegue funzioni sul thread di tkinter."""
+importa queue
+importa threading
+
+
+classe PonteUI:
+    """Il thread dell'AI chiama `esegui(f)`: f gira nel thread grafico e il risultato torna al chiamante."""
+
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.radice = radice
+        se_stesso.coda = queue.Queue()
+        se_stesso._thread_grafico = threading.current_thread()
+        se_stesso._pompa()
+
+    definisci _pompa(se_stesso):
+        prova:
+            mentre Vero:
+                funzione, risultato = se_stesso.coda.get_nowait()
+                prova:
+                    risultato["valore"] = funzione()
+                eccetto BaseException come errore:
+                    risultato["errore"] = errore
+                finally_ = risultato["evento"]
+                finally_.set()
+        eccetto queue.Empty:
+            passa
+        prova:
+            se_stesso.radice.after(25, se_stesso._pompa)
+        eccetto Eccezione:
+            passa
+
+    definisci esegui(se_stesso, funzione, tempo_massimo=120):
+        """Esegue 'funzione' nel thread grafico e ne restituisce il valore (o rilancia l'errore)."""
+        se threading.current_thread() è se_stesso._thread_grafico:
+            ritorna funzione()
+        risultato = {"evento": threading.Event()}
+        se_stesso.coda.put((funzione, risultato))
+        se non risultato["evento"].wait(tempo_massimo):
+            solleva TimeoutError("l'interfaccia non ha risposto in tempo")
+        se "errore" in risultato:
+            solleva risultato["errore"]
+        ritorna risultato.get("valore")

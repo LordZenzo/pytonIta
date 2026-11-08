@@ -1,0 +1,35 @@
+importa numerico come n
+da numerico importa casuale, algebra_lineare
+importa tabelle come t
+da scienza importa ottimizzazione, statistica
+importa grafici
+grafici.usa("Agg")
+da grafici importa disegno
+importa foglio_tk, immagini
+importa tempfile, sistema_operativo
+
+a = n.matrice([[1, 2], [3, 4]])
+stampa("numpy:", a.forma, a.somma(), n.media(a), n.prodotto_scalare(a, a).appiattisci().lista())
+stampa("lineare:", arrotonda(algebra_lineare.determinante(a), 3), algebra_lineare.inversa(a).forma)
+casuale.seme(1)
+stampa("casuale:", casuale.interi(0, 10, 3).forma)
+
+tab = t.TabellaDati({"x": [1, 2, 3], "y": [4, 5, 6]})
+stampa("pandas:", tab.forma, tab.testa(2).colonne.tolist(), tab["x"].somma(), tab.ordina_valori("y").indice.tolist())
+stampa("raggruppa:", tab.raggruppa_per("x")["y"].sum().lista() se 0 altrimenti tab["y"].media())
+
+r = statistica.regressione_lineare([1, 2, 3, 4], [2, 4, 6, 8.5])
+stampa("scipy:", arrotonda(r.slope, 2))
+m = ottimizzazione.minimizza(lambda x: (x[0] - 3) ** 2, [0])
+stampa("minimizza:", arrotonda(m.x[0], 2))
+
+fig, assi = disegno.sottografici(dimensione_figura=(3, 2))
+assi.traccia([1, 2, 3], [1, 4, 9], etichetta="q", colore="red", spessore_linea=2)
+assi.imposta_titolo("prova")
+assi.legenda()
+cartella = tempfile.mkdtemp()
+fig.salva_figura(sistema_operativo.percorso.unisci(cartella, "g.png"), risoluzione=50)
+stampa("grafico:", sistema_operativo.percorso.esiste(sistema_operativo.percorso.unisci(cartella, "g.png")))
+
+im = immagini.nuova("RGB", (4, 3), "red")
+stampa("pil:", im.dimensione, im.ridimensiona((2, 2)).dimensione)

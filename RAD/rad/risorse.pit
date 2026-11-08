@@ -1,0 +1,439 @@
+"""Visualizzatori di risorse: immagini, JSON, tabelle CSV, file binari."""
+importa csv
+importa json
+importa os
+importa re
+importa tkinter come tk
+da tkinter importa ttk, messagebox, simpledialog
+
+da rad.progetto importa tipo_file
+
+
+classe VisoreBase(tk.Frame):
+    """Interfaccia comune alle schede non-testo."""
+    modificato = Falso
+
+    definisci __inizializza__(se_stesso, genitore, percorso, colori, config, azioni):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.percorso = percorso
+        se_stesso.colori = colori
+        se_stesso.config_ = config
+        se_stesso.azioni = azioni
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+
+    definisci salva(se_stesso, percorso=Nessuno):
+        ritorna Vero
+
+    definisci ricarica_se_cambiato_su_disco(se_stesso):
+        ritorna Falso
+
+    definisci chiudi(se_stesso):
+        passa
+
+    definisci contenuto(se_stesso):
+        ritorna ""
+
+
+classe VisoreImmagine(VisoreBase):
+    """Anteprima di un'immagine con ingrandimento e informazioni."""
+
+    definisci __inizializza__(se_stesso, genitore, percorso, colori, config, azioni):
+        VisoreBase.__init__(se_stesso, genitore, percorso, colori, config, azioni)
+        se_stesso.zoom = 1.0
+        se_stesso._foto = Nessuno
+        se_stesso._originale = Nessuno
+        barra = tk.Frame(se_stesso)
+        barra.pack(fill="x")
+        se_stesso.barra = barra
+        se_stesso.info = tk.Label(barra, anchor="w")
+        se_stesso.info.pack(side="left", padx=8, pady=4)
+        per testo_, f in (("Adatta", se_stesso.adatta), ("100%", lambda: se_stesso.imposta_zoom(1.0)),
+                          ("＋", lambda: se_stesso.imposta_zoom(se_stesso.zoom * 1.25)),
+                          ("－", lambda: se_stesso.imposta_zoom(se_stesso.zoom / 1.25)),
+                          ("Copia percorso", se_stesso.copia_percorso)):
+            tk.Button(barra, text=testo_, command=f).pack(side="right", padx=2, pady=3)
+        se_stesso.tela = tk.Canvas(se_stesso, highlightthickness=0)
+        se_stesso.tela._tema_proprio = Vero
+        bx = ttk.Scrollbar(se_stesso, orient="horizontal", command=se_stesso.tela.xview)
+        by = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.tela.yview)
+        se_stesso.tela.configure(xscrollcommand=bx.set, yscrollcommand=by.set)
+        bx.pack(side="bottom", fill="x")
+        by.pack(side="right", fill="y")
+        se_stesso.tela.pack(fill="both", expand=Vero)
+        se_stesso.tela.bind("<Configure>", lambda e: se_stesso._ricentra())
+        se_stesso.tela.bind("<Control-MouseWheel>", se_stesso._rotella)
+        se_stesso.carica()
+        se_stesso.applica_colori(colori)
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.tela.configure(background=c["editor"])
+        se_stesso.barra.configure(background=c["pannello"])
+        se_stesso.info.configure(background=c["pannello"], foreground=c["tenue"])
+        per b in se_stesso.barra.winfo_children():
+            se b.winfo_class() == "Button":
+                b.configure(background=c["pulsante"], foreground=c["primo_piano"], relief="flat",
+                            activebackground=c["pulsante_attivo"])
+
+    definisci carica(se_stesso):
+        prova:
+            da PIL importa Image
+            se_stesso._originale = Image.open(se_stesso.percorso)
+            se_stesso._originale.load()
+            l, a = se_stesso._originale.size
+            dimensione = os.path.getsize(se_stesso.percorso)
+            se_stesso.info.configure(text=f"{os.path.basename(se_stesso.percorso)}   {l} × {a} px   "
+                                          f"{se_stesso._originale.mode}   {dimensione / 1024:.1f} KB")
+            se_stesso.after(50, se_stesso.adatta)
+        eccetto Eccezione come errore:
+            se_stesso.info.configure(text=f"Impossibile aprire l'immagine: {errore}")
+
+    definisci adatta(se_stesso):
+        se non se_stesso._originale:
+            ritorna
+        l, a = se_stesso._originale.size
+        W = max(50, se_stesso.tela.winfo_width() - 20)
+        H = max(50, se_stesso.tela.winfo_height() - 20)
+        se_stesso.imposta_zoom(min(1.0, W / l, H / a))
+
+    definisci imposta_zoom(se_stesso, z):
+        se non se_stesso._originale:
+            ritorna
+        se_stesso.zoom = max(0.05, min(z, 16.0))
+        da PIL importa Image, ImageTk
+        l, a = se_stesso._originale.size
+        immagine = se_stesso._originale.convert("RGBA").resize(
+            (max(1, int(l * se_stesso.zoom)), max(1, int(a * se_stesso.zoom))),
+            Image.NEAREST se se_stesso.zoom > 2 altrimenti Image.LANCZOS)
+        se_stesso._foto = ImageTk.PhotoImage(immagine)
+        se_stesso._ricentra()
+
+    definisci _ricentra(se_stesso):
+        se non se_stesso._foto:
+            ritorna
+        se_stesso.tela.delete("all")
+        W = se_stesso.tela.winfo_width()
+        H = se_stesso.tela.winfo_height()
+        l, a = se_stesso._foto.width(), se_stesso._foto.height()
+        x = max(10, (W - l) // 2)
+        y = max(10, (H - a) // 2)
+        se_stesso.tela.create_rectangle(x - 1, y - 1, x + l, y + a, outline=se_stesso.colori["bordo"])
+        se_stesso.tela.create_image(x, y, anchor="nw", image=se_stesso._foto)
+        se_stesso.tela.configure(scrollregion=(0, 0, max(W, l + 20), max(H, a + 20)))
+
+    definisci _rotella(se_stesso, e):
+        se_stesso.imposta_zoom(se_stesso.zoom * (1.15 se e.delta > 0 altrimenti 1 / 1.15))
+
+    definisci copia_percorso(se_stesso):
+        se_stesso.clipboard_clear()
+        se_stesso.clipboard_append(se_stesso.percorso)
+
+
+classe VisoreJson(VisoreBase):
+    """Editor JSON: testo a sinistra, struttura ad albero a destra, con validazione."""
+
+    definisci __inizializza__(se_stesso, genitore, percorso, colori, config, azioni):
+        VisoreBase.__init__(se_stesso, genitore, percorso, colori, config, azioni)
+        se_stesso._lavoro = Nessuno
+        se_stesso.modificato = Falso
+        barra = tk.Frame(se_stesso)
+        barra.pack(fill="x")
+        se_stesso.barra = barra
+        se_stesso.stato = tk.Label(barra, anchor="w")
+        se_stesso.stato.pack(side="left", padx=8, pady=4)
+        per testo_, f in (("Formatta", se_stesso.formatta), ("Comprimi", se_stesso.comprimi),
+                          ("Copia percorso", se_stesso.copia_percorso_nodo)):
+            tk.Button(barra, text=testo_, command=f).pack(side="right", padx=2, pady=3)
+        divisore = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=5)
+        divisore.pack(fill="both", expand=Vero)
+        se_stesso.divisore = divisore
+        sinistra = tk.Frame(divisore)
+        se_stesso.t = tk.Text(sinistra, wrap="none", undo=Vero, borderwidth=0, highlightthickness=0,
+                              padx=6, pady=4)
+        se_stesso.t._tema_proprio = Vero
+        by = ttk.Scrollbar(sinistra, orient="vertical", command=se_stesso.t.yview)
+        se_stesso.t.configure(yscrollcommand=by.set)
+        by.pack(side="right", fill="y")
+        se_stesso.t.pack(fill="both", expand=Vero)
+        destra = tk.Frame(divisore)
+        se_stesso.albero = ttk.Treeview(destra, columns=("valore", "tipo"), selectmode="browse")
+        se_stesso.albero.heading("#0", text="Chiave")
+        se_stesso.albero.heading("valore", text="Valore")
+        se_stesso.albero.heading("tipo", text="Tipo")
+        se_stesso.albero.column("#0", width=170)
+        se_stesso.albero.column("valore", width=200)
+        se_stesso.albero.column("tipo", width=70, anchor="center")
+        bz = ttk.Scrollbar(destra, orient="vertical", command=se_stesso.albero.yview)
+        se_stesso.albero.configure(yscrollcommand=bz.set)
+        bz.pack(side="right", fill="y")
+        se_stesso.albero.pack(fill="both", expand=Vero)
+        se_stesso.albero.bind("<Double-1>", se_stesso._modifica_valore)
+        divisore.add(sinistra, minsize=200, width=420)
+        divisore.add(destra, minsize=200)
+        se_stesso.t.bind("<<Modified>>", se_stesso._alla_modifica)
+        se_stesso.t.bind("<Control-s>", lambda e: se_stesso.salva() o "break")
+        se_stesso.carica()
+        se_stesso.applica_colori(colori)
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.barra.configure(background=c["pannello"])
+        se_stesso.stato.configure(background=c["pannello"])
+        se_stesso.divisore.configure(background=c["sfondo"])
+        per f in se_stesso.divisore.winfo_children():
+            f.configure(background=c["pannello"])
+        font = (se_stesso.config_.ottieni("editor.carattere", "Consolas"), se_stesso.config_.ottieni("editor.dimensione", 11))
+        se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"], font=font,
+                              insertbackground=c["cursore"], selectbackground=c["selezione"])
+        se_stesso.t.tag_configure("errore", background="#5a2a2a" se c["editor"] < "#808080" altrimenti "#fadada")
+        per b in se_stesso.barra.winfo_children():
+            se b.winfo_class() == "Button":
+                b.configure(background=c["pulsante"], foreground=c["primo_piano"], relief="flat",
+                            activebackground=c["pulsante_attivo"])
+
+    definisci carica(se_stesso):
+        prova:
+            con open(se_stesso.percorso, encoding="utf-8") come f:
+                testo_ = f.read()
+        eccetto (OSError, UnicodeDecodeError) come errore:
+            testo_ = ""
+            se_stesso.stato.configure(text=f"Errore di lettura: {errore}")
+        se_stesso.t.delete("1.0", "end")
+        se_stesso.t.insert("1.0", testo_)
+        se_stesso.t.edit_reset()
+        se_stesso.t.edit_modified(Falso)
+        se_stesso.modificato = Falso
+        se_stesso._aggiorna_albero()
+
+    definisci contenuto(se_stesso):
+        ritorna se_stesso.t.get("1.0", "end-1c")
+
+    definisci _alla_modifica(se_stesso, e=Nessuno):
+        se se_stesso.t.edit_modified():
+            se_stesso.t.edit_modified(Falso)
+            se non se_stesso.modificato:
+                se_stesso.modificato = Vero
+                se_stesso.azioni.scheda_modificata(se_stesso)
+            se se_stesso._lavoro:
+                se_stesso.after_cancel(se_stesso._lavoro)
+            se_stesso._lavoro = se_stesso.after(350, se_stesso._aggiorna_albero)
+
+    definisci _aggiorna_albero(se_stesso):
+        se_stesso._lavoro = Nessuno
+        se_stesso.t.tag_remove("errore", "1.0", "end")
+        se_stesso.albero.delete(*se_stesso.albero.get_children())
+        sorgente = se_stesso.contenuto()
+        se non sorgente.strip():
+            se_stesso.stato.configure(text="vuoto", foreground=se_stesso.colori["tenue"])
+            ritorna
+        prova:
+            dati = json.loads(sorgente)
+        eccetto ValueError come errore:
+            riga = getattr(errore, "lineno", 1)
+            se_stesso.t.tag_add("errore", f"{riga}.0", f"{riga}.end+1c")
+            se_stesso.stato.configure(text=f"JSON non valido: {errore}", foreground=se_stesso.colori["errore"])
+            ritorna
+        se_stesso.stato.configure(text="JSON valido ✔", foreground=se_stesso.colori["ok"])
+        se_stesso._riempi("", "radice", dati, "$")
+
+    definisci _riempi(se_stesso, genitore, chiave, valore, percorso, profondita=0):
+        se profondita > 12:
+            ritorna
+        se isinstance(valore, dict):
+            n = se_stesso.albero.insert(genitore, "end", text=chiave, values=(f"{{{lunghezza(valore)}}}", "oggetto"),
+                                        open=profondita < 2, tags=(percorso,))
+            per k, v in valore.items():
+                se_stesso._riempi(n, testo(k), v, f"{percorso}.{k}", profondita + 1)
+        altrimenti_se isinstance(valore, list):
+            n = se_stesso.albero.insert(genitore, "end", text=chiave, values=(f"[{lunghezza(valore)}]", "elenco"),
+                                        open=profondita < 2, tags=(percorso,))
+            per i, v in enumera(valore[:500]):
+                se_stesso._riempi(n, f"[{i}]", v, f"{percorso}[{i}]", profondita + 1)
+        altrimenti:
+            tipo_ = ("testo" se isinstance(valore, str) altrimenti "booleano" se isinstance(valore, bool)
+                     altrimenti "numero" se isinstance(valore, (int, float)) altrimenti "nullo")
+            mostrato = valore se isinstance(valore, str) altrimenti json.dumps(valore)
+            se_stesso.albero.insert(genitore, "end", text=chiave, values=(mostrato, tipo_), tags=(percorso,))
+
+    definisci _modifica_valore(se_stesso, e):
+        nodo = se_stesso.albero.identify_row(e.y)
+        se non nodo:
+            ritorna
+        valori = se_stesso.albero.item(nodo, "values")
+        se valori[1] in ("oggetto", "elenco"):
+            ritorna
+        nuovo = simpledialog.askstring("Modifica valore", f"{se_stesso.albero.item(nodo, 'text')}:",
+                                       initialvalue=valori[0], parent=se_stesso)
+        se nuovo è Nessuno:
+            ritorna
+        percorso = se_stesso.albero.item(nodo, "tags")[0]
+        prova:
+            dati = json.loads(se_stesso.contenuto())
+            se valori[1] == "testo":
+                nuovo_valore = nuovo
+            altrimenti:
+                nuovo_valore = json.loads(nuovo)
+            se_stesso._imposta_percorso(dati, percorso, nuovo_valore)
+        eccetto (ValueError, KeyError, IndexError) come errore:
+            messagebox.showerror("Errore", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.t.delete("1.0", "end")
+        se_stesso.t.insert("1.0", json.dumps(dati, indent=2, ensure_ascii=Falso))
+
+    definisci _imposta_percorso(se_stesso, dati, percorso, valore):
+        passi = []
+        per m in re.finditer(r"\.([^.\[\]]+)|\[(\d+)\]", percorso[1:]):
+            passi.append(m.group(1) se m.group(1) è non Nessuno altrimenti int(m.group(2)))
+        nodo = dati
+        per p in passi[:-1]:
+            nodo = nodo[p]
+        nodo[passi[-1]] = valore
+
+    definisci copia_percorso_nodo(se_stesso):
+        sel = se_stesso.albero.selection()
+        se sel:
+            se_stesso.clipboard_clear()
+            se_stesso.clipboard_append(se_stesso.albero.item(sel[0], "tags")[0])
+
+    definisci formatta(se_stesso):
+        prova:
+            dati = json.loads(se_stesso.contenuto())
+        eccetto ValueError:
+            ritorna
+        se_stesso.t.delete("1.0", "end")
+        se_stesso.t.insert("1.0", json.dumps(dati, indent=2, ensure_ascii=Falso))
+
+    definisci comprimi(se_stesso):
+        prova:
+            dati = json.loads(se_stesso.contenuto())
+        eccetto ValueError:
+            ritorna
+        se_stesso.t.delete("1.0", "end")
+        se_stesso.t.insert("1.0", json.dumps(dati, separators=(",", ":"), ensure_ascii=Falso))
+
+    definisci salva(se_stesso, percorso=Nessuno):
+        con open(percorso o se_stesso.percorso, "w", encoding="utf-8", newline="\n") come f:
+            f.write(se_stesso.contenuto())
+        se_stesso.modificato = Falso
+        se_stesso.azioni.scheda_modificata(se_stesso)
+        ritorna Vero
+
+    definisci ricarica_se_cambiato_su_disco(se_stesso):
+        se non se_stesso.modificato e os.path.exists(se_stesso.percorso):
+            prova:
+                su_disco = open(se_stesso.percorso, encoding="utf-8").read()
+            eccetto (OSError, UnicodeDecodeError):
+                ritorna Falso
+            se su_disco != se_stesso.contenuto():
+                se_stesso.carica()
+                ritorna Vero
+        ritorna Falso
+
+
+classe VisoreTabella(VisoreBase):
+    """Anteprima di un CSV/TSV come tabella."""
+    MASSIMO_RIGHE = 3000
+
+    definisci __inizializza__(se_stesso, genitore, percorso, colori, config, azioni):
+        VisoreBase.__init__(se_stesso, genitore, percorso, colori, config, azioni)
+        se_stesso.info = tk.Label(se_stesso, anchor="w")
+        se_stesso.info.pack(fill="x", padx=8, pady=4)
+        corpo = tk.Frame(se_stesso)
+        corpo.pack(fill="both", expand=Vero)
+        se_stesso.albero = ttk.Treeview(corpo, show="headings")
+        by = ttk.Scrollbar(corpo, orient="vertical", command=se_stesso.albero.yview)
+        bx = ttk.Scrollbar(corpo, orient="horizontal", command=se_stesso.albero.xview)
+        se_stesso.albero.configure(yscrollcommand=by.set, xscrollcommand=bx.set)
+        by.pack(side="right", fill="y")
+        bx.pack(side="bottom", fill="x")
+        se_stesso.albero.pack(fill="both", expand=Vero)
+        se_stesso.carica()
+        se_stesso.applica_colori(colori)
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.info.configure(background=c["pannello"], foreground=c["tenue"])
+
+    definisci carica(se_stesso):
+        separatore = "\t" se se_stesso.percorso.lower().endswith(".tsv") altrimenti ","
+        prova:
+            con open(se_stesso.percorso, encoding="utf-8-sig", newline="") come f:
+                campione = f.read(4096)
+                f.seek(0)
+                prova:
+                    separatore = csv.Sniffer().sniff(campione, delimiters=",;\t|").delimiter
+                eccetto csv.Error:
+                    passa
+                righe = []
+                per i, r in enumera(csv.reader(f, delimiter=separatore)):
+                    righe.append(r)
+                    se i >= se_stesso.MASSIMO_RIGHE:
+                        interrompi
+        eccetto (OSError, UnicodeDecodeError) come errore:
+            se_stesso.info.configure(text=f"Errore: {errore}")
+            ritorna
+        se non righe:
+            se_stesso.info.configure(text="file vuoto")
+            ritorna
+        colonne = [f"c{i}" per i in intervallo(max(lunghezza(r) per r in righe))]
+        se_stesso.albero.configure(columns=colonne)
+        per i, c in enumera(colonne):
+            se_stesso.albero.heading(c, text=righe[0][i] se i < lunghezza(righe[0]) altrimenti "")
+            se_stesso.albero.column(c, width=110, minwidth=50)
+        per r in righe[1:]:
+            se_stesso.albero.insert("", "end", values=r)
+        se_stesso.info.configure(text=f"{os.path.basename(se_stesso.percorso)}   {lunghezza(righe) - 1} righe × {lunghezza(colonne)} colonne   separatore «{separatore}»"
+                                      + ("   (anteprima limitata)" se lunghezza(righe) > se_stesso.MASSIMO_RIGHE altrimenti ""))
+
+
+classe VisoreBinario(VisoreBase):
+    """Dump esadecimale dei primi 64 KB."""
+
+    definisci __inizializza__(se_stesso, genitore, percorso, colori, config, azioni):
+        VisoreBase.__init__(se_stesso, genitore, percorso, colori, config, azioni)
+        se_stesso.t = tk.Text(se_stesso, wrap="none", borderwidth=0, highlightthickness=0, padx=8, pady=4)
+        se_stesso.t._tema_proprio = Vero
+        by = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.t.yview)
+        se_stesso.t.configure(yscrollcommand=by.set)
+        by.pack(side="right", fill="y")
+        se_stesso.t.pack(fill="both", expand=Vero)
+        prova:
+            con open(percorso, "rb") come f:
+                dati = f.read(65536)
+            totale = os.path.getsize(percorso)
+        eccetto OSError come errore:
+            dati, totale = b"", 0
+            se_stesso.t.insert("end", f"Errore: {errore}")
+        righe = [f"{totale} byte" + (" (mostrati i primi 65536)" se totale > 65536 altrimenti ""), ""]
+        per i in intervallo(0, lunghezza(dati), 16):
+            blocco = dati[i:i + 16]
+            esa = " ".join(f"{b:02x}" per b in blocco)
+            asc = "".join(chr(b) se 32 <= b < 127 altrimenti "." per b in blocco)
+            righe.append(f"{i:08x}  {esa:<47}  {asc}")
+        se_stesso.t.insert("end", "\n".join(righe))
+        se_stesso.t.configure(state="disabled")
+        se_stesso.applica_colori(colori)
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"],
+                              font=(se_stesso.config_.ottieni("editor.carattere", "Consolas"), 10))
+
+
+definisci crea_visore(genitore, percorso, colori, config, azioni):
+    """Il visualizzatore giusto per il tipo di file, oppure Nessuno (va aperto nell'editor)."""
+    tipo_ = tipo_file(percorso)
+    se tipo_ == "immagine":
+        ritorna VisoreImmagine(genitore, percorso, colori, config, azioni)
+    se tipo_ == "json":
+        ritorna VisoreJson(genitore, percorso, colori, config, azioni)
+    se tipo_ == "tabella":
+        ritorna VisoreTabella(genitore, percorso, colori, config, azioni)
+    se tipo_ == "binario":
+        ritorna VisoreBinario(genitore, percorso, colori, config, azioni)
+    ritorna Nessuno

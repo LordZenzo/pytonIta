@@ -1,0 +1,261 @@
+"""Parole e suggerimenti per l'editor: parole chiave, builtin, moduli, membri, frammenti."""
+importa re
+importa sys
+importa importlib
+importa importlib.util
+importa keyword
+
+PAROLE_CHIAVE = [
+    "Falso", "Nessuno", "Vero", "e", "come", "asserisci", "asincrono", "attendi",
+    "interrompi", "classe", "continua", "definisci", "elimina", "altrimenti_se",
+    "altrimenti", "eccetto", "infine", "per", "da", "globale", "se", "importa",
+    "in", "è", "lambda", "nonlocale", "non", "o", "passa", "solleva", "ritorna",
+    "prova", "mentre", "con", "produci",
+]
+PAROLE_MORBIDE = ["confronta", "caso", "tipo"]
+COSTANTI = {"Vero", "Falso", "Nessuno"}
+
+# frammenti: parola -> (testo da inserire, descrizione). "|" = posizione del cursore
+FRAMMENTI = {
+    "se": ("se |:\n    passa", "condizione"),
+    "altrimenti": ("altrimenti:\n    |", "ramo contrario"),
+    "per": ("per | in :\n    passa", "ciclo per"),
+    "mentre": ("mentre |:\n    passa", "ciclo mentre"),
+    "definisci": ("definisci |():\n    passa", "funzione"),
+    "classe": ("classe |:\n    definisci __inizializza__(se_stesso):\n        passa", "classe"),
+    "prova": ("prova:\n    |\neccetto Eccezione come errore:\n    passa", "gestione errori"),
+    "con": ("con | come :\n    passa", "gestore di contesto"),
+    "principale": ("se __nome__ == \"__main__\":\n    |", "punto di ingresso"),
+    "stampa": ("stampa(|)", "stampa a video"),
+    "finestra": ("importa interfaccia come tk\n\nradice = tk.Finestra()\nradice.titolo(\"|\")\nradice.ciclo_principale()", "finestra tkinter"),
+}
+
+
+definisci _builtin_italiani():
+    nomi = set()
+    prova:
+        importa _italiano
+        nomi |= set(_italiano.FUNZIONI.values()) | set(_italiano.ECCEZIONI.values())
+    eccetto ImportError:
+        passa
+    nomi |= {"se_stesso", "genitore"}
+    ritorna nomi
+
+
+definisci _moduli_italiani():
+    prova:
+        da _mappa_moduli importa MAPPA
+        ritorna sorted(set(MAPPA.values()))
+    eccetto ImportError:
+        ritorna []
+
+
+# --- Python classico (file .py): parole e frammenti inglesi
+importa builtins come _builtins_en
+PAROLE_CHIAVE_PY = list(keyword.kwlist)
+PAROLE_MORBIDE_PY = ["match", "case", "type"]
+COSTANTI_PY = {"True", "False", "None"}
+BUILTIN_PY = sorted(n per n in dir(_builtins_en) se non n.startswith("_") e n non in ("copyright", "credits", "license", "exit", "quit"))
+FRAMMENTI_PY = {
+    "if": ("if |:\n    pass", "condizione"),
+    "else": ("else:\n    |", "ramo contrario"),
+    "for": ("for | in :\n    pass", "ciclo for"),
+    "while": ("while |:\n    pass", "ciclo while"),
+    "def": ("def |():\n    pass", "funzione"),
+    "class": ("class |:\n    def __init__(self):\n        pass", "classe"),
+    "try": ("try:\n    |\nexcept Exception as errore:\n    pass", "gestione errori"),
+    "with": ("with | as :\n    pass", "gestore di contesto"),
+    "main": ("if __name__ == \"__main__\":\n    |", "punto di ingresso"),
+    "print": ("print(|)", "stampa a video"),
+    "window": ("import tkinter as tk\n\nroot = tk.Tk()\nroot.title(\"|\")\nroot.mainloop()", "finestra tkinter"),
+}
+
+BUILTIN = sorted(_builtin_italiani())
+MODULI = _moduli_italiani()
+MODULI_PRIMO_LIVELLO = sorted({m.split(".")[0] per m in MODULI})
+MODULI_STANDARD = sorted(getattr(sys, "stdlib_module_names", []))
+METODI_ITALIANI = []
+prova:
+    importa _italiano
+    METODI_ITALIANI = sorted(set(_italiano.METODI.values()))
+eccetto ImportError:
+    passa
+
+_RE_IMPORT_PY = re.compile(r"^\s*import\s+([\w.]+)(?:\s+as\s+(\w+))?", re.M)
+_RE_FROM_PY = re.compile(r"^\s*from\s+([\w.]+)\s+import\s+([^\n#]+)", re.M)
+_RE_DEF_PY = re.compile(r"^\s*(?:def|class|async\s+def)\s+(\w+)", re.M)
+_RE_IMPORTA = re.compile(r"^\s*importa\s+([\w.]+)(?:\s+come\s+(\w+))?", re.M)
+_RE_DA = re.compile(r"^\s*da\s+([\w.]+)\s+importa\s+([^\n#]+)", re.M)
+_RE_PAROLA = re.compile(r"[^\W\d]\w*", re.U)
+_RE_DEF = re.compile(r"^\s*(?:definisci|classe|asincrono\s+definisci)\s+(\w+)", re.M)
+_RE_ASSEGNA = re.compile(r"^\s*([^\W\d]\w*)\s*(?:,\s*[^\W\d]\w*\s*)*=(?!=)", re.M)
+
+
+definisci parole_del_testo(sorgente):
+    """Tutti gli identificatori presenti nel testo (per i suggerimenti 'locali')."""
+    ritorna set(_RE_PAROLA.findall(sorgente))
+
+
+definisci definizioni(sorgente, linguaggio="pit"):
+    """Nomi definiti nel file: funzioni, classi, variabili."""
+    nomi = set(_RE_DEF_PY.findall(sorgente) se linguaggio == "py" altrimenti _RE_DEF.findall(sorgente)) | set(_RE_ASSEGNA.findall(sorgente))
+    ritorna nomi
+
+
+definisci alias_importati(sorgente, linguaggio="pit"):
+    """Mappa nome-locale -> percorso del modulo/oggetto importato."""
+    mappa = {}
+    r_import = _RE_IMPORT_PY se linguaggio == "py" altrimenti _RE_IMPORTA
+    r_da = _RE_FROM_PY se linguaggio == "py" altrimenti _RE_DA
+    parola_come = "as" se linguaggio == "py" altrimenti "come"
+    per m in r_import.finditer(sorgente):
+        modulo, alias = m.group(1), m.group(2)
+        se alias:
+            mappa[alias] = modulo
+        altrimenti:
+            mappa[modulo.split(".")[0]] = modulo.split(".")[0]
+    per m in r_da.finditer(sorgente):
+        modulo = m.group(1)
+        per voce in m.group(2).split(","):
+            voce = voce.strip().strip("()")
+            se non voce:
+                continua
+            pezzi = voce.split()
+            nome = pezzi[0]
+            alias = pezzi[2] se lunghezza(pezzi) >= 3 e pezzi[1] == parola_come altrimenti nome
+            mappa[alias] = modulo + "." + nome
+    ritorna mappa
+
+
+definisci _modulo_sicuro(nome, cartelle_progetto):
+    """True se è sicuro importare 'nome' per leggerne i membri (niente codice del progetto)."""
+    prima = nome.split(".")[0]
+    se prima in sys.modules:
+        ritorna Vero
+    prova:
+        spec = importlib.util.find_spec(prima)
+    eccetto (ImportError, ValueError, AttributeError):
+        ritorna Falso
+    se spec è Nessuno:
+        ritorna Falso
+    origine = spec.origin o ""
+    per cartella in cartelle_progetto:
+        se cartella e origine.lower().startswith(cartella.lower()):
+            ritorna Falso
+    ritorna Vero
+
+
+definisci _risolvi(percorso, cartelle_progetto):
+    """Importa 'a.b.c' risolvendo moduli e attributi; Nessuno se non possibile."""
+    parti = percorso.split(".")
+    oggetto = Nessuno
+    per i in range(lunghezza(parti), 0, -1):
+        nome_modulo = ".".join(parti[:i])
+        se non _modulo_sicuro(nome_modulo, cartelle_progetto):
+            continua
+        prova:
+            oggetto = importlib.import_module(nome_modulo)
+        eccetto Eccezione:
+            oggetto = Nessuno
+            continua
+        prova:
+            per resto in parti[i:]:
+                oggetto = getattr(oggetto, resto)
+        eccetto AttributeError:
+            ritorna Nessuno
+        ritorna oggetto
+    ritorna Nessuno
+
+
+LIBRERIE_ATTIVE = {"pit": {}, "py": {}}      # librerie spuntate nel progetto: nome locale -> percorso
+
+
+definisci imposta_librerie_attive(nomi_italiani, originale_di):
+    """Le librerie spuntate valgono come già importate per suggerimenti e completamento."""
+    LIBRERIE_ATTIVE["pit"] = {n: n per n in nomi_italiani}
+    LIBRERIE_ATTIVE["py"] = {originale_di(n).split(".")[0]: originale_di(n).split(".")[0] per n in nomi_italiani}
+
+
+definisci membri_di(espressione, sorgente, cartelle_progetto=(), linguaggio="pit"):
+    """Suggerimenti dopo 'espressione.' -> lista di (nome, tipo)."""
+    espressione = espressione.strip()
+    se espressione in ("se_stesso", "self"):
+        nomi = set(re.findall(r"(?:se_stesso|self)\.(\w+)", sorgente)) | set(_RE_DEF_PY.findall(sorgente) se linguaggio == "py" altrimenti _RE_DEF.findall(sorgente))
+        ritorna [(n, "membro") per n in sorted(nomi)]
+    alias = dict(LIBRERIE_ATTIVE.get(linguaggio, {}))
+    alias.update(alias_importati(sorgente, linguaggio))
+    prima = espressione.split(".")[0]
+    se prima in alias:
+        percorso = alias[prima] + espressione[lunghezza(prima):]
+        oggetto = _risolvi(percorso, cartelle_progetto)
+        se oggetto è non Nessuno:
+            nomi = [n per n in dir(oggetto) se non n.startswith("_")]
+            risultato = []
+            per n in sorted(nomi):
+                prova:
+                    v = getattr(oggetto, n)
+                    se isinstance(v, type):
+                        tipo_ = "classe"
+                    altrimenti_se callable(v):
+                        tipo_ = "funzione"
+                    altrimenti_se hasattr(v, "__path__") o type(v).__name__ == "module":
+                        tipo_ = "modulo"
+                    altrimenti:
+                        tipo_ = "valore"
+                eccetto Eccezione:
+                    tipo_ = "valore"
+                risultato.aggiungi((n, tipo_))
+            ritorna risultato
+    # oggetto sconosciuto: metodi comuni di testo, liste e dizionari
+    se linguaggio == "py":
+        nomi = set()
+        per t in (str, list, dict, set, bytes):
+            nomi |= {n per n in dir(t) se non n.startswith("_")}
+        ritorna [(n, "metodo") per n in sorted(nomi)]
+    ritorna [(n, "metodo") per n in METODI_ITALIANI]
+
+
+definisci suggerisci(prefisso, sorgente, locali=Vero, linguaggio="pit"):
+    """Suggerimenti per un identificatore parziale -> lista di (parola, tipo, extra)."""
+    p = prefisso.lower()
+    py = linguaggio == "py"
+    frammenti = FRAMMENTI_PY se py altrimenti FRAMMENTI
+    voci = []
+    visti = set()
+
+    definisci aggiungi_voce(parola, tipo_, extra=""):
+        se parola in visti o parola == prefisso:
+            ritorna
+        se parola.lower().startswith(p):
+            visti.add(parola)
+            voci.append((parola, tipo_, extra))
+
+    per parola in (PAROLE_CHIAVE_PY + PAROLE_MORBIDE_PY se py altrimenti PAROLE_CHIAVE + PAROLE_MORBIDE):
+        se parola non in frammenti:
+            aggiungi_voce(parola, "parola chiave")
+    per parola in (BUILTIN_PY se py altrimenti BUILTIN):
+        aggiungi_voce(parola, "predefinito")
+    per nome, (testo_, descr) in frammenti.items():
+        se nome.lower().startswith(p):
+            voci.append((nome, "frammento", descr))
+    per nome_lib in sorted(LIBRERIE_ATTIVE.get(linguaggio, {})):
+        aggiungi_voce(nome_lib, "libreria", "spuntata nel progetto")
+    se locali:
+        per parola in sorted(definizioni(sorgente, linguaggio) | parole_del_testo(sorgente)):
+            se lunghezza(parola) > 1:
+                aggiungi_voce(parola, "nel file")
+    # ordine: prefisso esatto di caso, poi tipo, poi alfabetico
+    ordine_tipo = {"libreria": 0, "frammento": 0, "parola chiave": 1, "predefinito": 2, "nel file": 3}
+    voci.sort(key=lambda v: (non v[0].startswith(prefisso), ordine_tipo.get(v[1], 9), v[0].lower()))
+    ritorna voci[:60]
+
+
+definisci suggerisci_moduli(prefisso, linguaggio="pit"):
+    """Nomi di moduli per 'importa ...' e 'da ... importa'."""
+    p = prefisso.lower()
+    voci = []
+    per m in (MODULI_STANDARD se linguaggio == "py" altrimenti MODULI + MODULI_STANDARD):
+        se m.lower().startswith(p) e (m, "modulo", "") non in voci:
+            voci.append((m, "modulo", "italiano" se m in MODULI altrimenti "standard"))
+    voci.sort(key=lambda v: (v[2] != "italiano", v[0]))
+    ritorna voci[:60]

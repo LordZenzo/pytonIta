@@ -1,0 +1,8 @@
+importa code
+c = code.InteractiveConsole()
+per riga in ["x = [1, 2]", "x.aggiungi(Vero)", "x", "se x:", "    stampa('dentro', lunghezza(x))", "", "1/0", "non_esiste"]:
+    c.push(riga)
+da _pyrepl.console importa InteractiveColoredConsole
+k = InteractiveColoredConsole({"__name__": "__main__"}, filename="<stdin>")
+k.runsource("stampa(testo(5) + 'a')", "<stdin>", "single")
+k.runsource("se Vero:\n    stampa('ciao pyrepl')\n", "<stdin>", "single")

@@ -1,0 +1,32 @@
+# Repository di pytonIta: pitonit (interprete), RAD/PitStudio (IDE), installatore.
+# Tutto il resto di C:\AppPython (altri progetti) resta fuori.
+/*
+!/.gitignore
+!/RAD/
+!/installatore/
+!/pitonit/
+/pitonit/*
+!/pitonit/tools/
+!/pitonit/patch/
+!/pitonit/esempi/
+!/pitonit/extra/
+!/pitonit/README.md
+!/pitonit/NOMI.md
+!/pitonit/ELENCO_LIBRERIE.md
+
+# generati / binari / dati locali
+__pycache__/
+*.pyc
+*.log
+*.obj
+*.res
+*.exp
+*.lib
+/installatore/build/
+/installatore/dist/
+/installatore/pacchetti/
+/installatore/*.exe
+/RAD/*.exe
+/RAD/aiuto/html/
+/RAD/.rad/
+.rad/

@@ -1,0 +1,894 @@
+"""Editor di codice: numeri di riga, colori, rientro automatico, suggerimenti, ricerca."""
+importa bisect
+importa os
+importa re
+importa tkinter come tk
+da tkinter importa ttk
+
+da rad importa parole
+
+_RE_TOKEN = re.compile(r"""
+    (?P<stringa>[rRbBfFuU]{0,2}(?:\"\"\"[\s\S]*?(?:\"\"\"|\Z)|'''[\s\S]*?(?:'''|\Z)|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?))
+  | (?P<commento>\#[^\n]*)
+  | (?P<decoratore>^[ \t]*@[\w.]+)
+  | (?P<numero>\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)
+  | (?P<parola>[^\W\d]\w*)
+""", re.X | re.M)
+
+_CHIAVI = set(parole.PAROLE_CHIAVE) | set(parole.PAROLE_MORBIDE)
+_BUILTIN = set(parole.BUILTIN)
+_CHIAVI_PY = set(parole.PAROLE_CHIAVE_PY) | set(parole.PAROLE_MORBIDE_PY)
+_BUILTIN_PY = set(parole.BUILTIN_PY)
+_COPPIE = {"(": ")", "[": "]", "{": "}"}
+
+
+definisci linguaggio_di(percorso):
+    """'pit' per pytonIta, 'py' per Python classico, Nessuno per gli altri file."""
+    se not_vuoto(percorso):
+        e = os.path.splitext(percorso)[1].lower()
+        se e == ".pit":
+            ritorna "pit"
+        se e in (".py", ".pyw"):
+            ritorna "py"
+    ritorna Nessuno
+
+
+definisci riga_ignorabile(riga):
+    ritorna non riga.strip() o riga.lstrip().startswith("#")
+
+
+definisci not_vuoto(percorso):
+    ritorna bool(percorso)
+
+
+classe Editor(tk.Frame):
+    """Un documento di testo/codice con tutte le comodità di un editor."""
+
+    definisci __inizializza__(se_stesso, genitore, config, colori, percorso=Nessuno,
+                          sul_cambio=Nessuno, sul_cursore=Nessuno, cartelle_progetto=()):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.config_ = config
+        se_stesso.colori = colori
+        se_stesso.percorso = percorso
+        se_stesso.sul_cambio = sul_cambio
+        se_stesso.sul_cursore = sul_cursore
+        se_stesso.cartelle_progetto = cartelle_progetto
+        se_stesso.linguaggio = linguaggio_di(percorso) o "pit"
+        se_stesso.modificato = Falso
+        se_stesso._lavoro_evidenzia = Nessuno
+        se_stesso._lavoro_suggerimenti = Nessuno
+        se_stesso._lavoro_salva = Nessuno
+        se_stesso._popup = Nessuno
+        se_stesso._voci = []
+        se_stesso._prefisso_popup = ""
+        se_stesso._righe_errore = {}
+        se_stesso.punti_arresto = set()          # righe con punto di arresto (debugger)
+        se_stesso.riga_debug = Nessuno           # riga in cui il programma è fermo
+        se_stesso.sui_punti_arresto = Nessuno
+        se_stesso.codifica = "utf-8"
+        se_stesso._costruisci()
+        se_stesso.applica_impostazioni()
+        se_stesso.applica_colori(colori)
+        se_stesso.t.edit_reset()
+        se_stesso.t.edit_modified(Falso)
+
+    # ------------------------------------------------------------ interfaccia
+    definisci _costruisci(se_stesso):
+        se_stesso.num = tk.Canvas(se_stesso, width=48, highlightthickness=0, borderwidth=0)
+        se_stesso.num._tema_proprio = Vero
+        se_stesso.num.pack(side="left", fill="y")
+        se_stesso.num.bind("<Button-1>", se_stesso._clic_margine)
+        se_stesso.t = tk.Text(se_stesso, wrap="none", undo=Vero, borderwidth=0,
+                              highlightthickness=0, padx=6, pady=4, maxundo=-1,
+                              exportselection=Falso)
+        se_stesso.t._tema_proprio = Vero
+        se_stesso.barra_y = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso._scorri_y)
+        se_stesso.barra_x = ttk.Scrollbar(se_stesso, orient="horizontal", command=se_stesso.t.xview)
+        se_stesso.t.configure(yscrollcommand=se_stesso._sul_scorrimento_y,
+                              xscrollcommand=se_stesso.barra_x.set)
+        se_stesso.barra_y.pack(side="right", fill="y")
+        se_stesso.barra_x.pack(side="bottom", fill="x")
+        se_stesso.t.pack(side="left", fill="both", expand=Vero)
+        # barra di ricerca (nascosta)
+        se_stesso.barra_cerca = tk.Frame(se_stesso)
+        se_stesso.var_cerca = tk.StringVar()
+        se_stesso.var_sostituisci = tk.StringVar()
+        se_stesso.campo_cerca = tk.Entry(se_stesso.barra_cerca, textvariable=se_stesso.var_cerca, width=24)
+        se_stesso.campo_sostituisci = tk.Entry(se_stesso.barra_cerca, textvariable=se_stesso.var_sostituisci, width=24)
+        tk.Label(se_stesso.barra_cerca, text="Cerca").pack(side="left", padx=(6, 2))
+        se_stesso.campo_cerca.pack(side="left", padx=2)
+        tk.Label(se_stesso.barra_cerca, text="Sostituisci").pack(side="left", padx=(8, 2))
+        se_stesso.campo_sostituisci.pack(side="left", padx=2)
+        per etichetta, comando in (("Successivo", se_stesso.trova_successivo),
+                                    ("Precedente", se_stesso.trova_precedente),
+                                    ("Sostituisci", se_stesso.sostituisci_corrente),
+                                    ("Tutti", se_stesso.sostituisci_tutti),
+                                    ("✕", se_stesso.chiudi_ricerca)):
+            tk.Button(se_stesso.barra_cerca, text=etichetta, command=comando).pack(side="left", padx=2, pady=3)
+        se_stesso.etichetta_trovati = tk.Label(se_stesso.barra_cerca, text="")
+        se_stesso.etichetta_trovati.pack(side="left", padx=6)
+        se_stesso.campo_cerca.bind("<Return>", lambda e: se_stesso.trova_successivo())
+        se_stesso.campo_cerca.bind("<KeyRelease>", lambda e: se_stesso._evidenzia_ricerca())
+        se_stesso.campo_cerca.bind("<Escape>", lambda e: se_stesso.chiudi_ricerca())
+        se_stesso.campo_sostituisci.bind("<Escape>", lambda e: se_stesso.chiudi_ricerca())
+
+        t = se_stesso.t
+        t.bind("<<Modified>>", se_stesso._alla_modifica)
+        t.bind("<KeyPress>", se_stesso._alla_pressione, add="+")
+        t.bind("<KeyRelease>", se_stesso._al_rilascio, add="+")
+        t.bind("<ButtonRelease-1>", se_stesso._al_cursore, add="+")
+        t.bind("<Button-1>", lambda e: se_stesso.chiudi_suggerimenti(), add="+")
+        t.bind("<Configure>", lambda e: se_stesso._ridisegna_numeri())
+        t.bind("<MouseWheel>", lambda e: se_stesso.after_idle(se_stesso._ridisegna_numeri), add="+")
+        t.bind("<FocusOut>", lambda e: se_stesso.after(150, se_stesso._chiudi_se_perso), add="+")
+        t.bind("<Control-a>", se_stesso._seleziona_tutto)
+        t.bind("<Control-z>", lambda e: se_stesso.annulla() o "break")
+        t.bind("<Control-y>", lambda e: se_stesso.ripeti() o "break")
+        t.bind("<Control-slash>", lambda e: se_stesso.commenta() o "break")
+        t.bind("<Control-d>", lambda e: se_stesso.duplica_riga() o "break")
+        t.bind("<Alt-Up>", lambda e: se_stesso.sposta_riga(-1) o "break")
+        t.bind("<Alt-Down>", lambda e: se_stesso.sposta_riga(1) o "break")
+        t.bind("<Shift-Tab>", lambda e: se_stesso.riduci_rientro() o "break")
+        t.bind("<<Paste>>", se_stesso._incolla)
+
+    definisci applica_impostazioni(se_stesso):
+        cfg = se_stesso.config_
+        se_stesso.carattere = (cfg.ottieni("editor.carattere", "Consolas"),
+                               cfg.ottieni("editor.dimensione", 11))
+        se_stesso.t.configure(font=se_stesso.carattere,
+                              wrap="word" se cfg.ottieni("editor.a_capo") altrimenti "none")
+        se_stesso.num.configure(width=lunghezza(testo(se_stesso._righe_totali())) * 10 + 22)
+        larghezza_tab = cfg.ottieni("editor.tabulazione", 4)
+        se_stesso.t.configure(tabs=(se_stesso._larghezza_carattere() * larghezza_tab,))
+        se_stesso._ridisegna_numeri()
+        se_stesso._programma_evidenziazione()
+
+    definisci _larghezza_carattere(se_stesso):
+        importa tkinter.font come tkfont
+        ritorna tkfont.Font(font=se_stesso.carattere).measure("0")
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.configure(background=c["editor"])
+        se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"],
+                              insertbackground=c["cursore"], selectbackground=c["selezione"],
+                              selectforeground=c["editor_testo"], inactiveselectbackground=c["selezione"])
+        se_stesso.num.configure(background=c["numeri_sfondo"])
+        se_stesso.barra_cerca.configure(background=c["pannello"])
+        per w in se_stesso.barra_cerca.winfo_children():
+            prova:
+                w.configure(background=c["pannello"], foreground=c["primo_piano"])
+                se w.winfo_class() == "Entry":
+                    w.configure(background=c["campo"], insertbackground=c["cursore"], relief="flat")
+                se w.winfo_class() == "Button":
+                    w.configure(background=c["pulsante"], activebackground=c["pulsante_attivo"],
+                                foreground=c["primo_piano"], relief="flat")
+            eccetto tk.TclError:
+                passa
+        t = se_stesso.t
+        corsivo = (se_stesso.carattere[0], se_stesso.carattere[1], "italic")
+        grassetto = (se_stesso.carattere[0], se_stesso.carattere[1], "bold")
+        t.tag_configure("parola_chiave", foreground=c["parola_chiave"], font=grassetto)
+        t.tag_configure("builtin", foreground=c["builtin"])
+        t.tag_configure("stringa", foreground=c["stringa"])
+        t.tag_configure("commento", foreground=c["commento"], font=corsivo)
+        t.tag_configure("numero", foreground=c["numero"])
+        t.tag_configure("definizione", foreground=c["definizione"])
+        t.tag_configure("decoratore", foreground=c["decoratore"])
+        t.tag_configure("costante", foreground=c["costante"], font=grassetto)
+        t.tag_configure("riga_corrente", background=c["riga_corrente"])
+        t.tag_configure("trova", background=c["avviso"], foreground="#000000")
+        t.tag_configure("errore_riga", background="#5a2a2a" se c["editor"] < "#808080" altrimenti "#fadada")
+        t.tag_configure("riga_debug", background="#5b4b10" se c["editor"] < "#808080" altrimenti "#fff1a8")
+        t.tag_configure("parentesi", background=c["selezione"])
+        t.tag_raise("sel")
+        se_stesso._ridisegna_numeri()
+        se_stesso._programma_evidenziazione()
+
+    # ------------------------------------------------------------ contenuto
+    definisci contenuto(se_stesso):
+        ritorna se_stesso.t.get("1.0", "end-1c")
+
+    definisci imposta_contenuto(se_stesso, testo_):
+        se_stesso.t.delete("1.0", "end")
+        se_stesso.t.insert("1.0", testo_)
+        se_stesso.t.edit_reset()
+        se_stesso.t.edit_modified(Falso)
+        se_stesso._imposta_modificato(Falso)
+        se_stesso._programma_evidenziazione()
+        se_stesso._ridisegna_numeri()
+
+    definisci _righe_totali(se_stesso):
+        ritorna int(se_stesso.t.index("end-1c").split(".")[0])
+
+    definisci carica(se_stesso, percorso):
+        se_stesso.percorso = percorso
+        se_stesso.linguaggio = linguaggio_di(percorso) o se_stesso.linguaggio
+        dati = open(percorso, "rb").read()
+        prova:
+            se_stesso.codifica = "utf-8"
+            testo_ = dati.decode("utf-8")
+        eccetto UnicodeDecodeError:
+            se_stesso.codifica = "latin-1"
+            testo_ = dati.decode("latin-1")
+        se_stesso.imposta_contenuto(testo_.replace("\r\n", "\n"))
+
+    definisci salva(se_stesso, percorso=Nessuno):
+        se percorso:
+            se_stesso.percorso = percorso
+        se non se_stesso.percorso:
+            ritorna Falso
+        con open(se_stesso.percorso, "w", encoding=se_stesso.codifica, newline="\n") come f:
+            f.write(se_stesso.contenuto())
+        se_stesso.t.edit_modified(Falso)
+        se_stesso._imposta_modificato(Falso)
+        ritorna Vero
+
+    definisci ricarica_se_cambiato_su_disco(se_stesso):
+        """Rilegge il file se è cambiato fuori dall'editor (es. scritto dall'AI)."""
+        se non se_stesso.percorso o non os.path.exists(se_stesso.percorso):
+            ritorna Falso
+        prova:
+            su_disco = open(se_stesso.percorso, "rb").read().decode(se_stesso.codifica).replace("\r\n", "\n")
+        eccetto (OSError, UnicodeDecodeError):
+            ritorna Falso
+        se su_disco != se_stesso.contenuto() e non se_stesso.modificato:
+            pos = se_stesso.t.index("insert")
+            se_stesso.imposta_contenuto(su_disco)
+            se_stesso.t.mark_set("insert", pos)
+            ritorna Vero
+        ritorna Falso
+
+    definisci _imposta_modificato(se_stesso, valore):
+        se valore != se_stesso.modificato:
+            se_stesso.modificato = valore
+            se se_stesso.sul_cambio:
+                se_stesso.sul_cambio(se_stesso)
+
+    definisci _alla_modifica(se_stesso, evento=Nessuno):
+        se se_stesso.t.edit_modified():
+            se_stesso._imposta_modificato(Vero)
+            se_stesso.t.edit_modified(Falso)
+            se_stesso._programma_evidenziazione()
+            se_stesso._ridisegna_numeri()
+            attesa = se_stesso.config_.ottieni("editor.salvataggio_automatico", 0)
+            se attesa e se_stesso.percorso:
+                se se_stesso._lavoro_salva:
+                    se_stesso.after_cancel(se_stesso._lavoro_salva)
+                se_stesso._lavoro_salva = se_stesso.after(int(attesa * 1000), se_stesso._salva_auto)
+
+    definisci _salva_auto(se_stesso):
+        se_stesso._lavoro_salva = Nessuno
+        se se_stesso.modificato e se_stesso.percorso:
+            prova:
+                se_stesso.salva()
+            eccetto OSError:
+                passa
+
+    # ------------------------------------------------------------ numeri di riga
+    definisci _scorri_y(se_stesso, *argomenti):
+        se_stesso.t.yview(*argomenti)
+        se_stesso._ridisegna_numeri()
+
+    definisci _sul_scorrimento_y(se_stesso, a, b):
+        se_stesso.barra_y.set(a, b)
+        se_stesso._ridisegna_numeri()
+
+    definisci _ridisegna_numeri(se_stesso):
+        c = se_stesso.colori
+        se_stesso.num.delete("all")
+        se non se_stesso.config_.ottieni("editor.numeri_riga", Vero):
+            se_stesso.num.configure(width=0)
+            ritorna
+        cifre = lunghezza(testo(se_stesso._righe_totali()))
+        se_stesso.num.configure(width=max(3, cifre) * 9 + 22)
+        corrente = int(se_stesso.t.index("insert").split(".")[0])
+        i = se_stesso.t.index("@0,0")
+        mentre Vero:
+            info = se_stesso.t.dlineinfo(i)
+            se info è Nessuno:
+                interrompi
+            y = info[1]
+            riga = int(i.split(".")[0])
+            colore = c["primo_piano"] se riga == corrente altrimenti c["numeri"]
+            se_stesso.num.create_text(se_stesso.num.winfo_reqwidth() - 8, y, anchor="ne",
+                                      text=testo(riga), fill=colore, font=se_stesso.carattere)
+            se riga in se_stesso._righe_errore:
+                se_stesso.num.create_oval(4, y + 3, 12, y + 11, fill=c["errore"], outline="")
+            se riga in se_stesso.punti_arresto:
+                se_stesso.num.create_oval(3, y + 2, 13, y + 12, fill="#e5484d", outline="#ffffff")
+            se riga == se_stesso.riga_debug:
+                se_stesso.num.create_text(2, y, anchor="nw", text="▶", fill="#f5c542", font=se_stesso.carattere)
+            i = se_stesso.t.index(f"{i}+1line")
+            se se_stesso.t.compare(i, ">=", "end-1c") e se_stesso.t.dlineinfo(i) è Nessuno:
+                interrompi
+
+    # ------------------------------------------------------------ colori sintassi
+    definisci _programma_evidenziazione(se_stesso):
+        se se_stesso._lavoro_evidenzia:
+            se_stesso.after_cancel(se_stesso._lavoro_evidenzia)
+        se_stesso._lavoro_evidenzia = se_stesso.after(90, se_stesso.evidenzia)
+
+    definisci evidenzia(se_stesso):
+        se_stesso._lavoro_evidenzia = Nessuno
+        t = se_stesso.t
+        sorgente = se_stesso.contenuto()
+        per tag in ("parola_chiave", "builtin", "stringa", "commento", "numero",
+                    "definizione", "decoratore", "costante"):
+            t.tag_remove(tag, "1.0", "end")
+        inizi = [0]
+        per m in re.finditer("\n", sorgente):
+            inizi.append(m.end())
+
+        definisci posizione(offset):
+            riga = bisect.bisect_right(inizi, offset) - 1
+            ritorna f"{riga + 1}.{offset - inizi[riga]}"
+
+        py = se_stesso.linguaggio == "py"
+        chiavi = _CHIAVI_PY se py altrimenti _CHIAVI
+        incorporate = _BUILTIN_PY se py altrimenti _BUILTIN
+        costanti = parole.COSTANTI_PY se py altrimenti parole.COSTANTI
+        definitori = ("def", "class") se py altrimenti ("definisci", "classe")
+        dopo_definizione = Falso
+        per m in _RE_TOKEN.finditer(sorgente):
+            tipo_ = m.lastgroup
+            a, b = m.start(), m.end()
+            se tipo_ == "parola":
+                p = m.group()
+                se dopo_definizione:
+                    t.tag_add("definizione", posizione(a), posizione(b))
+                    dopo_definizione = Falso
+                    continua
+                se p in costanti:
+                    t.tag_add("costante", posizione(a), posizione(b))
+                altrimenti_se p in chiavi:
+                    t.tag_add("parola_chiave", posizione(a), posizione(b))
+                    dopo_definizione = p in definitori
+                altrimenti_se p in incorporate:
+                    t.tag_add("builtin", posizione(a), posizione(b))
+            altrimenti:
+                dopo_definizione = Falso
+                t.tag_add(tipo_, posizione(a), posizione(b))
+        se_stesso._evidenzia_riga_corrente()
+        se_stesso._evidenzia_parentesi()
+
+    definisci _evidenzia_riga_corrente(se_stesso):
+        se_stesso.t.tag_remove("riga_corrente", "1.0", "end")
+        se se_stesso.config_.ottieni("editor.evidenzia_riga", Vero):
+            se_stesso.t.tag_add("riga_corrente", "insert linestart", "insert lineend+1c")
+            se_stesso.t.tag_lower("riga_corrente")
+
+    definisci _evidenzia_parentesi(se_stesso):
+        t = se_stesso.t
+        t.tag_remove("parentesi", "1.0", "end")
+        per indice in ("insert", "insert-1c"):
+            car = t.get(indice)
+            se car in "()[]{}" e car:
+                chiudi = car in ")]}"
+                coppia = {"(": ")", "[": "]", "{": "}", ")": "(", "]": "[", "}": "{"}[car]
+                livello = 0
+                i = t.index(indice)
+                mentre Vero:
+                    se chiudi:
+                        se t.compare(i, "<=", "1.0"):
+                            interrompi
+                        i = t.index(f"{i}-1c")
+                    altrimenti:
+                        i = t.index(f"{i}+1c")
+                        se t.compare(i, ">=", "end-1c"):
+                            interrompi
+                    c_ = t.get(i)
+                    se c_ == car:
+                        livello += 1
+                    altrimenti_se c_ == coppia:
+                        se livello == 0:
+                            t.tag_add("parentesi", i, f"{i}+1c")
+                            t.tag_add("parentesi", indice, f"{indice}+1c")
+                            ritorna
+                        livello -= 1
+                interrompi
+
+    # ------------------------------------------------------------ tastiera
+    definisci _al_cursore(se_stesso, evento=Nessuno):
+        se_stesso._evidenzia_riga_corrente()
+        se_stesso._evidenzia_parentesi()
+        se_stesso._ridisegna_numeri()
+        se se_stesso.sul_cursore:
+            riga, col = se_stesso.t.index("insert").split(".")
+            se_stesso.sul_cursore(int(riga), int(col) + 1)
+
+    definisci _alla_pressione(se_stesso, e):
+        t = se_stesso.t
+        se se_stesso._popup:
+            se e.keysym in ("Down", "Up"):
+                se_stesso._muovi_selezione(1 se e.keysym == "Down" altrimenti -1)
+                ritorna "break"
+            se e.keysym in ("Return", "Tab"):
+                se_stesso.accetta_suggerimento()
+                ritorna "break"
+            se e.keysym == "Escape":
+                se_stesso.chiudi_suggerimenti()
+                ritorna "break"
+            se e.keysym in ("Prior", "Next"):
+                se_stesso._muovi_selezione(8 se e.keysym == "Next" altrimenti -8)
+                ritorna "break"
+        se e.keysym == "Return" e non (e.state & 0x4):
+            se_stesso._a_capo_con_rientro()
+            ritorna "break"
+        se e.keysym == "Tab" e non (e.state & 0x1):
+            se t.tag_ranges("sel"):
+                se_stesso.aumenta_rientro()
+            altrimenti:
+                se non se_stesso._espandi_frammento():
+                    t.insert("insert", " " * se_stesso.config_.ottieni("editor.tabulazione", 4))
+            ritorna "break"
+        se e.keysym == "BackSpace" e non t.tag_ranges("sel"):
+            prima = t.get("insert linestart", "insert")
+            se prima e prima.strip() == "" e lunghezza(prima) >= 1:
+                n = se_stesso.config_.ottieni("editor.tabulazione", 4)
+                togli = lunghezza(prima) % n o n
+                se lunghezza(prima) >= togli e prima.endswith(" " * togli):
+                    t.delete(f"insert-{togli}c", "insert")
+                    ritorna "break"
+            # cancella la coppia vuota ()
+            se se_stesso.config_.ottieni("editor.chiudi_parentesi", Vero):
+                a, b = t.get("insert-1c", "insert"), t.get("insert", "insert+1c")
+                se a in _COPPIE e _COPPIE[a] == b:
+                    t.delete("insert-1c", "insert+1c")
+                    ritorna "break"
+        se e.char e se_stesso.config_.ottieni("editor.chiudi_parentesi", Vero) e non (e.state & 0x4):
+            se e.char in _COPPIE:
+                t.insert("insert", e.char + _COPPIE[e.char])
+                t.mark_set("insert", "insert-1c")
+                ritorna "break"
+            se e.char in ")]}" e t.get("insert", "insert+1c") == e.char:
+                t.mark_set("insert", "insert+1c")
+                ritorna "break"
+            se e.char in "\"'":
+                dopo = t.get("insert", "insert+1c")
+                se dopo == e.char:
+                    t.mark_set("insert", "insert+1c")
+                    ritorna "break"
+                prima = t.get("insert-1c", "insert")
+                se non (prima.isalnum() o prima == "\\") e (dopo == "" o dopo.isspace() o dopo in ")]},:"):
+                    t.insert("insert", e.char * 2)
+                    t.mark_set("insert", "insert-1c")
+                    ritorna "break"
+        ritorna Nessuno
+
+    definisci _al_rilascio(se_stesso, e):
+        se_stesso._al_cursore()
+        se e.keysym in ("Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R",
+                        "Up", "Down", "Return", "Tab", "Escape", "Prior", "Next"):
+            ritorna
+        se e.keysym in ("Left", "Right", "Home", "End"):
+            se_stesso.chiudi_suggerimenti()
+            ritorna
+        se non se_stesso.config_.ottieni("editor.suggerimenti", Vero):
+            ritorna
+        se e.char e (e.char.isalnum() o e.char in "_." o e.keysym == "BackSpace"):
+            se se_stesso._lavoro_suggerimenti:
+                se_stesso.after_cancel(se_stesso._lavoro_suggerimenti)
+            se_stesso._lavoro_suggerimenti = se_stesso.after(
+                se_stesso.config_.ottieni("editor.ritardo_suggerimenti_ms", 200),
+                se_stesso.suggerisci)
+        altrimenti_se e.keysym == "BackSpace":
+            se_stesso.chiudi_suggerimenti()
+
+    definisci _a_capo_con_rientro(se_stesso):
+        t = se_stesso.t
+        se t.tag_ranges("sel"):
+            t.delete("sel.first", "sel.last")
+        riga = t.get("insert linestart", "insert")
+        rientro = re.match(r"[ \t]*", riga).group()
+        se riga.rstrip().endswith(":"):
+            rientro += " " * se_stesso.config_.ottieni("editor.tabulazione", 4)
+        altrimenti_se re.match(r"\s*(ritorna|passa|interrompi|continua|solleva|return|pass|break|continue|raise)\b", riga) e rientro.startswith(" "):
+            n = se_stesso.config_.ottieni("editor.tabulazione", 4)
+            rientro = rientro[:max(0, lunghezza(rientro) - n)]
+        # una coppia aperta e chiusa subito: apri una riga in mezzo
+        a, b = t.get("insert-1c", "insert"), t.get("insert", "insert+1c")
+        se a in _COPPIE e _COPPIE[a] == b:
+            t.insert("insert", "\n" + rientro + " " * se_stesso.config_.ottieni("editor.tabulazione", 4) + "\n" + rientro)
+            t.mark_set("insert", f"insert-1line lineend")
+        altrimenti:
+            t.insert("insert", "\n" + rientro)
+        t.see("insert")
+
+    definisci aumenta_rientro(se_stesso):
+        t = se_stesso.t
+        a, b = se_stesso._righe_selezionate()
+        n = " " * se_stesso.config_.ottieni("editor.tabulazione", 4)
+        per r in intervallo(a, b + 1):
+            t.insert(f"{r}.0", n)
+
+    definisci riduci_rientro(se_stesso):
+        t = se_stesso.t
+        a, b = se_stesso._righe_selezionate()
+        n = se_stesso.config_.ottieni("editor.tabulazione", 4)
+        per r in intervallo(a, b + 1):
+            riga = t.get(f"{r}.0", f"{r}.end")
+            spazi = lunghezza(riga) - lunghezza(riga.lstrip(" "))
+            se spazi:
+                t.delete(f"{r}.0", f"{r}.{min(n, spazi)}")
+
+    definisci _righe_selezionate(se_stesso):
+        t = se_stesso.t
+        se t.tag_ranges("sel"):
+            a = int(t.index("sel.first").split(".")[0])
+            fine = t.index("sel.last")
+            b = int(fine.split(".")[0])
+            se fine.endswith(".0") e b > a:
+                b -= 1
+            ritorna a, b
+        r = int(t.index("insert").split(".")[0])
+        ritorna r, r
+
+    definisci commenta(se_stesso):
+        t = se_stesso.t
+        a, b = se_stesso._righe_selezionate()
+        righe = [t.get(f"{r}.0", f"{r}.end") per r in intervallo(a, b + 1)]
+        tutte = tutti(r.lstrip().startswith("#") per r in righe se r.strip())
+        per r, riga in zip(intervallo(a, b + 1), righe):
+            se non riga.strip():
+                continua
+            se tutte:
+                nuova = re.sub(r"^(\s*)# ?", r"\1", riga, count=1)
+            altrimenti:
+                rientro = lunghezza(riga) - lunghezza(riga.lstrip())
+                nuova = riga[:rientro] + "# " + riga[rientro:]
+            t.delete(f"{r}.0", f"{r}.end")
+            t.insert(f"{r}.0", nuova)
+
+    definisci duplica_riga(se_stesso):
+        t = se_stesso.t
+        a, b = se_stesso._righe_selezionate()
+        blocco = t.get(f"{a}.0", f"{b}.end")
+        t.insert(f"{b}.end", "\n" + blocco)
+
+    definisci sposta_riga(se_stesso, direzione):
+        t = se_stesso.t
+        a, b = se_stesso._righe_selezionate()
+        se direzione < 0 e a > 1:
+            sopra = t.get(f"{a - 1}.0", f"{a - 1}.end")
+            t.delete(f"{a - 1}.0", f"{a}.0")
+            t.insert(f"{b - 1}.end", "\n" + sopra)
+            t.mark_set("insert", f"{a - 1}.0")
+        altrimenti_se direzione > 0 e b < se_stesso._righe_totali():
+            sotto = t.get(f"{b + 1}.0", f"{b + 1}.end")
+            t.delete(f"{b}.end", f"{b + 1}.end")
+            t.insert(f"{a}.0", sotto + "\n")
+            t.mark_set("insert", f"{a + 1}.0")
+
+    definisci _seleziona_tutto(se_stesso, e=Nessuno):
+        se_stesso.t.tag_add("sel", "1.0", "end-1c")
+        ritorna "break"
+
+    definisci _incolla(se_stesso, e=Nessuno):
+        prova:
+            testo_ = se_stesso.clipboard_get()
+        eccetto tk.TclError:
+            ritorna "break"
+        testo_ = testo_.replace("\r\n", "\n").replace("\t", " " * se_stesso.config_.ottieni("editor.tabulazione", 4))
+        se se_stesso.t.tag_ranges("sel"):
+            se_stesso.t.delete("sel.first", "sel.last")
+        se_stesso.t.insert("insert", testo_)
+        ritorna "break"
+
+    definisci annulla(se_stesso):
+        prova:
+            se_stesso.t.edit_undo()
+        eccetto tk.TclError:
+            passa
+
+    definisci ripeti(se_stesso):
+        prova:
+            se_stesso.t.edit_redo()
+        eccetto tk.TclError:
+            passa
+
+    # ------------------------------------------------------------ suggerimenti
+    definisci _espandi_frammento(se_stesso):
+        """Se la parola prima del cursore è un frammento, lo espande."""
+        t = se_stesso.t
+        riga = t.get("insert linestart", "insert")
+        m = re.search(r"([^\W\d]\w*)$", riga)
+        se non m e non riga.strip():
+            ritorna Falso
+        se non m:
+            ritorna Falso
+        parola = m.group(1)
+        frammenti = parole.FRAMMENTI_PY se se_stesso.linguaggio == "py" altrimenti parole.FRAMMENTI
+        se parola non in frammenti:
+            ritorna Falso
+        resto_riga = t.get("insert", "insert lineend").strip()
+        se resto_riga:
+            ritorna Falso
+        modello = frammenti[parola][0]
+        rientro = re.match(r"[ \t]*", riga).group()
+        righe = modello.split("\n")
+        righe = [righe[0]] + [rientro + r per r in righe[1:]]
+        modello = "\n".join(righe)
+        posizione = modello.find("|")
+        modello = modello.replace("|", "")
+        t.delete(f"insert-{lunghezza(parola)}c", "insert")
+        inizio = t.index("insert")
+        t.insert("insert", modello)
+        se posizione >= 0:
+            t.mark_set("insert", f"{inizio}+{posizione}c")
+        ritorna Vero
+
+    definisci suggerisci(se_stesso, forza=Falso):
+        se_stesso._lavoro_suggerimenti = Nessuno
+        t = se_stesso.t
+        riga = t.get("insert linestart", "insert")
+        sorgente = se_stesso.contenuto()
+        # attributo dopo il punto
+        m = re.search(r"([\w.]+)\.(\w*)$", riga)
+        voci = []
+        se m:
+            espressione, prefisso = m.group(1), m.group(2)
+            membri = parole.membri_di(espressione, sorgente, se_stesso.cartelle_progetto, se_stesso.linguaggio)
+            voci = [(n, tp, "") per n, tp in membri se n.lower().startswith(prefisso.lower())
+                    e n != prefisso][:80]
+        altrimenti:
+            m = re.search(r"([^\W\d]\w*)$", riga)
+            prefisso = m.group(1) se m altrimenti ""
+            se re.match(r"\s*(importa|da|import|from)\s+[\w.]*$", riga):
+                m2 = re.search(r"([\w.]*)$", riga)
+                prefisso = m2.group(1)
+                voci = parole.suggerisci_moduli(prefisso, se_stesso.linguaggio)
+            altrimenti_se prefisso e (lunghezza(prefisso) >= 2 o forza):
+                se non re.search(r"""(["'])[^"']*$""", riga):    # non dentro una stringa
+                    voci = parole.suggerisci(prefisso, sorgente, linguaggio=se_stesso.linguaggio)
+            altrimenti_se forza:
+                voci = parole.suggerisci("", sorgente, linguaggio=se_stesso.linguaggio)
+        se non voci:
+            se_stesso.chiudi_suggerimenti()
+            ritorna
+        se_stesso._mostra_popup(voci, prefisso)
+
+    definisci _mostra_popup(se_stesso, voci, prefisso):
+        se_stesso._voci = voci
+        se_stesso._prefisso_popup = prefisso
+        c = se_stesso.colori
+        se non se_stesso._popup:
+            p = tk.Toplevel(se_stesso)
+            p.wm_overrideredirect(Vero)
+            p.attributes("-topmost", Vero)
+            se_stesso._lista = tk.Listbox(p, activestyle="none", exportselection=Falso,
+                                          font=se_stesso.carattere, borderwidth=0,
+                                          highlightthickness=1, highlightbackground=c["bordo"])
+            se_stesso._lista.pack(fill="both", expand=Vero)
+            se_stesso._lista.bind("<Double-Button-1>", lambda e: se_stesso.accetta_suggerimento())
+            se_stesso._popup = p
+        lista_ = se_stesso._lista
+        lista_.configure(background=c["pannello"], foreground=c["primo_piano"],
+                         selectbackground=c["accento"], selectforeground="#ffffff",
+                         highlightbackground=c["bordo"])
+        lista_.delete(0, "end")
+        per parola, tipo_, extra in voci:
+            lista_.insert("end", f"{parola:<28} {extra o tipo_}")
+        lista_.selection_set(0)
+        lista_.configure(height=min(10, lunghezza(voci)), width=max(48, max(lunghezza(v[0]) per v in voci) + 24))
+        bbox = se_stesso.t.bbox("insert")
+        se non bbox:
+            ritorna
+        x = se_stesso.t.winfo_rootx() + bbox[0]
+        y = se_stesso.t.winfo_rooty() + bbox[1] + bbox[3] + 2
+        se_stesso._popup.wm_geometry(f"+{x}+{y}")
+        se_stesso._popup.deiconify()
+
+    definisci _muovi_selezione(se_stesso, passo):
+        sel = se_stesso._lista.curselection()
+        i = sel[0] se sel altrimenti 0
+        i = max(0, min(lunghezza(se_stesso._voci) - 1, i + passo))
+        se_stesso._lista.selection_clear(0, "end")
+        se_stesso._lista.selection_set(i)
+        se_stesso._lista.see(i)
+
+    definisci accetta_suggerimento(se_stesso):
+        se non se_stesso._popup:
+            ritorna
+        sel = se_stesso._lista.curselection()
+        se non sel:
+            se_stesso.chiudi_suggerimenti()
+            ritorna
+        parola, tipo_, extra = se_stesso._voci[sel[0]]
+        prefisso = se_stesso._prefisso_popup
+        t = se_stesso.t
+        se_stesso.chiudi_suggerimenti()
+        t.delete(f"insert-{lunghezza(prefisso)}c", "insert")
+        se tipo_ == "frammento":
+            t.insert("insert", parola)
+            se_stesso._espandi_frammento()
+        altrimenti:
+            t.insert("insert", parola)
+        t.focus_set()
+
+    definisci chiudi_suggerimenti(se_stesso):
+        se se_stesso._popup:
+            se_stesso._popup.destroy()
+            se_stesso._popup = Nessuno
+
+    definisci _chiudi_se_perso(se_stesso):
+        prova:
+            se se_stesso._popup e se_stesso.focus_get() non in (se_stesso.t, se_stesso._lista):
+                se_stesso.chiudi_suggerimenti()
+        eccetto (KeyError, tk.TclError):
+            se_stesso.chiudi_suggerimenti()
+
+    # ------------------------------------------------------------ ricerca
+    definisci mostra_ricerca(se_stesso, sostituisci=Falso):
+        se non se_stesso.barra_cerca.winfo_ismapped():
+            se_stesso.barra_cerca.pack(side="bottom", fill="x", before=se_stesso.barra_x)
+        se se_stesso.t.tag_ranges("sel"):
+            se_stesso.var_cerca.set(se_stesso.t.get("sel.first", "sel.last").split("\n")[0])
+        se_stesso.campo_cerca.focus_set()
+        se_stesso.campo_cerca.select_range(0, "end")
+        se_stesso._evidenzia_ricerca()
+
+    definisci chiudi_ricerca(se_stesso):
+        se_stesso.barra_cerca.pack_forget()
+        se_stesso.t.tag_remove("trova", "1.0", "end")
+        se_stesso.t.focus_set()
+
+    definisci _evidenzia_ricerca(se_stesso):
+        t = se_stesso.t
+        t.tag_remove("trova", "1.0", "end")
+        chiave = se_stesso.var_cerca.get()
+        se non chiave:
+            se_stesso.etichetta_trovati.configure(text="")
+            ritorna
+        n = 0
+        i = "1.0"
+        mentre Vero:
+            i = t.search(chiave, i, stopindex="end", nocase=Vero)
+            se non i:
+                interrompi
+            fine = f"{i}+{lunghezza(chiave)}c"
+            t.tag_add("trova", i, fine)
+            i = fine
+            n += 1
+            se n > 5000:
+                interrompi
+        se_stesso.etichetta_trovati.configure(text=f"{n} trovati")
+
+    definisci trova_successivo(se_stesso, indietro=Falso):
+        t = se_stesso.t
+        chiave = se_stesso.var_cerca.get()
+        se non chiave:
+            ritorna
+        se indietro:
+            i = t.search(chiave, "insert-1c", stopindex="1.0", backwards=Vero, nocase=Vero)
+            se non i:
+                i = t.search(chiave, "end", stopindex="1.0", backwards=Vero, nocase=Vero)
+        altrimenti:
+            i = t.search(chiave, "insert+1c", stopindex="end", nocase=Vero)
+            se non i:
+                i = t.search(chiave, "1.0", stopindex="end", nocase=Vero)
+        se i:
+            t.tag_remove("sel", "1.0", "end")
+            t.tag_add("sel", i, f"{i}+{lunghezza(chiave)}c")
+            t.mark_set("insert", i)
+            t.see(i)
+
+    definisci trova_precedente(se_stesso):
+        se_stesso.trova_successivo(indietro=Vero)
+
+    definisci sostituisci_corrente(se_stesso):
+        t = se_stesso.t
+        se t.tag_ranges("sel") e t.get("sel.first", "sel.last").lower() == se_stesso.var_cerca.get().lower():
+            t.delete("sel.first", "sel.last")
+            t.insert("insert", se_stesso.var_sostituisci.get())
+        se_stesso.trova_successivo()
+
+    definisci sostituisci_tutti(se_stesso):
+        chiave = se_stesso.var_cerca.get()
+        se non chiave:
+            ritorna
+        nuovo = re.sub(re.escape(chiave), se_stesso.var_sostituisci.get().replace("\\", "\\\\"),
+                       se_stesso.contenuto(), flags=re.I)
+        pos = se_stesso.t.index("insert")
+        se_stesso.t.delete("1.0", "end")
+        se_stesso.t.insert("1.0", nuovo)
+        se_stesso.t.mark_set("insert", pos)
+        se_stesso._evidenzia_ricerca()
+
+    # ------------------------------------------------------------ navigazione ed errori
+    definisci vai_a(se_stesso, riga, colonna=0):
+        t = se_stesso.t
+        riga = max(1, min(riga, se_stesso._righe_totali()))
+        t.mark_set("insert", f"{riga}.{colonna}")
+        t.see("insert")
+        t.focus_set()
+        se_stesso._al_cursore()
+
+    # ------------------------------------------------------------ debugger
+    definisci _clic_margine(se_stesso, e):
+        """Un clic sul margine dei numeri di riga mette o toglie un punto di arresto."""
+        indice = se_stesso.t.index(f"@0,{e.y}")
+        se_stesso.alterna_punto_arresto(int(indice.split(".")[0]))
+
+    definisci alterna_punto_arresto(se_stesso, riga=Nessuno):
+        se riga è Nessuno:
+            riga = int(se_stesso.t.index("insert").split(".")[0])
+        se riga in se_stesso.punti_arresto:
+            se_stesso.punti_arresto.discard(riga)
+        altrimenti:
+            se_stesso.punti_arresto.add(riga)
+        se_stesso._ridisegna_numeri()
+        se se_stesso.sui_punti_arresto:
+            se_stesso.sui_punti_arresto(se_stesso)
+
+    definisci imposta_riga_debug(se_stesso, riga):
+        """Evidenzia la riga in cui il programma è fermo (Nessuno = nessuna)."""
+        se_stesso.t.tag_remove("riga_debug", "1.0", "end")
+        se_stesso.riga_debug = riga
+        se riga:
+            se_stesso.t.tag_add("riga_debug", f"{riga}.0", f"{riga}.end+1c")
+            se_stesso.t.mark_set("insert", f"{riga}.0")
+            se_stesso.t.see(f"{riga}.0")
+        se_stesso._ridisegna_numeri()
+
+    definisci segna_errore(se_stesso, riga, messaggio=""):
+        se_stesso._righe_errore[riga] = messaggio
+        se_stesso.t.tag_add("errore_riga", f"{riga}.0", f"{riga}.end+1c")
+        se_stesso._ridisegna_numeri()
+
+    definisci cancella_errori(se_stesso):
+        se_stesso._righe_errore = {}
+        se_stesso.t.tag_remove("errore_riga", "1.0", "end")
+        se_stesso._ridisegna_numeri()
+
+    definisci selezione(se_stesso):
+        se se_stesso.t.tag_ranges("sel"):
+            ritorna se_stesso.t.get("sel.first", "sel.last")
+        ritorna ""
+
+    definisci riga_cursore(se_stesso):
+        ritorna int(se_stesso.t.index("insert").split(".")[0])
+
+    definisci inserisci_importazione(se_stesso, riga_import):
+        """Inserisce una riga di importazione dopo la docstring e le importazioni già presenti in testa al file."""
+        righe = se_stesso.contenuto().split("\n")
+        i = 0
+        # intestazione: commenti, righe vuote, docstring
+        mentre i < lunghezza(righe) e (riga_ignorabile(righe[i])):
+            i += 1
+        se i < lunghezza(righe) e righe[i].lstrip().startswith(('"""', "'''")):
+            chiusura = righe[i].lstrip()[:3]
+            se righe[i].count(chiusura) >= 2:
+                i += 1
+            altrimenti:
+                i += 1
+                mentre i < lunghezza(righe) e chiusura non in righe[i]:
+                    i += 1
+                i += 1
+        ultimo = i
+        j = i
+        mentre j < lunghezza(righe):
+            r = righe[j].strip()
+            se r.startswith(("importa ", "da ", "import ", "from ")):
+                ultimo = j + 1
+            altrimenti_se r e non r.startswith("#"):
+                interrompi
+            j += 1
+        testo_ = riga_import + "\n"
+        se ultimo == i e i < lunghezza(righe) e righe[i].strip():
+            testo_ += "\n"
+        se_stesso.t.insert(f"{ultimo + 1}.0", testo_)
+        se_stesso.evidenzia()
+        ritorna Vero
+
+    definisci inserisci_a_cursore(se_stesso, testo_):
+        se_stesso.t.insert("insert", testo_)
+
+    definisci chiudi(se_stesso):
+        se_stesso.chiudi_suggerimenti()
+        per lavoro in (se_stesso._lavoro_evidenzia, se_stesso._lavoro_suggerimenti, se_stesso._lavoro_salva):
+            se lavoro:
+                prova:
+                    se_stesso.after_cancel(lavoro)
+                eccetto tk.TclError:
+                    passa

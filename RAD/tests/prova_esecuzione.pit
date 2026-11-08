@@ -1,0 +1,43 @@
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.esecuzione importa Console, esegui_sincrono, controlla_sintassi
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+stampa("sintassi ok:", controlla_sintassi("se Vero:\n    stampa(1)\n"))
+stampa("sintassi errore:", controlla_sintassi("se Vero\n    stampa(1)\n"))
+stampa("sintassi inglese:", controlla_sintassi("if True:\n    pass\n"))
+
+classe Azioni:
+    finito = Nessuno
+    definisci apri_file_a_riga(se_stesso, p, r): stampa("apri", p, r)
+    definisci stato_esecuzione(se_stesso, v): passa
+    definisci esecuzione_finita(se_stesso, codice): se_stesso.finito = codice
+
+d = tempfile.mkdtemp()
+programma = os.path.join(d, "p.pit")
+open(programma, "w", encoding="utf-8").write('''
+nome = leggi()
+stampa("ciao", nome, Vero)
+importa sistema
+stampa("errore!", file=sistema.errore_standard)
+1 / 0
+''')
+r = esegui_sincrono([sys.executable, "-u", programma], d, 20, "Luca\n")
+stampa("sincrono:", r["codice"], repr(r["uscita"]), r["errori"].strip().splitlines()[-1])
+radice = tk.Tk()
+az = Azioni()
+c = Console(radice, cfg, colori(cfg), az)
+c.pack(fill="both", expand=Vero)
+c.esegui([sys.executable, "-u", programma], d, "p.pit")
+c.esecutore.invia("Anna")
+inizio = time.time()
+mentre az.finito è Nessuno e time.time() - inizio < 20:
+    radice.update()
+    time.sleep(0.02)
+contenuto = c.t.get("1.0", "end")
+stampa("console:", az.finito, "ciao Anna" in contenuto, "divisione per zero" in contenuto.lower())
+stampa("link:", lunghezza(c.t.tag_ranges("link")) // 2)
+radice.destroy()

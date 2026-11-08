@@ -1,0 +1,172 @@
+[
+ {
+  "id": "benvenuto",
+  "titolo": "Benvenuto in PitStudio",
+  "gruppo": "Per cominciare"
+ },
+ {
+  "id": "primi-passi",
+  "titolo": "Primi passi",
+  "gruppo": "Per cominciare"
+ },
+ {
+  "id": "interfaccia",
+  "titolo": "L'interfaccia",
+  "gruppo": "Per cominciare"
+ },
+ {
+  "id": "lezioni",
+  "titolo": "Il percorso: 16 lezioni",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-01",
+  "titolo": "1. Il primo programma",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-02",
+  "titolo": "2. Variabili e tipi",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-03",
+  "titolo": "3. Parlare con il programma",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-04",
+  "titolo": "4. Prendere decisioni",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-05",
+  "titolo": "5. Ripetere",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-06",
+  "titolo": "6. Le liste",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-07",
+  "titolo": "7. Lavorare con i testi",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-08",
+  "titolo": "8. I dizionari",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-09",
+  "titolo": "9. Le funzioni",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-10",
+  "titolo": "10. I file",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-11",
+  "titolo": "11. Gli errori",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-12",
+  "titolo": "12. Il debugger",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-13",
+  "titolo": "13. Le classi",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-14",
+  "titolo": "14. Le librerie",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-15",
+  "titolo": "15. Le finestre",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-16",
+  "titolo": "16. Progetto finale",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "editor",
+  "titolo": "L'editor di codice",
+  "gruppo": "Programmare"
+ },
+ {
+  "id": "progetti",
+  "titolo": "Progetti, file e risorse",
+  "gruppo": "Programmare"
+ },
+ {
+  "id": "esecuzione",
+  "titolo": "Eseguire i programmi",
+  "gruppo": "Programmare"
+ },
+ {
+  "id": "debugger",
+  "titolo": "Il debugger",
+  "gruppo": "Programmare"
+ },
+ {
+  "id": "progettista",
+  "titolo": "Il progettista di finestre",
+  "gruppo": "Costruire senza scrivere codice"
+ },
+ {
+  "id": "mattonelle",
+  "titolo": "Programmi a mattonelle",
+  "gruppo": "Costruire senza scrivere codice"
+ },
+ {
+  "id": "conversione",
+  "titolo": "Convertire in mattonelle",
+  "gruppo": "Costruire senza scrivere codice"
+ },
+ {
+  "id": "assistente",
+  "titolo": "L'assistente AI",
+  "gruppo": "Assistente"
+ },
+ {
+  "id": "riepilogo",
+  "titolo": "Scheda dei comandi (una pagina)",
+  "gruppo": "Riferimento"
+ },
+ {
+  "id": "linguaggio",
+  "titolo": "Il linguaggio pytonIta",
+  "gruppo": "Riferimento"
+ },
+ {
+  "id": "librerie",
+  "titolo": "Le librerie in italiano",
+  "gruppo": "Riferimento"
+ },
+ {
+  "id": "impostazioni",
+  "titolo": "Impostazioni",
+  "gruppo": "Riferimento"
+ },
+ {
+  "id": "scorciatoie",
+  "titolo": "Scorciatoie da tastiera",
+  "gruppo": "Riferimento"
+ },
+ {
+  "id": "problemi",
+  "titolo": "Problemi e domande frequenti",
+  "gruppo": "Aiuto"
+ }
+]

@@ -1,0 +1,312 @@
+"""Aspetto professionale di PitStudio: icone, pulsanti piatti con suggerimenti, schede con pulsante di chiusura, logo."""
+importa os
+importa tkinter come tk
+importa tkinter.font come tkfont
+da tkinter importa ttk
+
+da PIL importa Image, ImageDraw, ImageTk
+
+CARTELLA_RISORSE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "risorse")
+
+# punti di codice di "Segoe Fluent Icons" / "Segoe MDL2 Assets" (presenti in Windows 10/11)
+ICONE = {
+    "apri": "", "nuovo": "", "salva": "", "esegui": "", "ferma": "",
+    "finestra": "", "mattonelle": "", "cerca": "", "chat": "", "impostazioni": "",
+    "aiuto": "", "annulla": "", "ripeti": "", "zoom_piu": "", "zoom_meno": "",
+    "codice": "", "cartella": "", "file": "", "elimina": "", "aggiorna": "",
+    "chiudi": "", "info": "", "casa": "", "foto": "", "tastiera": "",
+    "libro": "", "modulo": "", "funzione": "", "duplica": "", "stella": "",
+}
+# se il carattere non c'è si ripiega su simboli di Unicode
+ICONE["debug"] = chr(0xEBE8)
+RIPIEGO = {
+    "debug": "🐞", "apri": "📁", "nuovo": "＋", "salva": "💾", "esegui": "▶", "ferma": "■", "finestra": "🪟", "mattonelle": "▦",
+    "cerca": "🔍", "chat": "💬", "impostazioni": "⚙", "aiuto": "?", "annulla": "↶", "ripeti": "↷",
+    "zoom_piu": "＋", "zoom_meno": "－", "codice": "‹›", "cartella": "📁", "file": "📄", "elimina": "🗑",
+    "aggiorna": "⟳", "chiudi": "✕", "info": "ⓘ", "casa": "⌂", "foto": "🖼", "tastiera": "⌨", "libro": "📖",
+    "modulo": "⚙", "funzione": "ƒ", "duplica": "⧉", "stella": "★",
+}
+_famiglia = [Nessuno]
+
+
+definisci famiglia_icone():
+    """Il carattere delle icone disponibile in questo computer (o stringa vuota)."""
+    se _famiglia[0] è Nessuno:
+        trovati = set(tkfont.families())
+        _famiglia[0] = ""
+        per nome in ("Segoe Fluent Icons", "Segoe MDL2 Assets"):
+            se nome in trovati:
+                _famiglia[0] = nome
+                interrompi
+    ritorna _famiglia[0]
+
+
+definisci glifo(nome):
+    ritorna ICONE[nome] se famiglia_icone() altrimenti RIPIEGO[nome]
+
+
+# --------------------------------------------------------------------------- suggerimenti
+classe Suggerimento:
+    """Piccolo fumetto che compare quando si resta fermi su un widget."""
+
+    definisci __inizializza__(se_stesso, widget, testo_, colori, ritardo=550):
+        se_stesso.widget = widget
+        se_stesso.testo = testo_
+        se_stesso.colori = colori
+        se_stesso.ritardo = ritardo
+        se_stesso._finestra = Nessuno
+        se_stesso._lavoro = Nessuno
+        widget.bind("<Enter>", se_stesso._programma, add="+")
+        widget.bind("<Leave>", se_stesso._nascondi, add="+")
+        widget.bind("<ButtonPress>", se_stesso._nascondi, add="+")
+
+    definisci _programma(se_stesso, e=Nessuno):
+        se_stesso._nascondi()
+        se_stesso._lavoro = se_stesso.widget.after(se_stesso.ritardo, se_stesso._mostra)
+
+    definisci _mostra(se_stesso):
+        se non se_stesso.testo:
+            ritorna
+        c = se_stesso.colori
+        f = tk.Toplevel(se_stesso.widget)
+        f.wm_overrideredirect(Vero)
+        f.attributes("-topmost", Vero)
+        tk.Label(f, text=se_stesso.testo, background=c["pulsante"], foreground=c["primo_piano"], padx=8, pady=3,
+                 relief="solid", borderwidth=1, font=("Segoe UI", 9), justify="left").pack()
+        x = se_stesso.widget.winfo_rootx()
+        y = se_stesso.widget.winfo_rooty() + se_stesso.widget.winfo_height() + 4
+        f.wm_geometry(f"+{x}+{y}")
+        se_stesso._finestra = f
+
+    definisci _nascondi(se_stesso, e=Nessuno):
+        se se_stesso._lavoro:
+            prova:
+                se_stesso.widget.after_cancel(se_stesso._lavoro)
+            eccetto tk.TclError:
+                passa
+            se_stesso._lavoro = Nessuno
+        se se_stesso._finestra:
+            prova:
+                se_stesso._finestra.destroy()
+            eccetto tk.TclError:
+                passa
+            se_stesso._finestra = Nessuno
+
+    definisci imposta_testo(se_stesso, testo_):
+        se_stesso.testo = testo_
+
+
+# --------------------------------------------------------------------------- pulsanti
+classe PulsanteIcona(tk.Frame):
+    """Pulsante piatto con icona e (facoltativo) testo; evidenziato al passaggio del mouse."""
+
+    definisci __inizializza__(se_stesso, genitore, icona, testo_, comando, colori, accento=Falso, aiuto=""):
+        tk.Frame.__init__(se_stesso, genitore, cursor="hand2")
+        se_stesso.comando = comando
+        se_stesso.accento = accento
+        se_stesso.colori = colori
+        se_stesso._attivo = Vero
+        se_stesso.icona = tk.Label(se_stesso, text=glifo(icona), font=(famiglia_icone() o "Segoe UI Symbol", 12))
+        se_stesso.icona.pack(side="left", padx=(9, 4 se testo_ altrimenti 9), pady=5)
+        se_stesso.etichetta = Nessuno
+        se testo_:
+            se_stesso.etichetta = tk.Label(se_stesso, text=testo_, font=("Segoe UI Semibold", 9))
+            se_stesso.etichetta.pack(side="left", padx=(0, 10), pady=5)
+        per w in (se_stesso, se_stesso.icona, se_stesso.etichetta):
+            se w:
+                w.bind("<Enter>", se_stesso._entra)
+                w.bind("<Leave>", se_stesso._esci)
+                w.bind("<ButtonPress-1>", se_stesso._premi)
+                w.bind("<ButtonRelease-1>", se_stesso._rilascia)
+        se_stesso.suggerimento = Suggerimento(se_stesso, aiuto, colori) se aiuto altrimenti Nessuno
+        se_stesso.applica_colori(colori)
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso._colora(c["accento"] se se_stesso.accento altrimenti c["sfondo"],
+                          "#ffffff" se se_stesso.accento altrimenti c["primo_piano"])
+        se se_stesso.suggerimento:
+            se_stesso.suggerimento.colori = c
+
+    definisci _colora(se_stesso, sfondo, primo):
+        se_stesso.configure(background=sfondo)
+        se_stesso.icona.configure(background=sfondo, foreground=primo se se_stesso._attivo altrimenti se_stesso.colori["tenue"])
+        se se_stesso.etichetta:
+            se_stesso.etichetta.configure(background=sfondo, foreground=primo se se_stesso._attivo altrimenti se_stesso.colori["tenue"])
+
+    definisci imposta_attivo(se_stesso, attivo):
+        se_stesso._attivo = attivo
+        se_stesso.configure(cursor="hand2" se attivo altrimenti "arrow")
+        se_stesso.applica_colori(se_stesso.colori)
+
+    definisci _entra(se_stesso, e=Nessuno):
+        se se_stesso._attivo:
+            c = se_stesso.colori
+            se_stesso._colora(c["accento"] se se_stesso.accento altrimenti c["pulsante_attivo"], "#ffffff" se se_stesso.accento altrimenti c["primo_piano"])
+
+    definisci _esci(se_stesso, e=Nessuno):
+        se_stesso.applica_colori(se_stesso.colori)
+
+    definisci _premi(se_stesso, e=Nessuno):
+        se se_stesso._attivo:
+            se_stesso._colora(se_stesso.colori["accento"], "#ffffff")
+
+    definisci _rilascia(se_stesso, e=Nessuno):
+        se_stesso._entra()
+        se se_stesso._attivo e se_stesso.comando e e è non Nessuno:
+            se 0 <= e.x_root - se_stesso.winfo_rootx() <= se_stesso.winfo_width() e 0 <= e.y_root - se_stesso.winfo_rooty() <= se_stesso.winfo_height():
+                se_stesso.comando()
+
+
+classe Separatore(tk.Frame):
+    """Linea verticale sottile tra gruppi di pulsanti."""
+
+    definisci __inizializza__(se_stesso, genitore, colori):
+        tk.Frame.__init__(se_stesso, genitore, width=1)
+        se_stesso.applica_colori(colori)
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.configure(background=c["bordo"])
+
+
+# --------------------------------------------------------------------------- logo e icona dell'applicazione
+definisci _sfumatura(dim, a, b):
+    """Quadrato con sfumatura diagonale da colore a a colore b."""
+    img = Image.new("RGB", (dim, dim))
+    px = img.load()
+    per y in intervallo(dim):
+        per x in intervallo(dim):
+            t = (x + y) / (2 * dim - 2)
+            px[x, y] = tuple(int(a[i] + (b[i] - a[i]) * t) per i in intervallo(3))
+    ritorna img
+
+
+definisci crea_logo(dim=256):
+    """Il logo di PitStudio: tre mattonelle colorate incastrate su un fondo arrotondato."""
+    s = 4
+    D = dim * s
+    fondo = _sfumatura(D, (43, 47, 66), (24, 26, 36)).convert("RGBA")
+    maschera = Image.new("L", (D, D), 0)
+    ImageDraw.Draw(maschera).rounded_rectangle([0, 0, D - 1, D - 1], radius=int(D * 0.22), fill=255)
+    fondo.putalpha(maschera)
+    d = ImageDraw.Draw(fondo)
+    u = D / 16
+    colori = [(232, 185, 35), (233, 138, 43), (61, 174, 90)]
+    # tre mattonelle impilate, ognuna con la sua "linguetta"
+    for_pos = [(2.4, 3.0, 11.6, 3.2), (3.4, 6.6, 10.6, 3.2), (2.4, 10.2, 11.6, 3.2)]
+    per (x, y, w, h), col in zip(for_pos, colori):
+        d.rounded_rectangle([x * u, y * u, (x + w) * u, (y + h) * u], radius=int(u * 0.55), fill=col)
+        d.rounded_rectangle([(x + 1.4) * u, (y + h - 0.2) * u, (x + 3.6) * u, (y + h + 0.55) * u], radius=int(u * 0.2), fill=col)
+        d.rounded_rectangle([(x + 1.4) * u, y * u, (x + 3.6) * u, (y + 0.55) * u], radius=int(u * 0.2), fill=(24, 26, 36))
+        d.rounded_rectangle([(x + 6.2) * u, (y + 0.9) * u, (x + w - 1.2) * u, (y + h - 0.9) * u], radius=int(u * 0.35), fill=(255, 255, 255, 70))
+    ritorna fondo.resize((dim, dim), Image.LANCZOS)
+
+
+definisci assicura_icone():
+    """Crea rad.png e rad.ico se mancano. Ritorna il percorso del PNG."""
+    os.makedirs(CARTELLA_RISORSE, exist_ok=Vero)
+    png = os.path.join(CARTELLA_RISORSE, "rad.png")
+    ico = os.path.join(CARTELLA_RISORSE, "rad.ico")
+    se non os.path.exists(png) o non os.path.exists(ico):
+        grande = crea_logo(256)
+        grande.save(png)
+        grande.save(ico, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    ritorna png
+
+
+definisci imposta_icona_finestra(radice):
+    prova:
+        png = assicura_icone()
+        foto = tk.PhotoImage(file=png)
+        radice._icona = foto
+        radice.iconphoto(Vero, foto)
+        se os.name == "nt":
+            radice.iconbitmap(os.path.join(CARTELLA_RISORSE, "rad.ico"))
+    eccetto Eccezione:
+        passa
+
+
+definisci logo_tk(dim):
+    """PhotoImage del logo a una certa dimensione (da tenere in vita!)."""
+    ritorna ImageTk.PhotoImage(crea_logo(dim))
+
+
+# --------------------------------------------------------------------------- schede con pulsante di chiusura
+definisci _immagine_x(colore, sfondo, dim=14):
+    img = Image.new("RGBA", (dim * 4, dim * 4), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    se sfondo:
+        d.ellipse([0, 0, dim * 4 - 1, dim * 4 - 1], fill=sfondo)
+    m = dim * 4 * 0.3
+    d.line([m, m, dim * 4 - m, dim * 4 - m], fill=colore, width=int(dim * 0.5))
+    d.line([m, dim * 4 - m, dim * 4 - m, m], fill=colore, width=int(dim * 0.5))
+    ritorna ImageTk.PhotoImage(img.resize((dim, dim), Image.LANCZOS))
+
+
+classe SchedeChiudibili(ttk.Notebook):
+    """ttk.Notebook con una X su ogni linguetta. Chiama 'quando_chiudi(widget)' al clic sulla X."""
+    _versione = 0
+
+    definisci __inizializza__(se_stesso, genitore, colori, quando_chiudi=Nessuno, **opzioni):
+        ttk.Notebook.__init__(se_stesso, genitore, style="SchedeX.TNotebook", **opzioni)
+        se_stesso.quando_chiudi = quando_chiudi
+        se_stesso._premuta = Nessuno
+        se_stesso.colori = colori
+        se_stesso.applica_stile(colori)
+        se_stesso.bind("<ButtonPress-1>", se_stesso._premi, Vero)
+        se_stesso.bind("<ButtonRelease-1>", se_stesso._rilascia)
+
+    definisci applica_stile(se_stesso, c):
+        """(Ri)crea immagini ed elementi per i colori del tema."""
+        se_stesso.colori = c
+        SchedeChiudibili._versione += 1
+        n = SchedeChiudibili._versione
+        se_stesso._img = (_immagine_x(c["tenue"], Nessuno), _immagine_x("#ffffff", c["errore"]), _immagine_x("#ffffff", scurisci_colore(c["errore"])))
+        s = ttk.Style(se_stesso)
+        el = f"chiudi{n}"
+        s.element_create(el, "image", se_stesso._img[0], ("active", "pressed", "!disabled", se_stesso._img[2]),
+                         ("active", "!disabled", se_stesso._img[1]), border=6, sticky="")
+        s.layout("SchedeX.TNotebook", [("SchedeX.TNotebook.client", {"sticky": "nswe"})])
+        s.layout("SchedeX.TNotebook.Tab", [("SchedeX.TNotebook.tab", {"sticky": "nswe", "children": [
+            ("SchedeX.TNotebook.padding", {"side": "top", "sticky": "nswe", "children": [
+                ("SchedeX.TNotebook.focus", {"side": "top", "sticky": "nswe", "children": [
+                    ("SchedeX.TNotebook.label", {"side": "left", "sticky": ""}),
+                    (el, {"side": "left", "sticky": ""})]})]})]})])
+        s.configure("SchedeX.TNotebook", background=c["sfondo"], borderwidth=0, tabmargins=(4, 6, 4, 0))
+        s.configure("SchedeX.TNotebook.Tab", background=c["pannello"], foreground=c["tenue"], padding=(14, 6, 8, 6),
+                    borderwidth=0, font=("Segoe UI", 9))
+        s.map("SchedeX.TNotebook.Tab", background=[("selected", c["editor"]), ("active", c["pulsante"])],
+              foreground=[("selected", c["primo_piano"]), ("active", c["primo_piano"])])
+
+    definisci _premi(se_stesso, e):
+        elemento = se_stesso.identify(e.x, e.y)
+        se "chiudi" in elemento:
+            prova:
+                se_stesso._premuta = se_stesso.index(f"@{e.x},{e.y}")
+            eccetto tk.TclError:
+                se_stesso._premuta = Nessuno
+                ritorna Nessuno
+            se_stesso.state(["pressed"])
+            ritorna "break"
+
+    definisci _rilascia(se_stesso, e):
+        se non se_stesso.instate(["pressed"]):
+            ritorna
+        se_stesso.state(["!pressed"])
+        elemento = se_stesso.identify(e.x, e.y)
+        se "chiudi" non in elemento:
+            se_stesso._premuta = Nessuno
+            ritorna
+        prova:
+            indice = se_stesso.index(f"@{e.x},{e.y}")
+        eccetto tk.TclError:
+            ritorna
+        se indice == se_stesso._premuta e se_stesso.quando_chiudi:
+            se_stesso.quando_chiudi(se_stesso.nametowidget(se_stesso.tabs()[indice]))
+        se_stesso._premuta = Nessuno
+
+
+definisci scurisci_colore(colore, f=0.75):
+    colore = colore.lstrip("#")
+    r, g, b = int(colore[0:2], 16), int(colore[2:4], 16), int(colore[4:6], 16)
+    ritorna "#%02x%02x%02x" % (int(r * f), int(g * f), int(b * f))

@@ -1,0 +1,24 @@
+importa sys, os, tempfile, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.progetto importa Progetto, tipo_file, MODELLI
+
+base = tempfile.mkdtemp()
+per modello in MODELLI:
+    cartella = os.path.join(base, modello)
+    p = Progetto.nuovo(cartella, "Prova " + modello, modello)
+    stampa(modello, "->", p.principale, sorted(n per n, d in p.elenca()))
+p = Progetto(os.path.join(base, "finestra"))
+stampa("forms:", p.forms(), "tipi:", {r: tipo_file(p.assoluto(r)) per r in p.tutti_i_file()})
+stampa("cerca:", p.cerca("saluta")[:3])
+prova:
+    p.assoluto("../fuori.txt")
+eccetto ErroreDiValore come e:
+    stampa("sicurezza:", e)
+p.rinomina("LEGGIMI.md", "LEGGI.md")
+p.cancella("LEGGI.md")
+stampa(sorted(n per n, d in p.elenca()))
+# il programma generato dalla finestra si avvia davvero?
+importa subprocess
+r = subprocess.run([sys.executable, "-c", "importa principale as x"], capture_output=Vero, cwd=p.cartella, text=Vero)
+stampa("avvio finestra (compilazione):", r.returncode == 0 o r.stderr[-200:])
+shutil.rmtree(base)

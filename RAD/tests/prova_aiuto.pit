@@ -1,0 +1,48 @@
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa aiuto
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "config.json"))
+radice = tk.Tk()
+radice.geometry("1200x800+10+10")
+app = Applicazione(radice, cfg)
+radice.update()
+aiuto.apri_aiuto(app)
+f = app._finestra_aiuto
+radice.update()
+per a in f.indice:
+    f.vai(a["id"])
+    radice.update()
+    n = lunghezza(f.t.get("1.0", "end"))
+    se n < 100:
+        stampa("TROPPO CORTO", a["id"], n)
+stampa("argomenti visitati:", lunghezza(f.indice))
+f.indietro(); f.avanti(); radice.update()
+stampa("blocchi:", aiuto.blocchi_parola("se") è Nessuno, f.var_cerca.get())
+f.vai("@parola:se")
+radice.update()
+stampa("storia:", f.storia[-2:], f.posizione)
+stampa("corrente:", f.corrente, f.titolo.cget("text"))
+stampa("scheda 'se':", repr(f.t.get("1.0", "1.60")))
+f.vai("@parola:stampa")
+radice.update()
+stampa("scheda 'stampa':", repr(f.t.get("1.0", "1.60")))
+f.var_cerca.set("mattonelle")
+f._cerca_digitando()
+stampa("risultati ricerca:", lunghezza(f._risultati))
+aiuto.apri_aiuto(app, "@parola:per")
+radice.update()
+stampa("F1 su 'per':", repr(app._finestra_aiuto.t.get("1.0", "1.40")))
+f.var_cerca.set("")
+f._cerca_digitando()
+f.vai(sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti "mattonelle")
+per _ in intervallo(5):
+    radice.update(); time.sleep(0.2)
+x, y = f.winfo_rootx(), f.winfo_rooty()
+ImageGrab.grab(bbox=(x, y, x + f.winfo_width(), y + f.winfo_height())).save(os.path.join(tempfile.gettempdir(), "aiuto_prova.png"))
+stampa("ok")
+radice.destroy()

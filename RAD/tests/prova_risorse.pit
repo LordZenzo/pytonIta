@@ -1,0 +1,38 @@
+importa sys, os, tempfile, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.risorse importa crea_visore
+da PIL importa Image
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+d = tempfile.mkdtemp()
+Image.new("RGB", (64, 40), "orange").save(os.path.join(d, "a.png"))
+json.dump({"nome": "PitStudio", "voci": [1, 2, {"x": Vero}], "nullo": Nessuno}, open(os.path.join(d, "dati.json"), "w"))
+open(os.path.join(d, "t.csv"), "w").write("a;b;c\n1;2;3\n4;5;6\n")
+open(os.path.join(d, "b.bin"), "wb").write(bytes(range(40)))
+classe Az:
+    definisci scheda_modificata(se_stesso, s): stampa("modificata", s.modificato)
+radice = tk.Tk()
+radice.geometry("600x400")
+per nome in ("a.png", "dati.json", "t.csv", "b.bin"):
+    v = crea_visore(radice, os.path.join(d, nome), colori(cfg), cfg, Az())
+    v.pack(fill="both", expand=Vero)
+    radice.update()
+    stampa(nome, tipo(v).__name__, v.modificato)
+    se nome == "dati.json":
+        stampa("albero:", lunghezza(v.albero.get_children("")), v.stato.cget("text"))
+        v.t.insert("end", "x")
+        radice.update()
+        stampa(v.stato.cget("text"))
+        v.t.delete("end-2c", "end-1c")
+        v.formatta()
+        v.salva()
+    se nome == "t.csv":
+        stampa(v.info.cget("text"))
+    se nome == "a.png":
+        v.imposta_zoom(2.0)
+        stampa(v.info.cget("text"), v.zoom)
+    v.pack_forget()
+radice.destroy()

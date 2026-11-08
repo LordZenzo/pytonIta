@@ -1,0 +1,209 @@
+"""Finestre di dialogo di PitStudio: nuovo progetto, nuova finestra, ricerca nel progetto, informazioni."""
+importa os
+importa tkinter come tk
+da tkinter importa ttk, filedialog, messagebox
+
+da rad.progetto importa MODELLI
+da rad.form_modello importa nome_valido
+da rad importa NOME, VERSIONE
+
+
+classe DialogoBase(tk.Toplevel):
+    """Finestra modale centrata sul genitore, già colorata con il tema."""
+
+    definisci __inizializza__(se_stesso, genitore, titolo, colori, larghezza=460, altezza=240):
+        tk.Toplevel.__init__(se_stesso, genitore)
+        se_stesso.title(titolo)
+        se_stesso.transient(genitore)
+        se_stesso.colori = colori
+        se_stesso.risultato = Nessuno
+        se_stesso.configure(background=colori["pannello"])
+        se_stesso.resizable(Falso, Falso)
+        x = genitore.winfo_rootx() + max(0, (genitore.winfo_width() - larghezza) // 2)
+        y = genitore.winfo_rooty() + max(0, (genitore.winfo_height() - altezza) // 3)
+        se_stesso.geometry(f"{larghezza}x{altezza}+{x}+{y}")
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+
+    definisci riga(se_stesso, etichetta, widget_fn, numero):
+        tk.Label(se_stesso, text=etichetta, anchor="w", background=se_stesso.colori["pannello"],
+                 foreground=se_stesso.colori["primo_piano"]).grid(row=numero, column=0, sticky="w", padx=14, pady=8)
+        w = widget_fn(se_stesso)
+        w.grid(row=numero, column=1, sticky="we", padx=(0, 14), pady=8)
+        ritorna w
+
+    definisci campo(se_stesso, variabile, larghezza=34):
+        c = se_stesso.colori
+        ritorna lambda p: tk.Entry(p, textvariable=variabile, width=larghezza, background=c["campo"],
+                                    foreground=c["primo_piano"], insertbackground=c["cursore"], relief="flat",
+                                    highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
+
+    definisci pulsanti(se_stesso, riga_n, conferma_testo, conferma):
+        c = se_stesso.colori
+        cornice = tk.Frame(se_stesso, background=c["pannello"])
+        cornice.grid(row=riga_n, column=0, columnspan=2, sticky="e", padx=14, pady=10)
+        tk.Button(cornice, text="Annulla", command=se_stesso.destroy, background=c["pulsante"],
+                  foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        tk.Button(cornice, text=conferma_testo, command=conferma, background=c["accento"],
+                  foreground="#ffffff", relief="flat", padx=12).pack(side="right", padx=4)
+
+    definisci mostra(se_stesso):
+        se_stesso.grab_set()
+        se_stesso.focus_set()
+        se_stesso.wait_window()
+        ritorna se_stesso.risultato
+
+
+classe DialogoNuovoProgetto(DialogoBase):
+    definisci __inizializza__(se_stesso, genitore, colori, cartella_base):
+        DialogoBase.__init__(se_stesso, genitore, "Nuovo progetto", colori, 520, 260)
+        se_stesso.var_nome = tk.StringVar(value="MioProgetto")
+        se_stesso.var_cartella = tk.StringVar(value=cartella_base)
+        se_stesso.var_modello = tk.StringVar(value="console")
+        se_stesso.grid_columnconfigure(1, weight=1)
+        se_stesso.nome = se_stesso.riga("Nome:", se_stesso.campo(se_stesso.var_nome), 0)
+        cornice = tk.Frame(se_stesso, background=colori["pannello"])
+        e = se_stesso.campo(se_stesso.var_cartella, 28)(cornice)
+        e.pack(side="left", fill="x", expand=Vero)
+        tk.Button(cornice, text="Sfoglia…", command=se_stesso._sfoglia, relief="flat", background=colori["pulsante"],
+                  foreground=colori["primo_piano"]).pack(side="left", padx=(6, 0))
+        se_stesso.riga("In cartella:", lambda p: cornice, 1)
+        se_stesso.riga("Modello:", lambda p: ttk.Combobox(p, textvariable=se_stesso.var_modello, state="readonly",
+                                                         values=lista(MODELLI.keys())), 2)
+        se_stesso.pulsanti(3, "Crea progetto", se_stesso._conferma)
+        se_stesso.nome.focus_set()
+        se_stesso.nome.select_range(0, "end")
+        se_stesso.bind("<Return>", lambda e: se_stesso._conferma())
+
+    definisci _sfoglia(se_stesso):
+        d = filedialog.askdirectory(parent=se_stesso, initialdir=se_stesso.var_cartella.get())
+        se d:
+            se_stesso.var_cartella.set(d)
+
+    definisci _conferma(se_stesso):
+        nome = se_stesso.var_nome.get().strip()
+        base = se_stesso.var_cartella.get().strip()
+        se non nome o any(c in nome per c in '\\/:*?"<>|'):
+            messagebox.showwarning("Nome non valido", "Il nome non può essere vuoto né contenere \\ / : * ? \" < > |", parent=se_stesso)
+            ritorna
+        se non base:
+            ritorna
+        se_stesso.risultato = (nome, os.path.join(base, nome), se_stesso.var_modello.get())
+        se_stesso.destroy()
+
+
+classe DialogoNuovaFinestra(DialogoBase):
+    definisci __inizializza__(se_stesso, genitore, colori, esistenti=(), titolo="Nuova finestra", prefisso="Finestra"):
+        DialogoBase.__init__(se_stesso, genitore, titolo, colori, 400, 150)
+        se_stesso.esistenti = {e.lower() per e in esistenti}
+        se_stesso.var_nome = tk.StringVar(value=prefisso + testo(lunghezza(esistenti) + 1))
+        se_stesso.grid_columnconfigure(1, weight=1)
+        e = se_stesso.riga("Nome:", se_stesso.campo(se_stesso.var_nome, 26), 0)
+        se_stesso.pulsanti(1, "Crea", se_stesso._conferma)
+        e.focus_set()
+        e.select_range(0, "end")
+        se_stesso.bind("<Return>", lambda ev: se_stesso._conferma())
+
+    definisci _conferma(se_stesso):
+        nome = se_stesso.var_nome.get().strip()
+        se non nome_valido(nome):
+            messagebox.showwarning("Nome non valido", "Usa lettere, cifre e _ (senza iniziare con una cifra, "
+                                   "e senza parole riservate).", parent=se_stesso)
+            ritorna
+        se nome.lower() in se_stesso.esistenti:
+            messagebox.showwarning("Nome già usato", "Esiste già un elemento con questo nome.", parent=se_stesso)
+            ritorna
+        se_stesso.risultato = nome
+        se_stesso.destroy()
+
+
+classe DialogoCerca(DialogoBase):
+    """Ricerca di testo in tutti i file del progetto; doppio clic su un risultato per aprirlo."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, progetto, apri):
+        DialogoBase.__init__(se_stesso, genitore, "Cerca nel progetto", colori, 760, 470)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.progetto = progetto
+        se_stesso.apri = apri
+        se_stesso.var = tk.StringVar()
+        se_stesso.grid_columnconfigure(0, weight=1)
+        se_stesso.grid_rowconfigure(1, weight=1)
+        c = colori
+        alto = tk.Frame(se_stesso, background=c["pannello"])
+        alto.grid(row=0, column=0, sticky="we", padx=10, pady=8)
+        e = tk.Entry(alto, textvariable=se_stesso.var, background=c["campo"], foreground=c["primo_piano"],
+                     insertbackground=c["cursore"], relief="flat", highlightthickness=1,
+                     highlightbackground=c["bordo"], highlightcolor=c["accento"])
+        e.pack(side="left", fill="x", expand=Vero)
+        tk.Button(alto, text="Cerca", command=se_stesso.cerca, relief="flat", background=c["accento"],
+                  foreground="#ffffff", padx=12).pack(side="left", padx=6)
+        se_stesso.elenco = tk.Listbox(se_stesso, activestyle="none", background=c["campo"], foreground=c["primo_piano"],
+                                      selectbackground=c["selezione"], relief="flat", highlightthickness=0,
+                                      font=("Consolas", 10))
+        se_stesso.elenco.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 6))
+        se_stesso.stato = tk.Label(se_stesso, anchor="w", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.stato.grid(row=2, column=0, sticky="we", padx=10, pady=(0, 8))
+        se_stesso.risultati = []
+        e.bind("<Return>", lambda ev: se_stesso.cerca())
+        se_stesso.elenco.bind("<Double-1>", se_stesso._apri)
+        se_stesso.elenco.bind("<Return>", se_stesso._apri)
+        e.focus_set()
+
+    definisci cerca(se_stesso):
+        chiave = se_stesso.var.get().strip()
+        se_stesso.elenco.delete(0, "end")
+        se non chiave:
+            ritorna
+        se_stesso.risultati = se_stesso.progetto.cerca(chiave)
+        per rel, n, riga in se_stesso.risultati:
+            se_stesso.elenco.insert("end", f"{rel}:{n}   {riga}")
+        se_stesso.stato.configure(text=f"{lunghezza(se_stesso.risultati)} risultati" + ("  (limite raggiunto)" se lunghezza(se_stesso.risultati) >= 200 altrimenti ""))
+
+    definisci _apri(se_stesso, e=Nessuno):
+        sel = se_stesso.elenco.curselection()
+        se sel:
+            rel, n, riga = se_stesso.risultati[sel[0]]
+            se_stesso.apri(se_stesso.progetto.assoluto(rel), n)
+
+
+classe DialogoModulo(DialogoBase):
+    """Importazioni e codice di modulo (classi, costanti) di un programma a mattonelle."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, importazioni, codice):
+        DialogoBase.__init__(se_stesso, genitore, "Importazioni e codice di modulo", colori, 680, 560)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.grid_columnconfigure(0, weight=1)
+        se_stesso.grid_rowconfigure(1, weight=1)
+        se_stesso.grid_rowconfigure(3, weight=2)
+        c = colori
+        tk.Label(se_stesso, anchor="w", background=c["pannello"], foreground=c["tenue"],
+                 text="Importazioni (una per riga, es. «importa json» o «da math importa sqrt»): valgono per tutto il programma.").grid(
+            row=0, column=0, sticky="we", padx=12, pady=(10, 2))
+        se_stesso.t_import = se_stesso._testo(importazioni)
+        se_stesso.t_import.grid(row=1, column=0, sticky="nsew", padx=12)
+        tk.Label(se_stesso, anchor="w", background=c["pannello"], foreground=c["tenue"],
+                 text="Codice di modulo (classi, costanti…): resta com'è prima delle funzioni.").grid(
+            row=2, column=0, sticky="we", padx=12, pady=(10, 2))
+        se_stesso.t_codice = se_stesso._testo(codice)
+        se_stesso.t_codice.grid(row=3, column=0, sticky="nsew", padx=12)
+        se_stesso.pulsanti(4, "OK", se_stesso._conferma)
+
+    definisci _testo(se_stesso, contenuto):
+        c = se_stesso.colori
+        t = tk.Text(se_stesso, height=6, wrap="none", background=c["campo"], foreground=c["primo_piano"],
+                    insertbackground=c["cursore"], relief="flat", highlightthickness=1, highlightbackground=c["bordo"],
+                    font=("Consolas", 10), undo=Vero)
+        t.insert("1.0", contenuto)
+        ritorna t
+
+    definisci _conferma(se_stesso):
+        se_stesso.risultato = ([r.strip() per r in se_stesso.t_import.get("1.0", "end").split("\n") se r.strip()],
+                               se_stesso.t_codice.get("1.0", "end").rstrip())
+        se_stesso.destroy()
+
+
+definisci informazioni(genitore):
+    messagebox.showinfo(f"Informazioni su {NOME}",
+                        f"{NOME} {VERSIONE}\nAmbiente di sviluppo per pytonIta (pitonit)\n\n"
+                        "Editor con suggerimenti in italiano, gestione dei progetti,\n"
+                        "progettista grafico delle finestre e assistente AI (Claude)\n"
+                        "che può usare l'ambiente stesso.", parent=genitore)

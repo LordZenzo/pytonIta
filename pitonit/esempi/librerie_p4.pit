@@ -1,0 +1,38 @@
+importa asincronia, esecutori, cronometro, albero_sintattico, differenze
+importa percorso, sistema_operativo, tempo
+da posta.mime importa TestoMime
+
+asincrono definisci lavora(n):
+    attendi asincronia.aspetta(0)
+    ritorna n * 2
+
+asincrono definisci principale():
+    r = attendi asincronia.raccogli(lavora(1), lavora(2), lavora(3))
+    ritorna r
+
+stampa("asincrono:", asincronia.esegui(principale()))
+
+definisci quadrato(x):
+    ritorna x * x
+con esecutori.EsecutoreFili(2) come e:
+    f = e.invia(quadrato, 7)
+    stampa("esecutori:", f.risultato(), lista(e.mappa(quadrato, [1, 2, 3])))
+
+stampa("cronometro:", cronometro.misura("sum(range(10))", numero=10) >= 0)
+stampa("ast:", albero_sintattico.scarica(albero_sintattico.analizza("1+2"))[:20])
+stampa("diff:", lista(differenze.differenze_unificate(["a\n"], ["b\n"]))[2:4])
+
+p = percorso.Percorso(".")
+stampa("os:", sistema_operativo.cartella_corrente() == testo(p.risolvi()))
+per voce in sistema_operativo.scansiona("."):
+    stampa("voce:", voce.è_cartella(), voce.nome se voce.nome == "esempi" altrimenti "")
+    interrompi
+m = TestoMime("ciao", "plain", "utf-8")
+stampa("mime:", m.ottieni_tipo_contenuto())
+
+# nomi automatici dal glossario
+da collezioni importa contatore
+stampa("auto:", contatore("aab").più_comuni(1))
+l = [3, 1, 2]
+l.ordina()
+stampa(l)

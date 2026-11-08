@@ -1,0 +1,47 @@
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa parole
+
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "ProvaLibrerie")
+Progetto.nuovo(cart, "ProvaLibrerie", "console")
+app.apri_progetto(cart)
+radice.update()
+pl = app.pannello_librerie
+stampa("librerie nell'elenco:", lunghezza(pl.tutte))
+app.mostra_pannello_sinistro("librerie")
+radice.update()
+pl.attiva("matematica")
+pl.attiva("formato_json")
+stampa("spuntate:", sorted(pl.spuntate))
+stampa("salvate nel manifesto:", Progetto(cart).manifesto.get("librerie"))
+ed = app.apri_file(os.path.join(cart, "principale.pit"))
+radice.update()
+ed.imposta_contenuto('"""Prova."""\nimporta sistema\n\nstampa(1)\n')
+stampa("suggerimenti 'mat':", [v[0] per v in parole.suggerisci("mat", ed.contenuto())][:3])
+stampa("membri matematica.:", [m[0] per m in parole.membri_di("matematica", ed.contenuto())][:4])
+pl.inserisci_importazione("matematica")
+stampa(repr(ed.contenuto()))
+stampa("secondo inserimento (doppione):", pl.inserisci_importazione("matematica"))
+pl.var_cerca.set("json")
+radice.update()
+stampa("filtro json:", [pl.albero.item(i, "text")[:50] per c in pl.albero.get_children() per i in pl.albero.get_children(c)])
+pl.var_cerca.set("")
+radice.update()
+pl.albero.selection_set("lib:matematica")
+radice.update(); time.sleep(0.4); radice.update()
+x, y = radice.winfo_rootx(), radice.winfo_rooty()
+ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(tempfile.gettempdir(), "librerie_prova.png"))
+# riapri il progetto: le spunte tornano
+app.apri_progetto(cart)
+stampa("dopo riapertura:", sorted(app.pannello_librerie.spuntate))
+radice.destroy()

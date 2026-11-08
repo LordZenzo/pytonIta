@@ -1,0 +1,203 @@
+"""Piccolo interprete di Markdown (solo ciò che serve alla guida): titoli, paragrafi, elenchi, tabelle, codice,
+citazioni (note), immagini, link. Produce una lista di blocchi usata sia dal visualizzatore sia dal generatore HTML."""
+importa html
+importa re
+
+_RE_TITOLO = re.compile(r"^(#{1,4})\s+(.*?)\s*#*\s*$")
+_RE_ELENCO = re.compile(r"^(\s*)([-*]|\d+\.)\s+(.*)$")
+_RE_IMMAGINE = re.compile(r"^!\[(.*?)\]\((.*?)\)\s*$")
+_RE_TABELLA_SEP = re.compile(r"^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$")
+_RE_INLINE = re.compile(r"`([^`]+)`|\*\*(.+?)\*\*|(?<![\w*])\*([^*\n]+?)\*(?![\w*])|\[([^\]]+)\]\(([^)]+)\)")
+
+
+definisci inizio_blocco(riga, successiva=""):
+    r = riga.strip()
+    ritorna (r.startswith("```") o bool(_RE_TITOLO.match(r)) o r.startswith(">") o bool(_RE_ELENCO.match(riga))
+            o bool(_RE_IMMAGINE.match(r)) o r in ("---", "***", "___")
+            o (r.startswith("|") e bool(_RE_TABELLA_SEP.match(successiva))))
+
+
+definisci analizza(testo_):
+    """Lista di blocchi: ('h', livello, testo) ('p', testo) ('codice', lingua, testo) ('lista', voci) ('tabella', righe)
+    ('nota', testo) ('img', alt, percorso) ('hr',)"""
+    righe = testo_.replace("\r\n", "\n").split("\n")
+    blocchi = []
+    i = 0
+    n = lunghezza(righe)
+    mentre i < n:
+        riga = righe[i]
+        r = riga.strip()
+        se non r:
+            i += 1
+            continua
+        se r.startswith("```"):
+            lingua = r[3:].strip()
+            i += 1
+            codice = []
+            mentre i < n e non righe[i].strip().startswith("```"):
+                codice.append(righe[i])
+                i += 1
+            i += 1
+            blocchi.append(("codice", lingua, "\n".join(codice)))
+            continua
+        m = _RE_TITOLO.match(r)
+        se m:
+            blocchi.append(("h", lunghezza(m.group(1)), m.group(2)))
+            i += 1
+            continua
+        se r in ("---", "***", "___"):
+            blocchi.append(("hr",))
+            i += 1
+            continua
+        m = _RE_IMMAGINE.match(r)
+        se m:
+            blocchi.append(("img", m.group(1), m.group(2)))
+            i += 1
+            continua
+        se r.startswith("|") e i + 1 < n e _RE_TABELLA_SEP.match(righe[i + 1]):
+            tabella = []
+            mentre i < n e righe[i].strip().startswith("|"):
+                se non _RE_TABELLA_SEP.match(righe[i]):
+                    celle = [c.strip() per c in righe[i].strip().strip("|").split("|")]
+                    tabella.append(celle)
+                i += 1
+            blocchi.append(("tabella", tabella))
+            continua
+        se r.startswith(">"):
+            citazione = []
+            mentre i < n e righe[i].strip().startswith(">"):
+                citazione.append(righe[i].strip().lstrip(">").strip())
+                i += 1
+            blocchi.append(("nota", " ".join(citazione)))
+            continua
+        m = _RE_ELENCO.match(riga)
+        se m:
+            voci = []
+            mentre i < n:
+                m = _RE_ELENCO.match(righe[i])
+                se m:
+                    livello = lunghezza(m.group(1).replace("\t", "    ")) // 2
+                    voci.append([livello, m.group(2)[0].isdigit(), m.group(2), m.group(3)])
+                    i += 1
+                altrimenti_se righe[i].startswith("  ") e voci e righe[i].strip():
+                    voci[-1][3] += " " + righe[i].strip()
+                    i += 1
+                altrimenti:
+                    interrompi
+            blocchi.append(("lista", [tuple(v) per v in voci]))
+            continua
+        # paragrafo
+        par = [r]
+        i += 1
+        mentre i < n e righe[i].strip() e non inizio_blocco(righe[i], righe[i + 1] se i + 1 < n altrimenti ""):
+            par.append(righe[i].strip())
+            i += 1
+        blocchi.append(("p", " ".join(par)))
+    ritorna blocchi
+
+
+definisci segmenti(testo_):
+    """Divide un testo in segmenti: ('t', testo) ('codice', testo) ('b', testo) ('i', testo) ('link', testo, destinazione)."""
+    risultato = []
+    posizione = 0
+    per m in _RE_INLINE.finditer(testo_):
+        se m.start() > posizione:
+            risultato.append(("t", testo_[posizione:m.start()]))
+        se m.group(1) è non Nessuno:
+            risultato.append(("codice", m.group(1)))
+        altrimenti_se m.group(2) è non Nessuno:
+            risultato.append(("b", m.group(2)))
+        altrimenti_se m.group(3) è non Nessuno:
+            risultato.append(("i", m.group(3)))
+        altrimenti:
+            risultato.append(("link", m.group(4), m.group(5)))
+        posizione = m.end()
+    se posizione < lunghezza(testo_):
+        risultato.append(("t", testo_[posizione:]))
+    ritorna risultato
+
+
+definisci testo_semplice(testo_):
+    """Il testo senza formattazione (per la ricerca)."""
+    ritorna "".join(s[1] per s in segmenti(testo_))
+
+
+definisci testo_dei_blocchi(blocchi):
+    pezzi = []
+    per b in blocchi:
+        se b[0] == "h" o b[0] == "p" o b[0] == "nota":
+            pezzi.append(testo_semplice(b[-1]))
+        altrimenti_se b[0] == "codice":
+            pezzi.append(b[2])
+        altrimenti_se b[0] == "lista":
+            pezzi.extend(testo_semplice(v[3]) per v in b[1])
+        altrimenti_se b[0] == "tabella":
+            per riga in b[1]:
+                pezzi.append(" ".join(testo_semplice(c) per c in riga))
+    ritorna "\n".join(pezzi)
+
+
+# --------------------------------------------------------------------------- HTML
+definisci _inline_html(testo_, mappa_link=Nessuno):
+    uscita = []
+    per s in segmenti(testo_):
+        se s[0] == "t":
+            uscita.append(html.escape(s[1]))
+        altrimenti_se s[0] == "codice":
+            uscita.append("<code>" + html.escape(s[1]) + "</code>")
+        altrimenti_se s[0] == "b":
+            uscita.append("<strong>" + html.escape(s[1]) + "</strong>")
+        altrimenti_se s[0] == "i":
+            uscita.append("<em>" + html.escape(s[1]) + "</em>")
+        altrimenti:
+            dest = s[2]
+            se dest.startswith("#"):
+                dest = (mappa_link(dest[1:]) se mappa_link altrimenti dest[1:] + ".html")
+            uscita.append(f'<a href="{html.escape(dest)}">{html.escape(s[1])}</a>')
+    ritorna "".join(uscita)
+
+
+definisci id_titolo(testo_):
+    ritorna re.sub(r"[^\w]+", "-", testo_semplice(testo_).lower()).strip("-")
+
+
+definisci in_html(blocchi, mappa_link=Nessuno, prefisso_immagini=""):
+    """Corpo HTML per una lista di blocchi."""
+    h = []
+    per b in blocchi:
+        tipo_ = b[0]
+        se tipo_ == "h":
+            h.append(f'<h{b[1]} id="{id_titolo(b[2])}">{_inline_html(b[2], mappa_link)}</h{b[1]}>')
+        altrimenti_se tipo_ == "p":
+            h.append("<p>" + _inline_html(b[1], mappa_link) + "</p>")
+        altrimenti_se tipo_ == "codice":
+            classe_pre = "uscita" se b[1] in ("output", "esempio") altrimenti "codice"
+            h.append(f'<pre class="{classe_pre}"><code>{html.escape(b[2])}</code></pre>')
+        altrimenti_se tipo_ == "nota":
+            h.append('<div class="nota">' + _inline_html(b[1], mappa_link) + "</div>")
+        altrimenti_se tipo_ == "hr":
+            h.append("<hr>")
+        altrimenti_se tipo_ == "img":
+            h.append(f'<figure><img src="{html.escape(prefisso_immagini + b[2])}" alt="{html.escape(b[1])}"><figcaption>{html.escape(b[1])}</figcaption></figure>')
+        altrimenti_se tipo_ == "lista":
+            livello = -1
+            pila = []
+            per voce in b[1]:
+                lv, ordinata = voce[0], voce[1]
+                mentre livello < lv:
+                    h.append("<ol>" se ordinata altrimenti "<ul>")
+                    pila.append("</ol>" se ordinata altrimenti "</ul>")
+                    livello += 1
+                mentre livello > lv:
+                    h.append(pila.pop())
+                    livello -= 1
+                h.append("<li>" + _inline_html(voce[3], mappa_link) + "</li>")
+            mentre pila:
+                h.append(pila.pop())
+        altrimenti_se tipo_ == "tabella":
+            righe = b[1]
+            h.append("<table>")
+            h.append("<thead><tr>" + "".join(f"<th>{_inline_html(c, mappa_link)}</th>" per c in righe[0]) + "</tr></thead>")
+            h.append("<tbody>" + "".join("<tr>" + "".join(f"<td>{_inline_html(c, mappa_link)}</td>" per c in r) + "</tr>" per r in righe[1:]) + "</tbody>")
+            h.append("</table>")
+    ritorna "\n".join(h)

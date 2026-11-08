@@ -1,0 +1,16 @@
+importa sys, os, subprocess, json, re
+QUI = os.path.dirname(os.path.abspath(__file__))
+STRUMENTO = os.path.join(QUI, "..", "..", "pitonit", "tools", "lezioni.py")
+r = subprocess.run([sys.executable, STRUMENTO, "--verifica"], capture_output=Vero, text=Vero, encoding="utf-8")
+ultima = [riga per riga in r.stdout.splitlines() se riga.startswith("Totale")]
+stampa("esempi delle lezioni:", ultima[0] se ultima altrimenti r.stdout[-300:], r.stderr[-300:])
+# i collegamenti interni della guida devono puntare ad argomenti esistenti
+indice = json.load(open(os.path.join(QUI, "..", "aiuto", "indice.json"), encoding="utf-8"))
+ids = {a["id"] per a in indice}
+rotti = []
+per a in indice:
+    testo_ = open(os.path.join(QUI, "..", "aiuto", a["id"] + ".md"), encoding="utf-8").read()
+    per m in re.finditer(r"\]\(#([\w\-]+)\)", testo_):
+        se m.group(1) non in ids:
+            rotti.append((a["id"], m.group(1)))
+stampa("argomenti:", lunghezza(ids), "collegamenti rotti:", rotti)

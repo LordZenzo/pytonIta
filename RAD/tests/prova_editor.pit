@@ -1,0 +1,59 @@
+importa sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.editor importa Editor
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+radice = tk.Tk()
+radice.geometry("700x400")
+c = colori(cfg)
+ed = Editor(radice, cfg, c)
+ed.pack(fill="both", expand=Vero)
+ed.imposta_contenuto('''importa interfaccia come tk
+
+# commento
+definisci saluta(nome):
+    stampa("ciao", nome, 42)
+    ritorna Vero
+''')
+radice.update()
+ed.evidenzia()
+radice.update()
+per tag in ("parola_chiave", "builtin", "stringa", "commento", "numero", "definizione", "costante"):
+    r = ed.t.tag_ranges(tag)
+    stampa(tag, lunghezza(r) // 2, [testo(ed.t.get(r[i], r[i + 1])) per i in intervallo(0, min(lunghezza(r), 6), 2)])
+# rientro automatico
+ed.vai_a(4, 100)
+ed.t.mark_set("insert", "4.end")
+ed._a_capo_con_rientro()
+ed.inserisci_a_cursore("x = 1")
+stampa(repr(ed.t.get("4.0", "6.end")))
+# suggerimenti
+ed.t.insert("end", "\nlis")
+ed.t.mark_set("insert", "end-1c")
+ed.suggerisci(forza=Vero)
+radice.update()
+stampa("popup:", ed._popup è non Nessuno, [v[0] per v in ed._voci[:5]])
+ed.accetta_suggerimento()
+stampa("dopo accetta:", repr(ed.t.get("end-8c", "end-1c")))
+ed.t.insert("end", "\ntk.Fin")
+ed.t.mark_set("insert", "end-1c")
+ed.suggerisci()
+stampa("membri:", [v[0] per v in ed._voci[:3]])
+ed.chiudi_suggerimenti()
+# frammento
+ed.t.insert("end", "\nse")
+ed.t.mark_set("insert", "end-1c")
+stampa("frammento:", ed._espandi_frammento(), repr(ed.t.get("end-20c", "end-1c")))
+# commenta / trova
+ed.vai_a(5)
+ed.commenta()
+stampa(repr(ed.t.get("5.0", "5.end")))
+ed.var_cerca.set("ciao")
+ed._evidenzia_ricerca()
+stampa(ed.etichetta_trovati.cget("text"))
+ed.salva(os.path.join(os.environ["TEMP"], "rad_prova.pit"))
+stampa("salvato:", os.path.exists(os.path.join(os.environ["TEMP"], "rad_prova.pit")), ed.modificato)
+radice.destroy()

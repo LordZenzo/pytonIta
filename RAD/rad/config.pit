@@ -1,0 +1,160 @@
+"""Configurazione di PitStudio: valori predefiniti, lettura e scrittura su disco."""
+importa json
+importa os
+importa copy
+
+CARTELLA = os.path.join(os.path.expanduser("~"), ".rad")
+FILE_CONFIG = os.path.join(CARTELLA, "config.json")
+
+PREDEFINITI = {
+    "tema": "scuro",
+    "temi_personalizzati": {},
+    "editor": {
+        "carattere": "Consolas",
+        "dimensione": 11,
+        "tabulazione": 4,
+        "numeri_riga": Vero,
+        "a_capo": Falso,
+        "salvataggio_automatico": 0,
+        "suggerimenti": Vero,
+        "ritardo_suggerimenti_ms": 200,
+        "evidenzia_riga": Vero,
+        "chiudi_parentesi": Vero,
+        "mostra_spazi": Falso,
+    },
+    "esecuzione": {
+        "interprete": "",
+        "argomenti": "",
+        "salva_prima": Vero,
+        "pulisci_console": Vero,
+        "tempo_massimo_s": 0,
+    },
+    "ai": {
+        "chiave_api": "",
+        "modello": "claude-sonnet-5-5",
+        "modelli": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-fable-5-1"],
+        "max_token": 4096,
+        "conferma_scrittura": Vero,
+        "conferma_esecuzione": Vero,
+        "istruzioni_extra": "",
+        "url": "https://api.anthropic.com/v1/messages",
+        "versione_api": "2023-06-01",
+        "passi_massimi": 25,
+        "includi_file_attivo": Vero,
+    },
+    "finestra": {
+        "geometria": "1400x860",
+        "pannello_sinistro": 270,
+        "pannello_destro": 430,
+        "console_altezza": 190,
+        "chat_visibile": Vero,
+        "progetti_visibile": Vero,
+        "console_visibile": Vero,
+    },
+    "scorciatoie": {
+        "salva": "Control-s",
+        "salva_tutto": "Control-Shift-S",
+        "apri_progetto": "Control-o",
+        "nuovo_file": "Control-n",
+        "esegui": "F5",
+        "ferma": "Shift-F5",
+        "debug": "F6",
+        "punto_arresto": "F9",
+        "passo": "F10",
+        "entra": "F11",
+        "esci": "Shift-F11",
+        "trova": "Control-f",
+        "vai_a_riga": "Control-g",
+        "commenta": "Control-slash",
+        "suggerisci": "Control-space",
+        "chat": "Control-j",
+        "chiudi_scheda": "Control-w",
+    },
+    "recenti": [],
+}
+
+
+definisci unisci(base, nuovi):
+    """Unisce ricorsivamente nuovi dentro base (i valori mancanti restano predefiniti)."""
+    risultato = copy.deepcopy(base)
+    per chiave, valore in nuovi.items():
+        se isinstance(valore, dict) e isinstance(risultato.get(chiave), dict):
+            risultato[chiave] = unisci(risultato[chiave], valore)
+        altrimenti:
+            risultato[chiave] = valore
+    ritorna risultato
+
+
+classe Configurazione:
+    """Impostazioni dell'utente, con accesso a percorso puntato: cfg.ottieni("editor.dimensione")."""
+
+    definisci __inizializza__(se_stesso, file=Nessuno):
+        se_stesso.file = file o FILE_CONFIG
+        se_stesso.dati = copy.deepcopy(PREDEFINITI)
+        se_stesso.ascoltatori = []
+        se_stesso.carica()
+
+    definisci carica(se_stesso):
+        prova:
+            con open(se_stesso.file, encoding="utf-8") come f:
+                se_stesso.dati = unisci(PREDEFINITI, json.load(f))
+        eccetto (OSError, ValueError):
+            se_stesso.dati = copy.deepcopy(PREDEFINITI)
+
+    definisci salva(se_stesso):
+        prova:
+            os.makedirs(os.path.dirname(se_stesso.file), exist_ok=Vero)
+            con open(se_stesso.file, "w", encoding="utf-8") come f:
+                json.dump(se_stesso.dati, f, indent=2, ensure_ascii=Falso)
+            ritorna Vero
+        eccetto OSError:
+            ritorna Falso
+
+    definisci ottieni(se_stesso, percorso, predefinito=Nessuno):
+        nodo = se_stesso.dati
+        per parte in percorso.split("."):
+            se non isinstance(nodo, dict) o parte non in nodo:
+                ritorna predefinito
+            nodo = nodo[parte]
+        ritorna nodo
+
+    definisci imposta(se_stesso, percorso, valore, notifica=Vero):
+        parti = percorso.split(".")
+        nodo = se_stesso.dati
+        per parte in parti[:-1]:
+            nodo = nodo.setdefault(parte, {})
+        nodo[parti[-1]] = valore
+        se notifica:
+            se_stesso.notifica(percorso)
+
+    definisci quando_cambia(se_stesso, funzione):
+        """Registra una funzione chiamata con il percorso modificato."""
+        se_stesso.ascoltatori.append(funzione)
+
+    definisci notifica(se_stesso, percorso):
+        per f in lista(se_stesso.ascoltatori):
+            prova:
+                f(percorso)
+            eccetto Eccezione:
+                passa
+
+    definisci aggiungi_recente(se_stesso, cartella):
+        recenti = [r per r in se_stesso.dati["recenti"] se r != cartella]
+        recenti.insert(0, cartella)
+        se_stesso.dati["recenti"] = recenti[:12]
+        se_stesso.salva()
+
+    definisci interprete(se_stesso):
+        """Percorso dell'interprete pitonit usato per eseguire i programmi."""
+        scelto = se_stesso.ottieni("esecuzione.interprete", "")
+        se scelto e os.path.exists(scelto):
+            ritorna scelto
+        importa sys
+        # PitStudio.exe incorpora l'interprete: per lanciare i programmi serve pitonit(w).exe nella cartella del runtime
+        se os.path.basename(sys.executable).lower().startswith("pitstudio"):
+            per base in (sys.prefix, sys.base_prefix):
+                per nome_exe in ("pitonitw.exe", "pitonit.exe"):
+                    candidato = os.path.join(base, nome_exe)
+                    se os.path.exists(candidato):
+                        ritorna candidato
+        ritorna sys.executable

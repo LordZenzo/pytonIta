@@ -1,0 +1,407 @@
+"""Assistente AI (Claude): client dell'API Messages, strumenti che agiscono sull'ambiente, ciclo dell'agente."""
+importa json
+importa os
+importa threading
+importa time
+importa urllib.request
+importa urllib.error
+
+da rad importa esecuzione, parole, form_modello, mattonelle_modello
+
+LIMITE_RISULTATO = 24000
+
+DEFINIZIONI = [
+    {"name": "stato_ide",
+     "description": "Stato dell'ambiente: progetto aperto, file principale, schede aperte (con eventuali modifiche non salvate), "
+                    "file attivo, riga del cursore, testo selezionato e ultime righe della console.",
+     "input_schema": {"type": "object", "properties": {}}},
+    {"name": "elenca_file",
+     "description": "Elenca i file del progetto (percorsi relativi). Senza argomenti elenca tutto il progetto.",
+     "input_schema": {"type": "object", "properties": {
+         "cartella": {"type": "string", "description": "Sottocartella relativa (opzionale)"},
+         "estensioni": {"type": "array", "items": {"type": "string"}, "description": "es. ['.pit', '.json']"}}}},
+    {"name": "leggi_file",
+     "description": "Legge un file del progetto. Se il file è aperto nell'editor restituisce il testo attuale (anche non salvato). "
+                    "Le righe sono numerate.",
+     "input_schema": {"type": "object", "properties": {
+         "percorso": {"type": "string"}, "da_riga": {"type": "integer"}, "a_riga": {"type": "integer"}},
+         "required": ["percorso"]}},
+    {"name": "scrivi_file",
+     "description": "Crea o sovrascrive un file del progetto con il contenuto indicato (UTF-8). Crea le cartelle mancanti. "
+                    "Non usarlo per i file *_ui.pit generati dal progettista.",
+     "input_schema": {"type": "object", "properties": {
+         "percorso": {"type": "string"}, "contenuto": {"type": "string"}}, "required": ["percorso", "contenuto"]}},
+    {"name": "modifica_file",
+     "description": "Sostituisce un frammento ESATTO di testo in un file. 'vecchio' deve comparire una sola volta "
+                    "(altrimenti indica tutte=true).",
+     "input_schema": {"type": "object", "properties": {
+         "percorso": {"type": "string"}, "vecchio": {"type": "string"}, "nuovo": {"type": "string"},
+         "tutte": {"type": "boolean"}}, "required": ["percorso", "vecchio", "nuovo"]}},
+    {"name": "cerca_nel_progetto",
+     "description": "Cerca un testo (senza distinguere maiuscole) nei file del progetto; restituisce file, riga e contenuto.",
+     "input_schema": {"type": "object", "properties": {
+         "testo": {"type": "string"}, "estensioni": {"type": "array", "items": {"type": "string"}}},
+         "required": ["testo"]}},
+    {"name": "controlla_sintassi",
+     "description": "Controlla la sintassi pytonIta di un file del progetto (o di un testo). Restituisce 'ok' o riga/colonna/messaggio.",
+     "input_schema": {"type": "object", "properties": {
+         "percorso": {"type": "string"}, "codice": {"type": "string"}}}},
+    {"name": "esegui_programma",
+     "description": "Esegue un file .pit del progetto con pitonit e restituisce codice di uscita, output ed errori. "
+                    "Senza 'file' esegue il file principale. I programmi con finestra grafica vengono chiusi allo scadere del tempo.",
+     "input_schema": {"type": "object", "properties": {
+         "file": {"type": "string"}, "argomenti": {"type": "array", "items": {"type": "string"}},
+         "ingresso": {"type": "string", "description": "testo fornito allo standard input"},
+         "tempo_massimo": {"type": "integer", "description": "secondi (predefinito 30)"}}}},
+    {"name": "apri_file",
+     "description": "Apre un file nell'editor dell'utente (opzionalmente alla riga indicata).",
+     "input_schema": {"type": "object", "properties": {
+         "percorso": {"type": "string"}, "riga": {"type": "integer"}}, "required": ["percorso"]}},
+    {"name": "elimina_file",
+     "description": "Elimina un file o una cartella del progetto (chiede sempre conferma all'utente).",
+     "input_schema": {"type": "object", "properties": {"percorso": {"type": "string"}}, "required": ["percorso"]}},
+    {"name": "ottieni_form",
+     "description": "Restituisce il JSON di una finestra disegnata (nome senza estensione, es. 'Principale'). "
+                    "Senza nome elenca le finestre del progetto.",
+     "input_schema": {"type": "object", "properties": {"nome": {"type": "string"}}}},
+    {"name": "imposta_form",
+     "description": "Crea o sostituisce una finestra nel progettista a partire da un oggetto form (vedi manuale). "
+                    "Genera/aggiorna nome.form.json, nome_ui.pit e aggiunge a nome.pit i gestori mancanti.",
+     "input_schema": {"type": "object", "properties": {"form": {"type": "object"}}, "required": ["form"]}},
+    {"name": "converti_in_mattonelle",
+     "description": "Converte un file .pit esistente in un programma a mattonelle (nome_mattonelle.mattonelle.json + codice generato) e lo apre. "
+                    "Le parti senza mattonella equivalente restano come mattonelle di testo. L'originale non viene modificato.",
+     "input_schema": {"type": "object", "properties": {"file": {"type": "string"}, "nome": {"type": "string"}}, "required": ["file"]}},
+    {"name": "tipi_mattonelle",
+     "description": "Catalogo dei tipi di mattonella disponibili (forma, categoria, ingressi, campi, corpi) per costruire programmi a mattonelle.",
+     "input_schema": {"type": "object", "properties": {}}},
+    {"name": "ottieni_mattonelle",
+     "description": "Restituisce il JSON di un programma a mattonelle (nome senza estensione). Senza nome elenca i programmi del progetto.",
+     "input_schema": {"type": "object", "properties": {"nome": {"type": "string"}}}},
+    {"name": "imposta_mattonelle",
+     "description": "Crea o sostituisce un programma a mattonelle (vedi il manuale per la struttura). Controlla i tipi, lo salva in nome.mattonelle.json, "
+                    "genera nome.pit e aggiorna l'editor a mattonelle se è aperto. Restituisce file scritti e avvisi.",
+     "input_schema": {"type": "object", "properties": {"nome": {"type": "string"}, "programma": {"type": "object"}},
+                      "required": ["nome", "programma"]}},
+    {"name": "membri_modulo",
+     "description": "Elenca i nomi pubblici di un modulo (italiano o inglese), con gli alias italiani, filtrabili per prefisso. "
+                    "Serve per scoprire i nomi esatti delle librerie in italiano.",
+     "input_schema": {"type": "object", "properties": {
+         "modulo": {"type": "string", "description": "es. interfaccia, data_ora, percorso.Percorso"},
+         "prefisso": {"type": "string"}}, "required": ["modulo"]}},
+]
+
+
+classe ErroreAI(Eccezione):
+    """Errore nella comunicazione con l'AI."""
+
+
+classe ClienteClaude:
+    """Client minimale dell'API Messages di Anthropic (urllib, nessuna dipendenza)."""
+
+    definisci __inizializza__(se_stesso, config):
+        se_stesso.config_ = config
+
+    definisci chiave(se_stesso):
+        ritorna (se_stesso.config_.ottieni("ai.chiave_api", "") o os.environ.get("ANTHROPIC_API_KEY", "")).strip()
+
+    definisci chiama(se_stesso, messaggi, sistema, strumenti):
+        chiave = se_stesso.chiave()
+        se non chiave:
+            solleva ErroreAI("Manca la chiave API. Inseriscila in Impostazioni → Assistente AI "
+                             "(oppure nella variabile d'ambiente ANTHROPIC_API_KEY).")
+        corpo = {"model": se_stesso.config_.ottieni("ai.modello", "claude-sonnet-5-5"),
+                 "max_tokens": int(se_stesso.config_.ottieni("ai.max_token", 4096)),
+                 "system": [{"type": "text", "text": sistema, "cache_control": {"type": "ephemeral"}}],
+                 "messages": messaggi, "tools": strumenti}
+        richiesta = urllib.request.Request(
+            se_stesso.config_.ottieni("ai.url", "https://api.anthropic.com/v1/messages"),
+            data=json.dumps(corpo).encode("utf-8"), method="POST",
+            headers={"content-type": "application/json", "x-api-key": chiave,
+                     "anthropic-version": se_stesso.config_.ottieni("ai.versione_api", "2023-06-01")})
+        prova:
+            con urllib.request.urlopen(richiesta, timeout=180) come r:
+                ritorna json.loads(r.read().decode("utf-8"))
+        eccetto urllib.error.HTTPError come e:
+            prova:
+                dettaglio = json.loads(e.read().decode("utf-8")).get("error", {}).get("message", "")
+            eccetto Eccezione:
+                dettaglio = ""
+            solleva ErroreAI(f"Errore {e.code} dall'API: {dettaglio o e.reason}")
+        eccetto urllib.error.URLError come e:
+            solleva ErroreAI(f"Connessione non riuscita: {e.reason}")
+        eccetto (TimeoutError, OSError) come e:
+            solleva ErroreAI(f"Errore di rete: {e}")
+
+
+definisci _tronca(testo_, limite=LIMITE_RISULTATO):
+    se lunghezza(testo_) <= limite:
+        ritorna testo_
+    meta = limite // 2
+    ritorna testo_[:meta] + f"\n… [troncato: {lunghezza(testo_) - limite} caratteri] …\n" + testo_[-meta:]
+
+
+classe Strumenti:
+    """Esegue gli strumenti richiesti dall'AI. Le azioni sull'interfaccia passano dal ponte UI."""
+
+    definisci __inizializza__(se_stesso, ambiente, config, ponte):
+        se_stesso.ambiente = ambiente
+        se_stesso.config_ = config
+        se_stesso.ponte = ponte
+
+    @property
+    definisci progetto(se_stesso):
+        p = se_stesso.ambiente.progetto
+        se p è Nessuno:
+            solleva ErroreDiValore("nessun progetto aperto: chiedi all'utente di aprirne o crearne uno")
+        ritorna p
+
+    definisci esegui(se_stesso, nome, parametri):
+        """Ritorna (testo_risultato, è_errore)."""
+        funzione = getattr(se_stesso, "s_" + nome, Nessuno)
+        se funzione è Nessuno:
+            ritorna f"Strumento sconosciuto: {nome}", Vero
+        prova:
+            ritorna _tronca(testo(funzione(**(parametri o {})))), Falso
+        eccetto ErroreDiValore come e:
+            ritorna testo(e), Vero
+        eccetto (OSError, KeyError, ErroreDiTipo, ErroreDiAttributo, TimeoutError) come e:
+            ritorna f"{tipo(e).__name__}: {e}", Vero
+
+    # --- lettura
+    definisci s_stato_ide(se_stesso):
+        ritorna json.dumps(se_stesso.ponte.esegui(se_stesso.ambiente.stato_ide), indent=1, ensure_ascii=Falso)
+
+    definisci s_elenca_file(se_stesso, cartella="", estensioni=Nessuno):
+        p = se_stesso.progetto
+        prefisso = cartella.strip("/").replace("\\", "/")
+        file = p.tutti_i_file([e.lower() per e in estensioni] se estensioni altrimenti Nessuno)
+        se prefisso:
+            file = [f per f in file se f == prefisso o f.startswith(prefisso + "/")]
+        ritorna "\n".join(file) o "(nessun file)"
+
+    definisci _contenuto(se_stesso, percorso):
+        """Testo attuale: dall'editor se aperto (anche non salvato), altrimenti dal disco."""
+        p = se_stesso.progetto
+        assoluto = p.assoluto(percorso)
+        aperto = se_stesso.ponte.esegui(lambda: se_stesso.ambiente.contenuto_aperto(assoluto))
+        se aperto è non Nessuno:
+            ritorna aperto
+        ritorna p.leggi(percorso).replace("\r\n", "\n")
+
+    definisci s_leggi_file(se_stesso, percorso, da_riga=1, a_riga=Nessuno):
+        righe = se_stesso._contenuto(percorso).split("\n")
+        a_riga = a_riga o lunghezza(righe)
+        da_riga = max(1, da_riga)
+        ritorna "\n".join(f"{n}: {r}" per n, r in enumera(righe[da_riga - 1:a_riga], da_riga))
+
+    definisci s_cerca_nel_progetto(se_stesso, testo, estensioni=Nessuno):
+        trovati = se_stesso.progetto.cerca(testo, [e.lower() per e in estensioni] se estensioni altrimenti Nessuno)
+        se non trovati:
+            ritorna "nessun risultato"
+        ritorna "\n".join(f"{f}:{n}: {r}" per f, n, r in trovati)
+
+    definisci s_controlla_sintassi(se_stesso, percorso=Nessuno, codice=Nessuno):
+        se codice è Nessuno:
+            se non percorso:
+                solleva ErroreDiValore("indica 'percorso' o 'codice'")
+            codice = se_stesso._contenuto(percorso)
+        r = esecuzione.controlla_sintassi(codice, percorso o "<codice>", "py" se (percorso o "").lower().endswith((".py", ".pyw")) altrimenti "pit")
+        ritorna "ok" se r è Nessuno altrimenti f"errore di sintassi alla riga {r[0]}, colonna {r[1]}: {r[2]}"
+
+    definisci s_membri_modulo(se_stesso, modulo, prefisso=""):
+        cartelle = [se_stesso.progetto.cartella] se se_stesso.ambiente.progetto altrimenti []
+        voci = parole.membri_di(modulo, f"importa {modulo.split('.')[0]}\n", cartelle)
+        voci = [v per v in voci se v[0].lower().startswith(prefisso.lower())]
+        se non voci:
+            ritorna "nessun membro trovato (modulo non importabile o prefisso errato)"
+        ritorna "\n".join(f"{n}  ({t})" per n, t in voci[:300])
+
+    # --- scrittura (con conferma)
+    definisci _conferma_scrittura(se_stesso, percorso, nuovo, vecchio):
+        se non se_stesso.config_.ottieni("ai.conferma_scrittura", Vero):
+            ritorna
+        righe_n = nuovo.count("\n") + 1
+        righe_v = (vecchio.count("\n") + 1) se vecchio è non Nessuno altrimenti 0
+        dettaglio = (f"L'assistente vuole {'modificare' se vecchio è non Nessuno altrimenti 'creare'} il file:\n\n  {percorso}\n\n"
+                     f"Righe: {righe_v} → {righe_n}\n\nAnteprima:\n" + "\n".join(nuovo.split("\n")[:12]))
+        se non se_stesso.ponte.esegui(lambda: se_stesso.ambiente.chiedi_conferma("Scrittura file", dettaglio), 600):
+            solleva ErroreDiValore("l'utente ha rifiutato la scrittura del file")
+
+    definisci _scrivi(se_stesso, percorso, contenuto, vecchio):
+        se percorso.endswith("_ui.pit"):
+            solleva ErroreDiValore("i file *_ui.pit sono generati dal progettista: modifica il form con imposta_form")
+        p = se_stesso.progetto
+        assoluto = p.assoluto(percorso)
+        se_stesso._conferma_scrittura(percorso, contenuto, vecchio)
+        se_stesso.ponte.esegui(lambda: se_stesso.ambiente.scrivi_file(assoluto, contenuto))
+
+    definisci s_scrivi_file(se_stesso, percorso, contenuto):
+        p = se_stesso.progetto
+        esiste = os.path.exists(p.assoluto(percorso))
+        vecchio = se_stesso._contenuto(percorso) se esiste altrimenti Nessuno
+        se_stesso._scrivi(percorso, contenuto, vecchio)
+        ritorna f"scritto {percorso} ({contenuto.count(chr(10)) + 1} righe)"
+
+    definisci s_modifica_file(se_stesso, percorso, vecchio, nuovo, tutte=Falso):
+        attuale = se_stesso._contenuto(percorso)
+        n = attuale.count(vecchio)
+        se n == 0:
+            solleva ErroreDiValore("il testo 'vecchio' non è presente nel file (controlla spazi e rientri)")
+        se n > 1 e non tutte:
+            solleva ErroreDiValore(f"il testo 'vecchio' compare {n} volte: aggiungi contesto o usa tutte=true")
+        risultato = attuale.replace(vecchio, nuovo) se tutte altrimenti attuale.replace(vecchio, nuovo, 1)
+        se_stesso._scrivi(percorso, risultato, attuale)
+        ritorna f"modificato {percorso} ({n se tutte altrimenti 1} sostituzioni)"
+
+    definisci s_elimina_file(se_stesso, percorso):
+        p = se_stesso.progetto
+        assoluto = p.assoluto(percorso)
+        se non os.path.exists(assoluto):
+            solleva ErroreDiValore("il file non esiste")
+        se non se_stesso.ponte.esegui(lambda: se_stesso.ambiente.chiedi_conferma(
+                "Elimina", f"L'assistente vuole ELIMINARE:\n\n  {percorso}\n\nL'operazione non è annullabile."), 600):
+            solleva ErroreDiValore("l'utente ha rifiutato l'eliminazione")
+        se_stesso.ponte.esegui(lambda: se_stesso.ambiente.elimina_percorso(assoluto))
+        ritorna f"eliminato {percorso}"
+
+    definisci s_apri_file(se_stesso, percorso, riga=Nessuno):
+        assoluto = se_stesso.progetto.assoluto(percorso)
+        se_stesso.ponte.esegui(lambda: se_stesso.ambiente.apri_file_a_riga(assoluto, riga o 1))
+        ritorna "aperto"
+
+    # --- esecuzione
+    definisci s_esegui_programma(se_stesso, file=Nessuno, argomenti=Nessuno, ingresso=Nessuno, tempo_massimo=30):
+        p = se_stesso.progetto
+        percorso = p.assoluto(file) se file altrimenti p.percorso_principale()
+        se non percorso o non os.path.exists(percorso):
+            solleva ErroreDiValore("file da eseguire non trovato (imposta il file principale o passa 'file')")
+        se se_stesso.config_.ottieni("ai.conferma_esecuzione", Vero):
+            se non se_stesso.ponte.esegui(lambda: se_stesso.ambiente.chiedi_conferma(
+                    "Esecuzione", f"L'assistente vuole eseguire:\n\n  {p.relativo(percorso)} {' '.join(argomenti o [])}"), 600):
+                solleva ErroreDiValore("l'utente ha rifiutato l'esecuzione")
+        se_stesso.ponte.esegui(lambda: se_stesso.ambiente.salva_tutto())
+        comando = [se_stesso.config_.interprete(), "-u", percorso] + lista(argomenti o [])
+        r = esecuzione.esegui_sincrono(comando, p.cartella, max(1, min(int(tempo_massimo), 300)), ingresso)
+        se_stesso.ponte.esegui(lambda: se_stesso.ambiente.mostra_in_console(p.relativo(percorso), r))
+        parti = [f"codice di uscita: {r['codice']}" + (" (scaduto il tempo massimo: processo terminato)" se r["scaduto"] altrimenti "")
+                 + f"  durata: {r['secondi']} s"]
+        se r["uscita"]:
+            parti.append("--- output ---\n" + r["uscita"])
+        se r["errori"]:
+            parti.append("--- errori ---\n" + r["errori"])
+        ritorna "\n".join(parti)
+
+    # --- progettista
+    definisci s_ottieni_form(se_stesso, nome=Nessuno):
+        p = se_stesso.progetto
+        se non nome:
+            ritorna "\n".join(p.forms()) o "(nessuna finestra disegnata)"
+        ritorna se_stesso.ponte.esegui(lambda: se_stesso.ambiente.json_form(nome))
+
+    definisci s_converti_in_mattonelle(se_stesso, file, nome=Nessuno):
+        assoluto = se_stesso.progetto.assoluto(file)
+        risultato = se_stesso.ponte.esegui(lambda: se_stesso.ambiente.converti_in_mattonelle(assoluto, nome, Vero), 180)
+        percorsi, rapporto = risultato
+        ritorna "convertito: " + ", ".join(percorsi) + "\n" + rapporto
+
+    definisci s_tipi_mattonelle(se_stesso):
+        ritorna mattonelle_modello.catalogo_tipi()
+
+    definisci s_ottieni_mattonelle(se_stesso, nome=Nessuno):
+        p = se_stesso.progetto
+        se non nome:
+            ritorna "\n".join(f per f in p.tutti_i_file() se f.endswith(".mattonelle.json")) o "(nessun programma a mattonelle)"
+        ritorna se_stesso.ponte.esegui(lambda: se_stesso.ambiente.json_mattonelle(nome))
+
+    definisci s_imposta_mattonelle(se_stesso, nome, programma):
+        se_stesso.progetto
+        se non mattonelle_modello.nome_variabile_valido(nome):
+            solleva ErroreDiValore(f"nome non valido: {nome}")
+        problemi = mattonelle_modello.valida_dizionario(programma)
+        se problemi:
+            solleva ErroreDiValore("programma non valido:\n- " + "\n- ".join(problemi[:15]))
+        scritti, avvisi = se_stesso.ponte.esegui(lambda: se_stesso.ambiente.imposta_mattonelle(nome, programma), 120)
+        messaggio = "programma a mattonelle salvato: " + ", ".join(scritti)
+        se avvisi:
+            messaggio += "\navvisi: " + "; ".join(avvisi[:10])
+        ritorna messaggio
+
+    definisci s_imposta_form(se_stesso, form):
+        se_stesso.progetto
+        f = form_modello.Form.da_dizionario(form)
+        se non form_modello.nome_valido(f.nome):
+            solleva ErroreDiValore(f"nome della finestra non valido: {f.nome}")
+        problemi = f.problemi()
+        scritti = se_stesso.ponte.esegui(lambda: se_stesso.ambiente.imposta_form(f), 120)
+        messaggio = "finestra salvata: " + ", ".join(scritti)
+        se problemi:
+            messaggio += "\navvisi: " + "; ".join(problemi)
+        ritorna messaggio
+
+
+classe Agente:
+    """Ciclo: messaggio → (strumenti → risultati)* → risposta finale."""
+
+    definisci __inizializza__(se_stesso, cliente, strumenti, config, su_evento):
+        se_stesso.cliente = cliente
+        se_stesso.strumenti = strumenti
+        se_stesso.config_ = config
+        se_stesso.su_evento = su_evento
+        se_stesso.arresto = threading.Event()
+
+    definisci esegui(se_stesso, messaggi, sistema):
+        """Elabora finché l'AI ha finito. 'messaggi' viene aggiornato sul posto."""
+        massimo = int(se_stesso.config_.ottieni("ai.passi_massimi", 25))
+        per passo in intervallo(massimo):
+            se se_stesso.arresto.is_set():
+                se_stesso.su_evento("info", "Interrotto.")
+                ritorna
+            risposta = se_stesso.cliente.chiama(messaggi, sistema, DEFINIZIONI)
+            blocchi = risposta.get("content", [])
+            messaggi.append({"role": "assistant", "content": blocchi})
+            uso = risposta.get("usage", {})
+            se_stesso.su_evento("uso", uso)
+            richieste = []
+            per b in blocchi:
+                se b.get("type") == "text" e b.get("text", "").strip():
+                    se_stesso.su_evento("testo", b["text"])
+                altrimenti_se b.get("type") == "tool_use":
+                    richieste.append(b)
+            se risposta.get("stop_reason") != "tool_use" o non richieste:
+                se risposta.get("stop_reason") == "max_tokens":
+                    se_stesso.su_evento("info", "La risposta è stata tagliata (max_token). Aumenta il limite nelle impostazioni.")
+                ritorna
+            risultati = []
+            per b in richieste:
+                se se_stesso.arresto.is_set():
+                    risultati.append({"type": "tool_result", "tool_use_id": b["id"],
+                                      "content": "interrotto dall'utente", "is_error": Vero})
+                    continua
+                se_stesso.su_evento("strumento", {"nome": b["name"], "parametri": b.get("input", {})})
+                inizio = time.time()
+                esito, errore = se_stesso.strumenti.esegui(b["name"], b.get("input", {}))
+                se_stesso.su_evento("risultato", {"nome": b["name"], "testo": esito, "errore": errore,
+                                                  "secondi": round(time.time() - inizio, 2)})
+                risultati.append({"type": "tool_result", "tool_use_id": b["id"], "content": esito, "is_error": errore})
+            messaggi.append({"role": "user", "content": risultati})
+        se_stesso.su_evento("info", f"Raggiunto il limite di {massimo} passi per richiesta.")
+
+
+definisci prompt_di_sistema(config, progetto):
+    """Manuale + informazioni sul progetto + istruzioni aggiuntive dell'utente."""
+    percorso = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manuale.md")
+    prova:
+        con open(percorso, encoding="utf-8") come f:
+            manuale = f.read()
+    eccetto OSError:
+        manuale = "Sei l'assistente di PitStudio, ambiente di sviluppo per pytonIta."
+    info = "\n\n## Progetto corrente\n"
+    se progetto:
+        info += f"Nome: {progetto.nome}\nFile principale: {progetto.principale o '(non impostato)'}\n"
+    altrimenti:
+        info += "Nessun progetto aperto.\n"
+    extra = config.ottieni("ai.istruzioni_extra", "").strip()
+    se extra:
+        info += "\n## Istruzioni dell'utente\n" + extra + "\n"
+    ritorna manuale + info

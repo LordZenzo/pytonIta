@@ -1,0 +1,323 @@
+"""Elenco delle librerie: una lista spuntabile con una breve descrizione, per progetto (come le «Libraries» di B4J).
+
+Le librerie spuntate vengono salvate nel progetto (progetto.rad.json, chiave «librerie»), compaiono sempre tra i suggerimenti
+dell'editor anche senza «importa» e si inseriscono nel file con un doppio clic.
+"""
+importa importlib.util
+importa tkinter come tk
+da tkinter importa ttk
+
+da rad importa parole
+
+# modulo italiano -> (categoria, descrizione)
+CATALOGO = {
+    "matematica": ("Calcolo", "Funzioni matematiche: radice quadrata, seno, logaritmi, pi greco."),
+    "matematica_complessa": ("Calcolo", "Matematica con i numeri complessi."),
+    "statistica": ("Calcolo", "Media, mediana, varianza e altre statistiche di base."),
+    "decimali": ("Calcolo", "Numeri decimali esatti, adatti ai calcoli di denaro."),
+    "frazioni": ("Calcolo", "Numeri razionali: frazioni esatte."),
+    "casuale": ("Calcolo", "Numeri casuali, scelte e rimescolamenti."),
+    "numerico": ("Scienza e dati", "numpy: matrici e calcolo numerico veloce."),
+    "tabelle": ("Scienza e dati", "pandas: tabelle di dati, analisi e filtri."),
+    "scienza": ("Scienza e dati", "scipy: algoritmi scientifici, ottimizzazione, statistica avanzata."),
+    "grafici": ("Scienza e dati", "matplotlib: grafici e diagrammi."),
+    "array_numerici": ("Scienza e dati", "Vettori compatti di numeri dello stesso tipo."),
+    "immagini": ("Immagini e documenti", "PIL: apre, modifica e salva immagini."),
+    "rapporti_pdf": ("Immagini e documenti", "reportlab: crea documenti PDF."),
+    "colori_conversioni": ("Immagini e documenti", "Conversioni tra sistemi di colore (RGB, HSV…)."),
+    "tartaruga": ("Immagini e documenti", "Disegni con la tartaruga, per imparare a programmare."),
+    "interfaccia": ("Finestre", "tkinter: finestre, pulsanti, caselle di testo."),
+    "foglio_tk": ("Finestre", "tksheet: tabelle modificabili da inserire nelle finestre."),
+    "sistema": ("Sistema", "Argomenti del programma, uscita, informazioni sull'interprete."),
+    "sistema_operativo": ("Sistema", "Cartelle, variabili d'ambiente e operazioni del sistema."),
+    "percorso": ("Sistema", "Percorsi di file e cartelle come oggetti."),
+    "operazioni_file": ("Sistema", "Copia, sposta e cancella file e cartelle."),
+    "cerca_file": ("Sistema", "Trova i file con i caratteri jolly (*.txt)."),
+    "file_temporanei": ("Sistema", "File e cartelle temporanei."),
+    "corrispondenza_nomi": ("Sistema", "Confronto di nomi di file con i caratteri jolly."),
+    "processi": ("Sistema", "Lancia altri programmi e ne legge l'output."),
+    "piattaforma": ("Sistema", "Informazioni su sistema operativo e computer."),
+    "registro_windows": ("Sistema", "Legge e scrive il registro di Windows."),
+    "password_utente": ("Sistema", "Chiede una password senza mostrarla."),
+    "segnali": ("Sistema", "Gestione dei segnali del sistema."),
+    "alla_chiusura": ("Sistema", "Funzioni da eseguire alla chiusura del programma."),
+    "tipi_c": ("Sistema", "Chiama le librerie di sistema (DLL) con i tipi del C."),
+    "installazione_python": ("Sistema", "Percorsi e configurazione dell'installazione."),
+    "thread": ("Parallelismo", "Più attività contemporanee nello stesso programma."),
+    "multiprocesso": ("Parallelismo", "Più processi in parallelo, anche su più core."),
+    "esecutori": ("Parallelismo", "Gruppi di lavoratori per eseguire compiti in parallelo."),
+    "asincronia": ("Parallelismo", "Programmazione asincrona con asincrono/attendi."),
+    "coda": ("Parallelismo", "Code sicure per scambiare dati tra thread."),
+    "contesti_variabili": ("Parallelismo", "Variabili legate al contesto di esecuzione."),
+    "tempo": ("Data e ora", "Orologio, pause e misure di tempo."),
+    "data_ora": ("Data e ora", "Date, ore e differenze di tempo."),
+    "calendario": ("Data e ora", "Calendari mensili e annuali."),
+    "fusi_orari": ("Data e ora", "Fusi orari e ora legale."),
+    "cronometro": ("Data e ora", "Misura quanto tempo impiega il codice."),
+    "testo_a_capo": ("Testo", "Formatta il testo su più righe di larghezza fissa."),
+    "espressioni_regolari": ("Testo", "Cerca e sostituisce testo con modelli."),
+    "stringhe": ("Testo", "Costanti e utilità per le stringhe."),
+    "differenze": ("Testo", "Confronta due testi e mostra le differenze."),
+    "unicode_dati": ("Testo", "Proprietà dei caratteri Unicode."),
+    "codifiche": ("Testo", "Codifiche e decodifiche del testo."),
+    "base64_testo": ("Testo", "Codifica dati binari in testo (base64)."),
+    "html_testo": ("Testo", "Escape e lettura di testo HTML."),
+    "stampa_bella": ("Testo", "Stampa strutture di dati in modo leggibile."),
+    "analisi_comandi": ("Testo", "Divide una riga di comando in parole."),
+    "localizzazione": ("Testo", "Formati di numeri e date per lingua e paese."),
+    "gettext_traduzioni": ("Testo", "Traduzione dei messaggi dei programmi."),
+    "formato_json": ("Dati e file", "Legge e scrive file JSON."),
+    "tabelle_csv": ("Dati e file", "Legge e scrive file CSV."),
+    "configurazione": ("Dati e file", "File di configurazione in stile .ini."),
+    "toml_lettura": ("Dati e file", "Legge file di configurazione TOML."),
+    "database": ("Dati e file", "sqlite3: database SQL in un solo file."),
+    "serializza": ("Dati e file", "Salva oggetti Python su file (pickle)."),
+    "archivio_chiave_valore": ("Dati e file", "Dizionari salvati su disco."),
+    "archivio_zip": ("Dati e file", "Crea e legge archivi ZIP."),
+    "archivio_tar": ("Dati e file", "Crea e legge archivi TAR."),
+    "compressione_gzip": ("Dati e file", "Comprime e decomprime con gzip."),
+    "compressione_bz2": ("Dati e file", "Comprime e decomprime con bz2."),
+    "compressione_lzma": ("Dati e file", "Comprime e decomprime con lzma/xz."),
+    "flussi": ("Dati e file", "Flussi di testo e di byte in memoria."),
+    "struttura_binaria": ("Dati e file", "Legge e scrive dati binari strutturati."),
+    "albero_xml": ("Dati e file", "Legge e scrive file XML."),
+    "xml_dom": ("Dati e file", "XML come albero di nodi (DOM)."),
+    "tipi_mime": ("Dati e file", "Tipo di un file in base al nome."),
+    "impronte": ("Sicurezza", "Impronte digitali dei dati (SHA, MD5)."),
+    "segreti": ("Sicurezza", "Numeri e codici casuali sicuri per password e token."),
+    "sicurezza_ssl": ("Sicurezza", "Connessioni cifrate (SSL/TLS)."),
+    "identificatori": ("Sicurezza", "Identificatori univoci (UUID)."),
+    "richieste": ("Rete", "requests: scarica pagine e usa servizi web in modo semplice."),
+    "rete_url": ("Rete", "Indirizzi web e download di base."),
+    "rete_http": ("Rete", "Client e server HTTP."),
+    "rete": ("Rete", "Connessioni di rete a basso livello (socket)."),
+    "indirizzi_ip": ("Rete", "Indirizzi e reti IP."),
+    "ftp": ("Rete", "Client FTP."),
+    "posta": ("Rete", "Crea e analizza messaggi di posta elettronica."),
+    "browser_web": ("Rete", "Apre una pagina nel browser."),
+    "collezioni": ("Strutture dati", "Contatori, code a due estremità, dizionari speciali."),
+    "dati_classe": ("Strutture dati", "Classi di dati scritte in poche righe."),
+    "enumerazioni": ("Strutture dati", "Elenchi di valori con nome."),
+    "mucchio": ("Strutture dati", "Code con priorità (heap)."),
+    "bisezione": ("Strutture dati", "Ricerca e inserimento in liste ordinate."),
+    "grafi": ("Strutture dati", "Ordinamento topologico di grafi."),
+    "copia": ("Strutture dati", "Copie superficiali e profonde di oggetti."),
+    "iteratori": ("Programmazione", "Strumenti per cicli e combinazioni."),
+    "funzioni_utili": ("Programmazione", "Funzioni di ordine superiore, cache, riduzioni."),
+    "operatori": ("Programmazione", "Gli operatori come funzioni."),
+    "contesti": ("Programmazione", "Strumenti per i blocchi «con»."),
+    "tipi_annotazioni": ("Programmazione", "Annotazioni di tipo."),
+    "tipi_python": ("Programmazione", "Tipi di funzioni, moduli e altri oggetti interni."),
+    "classi_astratte": ("Programmazione", "Classi astratte da cui derivare."),
+    "ispezione": ("Programmazione", "Esamina funzioni, classi e moduli a runtime."),
+    "albero_sintattico": ("Programmazione", "Analizza il codice come albero (ast)."),
+    "parole_chiave": ("Programmazione", "Elenco delle parole chiave del linguaggio."),
+    "raccolta_rifiuti": ("Programmazione", "Gestione della memoria."),
+    "traccia_errori": ("Programmazione", "Stampa e analizza gli errori (traceback)."),
+    "registro": ("Programmazione", "Registro degli eventi (logging) con livelli."),
+    "argomenti": ("Programmazione", "Argomenti della riga di comando con aiuto automatico."),
+    "opzioni_riga_comando": ("Programmazione", "Opzioni della riga di comando in stile getopt."),
+    "test_unitari": ("Test", "unittest: scrivere ed eseguire test automatici."),
+    "test_documentazione": ("Test", "Test scritti negli esempi della documentazione."),
+}
+
+ORDINE_CATEGORIE = ["Finestre", "Calcolo", "Scienza e dati", "Immagini e documenti", "Data e ora", "Testo", "Dati e file",
+                    "Sistema", "Rete", "Parallelismo", "Strutture dati", "Programmazione", "Sicurezza", "Test", "Altre"]
+
+
+definisci originale_di(nome_it):
+    """Nome della libreria originale (es. matematica -> math)."""
+    prova:
+        da _mappa_moduli importa MAPPA
+    eccetto ImportError:
+        ritorna nome_it
+    per orig, it in MAPPA.items():
+        se it == nome_it:
+            ritorna orig
+    ritorna nome_it
+
+
+definisci e_installata(nome_it):
+    prova:
+        ritorna importlib.util.find_spec(originale_di(nome_it).split(".")[0]) è non Nessuno
+    eccetto Exception:
+        ritorna Vero
+
+
+definisci elenco():
+    """Lista di (nome_italiano, categoria, descrizione, originale) per tutte le librerie note."""
+    risultato = []
+    per nome_it in parole.MODULI_PRIMO_LIVELLO:
+        categoria, descrizione = CATALOGO.get(nome_it, ("Altre", "Libreria italiana di " + originale_di(nome_it) + "."))
+        risultato.append((nome_it, categoria, descrizione, originale_di(nome_it).split(".")[0]))
+    risultato.sort(key=lambda r: (ORDINE_CATEGORIE.index(r[1]) se r[1] in ORDINE_CATEGORIE altrimenti 99, r[0]))
+    ritorna risultato
+
+
+SPUNTATO = "☑"
+VUOTO = "☐"
+
+
+classe PannelloLibrerie(tk.Frame):
+    """Lista spuntabile delle librerie: clic sulla casella per attivare, doppio clic per inserire l'importazione nel file aperto."""
+
+    definisci __inizializza__(se_stesso, genitore, app):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.app = app
+        se_stesso.tutte = elenco()
+        se_stesso.spuntate = set()
+        se_stesso._nodi = {}
+        se_stesso.barra = tk.Frame(se_stesso)
+        se_stesso.barra.pack(fill="x")
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="Librerie", anchor="w", font=("Segoe UI Semibold", 10))
+        se_stesso.titolo.pack(side="left", padx=8, pady=5)
+        se_stesso.contatore = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.contatore.pack(side="right", padx=8)
+        se_stesso.var_cerca = tk.StringVar()
+        se_stesso.var_solo = tk.BooleanVar(value=Falso)
+        riga = tk.Frame(se_stesso)
+        riga.pack(fill="x", padx=6)
+        se_stesso.campo = tk.Entry(riga, textvariable=se_stesso.var_cerca, relief="flat", font=("Segoe UI", 10))
+        se_stesso.campo.pack(side="left", fill="x", expand=Vero, ipady=3)
+        se_stesso.solo = tk.Checkbutton(riga, text="solo spuntate", variable=se_stesso.var_solo, font=("Segoe UI", 9),
+                                        command=se_stesso.riempi)
+        se_stesso.solo.pack(side="right", padx=(6, 0))
+        se_stesso.riga_ricerca = riga
+        se_stesso.var_cerca.trace_add("write", lambda *a: se_stesso.riempi())
+        se_stesso.descrizione = tk.Label(se_stesso, text="Seleziona una libreria per vederne la descrizione.", anchor="nw", justify="left",
+                                         wraplength=240, font=("Segoe UI", 9), height=5)
+        se_stesso.descrizione.pack(side="bottom", fill="x", padx=8, pady=6)
+        se_stesso.albero = ttk.Treeview(se_stesso, show="tree", selectmode="browse")
+        barra_y = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.albero.yview)
+        se_stesso.albero.configure(yscrollcommand=barra_y.set)
+        barra_y.pack(side="right", fill="y")
+        se_stesso.albero.pack(fill="both", expand=Vero, pady=(6, 0))
+        se_stesso.albero.bind("<Button-1>", se_stesso._clic)
+        se_stesso.albero.bind("<Double-1>", se_stesso._doppio_clic)
+        se_stesso.albero.bind("<space>", se_stesso._spazio)
+        se_stesso.albero.bind("<Return>", se_stesso._doppio_clic)
+        se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._selezione)
+        se_stesso.albero.tag_configure("categoria", font=("Segoe UI Semibold", 9))
+        se_stesso.albero.tag_configure("assente", foreground="#9a9a9a")
+        se_stesso.bind("<Configure>", lambda e: se_stesso.descrizione.configure(wraplength=max(120, e.width - 24)))
+        se_stesso.riempi()
+
+    # ------------------------------------------------------------ dati del progetto
+    definisci imposta_progetto(se_stesso, progetto):
+        se_stesso.progetto = progetto
+        se_stesso.spuntate = set(progetto.manifesto.get("librerie", [])) se progetto altrimenti set()
+        parole.imposta_librerie_attive(se_stesso.spuntate, originale_di)
+        se_stesso.riempi()
+
+    definisci _salva(se_stesso):
+        p = getattr(se_stesso, "progetto", Nessuno)
+        se p:
+            p.manifesto["librerie"] = sorted(se_stesso.spuntate)
+            p.salva_manifesto()
+        parole.imposta_librerie_attive(se_stesso.spuntate, originale_di)
+
+    # ------------------------------------------------------------ lista
+    definisci riempi(se_stesso):
+        aperte = {c per c, n in se_stesso._nodi.items() se n.startswith("cat:") e se_stesso.albero.exists(n) e se_stesso.albero.item(n, "open")}
+        prima_volta = non se_stesso._nodi
+        se_stesso.albero.delete(*se_stesso.albero.get_children())
+        se_stesso._nodi = {}
+        q = se_stesso.var_cerca.get().strip().lower()
+        solo = se_stesso.var_solo.get()
+        per categoria in ORDINE_CATEGORIE:
+            voci = [v per v in se_stesso.tutte se v[1] == categoria
+                    e (non solo o v[0] in se_stesso.spuntate)
+                    e (non q o q in v[0].lower() o q in v[2].lower() o q in v[3].lower())]
+            se non voci:
+                continua
+            attive = sum(1 per v in voci se v[0] in se_stesso.spuntate)
+            nodo = se_stesso.albero.insert("", "end", iid="cat:" + categoria, text=f"{categoria}  ({attive}/{lunghezza(voci)})", tags=("categoria",),
+                                           open=Vero se (q o solo o prima_volta o categoria in aperte) altrimenti Falso)
+            se_stesso._nodi[categoria] = "cat:" + categoria
+            per nome_it, cat, descr, orig in voci:
+                simbolo = SPUNTATO se nome_it in se_stesso.spuntate altrimenti VUOTO
+                marca = "" se e_installata(nome_it) altrimenti "  ⚠"
+                tag = () se e_installata(nome_it) altrimenti ("assente",)
+                se_stesso.albero.insert(nodo, "end", iid="lib:" + nome_it, text=f"{simbolo}  {nome_it}  —  {descr}{marca}", tags=tag)
+        se_stesso.contatore.configure(text=f"{lunghezza(se_stesso.spuntate)} attive")
+
+    definisci _aggiorna_riga(se_stesso, nome_it):
+        iid = "lib:" + nome_it
+        se se_stesso.albero.exists(iid):
+            vecchio = se_stesso.albero.item(iid, "text")
+            se_stesso.albero.item(iid, text=(SPUNTATO se nome_it in se_stesso.spuntate altrimenti VUOTO) + vecchio[1:])
+        se_stesso.contatore.configure(text=f"{lunghezza(se_stesso.spuntate)} attive")
+
+    definisci attiva(se_stesso, nome_it, valore=Nessuno):
+        """Spunta (o toglie la spunta a) una libreria e salva nel progetto."""
+        se valore è Nessuno:
+            valore = nome_it non in se_stesso.spuntate
+        se valore:
+            se_stesso.spuntate.add(nome_it)
+        altrimenti:
+            se_stesso.spuntate.discard(nome_it)
+        se_stesso._salva()
+        se_stesso._aggiorna_riga(nome_it)
+
+    definisci _nome_di(se_stesso, iid):
+        ritorna iid[4:] se iid.startswith("lib:") altrimenti Nessuno
+
+    definisci _clic(se_stesso, e):
+        iid = se_stesso.albero.identify_row(e.y)
+        nome_it = se_stesso._nome_di(iid) se iid altrimenti Nessuno
+        se nome_it e se_stesso.albero.identify_element(e.x, e.y) == "text" e e.x < 80:
+            se_stesso.attiva(nome_it)
+            ritorna "break"
+
+    definisci _spazio(se_stesso, e=Nessuno):
+        sel = se_stesso.albero.selection()
+        se sel e se_stesso._nome_di(sel[0]):
+            se_stesso.attiva(se_stesso._nome_di(sel[0]))
+        ritorna "break"
+
+    definisci _doppio_clic(se_stesso, e=Nessuno):
+        sel = se_stesso.albero.selection()
+        se sel e se_stesso._nome_di(sel[0]):
+            se_stesso.inserisci_importazione(se_stesso._nome_di(sel[0]))
+            ritorna "break"
+
+    definisci _selezione(se_stesso, e=Nessuno):
+        sel = se_stesso.albero.selection()
+        nome_it = se_stesso._nome_di(sel[0]) se sel altrimenti Nessuno
+        se non nome_it:
+            ritorna
+        voce = [v per v in se_stesso.tutte se v[0] == nome_it]
+        se voce:
+            _, cat, descr, orig = voce[0]
+            testo_ = f"{nome_it}  (= {orig})\n{descr}"
+            se non e_installata(nome_it):
+                testo_ += "\n⚠ Libreria non installata: serve il componente «librerie scientifiche»."
+            altrimenti:
+                testo_ += "\nSpunta per averla sempre nei suggerimenti · doppio clic: inserisce «importa»."
+            se_stesso.descrizione.configure(text=testo_)
+
+    # ------------------------------------------------------------ inserimento nel file
+    definisci inserisci_importazione(se_stesso, nome_it):
+        """Aggiunge «importa nome» in testa al file aperto (se non c'è già). Ritorna True se ha inserito."""
+        ed = se_stesso.app._editor_corrente() se hasattr(se_stesso.app, "_editor_corrente") altrimenti Nessuno
+        se ed è Nessuno:
+            se_stesso.app.info("Apri un file di codice per inserirvi l'importazione.")
+            ritorna Falso
+        py = ed.linguaggio == "py"
+        riga = f"import {originale_di(nome_it)}" se py altrimenti f"importa {nome_it}"
+        sorgente = ed.contenuto()
+        se riga in sorgente.splitlines():
+            se_stesso.app.info(f"«{riga}» è già nel file.")
+            ritorna Falso
+        ritorna ed.inserisci_importazione(riga)
+
+    # ------------------------------------------------------------ colori
+    definisci applica_colori(se_stesso, c):
+        per w in (se_stesso, se_stesso.barra, se_stesso.riga_ricerca):
+            w.configure(background=c["pannello"])
+        per w in (se_stesso.titolo, se_stesso.contatore, se_stesso.descrizione):
+            w.configure(background=c["pannello"], foreground=c["tenue"] se w è non se_stesso.titolo altrimenti c["primo_piano"])
+        se_stesso.solo.configure(background=c["pannello"], foreground=c["tenue"], activebackground=c["pannello"], selectcolor=c["sfondo"],
+                                 activeforeground=c["primo_piano"])
+        se_stesso.campo.configure(background=c["sfondo"], foreground=c["primo_piano"], insertbackground=c["primo_piano"])
+        se_stesso.albero.tag_configure("assente", foreground=c["tenue"])

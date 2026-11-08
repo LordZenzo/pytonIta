@@ -1,0 +1,72 @@
+"""PitStudio - ambiente di sviluppo per pytonIta. Avvio: pitonit rad.pit [cartella-progetto]"""
+importa os
+importa sys
+importa traceback
+importa tkinter come tk
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+da rad importa NOME
+da rad.config importa Configurazione, CARTELLA
+da rad.finestra importa Applicazione
+
+
+definisci registra_errore(tipo_, valore, tb):
+    """Gli errori dentro PitStudio non lo fanno chiudere: vengono scritti nel registro e mostrati nella barra di stato."""
+    testo_ = "".join(traceback.format_exception(tipo_, valore, tb))
+    prova:
+        os.makedirs(CARTELLA, exist_ok=Vero)
+        con open(os.path.join(CARTELLA, "errori.log"), "a", encoding="utf-8") come f:
+            f.write(testo_ + "\n")
+    eccetto OSError:
+        passa
+    se sys.stderr:
+        sys.stderr.write(testo_)
+
+
+definisci autotest(percorso_rapporto):
+    """PitStudio.exe --autotest rapporto.txt : verifica avvio, interprete, esecuzione di un programma e finestre; scrive il rapporto e termina."""
+    importa subprocess, tempfile
+    righe = []
+    righe.append("eseguibile: " + sys.executable)
+    righe.append("versione: " + sys.version.split()[0])
+    radice = tk.Tk()
+    radice.withdraw()
+    cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "config.json"))
+    app = Applicazione(radice, cfg)
+    radice.update()
+    righe.append("finestra: " + radice.title())
+    interprete = cfg.interprete()
+    righe.append("interprete dei programmi: " + interprete)
+    d = tempfile.mkdtemp()
+    programma = os.path.join(d, "prova.pit")
+    con open(programma, "w", encoding="utf-8") come f:
+        f.write("importa matematica\nstampa('risultato', 6 * 7, matematica.radice_quadrata(49))\n")
+    r = subprocess.run([interprete, "-u", programma], capture_output=Vero, text=Vero, encoding="utf-8")
+    righe.append("esecuzione: codice " + testo(r.returncode) + " -> " + r.stdout.strip() + " " + r.stderr.strip())
+    righe.append("librerie spuntabili: " + testo(lunghezza(app.pannello_librerie.tutte)))
+    con open(percorso_rapporto, "w", encoding="utf-8") come f:
+        f.write("\n".join(righe) + "\n")
+    radice.destroy()
+
+
+definisci principale(argomenti):
+    se "--autotest" in argomenti:
+        i = argomenti.index("--autotest")
+        autotest(argomenti[i + 1] se lunghezza(argomenti) > i + 1 altrimenti "autotest.txt")
+        ritorna
+    prova:
+        importa ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    eccetto Exception:
+        passa
+    radice = tk.Tk()
+    radice.report_callback_exception = registra_errore
+    app = Applicazione(radice, Configurazione())
+    se lunghezza(argomenti) > 1 e os.path.isdir(argomenti[1]):
+        app.apri_progetto(argomenti[1])
+    radice.mainloop()
+
+
+se __nome__ == "__main__":
+    principale(sys.argv)

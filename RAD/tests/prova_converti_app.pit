@@ -1,0 +1,45 @@
+importa sys, os, tempfile, time, subprocess, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.mattonelle_ui importa EditorMattonelle
+da rad importa ai
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+cfg.imposta("ai.conferma_scrittura", Falso, notifica=Falso)
+cfg.imposta("ai.conferma_esecuzione", Falso, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1400x860+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "Esistente")
+Progetto.nuovo(cart, "Esistente", "vuoto")
+shutil.copy(os.path.join(QUI, "campioni", "esempio_completo.pit"), os.path.join(cart, "esempio.pit"))
+app.apri_progetto(cart)
+app.apri_file(os.path.join(cart, "esempio.pit"))
+radice.update()
+percorsi, rapporto = app.converti_in_mattonelle(nome=Nessuno, silenzioso=Vero)
+radice.update()
+stampa("convertito:", percorsi)
+stampa(rapporto.splitlines()[0], "|", rapporto.splitlines()[1])
+ed = [w per w in app.schede.values() se isinstance(w, EditorMattonelle)][0]
+stampa("finestre di lavoro:", lista(ed.viste))
+r1 = subprocess.run([sys.executable, os.path.join(cart, "esempio.pit")], capture_output=Vero, text=Vero, cwd=cart)
+r2 = subprocess.run([sys.executable, os.path.join(cart, "esempio_mattonelle.pit")], capture_output=Vero, text=Vero, cwd=cart)
+stampa("stesso output dell'originale:", r1.stdout == r2.stdout, r2.returncode)
+strumenti = ai.Strumenti(app, cfg, app.ponte)
+esito, errore = strumenti.esegui("converti_in_mattonelle", {"file": "esempio.pit", "nome": "da_ai"})
+stampa("strumento AI:", errore, esito.splitlines()[0])
+ed.vai_alla_funzione("pari_o_dispari")
+ed.vedi_codice()
+radice.update()
+time.sleep(0.6)
+radice.update()
+x, y = radice.winfo_rootx(), radice.winfo_rooty()
+ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(QUI, "..", "docs", "conversione.png"))
+app.chiudi_tutte_le_schede()
+radice.destroy()

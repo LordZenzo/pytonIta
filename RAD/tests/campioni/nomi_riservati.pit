@@ -1,0 +1,58 @@
+importa sqlite3
+importa matematica come mt
+
+classe = "3A"                       # una variabile chiamata classe
+stampa(classe)
+con = sqlite3.connect(":memory:")   # una connessione
+stampa(tipo(con).__name__)
+prova = [1, 2, 3]                   # un elenco chiamato prova
+stampa(prova)
+da = 2
+a = 5
+per n in intervallo(da, a):
+    stampa(n, end=" ")
+stampa()
+
+definisci elimina(x):
+    ritorna x - 1
+
+definisci produci(n):
+    ritorna n * 2
+
+stampa(elimina(10), produci(4))
+
+classe Cane:
+    definisci __inizializza__(se_stesso):
+        se_stesso.classe = "mammifero"
+        se_stesso.passa = 7
+        se_stesso.importa = 1
+
+c = Cane()
+stampa(c.classe, c.passa, c.importa)
+
+definisci f(da=1, con=2, prova=3):
+    ritorna da + con + prova
+
+stampa(f(da=10), f(con=5))
+d = {classe: 1, "x": 2}
+stampa(d)
+stampa([classe, prova[0]])
+stampa(lista(abbina(prova, prova)))
+mia = lambda classe: classe + 1
+stampa(mia(1))
+se classe == "3A":
+    stampa("ok classe")
+con apri("nomi_prova.txt", "w") come file:
+    file.scrivi("x")
+con apri("nomi_prova.txt") come con2:
+    stampa(con2.leggi_tutto())
+da matematica importa pi come importa_pi
+stampa(importa_pi > 3)
+x = [n per n in intervallo(5) se n % 2 == 0]
+stampa(x)
+stampa(1 se classe altrimenti 2)
+prova:
+    1 / 0
+eccetto DivisionePerZero come e:
+    stampa("e =", e)
+altrimenti_ = 3

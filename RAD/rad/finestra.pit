@@ -1,0 +1,1354 @@
+"""Finestra principale di PitStudio: unisce progetti, editor, progettista, console e chat."""
+importa json
+importa os
+importa re
+importa shlex
+importa sys
+importa tkinter come tk
+da tkinter importa ttk, messagebox, filedialog, simpledialog
+
+da rad importa NOME, VERSIONE, tema, form_modello, esecuzione, dialoghi, stile
+da rad.config importa Configurazione
+da rad.editor importa Editor, linguaggio_di
+da rad.debug importa SessioneDebug
+da rad.librerie importa PannelloLibrerie
+da rad.progetto importa Progetto, PannelloProgetto, tipo_file
+da rad.risorse importa crea_visore
+da rad.progettista importa Progettista
+da rad importa mattonelle_modello
+da rad.mattonelle_ui importa EditorMattonelle
+da rad importa mattonelle_converti
+da rad.esecuzione importa Console
+da rad.chat importa PannelloChat
+da rad.ponte_ui importa PonteUI
+da rad.impostazioni importa Impostazioni
+
+CARTELLA_PROGETTI = os.path.join(os.path.expanduser("~"), "RAD_progetti")
+
+
+classe Applicazione:
+    """Coordina tutti i pannelli. Fa anche da 'ambiente' per l'assistente AI."""
+
+    definisci __inizializza__(se_stesso, radice, config=Nessuno):
+        se_stesso.radice = radice
+        se_stesso.config_ = config o Configurazione()
+        se_stesso.colori = tema.colori(se_stesso.config_)
+        se_stesso.progetto = Nessuno
+        se_stesso.schede = {}            # percorso assoluto -> widget della scheda
+        se_stesso.punti_arresto = {}     # percorso assoluto -> insieme di righe con punto di arresto (debugger)
+        se_stesso.debug = SessioneDebug(se_stesso)
+        se_stesso._sintassi = {}         # widget -> id del lavoro programmato
+        se_stesso.ponte = PonteUI(radice)
+        radice.title(NOME)
+        radice.geometry(se_stesso.config_.ottieni("finestra.geometria", "1400x860"))
+        radice.minsize(900, 560)
+        se_stesso._costruisci()
+        se_stesso.applica_tema()
+        se_stesso.config_.quando_cambia(se_stesso._config_cambiata)
+        radice.protocol("WM_DELETE_WINDOW", se_stesso.esci)
+        se_stesso._associa_scorciatoie()
+        se_stesso.ripristina_ultimo_progetto()
+
+    # ================================================================== struttura
+    definisci _costruisci(se_stesso):
+        r = se_stesso.radice
+        c = se_stesso.colori
+        stile.imposta_icona_finestra(r)
+        se_stesso._menu_principale()
+        # ---- barra degli strumenti
+        se_stesso.barra = tk.Frame(r)
+        se_stesso.barra.pack(side="top", fill="x")
+        se_stesso.pulsanti_barra = []
+        se_stesso._logo_barra = stile.logo_tk(26)
+        tk.Label(se_stesso.barra, image=se_stesso._logo_barra, borderwidth=0).pack(side="left", padx=(10, 6), pady=5)
+        se_stesso._etichetta_logo = se_stesso.barra.winfo_children()[0]
+
+        definisci aggiungi(icona, testo_, comando, aiuto, accento=Falso, lato="left"):
+            b = stile.PulsanteIcona(se_stesso.barra, icona, testo_, comando, c, accento, aiuto)
+            b.pack(side=lato, padx=1, pady=4)
+            se_stesso.pulsanti_barra.append(b)
+            ritorna b
+
+        definisci separa(lato="left"):
+            sep = stile.Separatore(se_stesso.barra, c)
+            sep.pack(side=lato, fill="y", padx=6, pady=9)
+            se_stesso.pulsanti_barra.append(sep)
+
+        aggiungi("apri", "", se_stesso.apri_progetto, "Apri progetto  (Ctrl+O)")
+        aggiungi("nuovo", "", se_stesso.nuovo_progetto, "Nuovo progetto")
+        separa()
+        aggiungi("salva", "", se_stesso.salva_scheda, "Salva  (Ctrl+S)")
+        separa()
+        se_stesso.pulsante_esegui = aggiungi("esegui", "Esegui", se_stesso.esegui_principale, "Esegui il programma  (F5)", Vero)
+        se_stesso.pulsante_ferma = aggiungi("ferma", "", se_stesso.ferma, "Ferma l'esecuzione  (Maiusc+F5)")
+        se_stesso.pulsante_debug = aggiungi("debug", "", se_stesso.debug_avvia, "Esegui con il debugger  (F6) · punti di arresto: F9 o clic sul margine")
+        separa()
+        aggiungi("finestra", "", lambda: se_stesso.nuovo_form(), "Nuova finestra (progettista grafico)")
+        aggiungi("mattonelle", "", lambda: se_stesso.nuovo_mattonelle(), "Nuovo programma a mattonelle")
+        aggiungi("cerca", "", se_stesso.cerca_nel_progetto, "Cerca nel progetto")
+        aggiungi("impostazioni", "", se_stesso.impostazioni, "Impostazioni", lato="right")
+        aggiungi("aiuto", "", lambda: se_stesso.apri_aiuto(), "Guida  (F1)", lato="right")
+        se_stesso.pulsante_chat = aggiungi("chat", "Assistente", se_stesso.mostra_chat, "Mostra/nascondi l'assistente AI  (Ctrl+J)", lato="right")
+        se_stesso.riga_barra = tk.Frame(r, height=1)
+        se_stesso.riga_barra.pack(side="top", fill="x")
+        # ---- barra di stato
+        se_stesso.stato = tk.Frame(r)
+        se_stesso.stato.pack(side="bottom", fill="x")
+        se_stesso.testo_stato = tk.Label(se_stesso.stato, anchor="w", text="Pronto", font=("Segoe UI", 9))
+        se_stesso.testo_stato.pack(side="left", padx=10, pady=3)
+        se_stesso.segmenti_stato = []
+
+        definisci segmento(testo_=""):
+            sep = tk.Frame(se_stesso.stato, width=1)
+            sep.pack(side="right", fill="y", pady=4)
+            lab = tk.Label(se_stesso.stato, anchor="e", text=testo_, font=("Segoe UI", 9))
+            lab.pack(side="right", padx=10)
+            se_stesso.segmenti_stato.append((lab, sep))
+            ritorna lab
+        se_stesso.testo_ai = segmento("")
+        se_stesso.testo_versione = segmento("pytonIta " + VERSIONE_INTERPRETE())
+        se_stesso.testo_posizione = segmento("")
+        se_stesso.testo_progetto = segmento("")
+        # ---- corpo
+        se_stesso.corpo = tk.PanedWindow(r, orient="horizontal", sashwidth=5, borderwidth=0, sashrelief="flat")
+        se_stesso.corpo.pack(fill="both", expand=Vero)
+        sinistra = tk.Frame(se_stesso.corpo)
+        # due pannelli a schede nella colonna di sinistra: file del progetto e librerie spuntabili
+        se_stesso.schede_sinistra = tk.Frame(sinistra)
+        se_stesso.schede_sinistra.pack(fill="x", side="top")
+        se_stesso.corpo_sinistra = tk.Frame(sinistra)
+        se_stesso.corpo_sinistra.pack(fill="both", expand=Vero)
+        se_stesso.pannello_progetto = PannelloProgetto(se_stesso.corpo_sinistra, se_stesso, se_stesso.config_)
+        se_stesso.pannello_librerie = PannelloLibrerie(se_stesso.corpo_sinistra, se_stesso)
+        se_stesso.pulsanti_sinistra = {}
+        per chiave, testo_ in (("progetto", "📁  Progetto"), ("librerie", "📚  Librerie")):
+            b = tk.Label(se_stesso.schede_sinistra, text=testo_, padx=12, pady=6, cursor="hand2", font=("Segoe UI", 9))
+            b.pack(side="left")
+            b.bind("<Button-1>", lambda e, k=chiave: se_stesso.mostra_pannello_sinistro(k))
+            se_stesso.pulsanti_sinistra[chiave] = b
+        se_stesso.pannello_sinistro = "progetto"
+        se_stesso.mostra_pannello_sinistro("progetto")
+        se_stesso.sinistra = sinistra
+        centro = tk.PanedWindow(se_stesso.corpo, orient="vertical", sashwidth=5, borderwidth=0)
+        se_stesso.centro = centro
+        se_stesso.schede_nb = stile.SchedeChiudibili(centro, c, quando_chiudi=lambda w: se_stesso.chiudi_scheda(w))
+        se_stesso.schede_nb.bind("<<NotebookTabChanged>>", se_stesso._scheda_cambiata)
+        se_stesso.schede_nb.bind("<Button-2>", se_stesso._chiudi_con_clic_centrale)
+        se_stesso.schede_nb.bind("<Button-3>", se_stesso._menu_scheda)
+        se_stesso.console = Console(centro, se_stesso.config_, se_stesso.colori, se_stesso)
+        centro.add(se_stesso.schede_nb, minsize=200, stretch="always")
+        centro.add(se_stesso.console, minsize=90, height=se_stesso.config_.ottieni("finestra.console_altezza", 190))
+        se_stesso.chat = PannelloChat(se_stesso.corpo, se_stesso.config_, se_stesso.colori, se_stesso, se_stesso.ponte)
+        se_stesso.corpo.add(sinistra, minsize=160, width=se_stesso.config_.ottieni("finestra.pannello_sinistro", 270))
+        se_stesso.corpo.add(centro, minsize=400, stretch="always")
+        se_stesso.corpo.add(se_stesso.chat, minsize=280, width=se_stesso.config_.ottieni("finestra.pannello_destro", 430))
+        se_stesso._benvenuto = Nessuno
+        se_stesso._mostra_benvenuto()
+        se non se_stesso.config_.ottieni("finestra.chat_visibile", Vero):
+            se_stesso.corpo.forget(se_stesso.chat)
+        se non se_stesso.config_.ottieni("finestra.console_visibile", Vero):
+            se_stesso.centro.forget(se_stesso.console)
+        se non se_stesso.config_.ottieni("finestra.progetti_visibile", Vero):
+            se_stesso.corpo.forget(se_stesso.sinistra)
+        se_stesso._aggiorna_stato_ai()
+
+    definisci _menu_principale(se_stesso):
+        r = se_stesso.radice
+        barra = tk.Menu(r)
+        se_stesso.menu_barra = barra
+        r.configure(menu=barra)
+
+        file = tk.Menu(barra, tearoff=0)
+        file.add_command(label="Nuovo progetto…", command=se_stesso.nuovo_progetto)
+        file.add_command(label="Apri progetto…", command=se_stesso.apri_progetto, accelerator="Ctrl+O")
+        se_stesso.menu_recenti = tk.Menu(file, tearoff=0)
+        file.add_cascade(label="Progetti recenti", menu=se_stesso.menu_recenti)
+        file.add_separator()
+        file.add_command(label="Nuovo file…", command=lambda: se_stesso.pannello_progetto.nuovo_file(), accelerator="Ctrl+N")
+        file.add_command(label="Nuova finestra (progettista)…", command=lambda: se_stesso.nuovo_form())
+        file.add_command(label="Nuovo programma a mattonelle…", command=lambda: se_stesso.nuovo_mattonelle())
+        file.add_command(label="Converti il file corrente in mattonelle…", command=lambda: se_stesso.converti_in_mattonelle())
+        file.add_command(label="Traduci il file .py corrente in pytonIta…", command=lambda: se_stesso.traduci_in_pit())
+        file.add_separator()
+        file.add_command(label="Salva", command=se_stesso.salva_scheda, accelerator="Ctrl+S")
+        file.add_command(label="Salva tutto", command=se_stesso.salva_tutto, accelerator="Ctrl+Maiusc+S")
+        file.add_command(label="Chiudi scheda", command=se_stesso.chiudi_scheda_corrente, accelerator="Ctrl+W")
+        file.add_separator()
+        file.add_command(label="Esci", command=se_stesso.esci)
+        barra.add_cascade(label="File", menu=file)
+
+        modifica = tk.Menu(barra, tearoff=0)
+        per etichetta, funzione, acc in (("Annulla", lambda: se_stesso._su_editor("annulla"), "Ctrl+Z"),
+                                          ("Ripeti", lambda: se_stesso._su_editor("ripeti"), "Ctrl+Y"),
+                                          (Nessuno, Nessuno, ""),
+                                          ("Trova e sostituisci…", lambda: se_stesso._su_editor("mostra_ricerca"), "Ctrl+F"),
+                                          ("Vai a riga…", se_stesso.vai_a_riga, "Ctrl+G"),
+                                          ("Commenta / decommenta", lambda: se_stesso._su_editor("commenta"), "Ctrl+/"),
+                                          ("Duplica riga", lambda: se_stesso._su_editor("duplica_riga"), "Ctrl+D"),
+                                          ("Mostra suggerimenti", lambda: se_stesso._su_editor("suggerisci", Vero), "Ctrl+Spazio")):
+            se etichetta è Nessuno:
+                modifica.add_separator()
+            altrimenti:
+                modifica.add_command(label=etichetta, command=funzione, accelerator=acc)
+        barra.add_cascade(label="Modifica", menu=modifica)
+
+        prog = tk.Menu(barra, tearoff=0)
+        prog.add_command(label="Cerca nel progetto…", command=se_stesso.cerca_nel_progetto)
+        prog.add_command(label="Aggiungi risorse (immagini, JSON…)…", command=lambda: se_stesso.pannello_progetto.aggiungi_risorse())
+        prog.add_command(label="Imposta il file corrente come principale", command=se_stesso.imposta_corrente_principale)
+        prog.add_command(label="Proprietà del progetto…", command=se_stesso.proprieta_progetto)
+        prog.add_command(label="Aggiorna l'albero", command=lambda: se_stesso.pannello_progetto.aggiorna())
+        barra.add_cascade(label="Progetto", menu=prog)
+
+        esegui = tk.Menu(barra, tearoff=0)
+        esegui.add_command(label="Esegui il file principale", command=se_stesso.esegui_principale, accelerator="F5")
+        esegui.add_command(label="Esegui il file corrente", command=se_stesso.esegui_corrente)
+        esegui.add_command(label="Ferma", command=se_stesso.ferma, accelerator="Maiusc+F5")
+        esegui.add_separator()
+        esegui.add_command(label="Debug: avvia il file principale", command=se_stesso.debug_avvia, accelerator="F6")
+        esegui.add_command(label="Debug: avvia passo passo dalla prima riga", command=lambda: se_stesso.debug_avvia(Vero))
+        esegui.add_command(label="Punto di arresto sulla riga corrente", command=se_stesso.alterna_punto_arresto, accelerator="F9")
+        esegui.add_command(label="Passo (sopra le chiamate)", command=lambda: se_stesso.debug.comando("passo"), accelerator="F10")
+        esegui.add_command(label="Entra nella funzione", command=lambda: se_stesso.debug.comando("entra"), accelerator="F11")
+        esegui.add_command(label="Esci dalla funzione", command=lambda: se_stesso.debug.comando("esci"), accelerator="Maiusc+F11")
+        esegui.add_command(label="Togli tutti i punti di arresto", command=se_stesso.togli_punti_arresto)
+        esegui.add_separator()
+        esegui.add_command(label="Controlla la sintassi", command=se_stesso.controlla_corrente)
+        esegui.add_command(label="Pulisci la console", command=lambda: se_stesso.console.pulisci())
+        barra.add_cascade(label="Esegui", menu=esegui)
+
+        vista = tk.Menu(barra, tearoff=0)
+        vista.add_command(label="Pannello progetto", command=lambda: se_stesso._commuta("progetti"))
+        vista.add_command(label="Console", command=lambda: se_stesso._commuta("console"))
+        vista.add_command(label="Assistente AI", command=se_stesso.mostra_chat, accelerator="Ctrl+J")
+        vista.add_separator()
+        vista.add_command(label="Tema chiaro / scuro", command=se_stesso.commuta_tema)
+        vista.add_command(label="Ingrandisci il testo", command=lambda: se_stesso.zoom(1), accelerator="Ctrl++")
+        vista.add_command(label="Riduci il testo", command=lambda: se_stesso.zoom(-1), accelerator="Ctrl+-")
+        barra.add_cascade(label="Visualizza", menu=vista)
+
+        strumenti = tk.Menu(barra, tearoff=0)
+        strumenti.add_command(label="Impostazioni…", command=se_stesso.impostazioni)
+        strumenti.add_command(label="Chiedi all'AI di spiegare il codice selezionato", command=se_stesso.ai_spiega)
+        strumenti.add_command(label="Chiedi all'AI di correggere l'ultimo errore", command=se_stesso.ai_correggi)
+        strumenti.add_separator()
+        strumenti.add_command(label="Manuale pytonIta (apri)", command=se_stesso.apri_manuale)
+        barra.add_cascade(label="Strumenti", menu=strumenti)
+
+        aiuto = tk.Menu(barra, tearoff=0)
+        aiuto.add_command(label="Guida di PitStudio", command=lambda: se_stesso.apri_aiuto(), accelerator="F1")
+        aiuto.add_command(label="Primi passi", command=lambda: se_stesso.apri_aiuto("primi-passi"))
+        aiuto.add_command(label="Scorciatoie da tastiera", command=lambda: se_stesso.apri_aiuto("scorciatoie"))
+        aiuto.add_command(label="Riferimento del linguaggio pytonIta", command=lambda: se_stesso.apri_aiuto("linguaggio"))
+        aiuto.add_command(label="Apri la guida nel browser", command=lambda: se_stesso.apri_aiuto("@browser"))
+        aiuto.add_separator()
+        aiuto.add_command(label=f"Informazioni su {NOME}", command=lambda: dialoghi.informazioni(se_stesso.radice))
+        barra.add_cascade(label="Aiuto", menu=aiuto)
+        se_stesso._aggiorna_recenti()
+
+    definisci _aggiorna_recenti(se_stesso):
+        m = se_stesso.menu_recenti
+        m.delete(0, "end")
+        recenti = [r per r in se_stesso.config_.ottieni("recenti", []) se os.path.isdir(r)]
+        per r in recenti:
+            m.add_command(label=r, command=lambda p=r: se_stesso.apri_progetto(p))
+        se non recenti:
+            m.add_command(label="(nessuno)", state="disabled")
+
+    definisci _associa_scorciatoie(se_stesso):
+        r = se_stesso.radice
+        s = se_stesso.config_.ottieni("scorciatoie", {})
+        per sequenza in getattr(se_stesso, "_sequenze", []):
+            r.unbind(sequenza)
+        se_stesso._sequenze = []
+        mappa = {"salva": se_stesso.salva_scheda, "salva_tutto": se_stesso.salva_tutto,
+                 "apri_progetto": se_stesso.apri_progetto, "nuovo_file": lambda: se_stesso.pannello_progetto.nuovo_file(),
+                 "esegui": se_stesso.esegui_principale, "ferma": se_stesso.ferma,
+                 "debug": se_stesso.debug_avvia, "punto_arresto": se_stesso.alterna_punto_arresto,
+                 "passo": lambda: se_stesso.debug.comando("passo"), "entra": lambda: se_stesso.debug.comando("entra"),
+                 "esci": lambda: se_stesso.debug.comando("esci"),
+                 "trova": lambda: se_stesso._su_editor("mostra_ricerca"), "vai_a_riga": se_stesso.vai_a_riga,
+                 "commenta": lambda: se_stesso._su_editor("commenta"),
+                 "suggerisci": lambda: se_stesso._su_editor("suggerisci", Vero),
+                 "chat": se_stesso.mostra_chat, "chiudi_scheda": se_stesso.chiudi_scheda_corrente}
+        per nome, funzione in mappa.items():
+            seq = s.get(nome)
+            se non seq:
+                continua
+            sequenza = f"<{seq}>"
+            prova:
+                r.bind(sequenza, lambda e, f=funzione: f() o "break")
+                se_stesso._sequenze.append(sequenza)
+            eccetto tk.TclError:
+                passa
+        r.bind("<F1>", lambda e: se_stesso.apri_aiuto(se_stesso._parola_sotto_cursore()) o "break")
+        r.bind("<Control-plus>", lambda e: se_stesso.zoom(1) o "break")
+        r.bind("<Control-equal>", lambda e: se_stesso.zoom(1) o "break")
+        r.bind("<Control-minus>", lambda e: se_stesso.zoom(-1) o "break")
+
+    # ================================================================== tema e impostazioni
+    definisci applica_tema(se_stesso):
+        c = se_stesso.colori = tema.colori(se_stesso.config_)
+        r = se_stesso.radice
+        tema.configura_stile(r, c)
+        r.configure(background=c["sfondo"])
+        tema.applica(r, c)
+        se_stesso.barra.configure(background=c["sfondo"])
+        se_stesso._etichetta_logo.configure(background=c["sfondo"])
+        se_stesso.riga_barra.configure(background=c["bordo"])
+        per b in se_stesso.pulsanti_barra:
+            b.applica_colori(c)
+        se_stesso.schede_nb.applica_stile(c)
+        se_stesso.stato.configure(background=c["pannello"])
+        se_stesso.testo_stato.configure(background=c["pannello"], foreground=c["primo_piano"])
+        per lab, sep in se_stesso.segmenti_stato:
+            lab.configure(background=c["pannello"], foreground=c["tenue"])
+            sep.configure(background=c["bordo"])
+        se_stesso.corpo.configure(background=c["sfondo"])
+        se_stesso.centro.configure(background=c["sfondo"])
+        se_stesso.sinistra.configure(background=c["pannello"])
+        se_stesso.schede_sinistra.configure(background=c["pannello"])
+        se_stesso.corpo_sinistra.configure(background=c["pannello"])
+        se_stesso.pannello_librerie.applica_colori(c)
+        se_stesso.mostra_pannello_sinistro(se_stesso.pannello_sinistro)
+        se_stesso.pannello_progetto.configure(background=c["pannello"])
+        se_stesso.pannello_progetto.barra.configure(background=c["pannello"])
+        se_stesso.pannello_progetto.etichetta.configure(background=c["pannello"], foreground=c["primo_piano"])
+        per b in se_stesso.pannello_progetto.barra.winfo_children():
+            se b.winfo_class() == "Button":
+                b.configure(background=c["pulsante"], foreground=c["primo_piano"], relief="flat", activebackground=c["pulsante_attivo"])
+        se_stesso.console.applica_colori(c)
+        se se_stesso.debug.pannello è non Nessuno:
+            se_stesso.debug.pannello.applica_colori(c)
+        se_stesso.chat.applica_colori(c)
+        per w in se_stesso.schede.values():
+            se hasattr(w, "applica_colori"):
+                w.applica_colori(c)
+        se_stesso._menu_colori(se_stesso.menu_barra, c)
+        se_stesso._mostra_benvenuto(aggiorna=Vero)
+
+    definisci _menu_colori(se_stesso, menu, c):
+        prova:
+            menu.configure(background=c["pannello"], foreground=c["primo_piano"], activebackground=c["accento"],
+                           activeforeground="#ffffff", borderwidth=0)
+        eccetto tk.TclError:
+            ritorna
+        per i in intervallo(menu.index("end") + 1 se menu.index("end") è non Nessuno altrimenti 0):
+            prova:
+                sotto = menu.nametowidget(menu.entrycget(i, "menu"))
+                se_stesso._menu_colori(sotto, c)
+            eccetto (tk.TclError, KeyError):
+                passa
+
+    definisci _aggiorna_stato_ai(se_stesso):
+        pronta = bool(se_stesso.chat.cliente_pronto()) se hasattr(se_stesso, "chat") altrimenti Falso
+        se_stesso.testo_ai.configure(text="●  Assistente AI pronto" se pronta altrimenti "○  Assistente AI: manca la chiave",
+                                     foreground=se_stesso.colori["ok"] se pronta altrimenti se_stesso.colori["avviso"])
+
+    definisci mostra_pannello_sinistro(se_stesso, chiave):
+        """Passa dai file del progetto all'elenco delle librerie (e viceversa)."""
+        se_stesso.pannello_sinistro = chiave
+        pannelli = {"progetto": se_stesso.pannello_progetto, "librerie": se_stesso.pannello_librerie}
+        per k, w in pannelli.items():
+            w.pack_forget()
+        pannelli[chiave].pack(fill="both", expand=Vero)
+        # l'elenco delle librerie ha bisogno di più spazio per le descrizioni
+        prova:
+            larghezza = se_stesso.corpo.sash_coord(0)[0]
+            se chiave == "librerie" e larghezza < 420:
+                se_stesso._larghezza_precedente = larghezza
+                se_stesso.corpo.sash_place(0, 430, 1)
+            altrimenti_se chiave == "progetto" e getattr(se_stesso, "_larghezza_precedente", Nessuno):
+                se_stesso.corpo.sash_place(0, se_stesso._larghezza_precedente, 1)
+                se_stesso._larghezza_precedente = Nessuno
+        eccetto (tk.TclError, IndexError):
+            passa
+        c = se_stesso.colori
+        per k, b in se_stesso.pulsanti_sinistra.items():
+            attivo = k == chiave
+            b.configure(background=c["sfondo"] se attivo altrimenti c["pannello"], foreground=c["primo_piano"] se attivo altrimenti c["tenue"],
+                        font=("Segoe UI Semibold", 9) se attivo altrimenti ("Segoe UI", 9))
+
+    definisci _editor_corrente(se_stesso):
+        w = se_stesso._scheda_corrente()
+        ritorna w se isinstance(w, Editor) altrimenti Nessuno
+
+    definisci _parola_sotto_cursore(se_stesso):
+        """La parola dell'editor sotto il cursore (per la guida contestuale), oppure Nessuno."""
+        w = se_stesso._scheda_corrente()
+        se isinstance(w, Editor):
+            prova:
+                riga = w.t.get("insert linestart", "insert lineend")
+                col = int(w.t.index("insert").split(".")[1])
+                import_re = re
+                per m in import_re.finditer(r"[^\W\d]\w*", riga):
+                    se m.start() <= col <= m.end():
+                        ritorna "@parola:" + m.group()
+            eccetto tk.TclError:
+                passa
+        ritorna Nessuno
+
+    definisci apri_aiuto(se_stesso, argomento=Nessuno):
+        da rad.aiuto importa apri_aiuto
+        apri_aiuto(se_stesso, argomento)
+
+    definisci _config_cambiata(se_stesso, percorso):
+        se_stesso._aggiorna_stato_ai()
+        se percorso in ("*", "tema") o percorso.startswith("temi_personalizzati"):
+            se_stesso.applica_tema()
+        se percorso in ("*",) o percorso.startswith("editor"):
+            per w in se_stesso.schede.values():
+                se isinstance(w, Editor):
+                    w.applica_impostazioni()
+                    w.applica_colori(se_stesso.colori)
+            se_stesso.console.applica_colori(se_stesso.colori)
+        se percorso in ("*",) o percorso.startswith("scorciatoie"):
+            se_stesso._associa_scorciatoie()
+        se percorso in ("*",) o percorso.startswith("ai"):
+            se_stesso.chat.var_modello.set(se_stesso.config_.ottieni("ai.modello"))
+            se_stesso.chat.selettore.configure(values=se_stesso.config_.ottieni("ai.modelli", []))
+
+    definisci impostazioni(se_stesso):
+        Impostazioni(se_stesso.radice, se_stesso.config_, se_stesso.colori).mostra()
+
+    definisci commuta_tema(se_stesso):
+        se_stesso.config_.imposta("tema", "chiaro" se se_stesso.config_.ottieni("tema") == "scuro" altrimenti "scuro")
+        se_stesso.config_.salva()
+
+    definisci zoom(se_stesso, passo):
+        n = max(6, min(40, se_stesso.config_.ottieni("editor.dimensione", 11) + passo))
+        se_stesso.config_.imposta("editor.dimensione", n)
+        se_stesso.config_.salva()
+
+    definisci _commuta(se_stesso, cosa):
+        se cosa == "console":
+            se testo(se_stesso.console) in [testo(x) per x in se_stesso.centro.panes()]:
+                se_stesso.centro.forget(se_stesso.console)
+            altrimenti:
+                se_stesso.centro.add(se_stesso.console, minsize=90, height=se_stesso.config_.ottieni("finestra.console_altezza", 190))
+        altrimenti_se cosa == "progetti":
+            se testo(se_stesso.sinistra) in [testo(x) per x in se_stesso.corpo.panes()]:
+                se_stesso.corpo.forget(se_stesso.sinistra)
+            altrimenti:
+                se_stesso.corpo.add(se_stesso.sinistra, minsize=160, width=270, before=se_stesso.centro)
+
+    definisci mostra_chat(se_stesso):
+        visibile = testo(se_stesso.chat) in [testo(x) per x in se_stesso.corpo.panes()]
+        se visibile:
+            se_stesso.corpo.forget(se_stesso.chat)
+        altrimenti:
+            se_stesso.corpo.add(se_stesso.chat, minsize=280, width=se_stesso.config_.ottieni("finestra.pannello_destro", 430))
+            se_stesso.chat.ingresso.focus_set()
+
+    # ================================================================== progetti
+    definisci ripristina_ultimo_progetto(se_stesso):
+        recenti = se_stesso.config_.ottieni("recenti", [])
+        se recenti e os.path.exists(os.path.join(recenti[0], "progetto.rad.json")):
+            se_stesso.apri_progetto(recenti[0])
+
+    definisci nuovo_progetto(se_stesso):
+        os.makedirs(CARTELLA_PROGETTI, exist_ok=Vero)
+        risultato = dialoghi.DialogoNuovoProgetto(se_stesso.radice, se_stesso.colori, CARTELLA_PROGETTI).mostra()
+        se non risultato:
+            ritorna
+        nome, cartella, modello = risultato
+        prova:
+            Progetto.nuovo(cartella, nome, modello)
+        eccetto OSError come errore:
+            messagebox.showerror("Errore", testo(errore), parent=se_stesso.radice)
+            ritorna
+        se_stesso.apri_progetto(cartella)
+
+    definisci apri_progetto(se_stesso, cartella=Nessuno):
+        se non cartella:
+            cartella = filedialog.askdirectory(parent=se_stesso.radice, initialdir=CARTELLA_PROGETTI se os.path.isdir(CARTELLA_PROGETTI) altrimenti os.path.expanduser("~"),
+                                               title="Apri la cartella di un progetto")
+        se non cartella:
+            ritorna
+        cartella = os.path.abspath(cartella)
+        se se_stesso.progetto e se_stesso.progetto.cartella != cartella:
+            se non se_stesso.chiudi_tutte_le_schede():
+                ritorna
+        se non os.path.exists(os.path.join(cartella, "progetto.rad.json")):
+            se messagebox.askyesno("Nuovo progetto", "Questa cartella non è un progetto PitStudio. Vuoi trasformarla in un progetto?", parent=se_stesso.radice):
+                p = Progetto(cartella)
+                p.salva_manifesto()
+            altrimenti:
+                ritorna
+        se_stesso.salva_sessione()
+        se_stesso.progetto = Progetto(cartella)
+        se_stesso.config_.aggiungi_recente(cartella)
+        se_stesso.pannello_progetto.imposta_progetto(se_stesso.progetto)
+        se_stesso.pannello_librerie.imposta_progetto(se_stesso.progetto)
+        se_stesso.radice.title(f"{se_stesso.progetto.nome} — {NOME}")
+        se_stesso.testo_progetto.configure(text=f"📦 {se_stesso.progetto.nome}")
+        se_stesso._aggiorna_recenti()
+        se_stesso.chat.carica_cronologia()
+        se_stesso.console.pulisci()
+        se_stesso._nascondi_benvenuto()
+        se_stesso.ripristina_sessione()
+        se non se_stesso.schede e se_stesso.progetto.percorso_principale():
+            se_stesso.apri_file(se_stesso.progetto.percorso_principale())
+        se_stesso.info(f"Progetto aperto: {cartella}")
+
+    definisci proprieta_progetto(se_stesso):
+        se non se_stesso.progetto:
+            ritorna
+        p = se_stesso.progetto
+        nuovo = simpledialog.askstring("Proprietà del progetto", "Argomenti da passare al programma principale:",
+                                       initialvalue=p.manifesto.get("argomenti", ""), parent=se_stesso.radice)
+        se nuovo è non Nessuno:
+            p.manifesto["argomenti"] = nuovo
+            p.salva_manifesto()
+
+    definisci imposta_corrente_principale(se_stesso):
+        w = se_stesso._scheda_corrente()
+        p = se_stesso._percorso_di(w)
+        se p e se_stesso.progetto e se_stesso.progetto.contiene(p) e p.endswith(".pit"):
+            se_stesso.progetto.imposta_principale(se_stesso.progetto.relativo(p))
+            se_stesso.pannello_progetto.aggiorna()
+            se_stesso.info(f"File principale: {se_stesso.progetto.principale}")
+
+    # ---- sessione (schede aperte)
+    definisci _file_sessione(se_stesso):
+        ritorna os.path.join(se_stesso.progetto.cartella, ".rad", "sessione.json") se se_stesso.progetto altrimenti Nessuno
+
+    definisci salva_sessione(se_stesso):
+        f = se_stesso._file_sessione()
+        se non f:
+            ritorna
+        aperti = [se_stesso.progetto.relativo(p) per p in se_stesso.schede se se_stesso.progetto.contiene(p)]
+        attivo = se_stesso._percorso_di(se_stesso._scheda_corrente())
+        prova:
+            os.makedirs(os.path.dirname(f), exist_ok=Vero)
+            con open(f, "w", encoding="utf-8") come fl:
+                json.dump({"aperti": aperti, "attivo": se_stesso.progetto.relativo(attivo) se attivo e se_stesso.progetto.contiene(attivo) altrimenti "",
+                           "punti_arresto": {se_stesso.progetto.relativo(p): sorted(r) per p, r in se_stesso.punti_arresto.items() se se_stesso.progetto.contiene(p) e r}}, fl)
+        eccetto OSError:
+            passa
+
+    definisci ripristina_sessione(se_stesso):
+        se_stesso.punti_arresto = {}
+        f = se_stesso._file_sessione()
+        prova:
+            con open(f, encoding="utf-8") come fl:
+                d = json.load(fl)
+        eccetto (OSError, ValueError, ErroreDiTipo):
+            ritorna
+        se_stesso.punti_arresto = {os.path.abspath(os.path.join(se_stesso.progetto.cartella, rel)): set(righe)
+                                   per rel, righe in d.get("punti_arresto", {}).items()}
+        per rel in d.get("aperti", []):
+            p = os.path.join(se_stesso.progetto.cartella, rel)
+            se os.path.exists(p):
+                se_stesso.apri_file(p)
+        attivo = d.get("attivo")
+        se attivo:
+            se_stesso.apri_file(os.path.join(se_stesso.progetto.cartella, attivo))
+
+    # ================================================================== schede
+    definisci _scheda_corrente(se_stesso):
+        prova:
+            nome = se_stesso.schede_nb.select()
+            se nome:
+                ritorna se_stesso.schede_nb.nametowidget(nome)
+        eccetto (tk.TclError, KeyError):
+            passa
+        ritorna Nessuno
+
+    definisci _percorso_di(se_stesso, widget):
+        per p, w in se_stesso.schede.items():
+            se w è widget:
+                ritorna p
+        ritorna Nessuno
+
+    definisci _titolo_scheda(se_stesso, widget):
+        p = se_stesso._percorso_di(widget)
+        nome = os.path.basename(p) se p altrimenti "?"
+        se isinstance(widget, Progettista):
+            nome = "🪟 " + widget.form.nome
+        altrimenti_se isinstance(widget, EditorMattonelle):
+            nome = "🧱 " + widget.nome_base()
+        ritorna ("● " se getattr(widget, "modificato", Falso) altrimenti "") + nome
+
+    definisci scheda_modificata(se_stesso, widget):
+        prova:
+            se_stesso.schede_nb.tab(widget, text=se_stesso._titolo_scheda(widget))
+        eccetto tk.TclError:
+            passa
+        se isinstance(widget, Editor) e widget.modificato:
+            se_stesso._programma_sintassi(widget)
+
+    definisci _aggiungi_scheda(se_stesso, percorso, widget):
+        se_stesso._nascondi_benvenuto()
+        se_stesso.schede[percorso] = widget
+        se_stesso.schede_nb.add(widget, text=se_stesso._titolo_scheda(widget))
+        se_stesso.schede_nb.select(widget)
+
+    definisci apri_file(se_stesso, percorso, riga=Nessuno):
+        percorso = os.path.abspath(percorso)
+        se percorso in se_stesso.schede:
+            se_stesso.schede_nb.select(se_stesso.schede[percorso])
+            w = se_stesso.schede[percorso]
+        altrimenti:
+            se non os.path.exists(percorso):
+                se_stesso.info(f"File non trovato: {percorso}")
+                ritorna Nessuno
+            cartelle = [se_stesso.progetto.cartella] se se_stesso.progetto altrimenti []
+            tipo_ = tipo_file(percorso)
+            w = Nessuno
+            prova:
+                se tipo_ == "form":
+                    f = form_modello.carica_form(percorso)
+                    w = Progettista(se_stesso.schede_nb, percorso, f, se_stesso.colori, se_stesso.config_, se_stesso)
+                altrimenti_se tipo_ == "mattonelle":
+                    prog = mattonelle_modello.carica_programma(percorso)
+                    w = EditorMattonelle(se_stesso.schede_nb, percorso, prog, se_stesso.colori, se_stesso.config_, se_stesso)
+                altrimenti:
+                    w = crea_visore(se_stesso.schede_nb, percorso, se_stesso.colori, se_stesso.config_, se_stesso)
+                    se w è Nessuno:
+                        w = Editor(se_stesso.schede_nb, se_stesso.config_, se_stesso.colori, percorso,
+                                   sul_cambio=se_stesso.scheda_modificata, sul_cursore=se_stesso._cursore,
+                                   cartelle_progetto=cartelle)
+                        w.carica(percorso)
+                        w.punti_arresto = set(se_stesso.punti_arresto.get(os.path.abspath(percorso), ()))
+                        w.sui_punti_arresto = se_stesso._cambio_punti_arresto
+            eccetto (OSError, ValueError, KeyError) come errore:
+                messagebox.showerror("Errore", f"Impossibile aprire {os.path.basename(percorso)}:\n{errore}", parent=se_stesso.radice)
+                ritorna Nessuno
+            tema.applica(w, se_stesso.colori)
+            se hasattr(w, "applica_colori"):
+                w.applica_colori(se_stesso.colori)
+            se_stesso._aggiungi_scheda(percorso, w)
+            se isinstance(w, Editor):
+                se_stesso._programma_sintassi(w, subito=Vero)
+        se riga e isinstance(w, Editor):
+            w.vai_a(riga)
+        altrimenti_se isinstance(w, Editor):
+            w.t.focus_set()
+        ritorna w
+
+    definisci apri_file_a_riga(se_stesso, percorso, riga):
+        se non os.path.isabs(percorso) e se_stesso.progetto:
+            percorso = os.path.join(se_stesso.progetto.cartella, percorso)
+        w = se_stesso.apri_file(percorso, riga)
+        se isinstance(w, Editor):
+            w.segna_errore(riga)
+
+    definisci apri_file_a_funzione(se_stesso, percorso, nome_funzione):
+        w = se_stesso.apri_file(percorso)
+        se isinstance(w, Editor) e nome_funzione:
+            w.ricarica_se_cambiato_su_disco()
+            ricerca = w.t.search(f"definisci {nome_funzione}", "1.0", stopindex="end")
+            se ricerca:
+                w.vai_a(int(ricerca.split(".")[0]))
+
+    definisci _scheda_cambiata(se_stesso, e=Nessuno):
+        w = se_stesso._scheda_corrente()
+        p = se_stesso._percorso_di(w)
+        se p:
+            se_stesso.testo_stato.configure(text=p)
+            se_stesso.testo_posizione.configure(text="")
+            se isinstance(w, Editor):
+                se_stesso._cursore(w.riga_cursore(), 1)
+        altrimenti:
+            se_stesso.testo_stato.configure(text="Pronto")
+
+    definisci _cursore(se_stesso, riga, colonna):
+        se_stesso.testo_posizione.configure(text=f"Riga {riga}, col {colonna}")
+
+    definisci chiudi_scheda(se_stesso, widget, chiedi=Vero):
+        se widget è Nessuno:
+            ritorna Vero
+        se chiedi e getattr(widget, "modificato", Falso):
+            nome = os.path.basename(se_stesso._percorso_di(widget) o "?")
+            r = messagebox.askyesnocancel("Modifiche non salvate", f"Salvare le modifiche a «{nome}»?", parent=se_stesso.radice)
+            se r è Nessuno:
+                ritorna Falso
+            se r:
+                widget.salva()
+        p = se_stesso._percorso_di(widget)
+        se hasattr(widget, "chiudi"):
+            widget.chiudi()
+        prova:
+            se_stesso.schede_nb.forget(widget)
+        eccetto tk.TclError:
+            passa
+        se p:
+            elimina se_stesso.schede[p]
+        widget.destroy()
+        se non se_stesso.schede:
+            se_stesso._mostra_benvenuto()
+        ritorna Vero
+
+    definisci chiudi_scheda_corrente(se_stesso):
+        se_stesso.chiudi_scheda(se_stesso._scheda_corrente())
+
+    definisci chiudi_tutte_le_schede(se_stesso):
+        se_stesso.salva_sessione()
+        per w in lista(se_stesso.schede.values()):
+            se non se_stesso.chiudi_scheda(w):
+                ritorna Falso
+        ritorna Vero
+
+    definisci _chiudi_con_clic_centrale(se_stesso, e):
+        prova:
+            indice = se_stesso.schede_nb.index(f"@{e.x},{e.y}")
+            se_stesso.chiudi_scheda(se_stesso.schede_nb.nametowidget(se_stesso.schede_nb.tabs()[indice]))
+        eccetto (tk.TclError, IndexError, KeyError):
+            passa
+
+    definisci _menu_scheda(se_stesso, e):
+        prova:
+            indice = se_stesso.schede_nb.index(f"@{e.x},{e.y}")
+            w = se_stesso.schede_nb.nametowidget(se_stesso.schede_nb.tabs()[indice])
+        eccetto (tk.TclError, IndexError, KeyError):
+            ritorna
+        m = tk.Menu(se_stesso.radice, tearoff=0)
+        m.add_command(label="Chiudi", command=lambda: se_stesso.chiudi_scheda(w))
+        m.add_command(label="Chiudi le altre", command=lambda: [se_stesso.chiudi_scheda(x) per x in lista(se_stesso.schede.values()) se x è non w])
+        p = se_stesso._percorso_di(w)
+        se p:
+            m.add_command(label="Copia percorso", command=lambda: (se_stesso.radice.clipboard_clear(), se_stesso.radice.clipboard_append(p)))
+        m.tk_popup(e.x_root, e.y_root)
+
+    definisci _su_editor(se_stesso, metodo, *argomenti):
+        w = se_stesso._scheda_corrente()
+        se isinstance(w, Editor):
+            getattr(w, metodo)(*argomenti)
+        altrimenti_se isinstance(w, Progettista) e metodo in ("annulla", "ripeti"):
+            getattr(w, metodo)()
+
+    definisci vai_a_riga(se_stesso):
+        w = se_stesso._scheda_corrente()
+        se isinstance(w, Editor):
+            n = simpledialog.askinteger("Vai a riga", "Numero di riga:", parent=se_stesso.radice, minvalue=1)
+            se n:
+                w.vai_a(n)
+
+    # ---- salvataggio
+    definisci salva_scheda(se_stesso):
+        w = se_stesso._scheda_corrente()
+        se w è Nessuno:
+            ritorna
+        prova:
+            w.salva()
+        eccetto OSError come errore:
+            messagebox.showerror("Errore", testo(errore), parent=se_stesso.radice)
+            ritorna
+        se_stesso.info(f"Salvato {os.path.basename(se_stesso._percorso_di(w) o '')}")
+        se isinstance(w, Editor):
+            se_stesso._programma_sintassi(w, subito=Vero)
+
+    definisci salva_tutto(se_stesso):
+        per w in lista(se_stesso.schede.values()):
+            se getattr(w, "modificato", Falso):
+                prova:
+                    w.salva()
+                eccetto OSError:
+                    passa
+
+    # ---- controllo sintassi in tempo reale
+    definisci _programma_sintassi(se_stesso, widget, subito=Falso):
+        vecchio = se_stesso._sintassi.pop(widget, Nessuno)
+        se vecchio:
+            prova:
+                se_stesso.radice.after_cancel(vecchio)
+            eccetto tk.TclError:
+                passa
+        se_stesso._sintassi[widget] = se_stesso.radice.after(50 se subito altrimenti 700, lambda: se_stesso._controlla(widget))
+
+    definisci _controlla(se_stesso, widget):
+        se_stesso._sintassi.pop(widget, Nessuno)
+        prova:
+            se non widget.winfo_exists():
+                ritorna
+        eccetto tk.TclError:
+            ritorna
+        p = se_stesso._percorso_di(widget)
+        se non p o linguaggio_di(p) è Nessuno:
+            ritorna
+        widget.cancella_errori()
+        errore = esecuzione.controlla_sintassi(widget.contenuto(), p, widget.linguaggio)
+        se errore:
+            riga, colonna, messaggio = errore
+            widget.segna_errore(riga, messaggio)
+            se widget è se_stesso._scheda_corrente():
+                se_stesso.testo_stato.configure(text=f"⚠ riga {riga}: {messaggio}")
+        altrimenti_se widget è se_stesso._scheda_corrente():
+            se_stesso.testo_stato.configure(text=p)
+
+    definisci controlla_corrente(se_stesso):
+        w = se_stesso._scheda_corrente()
+        se isinstance(w, Editor):
+            se_stesso._controlla(w)
+            se non w._righe_errore:
+                se_stesso.info("Sintassi corretta ✔")
+
+    # ================================================================== esecuzione
+    definisci cartella_progetto(se_stesso):
+        ritorna se_stesso.progetto.cartella se se_stesso.progetto altrimenti Nessuno
+
+    # ---- debugger
+    definisci debug_avvia(se_stesso, inizio=Falso):
+        """Esegue il file principale (o il file aperto) sotto il debugger, fermandosi sui punti di arresto."""
+        se se_stesso.debug.attiva:
+            se_stesso.debug.comando("continua")
+            ritorna
+        p = se_stesso.progetto.percorso_principale() se se_stesso.progetto e se_stesso.progetto.percorso_principale() altrimenti Nessuno
+        corrente = se_stesso._percorso_di(se_stesso._scheda_corrente())
+        se corrente e corrente.lower().endswith((".pit", ".py", ".pyw")) e (non p o se_stesso.config_.ottieni("esecuzione.debug_file_corrente", Falso)):
+            p = corrente
+        se non p:
+            se_stesso.info("Apri un file .pit o .py (o imposta il file principale) per avviare il debug.")
+            ritorna
+        se_stesso.debug.avvia(p, inizio)
+
+    definisci alterna_punto_arresto(se_stesso):
+        w = se_stesso._editor_corrente()
+        se w è Nessuno e se_stesso._percorso_di(se_stesso._scheda_corrente()):
+            ritorna
+        se w:
+            w.alterna_punto_arresto()
+
+    definisci _cambio_punti_arresto(se_stesso, editor):
+        se editor.percorso:
+            percorso = os.path.abspath(editor.percorso)
+            se editor.punti_arresto:
+                se_stesso.punti_arresto[percorso] = set(editor.punti_arresto)
+            altrimenti:
+                se_stesso.punti_arresto.pop(percorso, Nessuno)
+        se_stesso.salva_sessione()
+
+    definisci togli_punti_arresto(se_stesso):
+        se_stesso.punti_arresto.clear()
+        per w in se_stesso.schede.values():
+            se isinstance(w, Editor):
+                w.punti_arresto = set()
+                w._ridisegna_numeri()
+        se_stesso.salva_sessione()
+
+    definisci esegui_principale(se_stesso):
+        se se_stesso.debug.attiva e se_stesso.debug.fermo:
+            se_stesso.debug.comando("continua")      # durante il debug F5 prosegue
+            ritorna
+        se se_stesso.progetto e se_stesso.progetto.percorso_principale():
+            se_stesso.esegui_file(se_stesso.progetto.percorso_principale())
+        altrimenti:
+            se_stesso.esegui_corrente()
+
+    definisci esegui_corrente(se_stesso):
+        p = se_stesso._percorso_di(se_stesso._scheda_corrente())
+        se p e p.lower().endswith((".pit", ".py", ".pyw")):
+            se_stesso.esegui_file(p)
+        altrimenti_se p e (p.endswith(".form.json") o p.endswith(".mattonelle.json")):
+            w = se_stesso._scheda_corrente()
+            w.esegui()
+        altrimenti:
+            se_stesso.info("Apri un file .pit o .py da eseguire (o imposta il file principale).")
+
+    definisci esegui_file(se_stesso, percorso):
+        se se_stesso.config_.ottieni("esecuzione.salva_prima", Vero):
+            se_stesso.salva_tutto()
+        argomenti = [se_stesso.config_.interprete(), "-u", percorso]
+        extra = (se_stesso.config_.ottieni("esecuzione.argomenti", "") o "")
+        se se_stesso.progetto e percorso == se_stesso.progetto.percorso_principale():
+            extra = (extra + " " + se_stesso.progetto.manifesto.get("argomenti", "")).strip()
+        se extra:
+            prova:
+                argomenti += shlex.split(extra, posix=Falso)
+            eccetto ValueError:
+                argomenti += extra.split()
+        cartella = se_stesso.progetto.cartella se se_stesso.progetto e se_stesso.progetto.contiene(percorso) altrimenti os.path.dirname(percorso)
+        per w in se_stesso.schede.values():
+            se isinstance(w, Editor):
+                w.cancella_errori()
+        nome = os.path.basename(percorso)
+        se_stesso.console.esegui(argomenti, cartella, f"{nome}")
+
+    definisci ferma(se_stesso):
+        se_stesso.console.ferma()
+
+    definisci stato_esecuzione(se_stesso, in_corso):
+        se_stesso.info("Programma in esecuzione…" se in_corso altrimenti "Programma terminato")
+
+    definisci esecuzione_finita(se_stesso, codice):
+        se codice != 0 e se_stesso.progetto:
+            testo_ = se_stesso.console.t.get("1.0", "end")
+            trovati = lista(re.finditer(r'File "([^"]+)", (?:riga|line) (\d+)', testo_))
+            per m in reversed(trovati):
+                p = m.group(1)
+                se os.path.exists(p) e se_stesso.progetto.contiene(p):
+                    w = se_stesso.schede.get(os.path.abspath(p))
+                    se isinstance(w, Editor):
+                        w.segna_errore(int(m.group(2)))
+                    interrompi
+
+    # ================================================================== finestre (progettista)
+    definisci nuovo_form(se_stesso, cartella_relativa=""):
+        se non se_stesso.progetto:
+            messagebox.showinfo("Progetto", "Apri o crea prima un progetto.", parent=se_stesso.radice)
+            ritorna
+        esistenti = [os.path.basename(f)[:-len(".form.json")] per f in se_stesso.progetto.forms()]
+        nome = dialoghi.DialogoNuovaFinestra(se_stesso.radice, se_stesso.colori, esistenti).mostra()
+        se non nome:
+            ritorna
+        f = form_modello.Form(nome, nome)
+        cartella = se_stesso.progetto.assoluto(cartella_relativa) se cartella_relativa altrimenti se_stesso.progetto.cartella
+        form_modello.salva_form(f, cartella)
+        se_stesso.pannello_progetto.aggiorna()
+        se_stesso.apri_file(form_modello.percorsi_form(cartella, nome)["json"])
+
+    definisci nuovo_mattonelle(se_stesso, cartella_relativa="", nome=Nessuno):
+        """Crea un programma a mattonelle (con la finestra del flusso principale pronta) e lo apre."""
+        se non se_stesso.progetto:
+            messagebox.showinfo("Progetto", "Apri o crea prima un progetto.", parent=se_stesso.radice)
+            ritorna Nessuno
+        esistenti = [os.path.basename(f)[:-len(".mattonelle.json")] per f in se_stesso.progetto.tutti_i_file() se f.endswith(".mattonelle.json")]
+        se nome è Nessuno:
+            nome = dialoghi.DialogoNuovaFinestra(se_stesso.radice, se_stesso.colori, esistenti, "Nuovo programma a mattonelle",
+                                                 "programma").mostra()
+        se non nome:
+            ritorna Nessuno
+        cartella = se_stesso.progetto.assoluto(cartella_relativa) se cartella_relativa altrimenti se_stesso.progetto.cartella
+        prog = mattonelle_modello.Programma(nome)
+        mattonelle_modello.salva_programma(prog, cartella)
+        se_stesso.pannello_progetto.aggiorna()
+        ritorna se_stesso.apri_file(mattonelle_modello.percorsi_programma(cartella, nome)["json"])
+
+    definisci traduci_in_pit(se_stesso, percorso=Nessuno, silenzioso=Falso):
+        """Traduce un programma Python classico (.py) in pytonIta (.pit) accanto all'originale, che non viene toccato.
+
+        Ritorna (percorso_pit, testo_del_rapporto) oppure Nessuno."""
+        se percorso è Nessuno:
+            percorso = se_stesso._percorso_di(se_stesso._scheda_corrente())
+        se non percorso o non percorso.lower().endswith((".py", ".pyw")):
+            se_stesso.info("Seleziona o apri un file .py da tradurre.")
+            ritorna Nessuno
+        percorso = os.path.abspath(percorso)
+        w = se_stesso.schede.get(percorso)
+        sorgente = w.contenuto() se isinstance(w, Editor) altrimenti open(percorso, encoding="utf-8").read()
+        errore = esecuzione.controlla_sintassi(sorgente, percorso, "py")
+        se errore:
+            testo_ = f"Il file ha un errore di sintassi alla riga {errore[0]}: {errore[2]}"
+            se silenzioso:
+                solleva ErroreDiValore(testo_)
+            messagebox.showerror("Traduzione", testo_, parent=se_stesso.radice)
+            ritorna Nessuno
+        importa sys
+        strumenti = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "pitonit", "tools")
+        se strumenti non in sys.path:
+            sys.path.insert(0, strumenti)
+        importa py2pit
+        rapporto = []
+        tradotto = py2pit.traduci(sorgente, rapporto)
+        base = os.path.splitext(percorso)[0]
+        destinazione = base + ".pit"
+        n = 2
+        mentre os.path.exists(destinazione):
+            destinazione = f"{base}_{n}.pit"
+            n += 1
+        con open(destinazione, "w", encoding="utf-8", newline="\n") come f:
+            f.write(tradotto)
+        nomi = sorted({r[1] per r in rapporto})
+        testo_ = "Parole chiave, funzioni e costanti sono ora in italiano."
+        se nomi:
+            testo_ += "\nNomi rinominati perché coincidevano con parole italiane riservate: " + ", ".join(f"{n} → {n}_" per n in nomi)
+        testo_ += "\nLe librerie restano con i loro nomi originali (funzionano uguale)."
+        se_stesso.pannello_progetto.aggiorna()
+        se_stesso.apri_file(destinazione)
+        se_stesso.info(f"Tradotto in pytonIta: {os.path.basename(destinazione)}")
+        se non silenzioso:
+            messagebox.showinfo("Traduzione in pytonIta", f"{os.path.basename(percorso)} → {os.path.basename(destinazione)}\n\n{testo_}\n\nL'originale non è stato toccato.",
+                                parent=se_stesso.radice)
+        ritorna destinazione, testo_
+
+    definisci converti_in_mattonelle(se_stesso, percorso=Nessuno, nome=Nessuno, silenzioso=Falso):
+        """Trasforma un programma .pit in un programma a mattonelle (nome_mattonelle.mattonelle.json) e lo apre.
+
+        Ritorna (percorsi, testo_del_rapporto) oppure Nessuno se non è possibile."""
+        se percorso è Nessuno:
+            percorso = se_stesso._percorso_di(se_stesso._scheda_corrente())
+        se percorso e percorso.lower().endswith(".py"):
+            se_stesso.info("Per convertire in mattonelle un file .py traducilo prima in pytonIta (clic destro → Traduci in pytonIta).")
+            ritorna Nessuno
+        se non percorso o non percorso.lower().endswith(".pit"):
+            se_stesso.info("Seleziona o apri un file .pit da convertire.")
+            ritorna Nessuno
+        percorso = os.path.abspath(percorso)
+        w = se_stesso.schede.get(percorso)
+        sorgente = w.contenuto() se isinstance(w, Editor) altrimenti open(percorso, encoding="utf-8").read()
+        errore = esecuzione.controlla_sintassi(sorgente, percorso)
+        se errore:
+            testo_ = f"Il file ha un errore di sintassi alla riga {errore[0]}: {errore[2]}\nCorreggilo prima di convertire."
+            se silenzioso:
+                solleva ErroreDiValore(testo_)
+            messagebox.showerror("Conversione", testo_, parent=se_stesso.radice)
+            ritorna Nessuno
+        cartella = os.path.dirname(percorso)
+        base = nome o (os.path.splitext(os.path.basename(percorso))[0] + "_mattonelle")
+        n = 2
+        originale = base
+        mentre os.path.exists(mattonelle_modello.percorsi_programma(cartella, base)["json"]):
+            base = f"{originale}{n}"
+            n += 1
+        programma, rapporto = mattonelle_converti.converti_sorgente(sorgente, base)
+        percorsi, avvisi = mattonelle_modello.salva_programma(programma, cartella)
+        se_stesso.pannello_progetto.aggiorna()
+        se_stesso.apri_file(percorsi[0])
+        testo_ = mattonelle_converti.descrivi_rapporto(rapporto)
+        se_stesso.info(f"Convertito in mattonelle: {os.path.basename(percorsi[0])}")
+        se non silenzioso:
+            messagebox.showinfo("Conversione in mattonelle", f"{os.path.basename(percorso)} → {os.path.basename(percorsi[0])}\n\n{testo_}\n\n"
+                                "Il codice generato dalle mattonelle è in " + os.path.basename(percorsi[1])
+                                + "; l'originale non è stato toccato.", parent=se_stesso.radice)
+        ritorna [se_stesso.progetto.relativo(p) se se_stesso.progetto e se_stesso.progetto.contiene(p) altrimenti p per p in percorsi], testo_
+
+    definisci file_scritti(se_stesso, percorsi):
+        """Il progettista ha scritto dei file: aggiorna albero ed editor aperti."""
+        se_stesso.pannello_progetto.aggiorna()
+        per p in percorsi:
+            w = se_stesso.schede.get(os.path.abspath(p))
+            se w e hasattr(w, "ricarica_se_cambiato_su_disco") e w non in se_stesso._progettisti():
+                w.ricarica_se_cambiato_su_disco()
+
+    definisci _progettisti(se_stesso):
+        ritorna [w per w in se_stesso.schede.values() se isinstance(w, Progettista)]
+
+    # ================================================================== operazioni sui file (dal pannello)
+    definisci file_rinominato(se_stesso, vecchio, nuovo):
+        w = se_stesso.schede.pop(os.path.abspath(vecchio), Nessuno)
+        se w:
+            se_stesso.schede[os.path.abspath(nuovo)] = w
+            w.percorso = nuovo
+            se_stesso.scheda_modificata(w)
+
+    definisci file_eliminato(se_stesso, percorso):
+        percorso = os.path.abspath(percorso)
+        per p, w in lista(se_stesso.schede.items()):
+            se p == percorso o p.startswith(percorso + os.sep):
+                se_stesso.chiudi_scheda(w, chiedi=Falso)
+
+    definisci info(se_stesso, messaggio):
+        se_stesso.testo_stato.configure(text=messaggio)
+
+    # ================================================================== finestra di ricerca e manuale
+    definisci cerca_nel_progetto(se_stesso):
+        se non se_stesso.progetto:
+            ritorna
+        dialoghi.DialogoCerca(se_stesso.radice, se_stesso.colori, se_stesso.progetto,
+                              lambda p, riga: se_stesso.apri_file(p, riga)).mostra()
+
+    definisci apri_manuale(se_stesso):
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manuale.md")
+        se os.path.exists(p):
+            se_stesso.apri_file(p)
+
+    # ================================================================== schermata iniziale
+    definisci _mostra_benvenuto(se_stesso, aggiorna=Falso):
+        se_stesso._nascondi_benvenuto()
+        se se_stesso.schede:
+            ritorna
+        c = se_stesso.colori
+        f = tk.Frame(se_stesso.schede_nb, background=c["editor"])
+        centro = tk.Frame(f, background=c["editor"])
+        centro.place(relx=0.5, rely=0.46, anchor="center")
+        se_stesso._logo_benvenuto = stile.logo_tk(88)
+        tk.Label(centro, image=se_stesso._logo_benvenuto, background=c["editor"]).grid(row=0, column=0, rowspan=2, padx=(0, 18))
+        tk.Label(centro, text=NOME, font=("Segoe UI Semibold", 30), background=c["editor"], foreground=c["primo_piano"]).grid(
+            row=0, column=1, sticky="sw")
+        tk.Label(centro, text=f"Ambiente di sviluppo per pytonIta  ·  versione {VERSIONE}", font=("Segoe UI", 11),
+                 background=c["editor"], foreground=c["tenue"]).grid(row=1, column=1, sticky="nw")
+        carte = tk.Frame(centro, background=c["editor"])
+        carte.grid(row=2, column=0, columnspan=2, pady=(28, 6))
+        voci = [("nuovo", "Nuovo progetto", "Console, finestra, mattonelle…", se_stesso.nuovo_progetto),
+                ("apri", "Apri progetto", "Riprendi il lavoro in una cartella", se_stesso.apri_progetto),
+                ("mattonelle", "Programma a mattonelle", "Programma senza scrivere codice", lambda: se_stesso.nuovo_mattonelle()),
+                ("aiuto", "Guida di PitStudio", "Primi passi e riferimento completo", lambda: se_stesso.apri_aiuto())]
+        per i, (icona, titolo, descr, comando) in enumera(voci):
+            carta = tk.Frame(carte, background=c["pannello"], cursor="hand2", highlightthickness=1, highlightbackground=c["bordo"])
+            carta.grid(row=i // 2, column=i % 2, padx=8, pady=8, sticky="nsew")
+            lab_i = tk.Label(carta, text=stile.glifo(icona), font=(stile.famiglia_icone() o "Segoe UI Symbol", 20),
+                             background=c["pannello"], foreground=c["accento"], width=3)
+            lab_i.grid(row=0, column=0, rowspan=2, padx=(12, 4), pady=12)
+            lab_t = tk.Label(carta, text=titolo, font=("Segoe UI Semibold", 11), background=c["pannello"],
+                             foreground=c["primo_piano"], anchor="w", width=22)
+            lab_t.grid(row=0, column=1, sticky="sw", padx=(0, 14), pady=(12, 0))
+            lab_d = tk.Label(carta, text=descr, font=("Segoe UI", 9), background=c["pannello"], foreground=c["tenue"], anchor="w")
+            lab_d.grid(row=1, column=1, sticky="nw", padx=(0, 14), pady=(0, 12))
+            per w in (carta, lab_i, lab_t, lab_d):
+                w.bind("<Button-1>", lambda e, fn=comando: fn())
+                w.bind("<Enter>", lambda e, k=carta: k.configure(highlightbackground=c["accento"]))
+                w.bind("<Leave>", lambda e, k=carta: k.configure(highlightbackground=c["bordo"]))
+        recenti = [r per r in se_stesso.config_.ottieni("recenti", []) se os.path.isdir(r)][:5]
+        se recenti:
+            tk.Label(centro, text="PROGETTI RECENTI", font=("Segoe UI Semibold", 9), background=c["editor"],
+                     foreground=c["tenue"]).grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=(18, 4))
+            per r in recenti:
+                riga = tk.Frame(centro, background=c["editor"], cursor="hand2")
+                riga.grid(sticky="we", columnspan=2)
+                nome_ = tk.Label(riga, text=os.path.basename(r), font=("Segoe UI Semibold", 10), background=c["editor"],
+                                 foreground=c["accento"], anchor="w")
+                nome_.pack(side="left", padx=(10, 12))
+                perc = tk.Label(riga, text=r, font=("Segoe UI", 9), background=c["editor"], foreground=c["tenue"], anchor="w")
+                perc.pack(side="left")
+                per w in (riga, nome_, perc):
+                    w.bind("<Button-1>", lambda e, p=r: se_stesso.apri_progetto(p))
+        tk.Label(f, text="Premi F1 in qualsiasi momento per aprire la guida", font=("Segoe UI", 9), background=c["editor"],
+                 foreground=c["tenue"]).place(relx=0.5, rely=0.97, anchor="s")
+        se_stesso._benvenuto = f
+        se_stesso.schede_nb.add(f, text="Benvenuto")
+
+    definisci _nascondi_benvenuto(se_stesso):
+        se se_stesso._benvenuto è non Nessuno:
+            prova:
+                se_stesso.schede_nb.forget(se_stesso._benvenuto)
+                se_stesso._benvenuto.destroy()
+            eccetto tk.TclError:
+                passa
+            se_stesso._benvenuto = Nessuno
+
+    # ================================================================== AI: scorciatoie
+    definisci ai_spiega(se_stesso):
+        w = se_stesso._scheda_corrente()
+        se isinstance(w, Editor) e w.selezione().strip():
+            se testo(se_stesso.chat) non in [testo(x) per x in se_stesso.corpo.panes()]:
+                se_stesso.mostra_chat()
+            se_stesso.chat.chiedi("Spiegami questo codice (selezione nell'editor) e dimmi se vedi problemi.")
+        altrimenti:
+            se_stesso.info("Seleziona del codice nell'editor.")
+
+    definisci ai_correggi(se_stesso):
+        se testo(se_stesso.chat) non in [testo(x) per x in se_stesso.corpo.panes()]:
+            se_stesso.mostra_chat()
+        se_stesso.chat.chiedi("L'ultima esecuzione ha dato un errore (vedi la console con stato_ide). "
+                              "Trova la causa, correggi il codice e verifica eseguendolo.")
+
+    # ================================================================== interfaccia per l'assistente AI
+    definisci stato_ide(se_stesso):
+        schede = []
+        per p, w in se_stesso.schede.items():
+            schede.append({"file": se_stesso.progetto.relativo(p) se se_stesso.progetto e se_stesso.progetto.contiene(p) altrimenti p,
+                           "modificato": bool(getattr(w, "modificato", Falso)), "tipo": tipo(w).__name__})
+        w = se_stesso._scheda_corrente()
+        p = se_stesso._percorso_di(w)
+        d = {"progetto": se_stesso.progetto.nome se se_stesso.progetto altrimenti Nessuno,
+             "cartella": se_stesso.progetto.cartella se se_stesso.progetto altrimenti Nessuno,
+             "file_principale": se_stesso.progetto.principale se se_stesso.progetto altrimenti Nessuno,
+             "finestre": se_stesso.progetto.forms() se se_stesso.progetto altrimenti [],
+             "schede_aperte": schede,
+             "file_attivo": se_stesso.progetto.relativo(p) se (p e se_stesso.progetto e se_stesso.progetto.contiene(p)) altrimenti p,
+             "programma_in_esecuzione": se_stesso.console.in_esecuzione}
+        se isinstance(w, Editor):
+            d["riga_cursore"] = w.riga_cursore()
+            sel = w.selezione()
+            se sel:
+                d["selezione"] = sel[:4000]
+        d["console_ultime_righe"] = se_stesso.console.t.get("1.0", "end")[-3000:]
+        ritorna d
+
+    definisci contesto_corto(se_stesso):
+        w = se_stesso._scheda_corrente()
+        p = se_stesso._percorso_di(w)
+        se non p:
+            ritorna ""
+        rel = se_stesso.progetto.relativo(p) se (se_stesso.progetto e se_stesso.progetto.contiene(p)) altrimenti p
+        righe = [f"File attivo: {rel}"]
+        se isinstance(w, Editor):
+            righe.append(f"Riga del cursore: {w.riga_cursore()}")
+            sel = w.selezione()
+            se sel:
+                righe.append("Selezione:\n" + sel[:2500])
+        ritorna "\n".join(righe)
+
+    definisci contenuto_aperto(se_stesso, assoluto):
+        w = se_stesso.schede.get(os.path.abspath(assoluto))
+        se isinstance(w, Editor):
+            ritorna w.contenuto()
+        se isinstance(w, (Progettista, EditorMattonelle)):
+            ritorna w.contenuto()
+        ritorna Nessuno
+
+    definisci scrivi_file(se_stesso, assoluto, contenuto):
+        assoluto = os.path.abspath(assoluto)
+        os.makedirs(os.path.dirname(assoluto), exist_ok=Vero)
+        con open(assoluto, "w", encoding="utf-8", newline="\n") come f:
+            f.write(contenuto)
+        w = se_stesso.schede.get(assoluto)
+        se isinstance(w, Editor):
+            pos = w.t.index("insert")
+            w.imposta_contenuto(contenuto)
+            w.t.mark_set("insert", pos)
+            se_stesso._programma_sintassi(w, subito=Vero)
+        altrimenti_se w è Nessuno:
+            se_stesso.apri_file(assoluto)
+        altrimenti_se hasattr(w, "ricarica_se_cambiato_su_disco"):
+            w.ricarica_se_cambiato_su_disco()
+        se_stesso.pannello_progetto.aggiorna()
+
+    definisci elimina_percorso(se_stesso, assoluto):
+        rel = se_stesso.progetto.relativo(assoluto)
+        se_stesso.progetto.cancella(rel)
+        se_stesso.file_eliminato(assoluto)
+        se_stesso.pannello_progetto.aggiorna()
+
+    definisci chiedi_conferma(se_stesso, titolo, dettaglio):
+        ritorna messagebox.askyesno(titolo, dettaglio, parent=se_stesso.radice, icon="question")
+
+    definisci mostra_in_console(se_stesso, nome, r):
+        se_stesso.console.pulisci()
+        se_stesso.console.scrivi(f"🤖 eseguito dall'assistente: {nome}\n", "info")
+        se r["uscita"]:
+            se_stesso.console.scrivi(r["uscita"], "out")
+        se r["errori"]:
+            se_stesso.console.scrivi(r["errori"], "err")
+        se_stesso.console.scrivi(f"\n{'✔' se r['codice'] == 0 altrimenti '✖'} codice {r['codice']} ({r['secondi']} s)\n",
+                                 "ok" se r["codice"] == 0 altrimenti "err")
+
+    definisci json_form(se_stesso, nome):
+        per w in se_stesso._progettisti():
+            se w.form.nome.lower() == nome.lower():
+                ritorna w.form.a_json()
+        p = form_modello.percorsi_form(se_stesso.progetto.cartella, nome)["json"]
+        # cerca anche nelle sottocartelle
+        se non os.path.exists(p):
+            per rel in se_stesso.progetto.forms():
+                se os.path.basename(rel).lower() == nome.lower() + ".form.json":
+                    p = se_stesso.progetto.assoluto(rel)
+        se non os.path.exists(p):
+            solleva ErroreDiValore(f"finestra non trovata: {nome}")
+        ritorna open(p, encoding="utf-8").read()
+
+    definisci imposta_form(se_stesso, f):
+        """Applica un form dell'AI: aggiorna il progettista aperto (o ne apre uno) e genera i file."""
+        cartella = se_stesso.progetto.cartella
+        esistente = Nessuno
+        per w in se_stesso._progettisti():
+            se w.form.nome.lower() == f.nome.lower():
+                esistente = w
+        se esistente è Nessuno:
+            per rel in se_stesso.progetto.forms():
+                se os.path.basename(rel).lower() == f.nome.lower() + ".form.json":
+                    cartella = os.path.dirname(se_stesso.progetto.assoluto(rel))
+        altrimenti:
+            cartella = esistente.cartella
+        scritti = form_modello.salva_form(f, cartella)
+        se esistente:
+            esistente.form = f
+            esistente.cronologia = [f.a_json()]
+            esistente.indice_cronologia = 0
+            esistente.modificato = Falso
+            esistente.ricostruisci()
+            esistente.seleziona([])
+            se_stesso.scheda_modificata(esistente)
+        altrimenti:
+            se_stesso.apri_file(form_modello.percorsi_form(cartella, f.nome)["json"])
+        per p in scritti:
+            w = se_stesso.schede.get(os.path.abspath(p))
+            se isinstance(w, Editor):
+                w.ricarica_se_cambiato_su_disco()
+        se_stesso.pannello_progetto.aggiorna()
+        ritorna [se_stesso.progetto.relativo(p) per p in scritti]
+
+    definisci json_mattonelle(se_stesso, nome):
+        per w in se_stesso.schede.values():
+            se isinstance(w, EditorMattonelle) e w.nome_base().lower() == nome.lower():
+                ritorna w.contenuto()
+        per rel in se_stesso.progetto.tutti_i_file():
+            se os.path.basename(rel).lower() == nome.lower() + ".mattonelle.json":
+                ritorna open(se_stesso.progetto.assoluto(rel), encoding="utf-8").read()
+        solleva ErroreDiValore(f"programma a mattonelle non trovato: {nome}")
+
+    definisci imposta_mattonelle(se_stesso, nome, dizionario):
+        """Sostituisce/crea un programma a mattonelle (dall'AI), lo salva e genera il codice. Ritorna (relativi, avvisi)."""
+        prog = mattonelle_modello.Programma.da_dizionario(dizionario)
+        prog.nome = nome
+        editor = Nessuno
+        cartella = se_stesso.progetto.cartella
+        per w in se_stesso.schede.values():
+            se isinstance(w, EditorMattonelle) e w.nome_base().lower() == nome.lower():
+                editor = w
+        se editor è Nessuno:
+            per rel in se_stesso.progetto.tutti_i_file():
+                se os.path.basename(rel).lower() == nome.lower() + ".mattonelle.json":
+                    cartella = os.path.dirname(se_stesso.progetto.assoluto(rel))
+        altrimenti:
+            cartella = editor.cartella
+        se editor:
+            editor.imposta_programma(prog)
+            editor.salva()
+            percorsi = [editor.percorso, editor.percorso_codice()]
+            _, avvisi = mattonelle_modello.genera_codice(prog)
+        altrimenti:
+            percorsi, avvisi = mattonelle_modello.salva_programma(prog, cartella)
+            se_stesso.apri_file(percorsi[0])
+        per p in percorsi:
+            w = se_stesso.schede.get(os.path.abspath(p))
+            se isinstance(w, Editor):
+                w.ricarica_se_cambiato_su_disco()
+        se_stesso.pannello_progetto.aggiorna()
+        ritorna [se_stesso.progetto.relativo(p) per p in percorsi], avvisi
+
+    definisci inserisci_nell_editor(se_stesso, codice):
+        w = se_stesso._scheda_corrente()
+        se isinstance(w, Editor):
+            se w.t.tag_ranges("sel"):
+                w.t.delete("sel.first", "sel.last")
+            w.inserisci_a_cursore(codice)
+            w.t.focus_set()
+        altrimenti:
+            se_stesso.info("Apri prima un file di testo nell'editor.")
+
+    definisci codice_in_nuovo_file(se_stesso, codice):
+        se non se_stesso.progetto:
+            ritorna
+        nome = simpledialog.askstring("Nuovo file", "Nome del file (es. nuovo.pit):", parent=se_stesso.radice)
+        se nome:
+            p = se_stesso.progetto.crea_file(nome, codice + "\n")
+            se_stesso.pannello_progetto.aggiorna()
+            se_stesso.apri_file(p)
+
+    definisci chat_finita(se_stesso):
+        se_stesso.pannello_progetto.aggiorna()
+        per w in lista(se_stesso.schede.values()):
+            se hasattr(w, "ricarica_se_cambiato_su_disco"):
+                w.ricarica_se_cambiato_su_disco()
+
+    definisci salva_stato_finestra(se_stesso):
+        cfg = se_stesso.config_
+        cfg.imposta("finestra.geometria", se_stesso.radice.geometry(), notifica=Falso)
+        prova:
+            panes = se_stesso.corpo.panes()
+            se testo(se_stesso.sinistra) in [testo(x) per x in panes]:
+                cfg.imposta("finestra.pannello_sinistro", se_stesso.sinistra.winfo_width(), notifica=Falso)
+            se testo(se_stesso.chat) in [testo(x) per x in panes]:
+                cfg.imposta("finestra.pannello_destro", se_stesso.chat.winfo_width(), notifica=Falso)
+            cfg.imposta("finestra.chat_visibile", testo(se_stesso.chat) in [testo(x) per x in panes], notifica=Falso)
+            cfg.imposta("finestra.progetti_visibile", testo(se_stesso.sinistra) in [testo(x) per x in panes], notifica=Falso)
+            alte = se_stesso.centro.panes()
+            cfg.imposta("finestra.console_visibile", testo(se_stesso.console) in [testo(x) per x in alte], notifica=Falso)
+            se testo(se_stesso.console) in [testo(x) per x in alte]:
+                cfg.imposta("finestra.console_altezza", se_stesso.console.winfo_height(), notifica=Falso)
+        eccetto tk.TclError:
+            passa
+        cfg.salva()
+
+    definisci esci(se_stesso):
+        se se_stesso.console.in_esecuzione:
+            se messagebox.askyesno("Esci", "Un programma è ancora in esecuzione. Terminarlo e uscire?", parent=se_stesso.radice):
+                se_stesso.console.ferma()
+            altrimenti:
+                ritorna
+        se non se_stesso.chiudi_tutte_le_schede():
+            ritorna
+        se_stesso.chat.salva_cronologia()
+        se_stesso.salva_stato_finestra()
+        se_stesso.radice.destroy()
+
+
+definisci not_pit(percorso):
+    ritorna non percorso.lower().endswith(".pit")
+
+
+definisci VERSIONE_INTERPRETE():
+    importa sys
+    ritorna ".".join(testo(x) per x in sys.version_info[:3])

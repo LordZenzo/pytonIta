@@ -1,0 +1,16 @@
+importa sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.parole importa suggerisci, membri_di, alias_importati, suggerisci_moduli, BUILTIN, MODULI
+sorgente = """importa interfaccia come tk
+da percorso importa Percorso
+definisci aggiungi_elemento(x):
+    passa
+elenco_nomi = 3
+"""
+stampa("builtin:", lunghezza(BUILTIN), "moduli:", lunghezza(MODULI))
+stampa(alias_importati(sorgente))
+stampa([v[0] per v in suggerisci("elen", sorgente)][:6])
+stampa([v[0] per v in suggerisci("de", sorgente)][:6])
+stampa([v[0] per v in membri_di("tk", sorgente) se v[0].startswith("Fin")])
+stampa([v[0] per v in membri_di("Percorso", sorgente) se v[0].startswith("leg")][:5])
+stampa([v[0] per v in suggerisci_moduli("sist")][:5])

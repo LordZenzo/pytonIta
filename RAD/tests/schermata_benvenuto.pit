@@ -1,0 +1,38 @@
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+d = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(d, "config.json"))
+tema_scelto = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti "scuro"
+cfg.imposta("tema", tema_scelto, notifica=Falso)
+Progetto.nuovo(os.path.join(d, "Anagrafica"), "Anagrafica", "finestra")
+Progetto.nuovo(os.path.join(d, "Calcolatrice"), "Calcolatrice", "mattonelle")
+cfg.dati["recenti"] = [os.path.join(d, "Anagrafica"), os.path.join(d, "Calcolatrice")]
+radice = tk.Tk()
+radice.geometry("1400x860+20+20")
+app = Applicazione(radice, cfg)
+app.progetto = Nessuno
+radice.update()
+time.sleep(0.5)
+radice.update()
+definisci scatta(nome):
+    radice.update()
+    time.sleep(0.4)
+    radice.update()
+    x, y = radice.winfo_rootx(), radice.winfo_rooty()
+    ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(QUI, "..", "docs", nome))
+    stampa("salvata", nome)
+# nel test non si riapre il progetto automaticamente: forza il benvenuto
+app._mostra_benvenuto()
+scatta(f"benvenuto_{tema_scelto}.png")
+app.apri_progetto(os.path.join(d, "Anagrafica"))
+radice.update()
+scatta(f"professionale_{tema_scelto}.png")
+app.chiudi_tutte_le_schede()
+radice.destroy()

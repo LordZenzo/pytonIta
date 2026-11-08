@@ -1,0 +1,22 @@
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.impostazioni importa Impostazioni
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "config.json"))
+radice = tk.Tk()
+radice.geometry("1100x760+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+d = Impostazioni(radice, cfg, app.colori)
+d.geometry("+60+40")
+per _ in intervallo(6):
+    radice.update(); time.sleep(0.15)
+x, y = d.winfo_rootx(), d.winfo_rooty()
+img = ImageGrab.grab(bbox=(x, y, x + d.winfo_width(), y + d.winfo_height()))
+img.save(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "aiuto", "immagini", "impostazioni.png"))
+stampa("ok", img.size)
+radice.destroy()

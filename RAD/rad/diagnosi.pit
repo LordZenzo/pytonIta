@@ -1,0 +1,198 @@
+"""Diagnosi degli errori: spiega in italiano che cosa è successo e come correggere.
+
+analizza(testo_errori, cartella=Nessuno) legge il testo di un errore (traceback o errore di sintassi) e ritorna una stringa di aiuto
+oppure Nessuno. controlla_sintassi() dell'editor e la console usano la stessa funzione.
+"""
+importa difflib
+importa os
+importa re
+
+da rad importa parole
+
+_RE_ULTIMA = re.compile(r"^(\w+): ?(.*)$", re.M)
+_RE_POSTO = re.compile(r'File "([^"]+)", riga (\d+)')
+_RE_NOME_MANCANTE = re.compile(r"il nome '([^']+)' non è definito")
+_RE_MODULO = re.compile(r"nessun modulo chiamato '([^']+)'")
+
+# parole inglesi di Python -> parola italiana equivalente
+KEYWORD_EN = {"if": "se", "elif": "altrimenti_se", "else": "altrimenti", "for": "per", "while": "mentre", "def": "definisci",
+              "return": "ritorna", "class": "classe", "import": "importa", "from": "da", "as": "come", "try": "prova",
+              "except": "eccetto", "finally": "infine", "raise": "solleva", "with": "con", "and": "e", "or": "o", "not": "non",
+              "is": "è", "break": "interrompi", "continue": "continua", "pass": "passa", "global": "globale", "yield": "produci",
+              "del": "elimina", "assert": "asserisci", "True": "Vero", "False": "Falso", "None": "Nessuno", "lambda": "lambda"}
+RISERVATE = {"classe", "definisci", "se", "per", "da", "con", "in", "e", "o", "non", "elimina", "attendi", "asincrono", "passa",
+             "prova", "mentre", "ritorna", "importa", "come", "solleva", "produci", "globale", "interrompi", "continua",
+             "eccetto", "infine", "altrimenti", "altrimenti_se", "è", "asserisci", "nonlocale"}
+LIBRERIE_ESTERNE = {"numpy": "numerico", "pandas": "tabelle", "scipy": "scienza", "matplotlib": "grafici", "requests": "richieste",
+                    "PIL": "immagini", "reportlab": "rapporti_pdf"}
+
+
+definisci _nome_inglese(nome_errore):
+    """ErroreDiNome -> NameError (accetta già il nome inglese)."""
+    prova:
+        importa _italiano
+        per en, it in _italiano.ECCEZIONI.items():
+            se it == nome_errore:
+                ritorna en
+    eccetto Exception:
+        passa
+    ritorna nome_errore
+
+
+definisci _riga_di_codice(percorso, numero):
+    prova:
+        con open(percorso, encoding="utf-8") come f:
+            righe = f.read().split(chr(10))
+        ritorna righe[numero - 1] se 0 < numero <= lunghezza(righe) altrimenti ""
+    eccetto (OSError, UnicodeDecodeError):
+        ritorna ""
+
+
+definisci _vicino(nome, candidati):
+    trovati = difflib.get_close_matches(nome, list(candidati), n=1, cutoff=0.72)
+    ritorna trovati[0] se trovati altrimenti Nessuno
+
+
+definisci _nomi_noti(percorso):
+    nomi = set(parole.BUILTIN) | set(parole.PAROLE_CHIAVE) | set(parole.MODULI_PRIMO_LIVELLO)
+    prova:
+        con open(percorso, encoding="utf-8") come f:
+            sorgente = f.read()
+        nomi |= parole.definizioni(sorgente) | parole.parole_del_testo(sorgente)
+    eccetto (OSError, UnicodeDecodeError, TypeError):
+        passa
+    ritorna nomi
+
+
+definisci _sintassi(messaggio, riga, linguaggio_py):
+    m = messaggio
+    prima = re.match(r"\s*(\w+)", riga)
+    parola = prima.group(1) se prima altrimenti ""
+    se linguaggio_py:
+        ritorna Nessuno
+    se "usa Vero, Falso e Nessuno" in m:
+        ritorna Nessuno      # il messaggio dell'interprete è già esplicito
+    se parola in KEYWORD_EN e parola non in ("is", "as"):
+        ritorna f"«{parola}» è una parola inglese: in un file .pit si scrive «{KEYWORD_EN[parola]}». (I file .py usano invece le parole inglesi.)"
+    inglesi = [w per w in re.findall(r"\b\w+\b", riga) se w in KEYWORD_EN e w non in ("is", "as", "in") e w.islower()]
+    se inglesi e ("non valida" in m o "invalid" in m):
+        w = inglesi[0]
+        ritorna f"Nella riga c'è «{w}», che è inglese: in pytonIta si scrive «{KEYWORD_EN[w]}»."
+    se "atteso ':'" in m o "expected ':'" in m:
+        ritorna "Manca il segno «:» alla fine della riga: serve dopo se, altrimenti, per, mentre, definisci, classe, prova, eccetto, infine, con."
+    se "mai stato chiuso" in m o "was never closed" in m:
+        ritorna "C'è una parentesi aperta che non viene chiusa: controlla che ogni ( [ { abbia la sua ) ] }, anche nelle righe precedenti."
+    se "stringa non terminata" in m o "unterminated string" in m:
+        ritorna "Manca la virgoletta di chiusura di un testo: ogni \" (o ') aperta va chiusa sulla stessa riga."
+    se "Maybe you meant" in m o "Forse intendevi '=='" in m:
+        ritorna "Per confrontare due valori si usa «==» (due uguali); un solo «=» serve ad assegnare un valore a una variabile."
+    se "indentazione" in m:
+        ritorna Nessuno
+    parole_riga = re.findall(r"\b\w+\b", riga)
+    usate = [w per w in parole_riga se w in RISERVATE]
+    se usate e "non valida" in m e prima e parola non in RISERVATE:
+        w = usate[0]
+        ritorna f"«{w}» è una parola riservata di pytonIta: non si può usare come nome di variabile o di funzione. Scegline un'altra (per esempio «{w}_» o un nome più descrittivo)."
+    se usate e "non valida" in m e prima e parola in RISERVATE e riga.strip().startswith(parola + " =") :
+        ritorna f"«{parola}» è una parola riservata di pytonIta: non si può usare come nome di variabile. Scegline un'altra."
+    se "non valida" in m e riga.rstrip().endswith((",", "(")) e non riga.strip().startswith("#"):
+        ritorna Nessuno
+    ritorna Nessuno
+
+
+definisci analizza(testo_errori, cartella=Nessuno, linguaggio_py=Falso):
+    """Ritorna una spiegazione («💡 …») dell'ultimo errore nel testo, oppure Nessuno."""
+    se non testo_errori:
+        ritorna Nessuno
+    corrispondenze = _RE_ULTIMA.findall(testo_errori)
+    se non corrispondenze:
+        ritorna Nessuno
+    nome_errore, messaggio = corrispondenze[-1]
+    en = _nome_inglese(nome_errore)
+    posti = _RE_POSTO.findall(testo_errori)
+    percorso, numero = (posti[-1][0], int(posti[-1][1])) se posti altrimenti ("", 0)
+    riga = _riga_di_codice(percorso, numero) se percorso altrimenti ""
+    aiuto = Nessuno
+
+    se en == "SyntaxError":
+        aiuto = _sintassi(messaggio, riga, linguaggio_py)
+    altrimenti_se en in ("IndentationError", "TabError"):
+        se "inattesa" in messaggio o "unexpected" in messaggio:
+            aiuto = "Questa riga è rientrata più del dovuto: il rientro (gli spazi a inizio riga) deve restare uguale dentro lo stesso blocco e aumentare solo dopo una riga che finisce con «:»."
+        altrimenti_se "atteso un blocco" in messaggio o "expected an indented" in messaggio:
+            aiuto = "Dopo una riga che finisce con «:» il blocco va scritto più a destra (di solito 4 spazi). Se non sai ancora cosa metterci, scrivi «passa»."
+        altrimenti:
+            aiuto = "Il rientro non è coerente: usa sempre 4 spazi, senza mescolare tabulazioni e spazi."
+    altrimenti_se en == "NameError":
+        m = _RE_NOME_MANCANTE.search(messaggio)
+        se m:
+            nome = m.group(1)
+            se nome in KEYWORD_EN:
+                aiuto = f"«{nome}» è inglese: in pytonIta si scrive «{KEYWORD_EN[nome]}»."
+            altrimenti_se nome in parole.MODULI_PRIMO_LIVELLO:
+                aiuto = f"Per usare «{nome}» devi prima importarla: aggiungi «importa {nome}» in cima al file (nel pannello Librerie fai doppio clic sul suo nome)."
+            altrimenti_se nome in LIBRERIE_ESTERNE:
+                aiuto = f"«{nome}» è una libreria: scrivi «importa {nome}» o, in italiano, «importa {LIBRERIE_ESTERNE[nome]}»."
+            altrimenti:
+                vicino = _vicino(nome, _nomi_noti(percorso) - {nome}) se percorso altrimenti Nessuno
+                se vicino e "Forse intendevi" non in messaggio:
+                    aiuto = f"Il nome «{nome}» non esiste: forse volevi scrivere «{vicino}»?"
+                altrimenti:
+                    aiuto = (f"Il nome «{nome}» non è stato definito. Controlla di averlo scritto uguale (maiuscole e minuscole contano), "
+                             "di avergli assegnato un valore prima di usarlo e, se è un testo, di averlo messo tra virgolette.")
+    altrimenti_se en == "ModuleNotFoundError":
+        m = _RE_MODULO.search(messaggio)
+        se m:
+            nome = m.group(1)
+            base = nome.split(".")[0]
+            vicino = _vicino(base, set(parole.MODULI_PRIMO_LIVELLO) | set(parole.MODULI_STANDARD) | set(LIBRERIE_ESTERNE))
+            se vicino:
+                aiuto = f"Il modulo «{base}» non esiste: forse volevi «{vicino}»? Dopo «importa» il pannello Librerie e i suggerimenti dell'editor elencano i nomi validi."
+            altrimenti:
+                aiuto = (f"Il modulo «{base}» non è installato. Controlla il nome nel pannello Librerie; se è una libreria esterna installala con "
+                         f"«pitonit -m pip install {base}».")
+    altrimenti_se en == "FileNotFoundError":
+        dove = f" (cartella di lavoro: {cartella})" se cartella altrimenti ""
+        aiuto = (f"Il file non esiste nel posto indicato{dove}. Un nome senza percorso viene cercato nella cartella del progetto: "
+                 "controlla il nome, l'estensione e che il file sia stato aggiunto al progetto (Progetto → Aggiungi risorse).")
+    altrimenti_se en == "TypeError":
+        se "concatenare" in messaggio o "concatenate" in messaggio:
+            aiuto = "Non si può unire testo e numero con «+». Converti il numero in testo, per esempio «\"Età: \" + testo(eta)», oppure usa un f-testo: f\"Età: {eta}\"."
+        altrimenti_se "richiamabile" in messaggio o "not callable" in messaggio:
+            aiuto = "Stai usando come funzione qualcosa che non lo è (una variabile, un numero, un testo). Controlla di non aver dato a una variabile lo stesso nome di una funzione e di non aver scritto «()» dopo un valore."
+        altrimenti_se "argomenti" in messaggio o "argument" in messaggio:
+            aiuto = "La funzione è stata chiamata con un numero di argomenti diverso da quello che prevede: confronta la chiamata con la riga «definisci» della funzione."
+        altrimenti_se "NoneType" in messaggio:
+            aiuto = "Un valore è Nessuno: probabilmente una funzione non ha un «ritorna» e quindi non restituisce nulla."
+        altrimenti_se "non supportato" in messaggio o "unsupported operand" in messaggio:
+            aiuto = "Stai combinando due tipi di valore che non si possono sommare, sottrarre o moltiplicare tra loro (per esempio un testo e un numero). Controlla i tipi con tipo(x)."
+    altrimenti_se en == "ZeroDivisionError":
+        aiuto = "Si è diviso per zero. Prima della divisione controlla il divisore: «se divisore != 0:»."
+    altrimenti_se en == "IndexError":
+        aiuto = ("Hai chiesto un elemento che non c'è: gli indici partono da 0 e l'ultimo è lunghezza(lista) - 1 (oppure -1). "
+                 "Controlla con «lunghezza(...)» prima di leggere.")
+    altrimenti_se en == "KeyError":
+        aiuto = f"La chiave {messaggio} non è nel dizionario. Usa «dizionario.ottieni(chiave)» (restituisce Nessuno se manca) oppure controlla prima con «se chiave in dizionario:»."
+    altrimenti_se en == "AttributeError":
+        se "NoneType" in messaggio:
+            aiuto = "Stai usando un punto su un valore Nessuno: una funzione che ti aspettavi restituisse un oggetto non ha restituito niente (manca un «ritorna»?)."
+        altrimenti_se "Forse intendevi" non in messaggio:
+            aiuto = "Quell'oggetto non ha quell'attributo o metodo. Scrivi il punto dopo il nome e guarda l'elenco dei suggerimenti dell'editor."
+    altrimenti_se en == "ValueError":
+        se "intero" in messaggio o "int" in messaggio o "float" in messaggio o "decimale" in messaggio:
+            aiuto = "Il testo non rappresenta un numero (forse ci sono spazi, lettere o una virgola al posto del punto). Controlla con «testo.è_cifra()» o usa prova/eccetto."
+        altrimenti_se "unpack" in messaggio o "valori da decomprimere" in messaggio:
+            aiuto = "Il numero di variabili a sinistra dell'«=» non corrisponde a quanti valori ci sono a destra."
+    altrimenti_se en == "UnboundLocalError":
+        aiuto = ("Dentro una funzione hai usato una variabile prima di assegnarle un valore (o hai assegnato un valore a una variabile che esiste anche fuori). "
+                 "Assegnala prima, oppure dichiarala con «globale nome» se vuoi usare quella esterna.")
+    altrimenti_se en == "RecursionError":
+        aiuto = "La funzione si richiama all'infinito: manca il caso base che ferma la ricorsione."
+    altrimenti_se en == "KeyboardInterrupt":
+        aiuto = Nessuno
+    ritorna f"💡 {aiuto}" se aiuto altrimenti Nessuno
+
+
+definisci aiuto_sintassi(messaggio, riga_di_codice, linguaggio_py=Falso):
+    """Spiegazione breve (senza icona) di un errore di sintassi, per la riga segnalata dall'editor; Nessuno se non c'è nulla da aggiungere."""
+    ritorna _sintassi(messaggio, riga_di_codice o "", linguaggio_py)

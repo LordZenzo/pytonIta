@@ -1,0 +1,42 @@
+importa sys, os, tempfile, time, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.mattonelle_ui importa EditorMattonelle
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+cfg.imposta("finestra.chat_visibile", Falso, notifica=Falso)
+cfg.imposta("finestra.console_visibile", Falso, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1500x900+10+10")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "ModFile2")
+Progetto.nuovo(cart, "ModFile2", "vuoto")
+shutil.copy(r"C:\AppPython\ModFile2_pit\modfile_core.pit", os.path.join(cart, "modfile_core.pit"))
+app.apri_progetto(cart)
+radice.update()
+app.converti_in_mattonelle(os.path.join(cart, "modfile_core.pit"), silenzioso=Vero)
+radice.update()
+ed = [w per w in app.schede.values() se isinstance(w, EditorMattonelle)][0]
+radice.update()
+ed.cambia_zoom(0.85)
+definisci scatta(nome, funzione):
+    ed.vai_alla_funzione(funzione)
+    radice.update()
+    time.sleep(0.5)
+    radice.update()
+    x, y = radice.winfo_rootx(), radice.winfo_rooty()
+    ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(QUI, "..", "docs", nome))
+    stampa("salvata", nome)
+scatta("modfile_cambia_nome_lista.png", "cambia_nome_lista")
+scatta("modfile_sposta_blocco.png", "sposta_blocco")
+scatta("modfile_numero_progressivo.png", "numero_progressivo")
+ed.vedi_codice()
+scatta("modfile_con_codice.png", "metti_maiuscole")
+app.chiudi_tutte_le_schede()
+radice.destroy()

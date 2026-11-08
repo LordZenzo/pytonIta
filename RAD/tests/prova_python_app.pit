@@ -1,0 +1,27 @@
+importa sys, os, tempfile, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+radice = tk.Tk()
+radice.geometry("1200x800+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "ClassicoProva")
+Progetto.nuovo(cart, "ClassicoProva", "python")
+app.apri_progetto(cart)
+principale = os.path.join(cart, "principale.py")
+stampa("esiste principale.py:", os.path.exists(principale))
+app.apri_file(principale)
+radice.update()
+w = app.schede.get(principale)
+stampa("linguaggio scheda:", w.linguaggio)
+r = app.traduci_in_pit(principale, silenzioso=Vero)
+stampa("tradotto:", r è non Nessuno e os.path.exists(r[0]))
+src = open(r[0], encoding="utf-8").read()
+stampa("contiene definisci/ritorna/per:", "definisci" in src, "per " in src)
+stampa(src.splitlines()[:6])
+radice.destroy()

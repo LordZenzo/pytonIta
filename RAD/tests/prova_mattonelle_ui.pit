@@ -1,0 +1,131 @@
+importa sys, os, tempfile, time, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.mattonelle_modello importa *
+da rad.mattonelle_ui importa EditorMattonelle
+
+classe Ev:
+    definisci __inizializza__(se_stesso, x=0, y=0, xr=0, yr=0, stato=0, delta=0):
+        se_stesso.x, se_stesso.y, se_stesso.x_root, se_stesso.y_root, se_stesso.state, se_stesso.delta = x, y, xr, yr, stato, delta
+
+classe Az:
+    registro = []
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): se_stesso.registro.append(m)
+    definisci file_scritti(se_stesso, p): se_stesso.registro.append(("scritti", [os.path.basename(x) per x in p]))
+    definisci esegui_file(se_stesso, p): se_stesso.registro.append(("esegui", os.path.basename(p)))
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1250x720+30+30")
+configura_stile(radice, c)
+cart = tempfile.mkdtemp()
+percorso = os.path.join(cart, "demo.mattonelle.json")
+prog = programma_di_esempio("demo")
+az = Az()
+ed = EditorMattonelle(radice, percorso, prog, c, cfg, az)
+ed.pack(fill="both", expand=Vero)
+applica(radice, c)
+radice.update()
+ed.vedi_codice()
+radice.update()
+v = ed.viste["principale"]
+d = v.disegnatore
+a = ed.programma.principale
+definisci centro(m, dy=0):
+    l = d.lay[m.id]
+    ritorna l.x + 14, l.y + l.sopra + l.testa_h // 2 + dy
+definisci ev_tela(cx, cy, **k):
+    # coordinate della tela -> coordinate dello schermo
+    ritorna Ev(int(cx - v.tela.canvasx(0)), int(cy - v.tela.canvasy(0)), v.tela.winfo_rootx() + int(cx - v.tela.canvasx(0)), v.tela.winfo_rooty() + int(cy - v.tela.canvasy(0)), **k)
+
+cap = a.cappello
+stampa("pila:", [m.tipo per m in cap.lista])
+ripeti = cap.lista[2]
+chiama = ripeti.corpi["corpo"][0]
+# 1) stacca la chiamata dal ciclo trascinandola in un'area libera
+cx, cy = centro(chiama)
+v._premi(ev_tela(cx, cy))
+v._muovi_mouse(ev_tela(cx + 200, cy + 150))
+v._muovi_mouse(ev_tela(cx + 300, cy + 220))
+v._rilascia(ev_tela(cx + 300, cy + 220))
+radice.update()
+stampa("1) ciclo vuoto:", ripeti.corpi["corpo"] == [], "radici:", lunghezza(a.radici), "pila:", [m.tipo per m in cap.lista])
+# 2) la riporta dentro il ciclo (aggancio nel corpo)
+r_ch = a.radici[-1]
+lc = d.lay[chiama.id]
+lr = d.lay[ripeti.id]
+v._premi(ev_tela(lc.x + 10, lc.y + lc.testa_h // 2))
+destinazione = d.lay[ripeti.id].corpi[0]
+v._muovi_mouse(ev_tela(lc.x + 40, lc.y + 40))
+v._muovi_mouse(ev_tela(destinazione[1] + 12, destinazione[2] + 14))
+stampa("candidato:", v._candidato["tipo"] se v._candidato altrimenti Nessuno)
+v._rilascia(ev_tela(destinazione[1] + 12, destinazione[2] + 14))
+radice.update()
+stampa("2) dentro il ciclo:", [m.tipo per m in ripeti.corpi["corpo"]], "radici:", lunghezza(a.radici))
+# 3) stacca il valore 'leggi' dallo slot di 'imposta' e lo rimette
+imposta = cap.lista[1]
+leggi = imposta.ingressi["valore"]
+cx, cy = centro(leggi)
+v._premi(ev_tela(cx, cy))
+v._muovi_mouse(ev_tela(cx + 100, cy + 140))
+v._muovi_mouse(ev_tela(cx + 250, cy + 260))
+v._rilascia(ev_tela(cx + 250, cy + 260))
+stampa("3) slot vuoto:", imposta.ingressi["valore"], "radici:", lunghezza(a.radici))
+r_l = a.radici[-1]
+ll = d.lay[leggi.id]
+slot = [x per x in d.lay[imposta.id].segmenti se x[1] == "valore"][0]
+v._premi(ev_tela(ll.x + 10, ll.y + ll.testa_h // 2))
+v._muovi_mouse(ev_tela(slot[2] + 30, slot[3] + 40))
+v._muovi_mouse(ev_tela(slot[2] + 14, slot[3] + 14))
+stampa("candidato slot:", v._candidato["tipo"] se v._candidato altrimenti Nessuno)
+v._rilascia(ev_tela(slot[2] + 14, slot[3] + 14))
+stampa("   rimesso:", imposta.ingressi["valore"].tipo se imposta.ingressi["valore"] altrimenti Nessuno)
+# 4) mattonella nuova dalla tavolozza: "scrivi" in fondo alla pila
+ed.tavolozza.scegli("io")
+radice.update()
+voce = [x per x in ed.tavolozza._voci se x[1] == "stampa"][0]
+rect = voce[0]
+t = ed.tavolozza.tela
+px = t.winfo_rootx() + (rect[0] + rect[2]) // 2
+py = t.winfo_rooty() + (rect[1] + rect[3]) // 2
+ed.tavolozza._premi(Ev(int((rect[0] + rect[2]) // 2), int((rect[1] + rect[3]) // 2), px, py))
+ultimo = cap.lista[-1]
+lu = d.lay[ultimo.id]
+bx = v.tela.winfo_rootx() + int(lu.x + 30 - v.tela.canvasx(0))
+by = v.tela.winfo_rooty() + int(lu.y + lu.h + 16 - v.tela.canvasy(0))
+ed.tavolozza._muovi(Ev(0, 0, bx, by))
+stampa("4) candidato dalla tavolozza:", v._candidato["tipo"] se v._candidato altrimenti Nessuno)
+ed.tavolozza._rilascia(Ev(0, 0, bx, by))
+radice.update()
+stampa("   pila:", [m.tipo per m in cap.lista])
+# 5) modifica di un campo e di un letterale
+cap.lista[-1].letterali["valore"] = "fine!"
+ed.registra(); ed.notifica()
+ed.programma.principale.cappello.lista[1].campi["var"] = "persona"
+# 6) nuova funzione e chiamata
+f2 = ed.programma.aggiungi_funzione("raddoppia", "n")
+ed.ricostruisci_viste()
+ed.notifica()
+radice.update()
+stampa("viste:", lista(ed.viste))
+# 7) salvataggio, generazione ed esecuzione
+ed.salva()
+codice = open(os.path.join(cart, "demo.pit"), encoding="utf-8").read()
+r = subprocess.run([sys.executable, os.path.join(cart, "demo.pit")], input="Luca\n", capture_output=Vero, text=Vero)
+stampa("esecuzione:", r.returncode, repr(r.stdout[-60:]), r.stderr[-120:])
+# annulla / ripeti
+n_prima = lunghezza(ed.cronologia)
+ed.annulla()
+stampa("annulla ok:", lunghezza(ed.programma.funzioni), "<-", n_prima)
+ed.ripeti()
+radice.update()
+time.sleep(0.5)
+radice.update()
+x, y = radice.winfo_rootx(), radice.winfo_rooty()
+ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs", "mattonelle_editor.png"))
+radice.destroy()

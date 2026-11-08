@@ -1,0 +1,136 @@
+"""Campione con molti costrutti per provare il traduttore py2pit."""
+importa asyncio
+importa functools
+da dataclasses importa dataclass
+
+
+@dataclass
+classe Punto:
+    x: intero = 0
+    y: intero = 0
+
+    definisci __add__(self, altro):
+        ritorna Punto(self.x + altro.x, self.y + altro.y)
+
+
+definisci descrivi(cmd):
+    confronta cmd:
+        caso "inizia" | "start":
+            ritorna "avvio"
+        caso ["sposta", x, y]:
+            ritorna f"sposta {x},{y}"
+        caso {"tipo": "foto", "nome": nome}:
+            ritorna f"foto {nome}"
+        caso Punto(x=0, y=0):
+            ritorna "origine"
+        caso [primo, *resto] se lunghezza(resto) > 1:
+            ritorna f"{primo} e altri {lunghezza(resto)}"
+        caso _:
+            ritorna "sconosciuto"
+
+
+tipo Numeri = lista[intero]
+
+
+definisci shadow(id, type):
+    # "id" e "type" sono parametri dell'utente, non i builtin
+    ritorna testo(id) + "/" + testo(type) + "/" + testo(lunghezza([1, 2]))
+
+
+definisci usa_builtin():
+    id = 5                      # nasconde il builtin id solo qui
+    ritorna id, tipo(5).__name__
+
+
+definisci globale_():
+    globale CONTA
+    CONTA = 7
+    ritorna CONTA
+
+
+definisci esterna():
+    totale = 0
+
+    definisci interna():
+        nonlocale totale
+        totale += 1
+        ritorna totale
+
+    interna()
+    ritorna interna()
+
+
+classe Conto:
+    lista_ = []                  # attributo di classe con nome italiano riservato
+
+    definisci __init__(self, testo_, da_=Nessuno, tipo_="x"):
+        self.testo_ = testo_
+        self.da_ = da_
+        self.tipo_ = tipo_
+
+    @proprietà
+    definisci lungo(self):
+        ritorna lunghezza(self.testo_)
+
+    @metodo_statico
+    definisci somma_(a, b):
+        ritorna a + b
+
+    definisci __repr__(self):
+        ritorna f"Conto({self.testo_!r}, da={self.da_}, tipo={self.tipo_})"
+
+
+@functools.lru_cache(maxsize=Nessuno)
+definisci fib(n):
+    ritorna n se n < 2 altrimenti fib(n - 1) + fib(n - 2)
+
+
+definisci generatore(n):
+    per i in intervallo(n):
+        produci i * i
+    ritorna
+
+
+asincrono definisci lento(n):
+    attendi asyncio.sleep(0)
+    ritorna n * 2
+
+
+definisci principale():
+    stampe = []
+    stampe.append(descrivi("start"))
+    stampe.append(descrivi(["sposta", 1, 2]))
+    stampe.append(descrivi({"tipo": "foto", "nome": "a.jpg"}))
+    stampe.append(descrivi(Punto()))
+    stampe.append(descrivi(["a", "b", "c"]))
+    stampe.append(descrivi(42))
+    stampe.append(shadow(1, 2))
+    stampe.append(usa_builtin())
+    stampe.append(globale_())
+    stampe.append(esterna())
+    c = Conto("ciao", da_="lui")
+    stampe.append((rappresentazione(c), c.lungo, Conto.somma_(2, 3), Conto.lista_))
+    stampe.append(lista(generatore(4)))
+    stampe.append(fib(20))
+    stampe.append(asyncio.run(lento(21)))
+    stampe.append([n per n in intervallo(10) se n % 2 == 0 e non n == 4])
+    stampe.append({k: v per k, v in abbina("ab", intervallo(2))})
+    stampe.append((lambda q: q se q è non Nessuno altrimenti 0)(Nessuno))
+    se (n := lunghezza(stampe)) > 3:
+        stampe.append(n)
+    prova:
+        intero("x")
+    eccetto (ErroreDiValore, ErroreDiTipo) come e:
+        stampe.append(tipo(e).__name__)
+    infine:
+        stampe.append(ordinato({3, 1, 2}, reverse=Vero))
+    con apri(__file__, encoding="utf-8") come f:
+        stampe.append(lunghezza(f.read()) > 0)
+    asserisci è_istanza(stampe, lista), "lista"
+    elimina stampe[0]
+    ritorna stampe
+
+
+se __name__ == "__main__":
+    per riga in principale():
+        stampa(riga)

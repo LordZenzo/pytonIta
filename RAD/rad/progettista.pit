@@ -1,0 +1,948 @@
+"""Progettista grafico delle finestre: palette, superficie di disegno, ispettore delle proprietà."""
+importa copy
+importa json
+importa os
+importa shutil
+importa tkinter come tk
+da tkinter importa ttk, messagebox, colorchooser, filedialog, simpledialog
+
+da rad importa form_modello
+da rad.form_modello importa Form, TIPI, ORDINE_PALETTE, proprieta_di, nome_valido
+
+GRIGLIA = 8
+MANIGLIE = {  # nome: (cursore, ancora_x, ancora_y)
+    "no": ("size_nw_se", 0, 0), "n": ("size_ns", 0.5, 0), "ne": ("size_ne_sw", 1, 0),
+    "o": ("size_we", 0, 0.5), "e": ("size_we", 1, 0.5),
+    "so": ("size_ne_sw", 0, 1), "s": ("size_ns", 0.5, 1), "se": ("size_nw_se", 1, 1),
+}
+
+
+definisci crea_widget_di_progetto(c, genitore, cartella):
+    """Un widget vero (ma inerte) che rappresenta il componente durante il disegno."""
+    v = c.valori
+    t = c.tipo
+    stato = "disabled" se v.get("stato") == "disabilitato" altrimenti "normal"
+    colori_ = {}
+    se v.get("sfondo"):
+        colori_["background"] = v["sfondo"]
+    se v.get("primo_piano"):
+        colori_["foreground"] = v["primo_piano"]
+    carattere = v.get("carattere") o Nessuno
+    prova:
+        se t == "Pulsante":
+            w = tk.Button(genitore, text=v["testo"], **colori_)
+        altrimenti_se t == "Etichetta":
+            w = tk.Label(genitore, text=v["testo"], justify={"sinistra": "left", "centro": "center", "destra": "right"}[v["allineamento"]],
+                         anchor=v["ancora"], **colori_)
+        altrimenti_se t == "CampoTesto":
+            w = tk.Entry(genitore, show="*" se v.get("nascondi") altrimenti "")
+            w.insert(0, v.get("testo", ""))
+            se v.get("sfondo"):
+                w.configure(background=v["sfondo"])
+        altrimenti_se t == "AreaTesto":
+            w = tk.Text(genitore, wrap="word" se v.get("a_capo") altrimenti "none")
+            w.insert("1.0", v.get("testo", ""))
+        altrimenti_se t == "Elenco":
+            w = tk.Listbox(genitore, exportselection=Falso)
+            per voce in v.get("elementi", []):
+                w.insert("end", voce)
+        altrimenti_se t == "CasellaSelezione":
+            w = tk.Checkbutton(genitore, text=v["testo"], anchor="w")
+            se v.get("selezionata"):
+                w.select()
+        altrimenti_se t == "PulsanteOpzione":
+            w = tk.Radiobutton(genitore, text=v["testo"], anchor="w", value=1)
+            se v.get("selezionata"):
+                w.select()
+        altrimenti_se t == "Cursore":
+            w = tk.Scale(genitore, from_=v["da"], to=v["a"], orient="horizontal" se v["orientamento"] == "orizzontale" altrimenti "vertical")
+            w.set(v["valore"])
+        altrimenti_se t == "CasellaCombinata":
+            w = ttk.Combobox(genitore, values=list(v.get("valori", [])))
+            w.set(v.get("valore", ""))
+        altrimenti_se t == "BarraProgresso":
+            w = ttk.Progressbar(genitore, maximum=max(1, v["massimo"]), value=v["valore"])
+        altrimenti_se t == "Albero":
+            colonne = list(v.get("colonne", []))
+            w = ttk.Treeview(genitore, columns=colonne, show="headings")
+            per col in colonne:
+                w.heading(col, text=col)
+        altrimenti_se t == "Tela":
+            w = tk.Canvas(genitore, background=v.get("sfondo") o "#ffffff", highlightthickness=1,
+                          highlightbackground="#999999")
+        altrimenti_se t == "Riquadro":
+            rilievo = {"piatto": "flat", "rialzato": "raised", "incavato": "sunken", "solido": "solid"}[v["rilievo"]]
+            w = tk.Frame(genitore, relief=rilievo, borderwidth=v["bordo"], **({"background": v["sfondo"]} se v.get("sfondo") altrimenti {}))
+        altrimenti_se t == "Immagine":
+            w = tk.Label(genitore, text="🖼", relief="groove")
+            percorso = v.get("file") o ""
+            se percorso:
+                p = percorso se os.path.isabs(percorso) altrimenti os.path.join(cartella o "", percorso)
+                se os.path.exists(p):
+                    prova:
+                        da PIL importa Image, ImageTk
+                        img = Image.open(p)
+                        img.thumbnail((c.larghezza, c.altezza))
+                        foto = ImageTk.PhotoImage(img)
+                        w.configure(image=foto, text="", relief="flat")
+                        w._foto = foto
+                    eccetto Eccezione:
+                        passa
+        altrimenti_se t == "Separatore":
+            w = ttk.Separator(genitore, orient="horizontal" se v["orientamento"] == "orizzontale" altrimenti "vertical")
+        altrimenti:
+            w = tk.Label(genitore, text=t)
+        se carattere e t in ("Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione", "PulsanteOpzione"):
+            prova:
+                w.configure(font=carattere)
+            eccetto tk.TclError:
+                passa
+        se t in ("Pulsante", "CampoTesto", "CasellaSelezione", "PulsanteOpzione", "Etichetta", "Cursore") e stato == "disabled":
+            prova:
+                w.configure(state="disabled")
+            eccetto tk.TclError:
+                passa
+    eccetto tk.TclError:
+        w = tk.Label(genitore, text=f"{c.tipo}?", background="#ffdddd")
+    ritorna w
+
+
+classe Progettista(tk.Frame):
+    """Scheda di progettazione di una finestra (un file .form.json)."""
+
+    definisci __inizializza__(se_stesso, genitore, percorso_json, form, colori, config, azioni):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.percorso = percorso_json
+        se_stesso.cartella = os.path.dirname(percorso_json)
+        se_stesso.form = form
+        se_stesso.colori = colori
+        se_stesso.config_ = config
+        se_stesso.azioni = azioni
+        se_stesso.modificato = Falso
+        se_stesso.selezione_ = []          # nomi dei componenti selezionati
+        se_stesso.widget = {}              # nome -> widget tk
+        se_stesso.maniglie = []
+        se_stesso.da_aggiungere = Nessuno  # tipo scelto in palette
+        se_stesso.cronologia = [form.a_json()]
+        se_stesso.indice_cronologia = 0
+        se_stesso.appunti = []
+        se_stesso.griglia_attiva = tk.BooleanVar(value=Vero)
+        se_stesso._trascinamento = Nessuno
+        se_stesso._costruisci()
+        se_stesso.applica_colori(colori)
+        se_stesso.ricostruisci()
+        se_stesso.seleziona([])
+
+    # ------------------------------------------------------------ struttura
+    definisci _costruisci(se_stesso):
+        barra = tk.Frame(se_stesso)
+        barra.pack(fill="x")
+        se_stesso.barra = barra
+        se_stesso.titolo = tk.Label(barra, text="", anchor="w")
+        se_stesso.titolo.pack(side="left", padx=8)
+        per testo_, comando in (("💾 Salva", se_stesso.salva), ("▶ Prova", se_stesso.esegui),
+                                ("‹/› Codice", se_stesso.vai_al_codice), ("↶", se_stesso.annulla), ("↷", se_stesso.ripeti),
+                                ("⧉", se_stesso.duplica), ("🗑", se_stesso.elimina_selezionati)):
+            tk.Button(barra, text=testo_, command=comando).pack(side="left", padx=2, pady=3)
+        tk.Checkbutton(barra, text="Griglia", variable=se_stesso.griglia_attiva,
+                       command=se_stesso._disegna_griglia).pack(side="left", padx=8)
+        se_stesso.menu_allinea = tk.Menubutton(barra, text="Allinea ▾", relief="flat")
+        m = tk.Menu(se_stesso.menu_allinea, tearoff=0)
+        per etichetta, modo in (("A sinistra", "sinistra"), ("A destra", "destra"), ("In alto", "alto"),
+                                ("In basso", "basso"), ("Centra in orizzontale", "centro_x"),
+                                ("Centra in verticale", "centro_y"), ("Stessa larghezza", "stessa_larghezza"),
+                                ("Stessa altezza", "stessa_altezza"), ("Distribuisci in orizzontale", "distribuisci_x"),
+                                ("Distribuisci in verticale", "distribuisci_y")):
+            m.add_command(label=etichetta, command=lambda md=modo: se_stesso.allinea(md))
+        se_stesso.menu_allinea.configure(menu=m)
+        se_stesso.menu_allinea.pack(side="left", padx=4)
+        se_stesso.stato = tk.Label(barra, text="", anchor="e")
+        se_stesso.stato.pack(side="right", padx=8)
+
+        corpo = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=5, borderwidth=0)
+        corpo.pack(fill="both", expand=Vero)
+        se_stesso.corpo = corpo
+        # palette
+        palette = tk.Frame(corpo)
+        se_stesso.palette = palette
+        tk.Label(palette, text="COMPONENTI", anchor="w").pack(fill="x", padx=8, pady=(8, 2))
+        se_stesso.elenco_palette = tk.Listbox(palette, activestyle="none", exportselection=Falso, width=24, height=18, font=("Consolas", 10))
+        per t in ORDINE_PALETTE:
+            se_stesso.elenco_palette.insert("end", f"{TIPI[t]['icona']:>3}   {t}")
+        se_stesso.elenco_palette.pack(fill="both", expand=Vero, padx=6, pady=4)
+        se_stesso.elenco_palette.bind("<<ListboxSelect>>", se_stesso._palette_scelta)
+        se_stesso.elenco_palette.bind("<Double-Button-1>", se_stesso._palette_doppio)
+        se_stesso.suggerimento = tk.Label(palette, wraplength=150, justify="left", anchor="nw",
+                                          text="Scegli un componente e clicca sulla finestra, oppure fai doppio clic.")
+        se_stesso.suggerimento.pack(fill="x", padx=8, pady=6)
+        corpo.add(palette, minsize=150, width=200)
+        # area di disegno scorrevole
+        centro = tk.Frame(corpo)
+        se_stesso.area = tk.Canvas(centro, highlightthickness=0)
+        se_stesso.area._tema_proprio = Vero
+        bx = ttk.Scrollbar(centro, orient="horizontal", command=se_stesso.area.xview)
+        by = ttk.Scrollbar(centro, orient="vertical", command=se_stesso.area.yview)
+        se_stesso.area.configure(xscrollcommand=bx.set, yscrollcommand=by.set)
+        bx.pack(side="bottom", fill="x")
+        by.pack(side="right", fill="y")
+        se_stesso.area.pack(fill="both", expand=Vero)
+        se_stesso.superficie = tk.Canvas(se_stesso.area, highlightthickness=1, cursor="arrow")
+        se_stesso.superficie._tema_proprio = Vero
+        se_stesso.finestra_superficie = se_stesso.area.create_window(30, 30, anchor="nw", window=se_stesso.superficie)
+        se_stesso.superficie.bind("<ButtonPress-1>", se_stesso._clic_superficie)
+        se_stesso.superficie.bind("<Button-3>", lambda e: se_stesso._menu(e, Nessuno))
+        corpo.add(centro, minsize=300, stretch="always")
+        # ispettore
+        ispettore = tk.Frame(corpo)
+        se_stesso.ispettore = ispettore
+        tk.Label(ispettore, text="PROPRIETÀ", anchor="w").pack(fill="x", padx=8, pady=(8, 2))
+        se_stesso.intestazione_ispettore = tk.Label(ispettore, anchor="w", font=("Segoe UI", 10, "bold"))
+        se_stesso.intestazione_ispettore.pack(fill="x", padx=8, pady=2)
+        contenitore = tk.Frame(ispettore)
+        contenitore.pack(fill="both", expand=Vero)
+        se_stesso.tela_ispettore = tk.Canvas(contenitore, highlightthickness=0, width=260)
+        se_stesso.tela_ispettore._tema_proprio = Vero
+        by2 = ttk.Scrollbar(contenitore, orient="vertical", command=se_stesso.tela_ispettore.yview)
+        se_stesso.tela_ispettore.configure(yscrollcommand=by2.set)
+        by2.pack(side="right", fill="y")
+        se_stesso.tela_ispettore.pack(side="left", fill="both", expand=Vero)
+        se_stesso.righe_ispettore = tk.Frame(se_stesso.tela_ispettore)
+        se_stesso.tela_ispettore.create_window(0, 0, anchor="nw", window=se_stesso.righe_ispettore, tags="righe")
+        se_stesso.righe_ispettore.bind("<Configure>", lambda e: se_stesso.tela_ispettore.configure(
+            scrollregion=se_stesso.tela_ispettore.bbox("all")))
+        se_stesso.tela_ispettore.bind("<Configure>", lambda e: se_stesso.tela_ispettore.itemconfigure("righe", width=e.width))
+        corpo.add(ispettore, minsize=240, width=290)
+        se_stesso.area.bind("<Configure>", lambda e: Nessuno)
+        se_stesso.bind_all("<Delete>", se_stesso._tasto_elimina, add="+")
+        se_stesso.configure(takefocus=1)
+        per tasto, dx, dy in (("Left", -1, 0), ("Right", 1, 0), ("Up", 0, -1), ("Down", 0, 1)):
+            se_stesso.bind(f"<{tasto}>", lambda e, dx=dx, dy=dy: se_stesso.sposta_selezione(dx, dy))
+            se_stesso.bind(f"<Shift-{tasto}>", lambda e, dx=dx, dy=dy: se_stesso.sposta_selezione(dx * 10, dy * 10))
+        se_stesso.bind("<Control-d>", lambda e: se_stesso.duplica())
+        se_stesso.bind("<Control-c>", lambda e: se_stesso.copia())
+        se_stesso.bind("<Control-v>", lambda e: se_stesso.incolla())
+        se_stesso.bind("<Control-z>", lambda e: se_stesso.annulla())
+        se_stesso.bind("<Control-y>", lambda e: se_stesso.ripeti())
+        se_stesso.bind("<Control-a>", lambda e: se_stesso.seleziona([c.nome per c in se_stesso.form.componenti]))
+
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        per w in (se_stesso.barra, se_stesso.palette, se_stesso.ispettore, se_stesso.righe_ispettore):
+            w.configure(background=c["pannello"])
+        se_stesso.corpo.configure(background=c["sfondo"])
+        per w in se_stesso.corpo.winfo_children():
+            w.configure(background=c["pannello"])
+        se_stesso.area.configure(background=c["editor"])
+        se_stesso.tela_ispettore.configure(background=c["pannello"])
+        se_stesso.titolo.configure(background=c["pannello"], foreground=c["primo_piano"])
+        se_stesso.stato.configure(background=c["pannello"], foreground=c["tenue"])
+        se_stesso.intestazione_ispettore.configure(background=c["pannello"], foreground=c["accento"])
+        se_stesso.suggerimento.configure(background=c["pannello"], foreground=c["tenue"])
+        se_stesso.elenco_palette.configure(background=c["campo"], foreground=c["primo_piano"],
+                                           selectbackground=c["accento"], selectforeground="#ffffff",
+                                           relief="flat", highlightthickness=0, font=("Consolas", 11))
+        per w in se_stesso.palette.winfo_children() + se_stesso.ispettore.winfo_children():
+            se w.winfo_class() == "Label" e w non in (se_stesso.suggerimento, se_stesso.intestazione_ispettore):
+                w.configure(background=c["pannello"], foreground=c["tenue"])
+        per w in se_stesso.barra.winfo_children():
+            cl = w.winfo_class()
+            se cl == "Button":
+                w.configure(background=c["pulsante"], foreground=c["primo_piano"], relief="flat",
+                            activebackground=c["pulsante_attivo"], padx=8)
+            altrimenti_se cl in ("Checkbutton", "Menubutton"):
+                w.configure(background=c["pannello"], foreground=c["primo_piano"],
+                            activebackground=c["pannello"], activeforeground=c["primo_piano"])
+                se cl == "Checkbutton":
+                    w.configure(selectcolor=c["campo"])
+        se_stesso._disegna_griglia()
+        se_stesso._riempi_ispettore()
+
+    # ------------------------------------------------------------ superficie
+    definisci _disegna_griglia(se_stesso):
+        s = se_stesso.superficie
+        s.delete("griglia")
+        s.configure(background=se_stesso.form.sfondo o "#f0f0f0", highlightbackground=se_stesso.colori["bordo"],
+                    width=se_stesso.form.larghezza, height=se_stesso.form.altezza)
+        se se_stesso.griglia_attiva.get():
+            colore = "#c8c8c8" se (se_stesso.form.sfondo o "#f0f0f0") >= "#808080" altrimenti "#555555"
+            per x in intervallo(0, se_stesso.form.larghezza, GRIGLIA * 2):
+                per y in intervallo(0, se_stesso.form.altezza, GRIGLIA * 2):
+                    s.create_rectangle(x, y, x, y, outline=colore, tags="griglia")
+        se_stesso.area.configure(scrollregion=(0, 0, se_stesso.form.larghezza + 80, se_stesso.form.altezza + 80))
+        se_stesso.titolo.configure(text=f"{se_stesso.form.nome}  —  {se_stesso.form.larghezza}×{se_stesso.form.altezza}")
+
+    definisci ricostruisci(se_stesso):
+        """Ricrea tutti i widget di disegno a partire dal modello."""
+        per w in se_stesso.widget.values():
+            w.destroy()
+        se_stesso.widget = {}
+        se_stesso._disegna_griglia()
+        per c in se_stesso.form.componenti:
+            se_stesso._crea(c)
+        se_stesso._aggiorna_maniglie()
+
+    definisci _crea(se_stesso, c):
+        w = crea_widget_di_progetto(c, se_stesso.superficie, se_stesso.cartella)
+        w.place(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
+        per sequenza, funzione in (("<ButtonPress-1>", se_stesso._premi), ("<B1-Motion>", se_stesso._trascina),
+                                   ("<ButtonRelease-1>", se_stesso._rilascia), ("<Double-Button-1>", se_stesso._doppio),
+                                   ("<Button-3>", se_stesso._menu_widget)):
+            w.bind(sequenza, lambda e, n=c.nome, f=funzione: f(e, n))
+        se_stesso.widget[c.nome] = w
+        ritorna w
+
+    definisci _aggiorna_widget(se_stesso, c):
+        vecchio = se_stesso.widget.pop(c.nome, Nessuno)
+        se vecchio:
+            vecchio.destroy()
+        se_stesso._crea(c)
+        se_stesso._aggiorna_maniglie()
+
+    # ------------------------------------------------------------ selezione e maniglie
+    definisci seleziona(se_stesso, nomi, aggiungi=Falso):
+        se aggiungi:
+            nomi = lista(dict.fromkeys(se_stesso.selezione_ + lista(nomi)))
+        se_stesso.selezione_ = [n per n in nomi se se_stesso.form.trova(n)]
+        se_stesso._aggiorna_maniglie()
+        se_stesso._riempi_ispettore()
+        se_stesso._aggiorna_stato()
+
+    definisci _aggiorna_maniglie(se_stesso):
+        per m in se_stesso.maniglie:
+            m.destroy()
+        se_stesso.maniglie = []
+        per nome in se_stesso.selezione_:
+            c = se_stesso.form.trova(nome)
+            w = se_stesso.widget.get(nome)
+            se non c o non w:
+                continua
+            # contorno di selezione
+            bordo = tk.Frame(se_stesso.superficie, background=se_stesso.colori["accento"])
+            per lato in ("n", "s", "e", "o"):
+                passa
+            se_stesso.maniglie.append(bordo)
+            bordo.place(x=c.x - 1, y=c.y - 1, width=c.larghezza + 2, height=c.altezza + 2)
+            bordo.tk.call("lower", bordo._w, w._w)
+            w.tk.call("raise", w._w)
+            se lunghezza(se_stesso.selezione_) == 1:
+                per chiave, (cursore, ax, ay) in MANIGLIE.items():
+                    m = tk.Frame(se_stesso.superficie, background=se_stesso.colori["accento"], width=8, height=8,
+                                 cursor=cursore, borderwidth=1, relief="solid")
+                    m.place(x=c.x + int(c.larghezza * ax) - 4, y=c.y + int(c.altezza * ay) - 4)
+                    m.bind("<ButtonPress-1>", lambda e, k=chiave, n=nome: se_stesso._inizia_ridimensiona(e, k, n))
+                    m.bind("<B1-Motion>", se_stesso._ridimensiona)
+                    m.bind("<ButtonRelease-1>", se_stesso._fine_ridimensiona)
+                    se_stesso.maniglie.append(m)
+                    m.tk.call("raise", m._w)
+
+    definisci _aggiorna_stato(se_stesso):
+        se non se_stesso.selezione_:
+            se_stesso.stato.configure(text=f"{lunghezza(se_stesso.form.componenti)} componenti")
+        altrimenti_se lunghezza(se_stesso.selezione_) == 1:
+            c = se_stesso.form.trova(se_stesso.selezione_[0])
+            se_stesso.stato.configure(text=f"{c.nome}  x={c.x} y={c.y}  {c.larghezza}×{c.altezza}")
+        altrimenti:
+            se_stesso.stato.configure(text=f"{lunghezza(se_stesso.selezione_)} selezionati")
+
+    # ------------------------------------------------------------ palette
+    definisci _palette_scelta(se_stesso, e=Nessuno):
+        sel = se_stesso.elenco_palette.curselection()
+        se sel:
+            se_stesso.da_aggiungere = ORDINE_PALETTE[sel[0]]
+            se_stesso.superficie.configure(cursor="crosshair")
+            se_stesso.suggerimento.configure(text=f"Clicca sulla finestra per inserire: {se_stesso.da_aggiungere}")
+
+    definisci _palette_doppio(se_stesso, e=Nessuno):
+        sel = se_stesso.elenco_palette.curselection()
+        se sel:
+            n = lunghezza(se_stesso.form.componenti)
+            se_stesso.aggiungi_componente(ORDINE_PALETTE[sel[0]], 20 + (n % 8) * 16, 20 + (n % 8) * 16)
+            se_stesso._annulla_aggiunta()
+
+    definisci _annulla_aggiunta(se_stesso):
+        se_stesso.da_aggiungere = Nessuno
+        se_stesso.superficie.configure(cursor="arrow")
+        se_stesso.elenco_palette.selection_clear(0, "end")
+        se_stesso.suggerimento.configure(text="Scegli un componente e clicca sulla finestra, oppure fai doppio clic.")
+
+    definisci aggiungi_componente(se_stesso, tipo_, x, y, **valori):
+        c = se_stesso.form.aggiungi(tipo_, se_stesso._aggancia(x), se_stesso._aggancia(y), **valori)
+        se_stesso._crea(c)
+        se_stesso._registra()
+        se_stesso.seleziona([c.nome])
+        ritorna c
+
+    definisci _aggancia(se_stesso, v):
+        se se_stesso.griglia_attiva.get():
+            ritorna int(round(v / GRIGLIA) * GRIGLIA)
+        ritorna int(v)
+
+    # ------------------------------------------------------------ mouse
+    definisci _clic_superficie(se_stesso, e):
+        se_stesso.focus_set()
+        se se_stesso.da_aggiungere:
+            se_stesso.aggiungi_componente(se_stesso.da_aggiungere, e.x, e.y)
+            se_stesso._annulla_aggiunta()
+        altrimenti:
+            se_stesso.seleziona([])
+
+    definisci _premi(se_stesso, e, nome):
+        se_stesso.focus_set()
+        se se_stesso.da_aggiungere:
+            # inserisce sopra al widget cliccato, nella posizione del puntatore
+            x = e.x_root - se_stesso.superficie.winfo_rootx()
+            y = e.y_root - se_stesso.superficie.winfo_rooty()
+            se_stesso.aggiungi_componente(se_stesso.da_aggiungere, x, y)
+            se_stesso._annulla_aggiunta()
+            ritorna "break"
+        se e.state & 0x1:       # Maiusc: aggiunge/toglie dalla selezione
+            se nome in se_stesso.selezione_:
+                se_stesso.seleziona([n per n in se_stesso.selezione_ se n != nome])
+            altrimenti:
+                se_stesso.seleziona([nome], aggiungi=Vero)
+        altrimenti_se nome non in se_stesso.selezione_:
+            se_stesso.seleziona([nome])
+        se_stesso._trascinamento = {
+            "x": e.x_root, "y": e.y_root,
+            "inizio": {n: (se_stesso.form.trova(n).x, se_stesso.form.trova(n).y) per n in se_stesso.selezione_},
+            "mosso": Falso}
+        ritorna "break"
+
+    definisci _trascina(se_stesso, e, nome):
+        d = se_stesso._trascinamento
+        se non d:
+            ritorna "break"
+        dx, dy = e.x_root - d["x"], e.y_root - d["y"]
+        se abs(dx) + abs(dy) < 3 e non d["mosso"]:
+            ritorna "break"
+        d["mosso"] = Vero
+        per n, (x0, y0) in d["inizio"].items():
+            c = se_stesso.form.trova(n)
+            c.x = max(0, se_stesso._aggancia(x0 + dx))
+            c.y = max(0, se_stesso._aggancia(y0 + dy))
+            se_stesso.widget[n].place_configure(x=c.x, y=c.y)
+        se_stesso._aggiorna_maniglie()
+        se_stesso._aggiorna_stato()
+        ritorna "break"
+
+    definisci _rilascia(se_stesso, e, nome):
+        d = se_stesso._trascinamento
+        se_stesso._trascinamento = Nessuno
+        se d e d["mosso"]:
+            se_stesso._registra()
+            se_stesso._riempi_ispettore()
+        ritorna "break"
+
+    definisci _doppio(se_stesso, e, nome):
+        c = se_stesso.form.trova(nome)
+        per k, (t, d, desc) in proprieta_di(c.tipo).items():
+            se t == "evento":
+                se_stesso.vai_al_gestore(c, k)
+                ritorna "break"
+        ritorna "break"
+
+    definisci _inizia_ridimensiona(se_stesso, e, maniglia, nome):
+        c = se_stesso.form.trova(nome)
+        se_stesso._ridim = {"m": maniglia, "nome": nome, "x": e.x_root, "y": e.y_root,
+                            "geom": (c.x, c.y, c.larghezza, c.altezza)}
+        ritorna "break"
+
+    definisci _ridimensiona(se_stesso, e):
+        r = getattr(se_stesso, "_ridim", Nessuno)
+        se non r:
+            ritorna "break"
+        c = se_stesso.form.trova(r["nome"])
+        x, y, w, h = r["geom"]
+        dx, dy = e.x_root - r["x"], e.y_root - r["y"]
+        m = r["m"]
+        se "e" in m:
+            w = max(8, se_stesso._aggancia(w + dx))
+        se "o" in m:
+            nuovo_x = se_stesso._aggancia(x + dx)
+            w = max(8, w + (x - nuovo_x))
+            x = x + (r["geom"][2] - w)
+        se "s" in m:
+            h = max(4, se_stesso._aggancia(h + dy))
+        altrimenti_se "n" in m:
+            nuovo_y = se_stesso._aggancia(y + dy)
+            h = max(4, h + (y - nuovo_y))
+            y = y + (r["geom"][3] - h)
+        c.x, c.y, c.larghezza, c.altezza = max(0, x), max(0, y), w, h
+        se_stesso.widget[c.nome].place_configure(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
+        se_stesso._aggiorna_maniglie()
+        se_stesso._aggiorna_stato()
+        ritorna "break"
+
+    definisci _fine_ridimensiona(se_stesso, e):
+        se getattr(se_stesso, "_ridim", Nessuno):
+            se_stesso._ridim = Nessuno
+            se_stesso._registra()
+            se_stesso._riempi_ispettore()
+        ritorna "break"
+
+    # ------------------------------------------------------------ tastiera
+    definisci _tasto_elimina(se_stesso, e):
+        prova:
+            se non se_stesso.winfo_exists() o non se_stesso.winfo_ismapped():
+                ritorna
+            f = se_stesso.focus_get()
+            se f è non Nessuno e f.winfo_class() non in ("Entry", "Text", "TEntry", "TCombobox", "Listbox"):
+                se_stesso.elimina_selezionati()
+        eccetto (tk.TclError, KeyError):
+            passa
+
+    definisci sposta_selezione(se_stesso, dx, dy):
+        per n in se_stesso.selezione_:
+            c = se_stesso.form.trova(n)
+            c.x = max(0, c.x + dx)
+            c.y = max(0, c.y + dy)
+            se_stesso.widget[n].place_configure(x=c.x, y=c.y)
+        se_stesso._aggiorna_maniglie()
+        se_stesso._aggiorna_stato()
+        se_stesso._registra()
+        se_stesso._riempi_ispettore()
+
+    # ------------------------------------------------------------ menu
+    definisci _menu_widget(se_stesso, e, nome):
+        se nome non in se_stesso.selezione_:
+            se_stesso.seleziona([nome])
+        se_stesso._menu(e, nome)
+        ritorna "break"
+
+    definisci _menu(se_stesso, e, nome):
+        m = tk.Menu(se_stesso, tearoff=0)
+        se nome:
+            c = se_stesso.form.trova(nome)
+            m.add_command(label=f"Vai al gestore dell'evento", command=lambda: se_stesso._doppio(e, nome))
+            m.add_command(label="Duplica", command=se_stesso.duplica)
+            m.add_command(label="Porta in primo piano", command=lambda: se_stesso.ordine(Vero))
+            m.add_command(label="Porta in secondo piano", command=lambda: se_stesso.ordine(Falso))
+            m.add_separator()
+            m.add_command(label="Elimina", command=se_stesso.elimina_selezionati)
+        altrimenti:
+            m.add_command(label="Incolla", command=se_stesso.incolla)
+            m.add_command(label="Proprietà della finestra", command=lambda: se_stesso.seleziona([]))
+        m.tk_popup(e.x_root, e.y_root)
+
+    # ------------------------------------------------------------ operazioni sul modello
+    definisci _registra(se_stesso):
+        """Salva uno stato nella cronologia (per annulla/ripeti) e segna il form modificato."""
+        stato_ = se_stesso.form.a_json()
+        se stato_ == se_stesso.cronologia[se_stesso.indice_cronologia]:
+            ritorna
+        elimina se_stesso.cronologia[se_stesso.indice_cronologia + 1:]
+        se_stesso.cronologia.append(stato_)
+        se lunghezza(se_stesso.cronologia) > 120:
+            se_stesso.cronologia.pop(0)
+        se_stesso.indice_cronologia = lunghezza(se_stesso.cronologia) - 1
+        se_stesso._segna_modificato(Vero)
+
+    definisci _segna_modificato(se_stesso, valore):
+        se se_stesso.modificato != valore:
+            se_stesso.modificato = valore
+            se_stesso.azioni.scheda_modificata(se_stesso)
+
+    definisci annulla(se_stesso):
+        se se_stesso.indice_cronologia > 0:
+            se_stesso.indice_cronologia -= 1
+            se_stesso._ripristina()
+
+    definisci ripeti(se_stesso):
+        se se_stesso.indice_cronologia < lunghezza(se_stesso.cronologia) - 1:
+            se_stesso.indice_cronologia += 1
+            se_stesso._ripristina()
+
+    definisci _ripristina(se_stesso):
+        nomi = lista(se_stesso.selezione_)
+        se_stesso.form = Form.da_json(se_stesso.cronologia[se_stesso.indice_cronologia])
+        se_stesso.ricostruisci()
+        se_stesso.seleziona([n per n in nomi se se_stesso.form.trova(n)])
+        se_stesso._segna_modificato(Vero)
+
+    definisci elimina_selezionati(se_stesso):
+        se non se_stesso.selezione_:
+            ritorna
+        per n in lista(se_stesso.selezione_):
+            se_stesso.form.rimuovi(n)
+            w = se_stesso.widget.pop(n, Nessuno)
+            se w:
+                w.destroy()
+        se_stesso.selezione_ = []
+        se_stesso._registra()
+        se_stesso.seleziona([])
+
+    definisci duplica(se_stesso):
+        nuovi = []
+        per n in se_stesso.selezione_:
+            c = se_stesso.form.trova(n)
+            d = c.a_dizionario()
+            d["nome"] = se_stesso.form.nome_libero(c.tipo)
+            d["x"] += 16
+            d["y"] += 16
+            nuovo = form_modello.Componente.da_dizionario(d)
+            se_stesso.form.componenti.append(nuovo)
+            se_stesso._crea(nuovo)
+            nuovi.append(nuovo.nome)
+        se nuovi:
+            se_stesso._registra()
+            se_stesso.seleziona(nuovi)
+
+    definisci copia(se_stesso):
+        se_stesso.appunti = [se_stesso.form.trova(n).a_dizionario() per n in se_stesso.selezione_]
+
+    definisci incolla(se_stesso):
+        nuovi = []
+        per d in se_stesso.appunti:
+            d = copy.deepcopy(d)
+            d["nome"] = se_stesso.form.nome_libero(d["tipo"])
+            d["x"] += 16
+            d["y"] += 16
+            nuovo = form_modello.Componente.da_dizionario(d)
+            se_stesso.form.componenti.append(nuovo)
+            se_stesso._crea(nuovo)
+            nuovi.append(nuovo.nome)
+        se nuovi:
+            se_stesso._registra()
+            se_stesso.seleziona(nuovi)
+
+    definisci ordine(se_stesso, avanti):
+        per n in se_stesso.selezione_:
+            c = se_stesso.form.trova(n)
+            se_stesso.form.componenti.remove(c)
+            se avanti:
+                se_stesso.form.componenti.append(c)
+                w_ = se_stesso.widget[n]
+                w_.tk.call("raise", w_._w)
+            altrimenti:
+                se_stesso.form.componenti.insert(0, c)
+                w_ = se_stesso.widget[n]
+                w_.tk.call("lower", w_._w)
+        se_stesso._aggiorna_maniglie()
+        se_stesso._registra()
+
+    definisci allinea(se_stesso, modo):
+        comp = [se_stesso.form.trova(n) per n in se_stesso.selezione_]
+        se lunghezza(comp) < 1:
+            ritorna
+        se modo in ("centro_x", "centro_y") e lunghezza(comp) == 1:
+            c = comp[0]
+            se modo == "centro_x":
+                c.x = (se_stesso.form.larghezza - c.larghezza) // 2
+            altrimenti:
+                c.y = (se_stesso.form.altezza - c.altezza) // 2
+        altrimenti_se lunghezza(comp) >= 2:
+            se modo == "sinistra":
+                x = min(c.x per c in comp)
+                per c in comp: c.x = x
+            altrimenti_se modo == "destra":
+                x = max(c.x + c.larghezza per c in comp)
+                per c in comp: c.x = x - c.larghezza
+            altrimenti_se modo == "alto":
+                y = min(c.y per c in comp)
+                per c in comp: c.y = y
+            altrimenti_se modo == "basso":
+                y = max(c.y + c.altezza per c in comp)
+                per c in comp: c.y = y - c.altezza
+            altrimenti_se modo == "centro_x":
+                m = sum(c.x + c.larghezza / 2 per c in comp) / lunghezza(comp)
+                per c in comp: c.x = int(m - c.larghezza / 2)
+            altrimenti_se modo == "centro_y":
+                m = sum(c.y + c.altezza / 2 per c in comp) / lunghezza(comp)
+                per c in comp: c.y = int(m - c.altezza / 2)
+            altrimenti_se modo == "stessa_larghezza":
+                per c in comp: c.larghezza = comp[0].larghezza
+            altrimenti_se modo == "stessa_altezza":
+                per c in comp: c.altezza = comp[0].altezza
+            altrimenti_se modo == "distribuisci_x" e lunghezza(comp) >= 3:
+                ordinati = sorted(comp, key=lambda c: c.x)
+                spazio = (ordinati[-1].x - ordinati[0].x) / (lunghezza(ordinati) - 1)
+                per i, c in enumera(ordinati): c.x = int(ordinati[0].x + i * spazio)
+            altrimenti_se modo == "distribuisci_y" e lunghezza(comp) >= 3:
+                ordinati = sorted(comp, key=lambda c: c.y)
+                spazio = (ordinati[-1].y - ordinati[0].y) / (lunghezza(ordinati) - 1)
+                per i, c in enumera(ordinati): c.y = int(ordinati[0].y + i * spazio)
+        per c in comp:
+            se_stesso.widget[c.nome].place_configure(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
+        se_stesso._aggiorna_maniglie()
+        se_stesso._registra()
+        se_stesso._riempi_ispettore()
+
+    # ------------------------------------------------------------ ispettore
+    definisci _svuota_ispettore(se_stesso):
+        per w in se_stesso.righe_ispettore.winfo_children():
+            w.destroy()
+
+    definisci _riempi_ispettore(se_stesso):
+        se_stesso._svuota_ispettore()
+        c_ = se_stesso.colori
+        riga = [0]
+
+        definisci aggiungi_riga(etichetta, costruttore):
+            tk.Label(se_stesso.righe_ispettore, text=etichetta, anchor="w", background=c_["pannello"],
+                     foreground=c_["tenue"], wraplength=96, justify="left").grid(row=riga[0], column=0, sticky="we", padx=(8, 4), pady=2)
+            w = costruttore(se_stesso.righe_ispettore)
+            w.grid(row=riga[0], column=1, sticky="we", padx=(0, 8), pady=2)
+            riga[0] += 1
+            ritorna w
+
+        se_stesso.righe_ispettore.grid_columnconfigure(1, weight=1)
+        se non se_stesso.selezione_:
+            se_stesso.intestazione_ispettore.configure(text=f"Finestra: {se_stesso.form.nome}")
+            se_stesso._campo_form(aggiungi_riga, "Titolo", "titolo", "testo")
+            se_stesso._campo_form(aggiungi_riga, "Larghezza", "larghezza", "numero")
+            se_stesso._campo_form(aggiungi_riga, "Altezza", "altezza", "numero")
+            se_stesso._campo_form(aggiungi_riga, "Sfondo", "sfondo", "colore")
+            se_stesso._campo_form(aggiungi_riga, "Ridimensionabile", "ridimensionabile", "si_no")
+            problemi = se_stesso.form.problemi()
+            se problemi:
+                aggiungi_riga("Attenzione", lambda p: tk.Label(p, text="\n".join(problemi[:6]), justify="left",
+                                                                 anchor="w", background=c_["pannello"],
+                                                                 foreground=c_["avviso"], wraplength=160))
+            ritorna
+        se lunghezza(se_stesso.selezione_) > 1:
+            se_stesso.intestazione_ispettore.configure(text=f"{lunghezza(se_stesso.selezione_)} componenti")
+            aggiungi_riga("", lambda p: tk.Label(p, text="Usa «Allinea» per disporli.\nCanc per eliminarli.",
+                                                  justify="left", anchor="w", background=c_["pannello"],
+                                                  foreground=c_["tenue"]))
+            ritorna
+        c = se_stesso.form.trova(se_stesso.selezione_[0])
+        se_stesso.intestazione_ispettore.configure(text=f"{c.tipo}")
+        e = aggiungi_riga("Nome", lambda p: se_stesso._entry(p, c.nome, lambda v: se_stesso._rinomina(c, v)))
+        per etichetta, attributo in (("X", "x"), ("Y", "y"), ("Larghezza", "larghezza"), ("Altezza", "altezza")):
+            aggiungi_riga(etichetta, lambda p, a=attributo: se_stesso._entry(
+                p, testo(getattr(c, a)), lambda v, a=a: se_stesso._imposta_geometria(c, a, v)))
+        per chiave, (tipo_, predefinito, descrizione) in proprieta_di(c.tipo).items():
+            aggiungi_riga(descrizione, lambda p, k=chiave, t=tipo_: se_stesso._editor_valore(p, c, k, t))
+
+    definisci _entry(se_stesso, genitore, valore, alla_conferma, larghezza=8):
+        c_ = se_stesso.colori
+        e = tk.Entry(genitore, width=larghezza, background=c_["campo"], foreground=c_["primo_piano"],
+                     insertbackground=c_["cursore"], relief="flat", highlightthickness=1,
+                     highlightbackground=c_["bordo"], highlightcolor=c_["accento"])
+        e.insert(0, valore)
+        e.bind("<Return>", lambda ev: alla_conferma(e.get()))
+        e.bind("<FocusOut>", lambda ev: alla_conferma(e.get()))
+        ritorna e
+
+    definisci _campo_form(se_stesso, aggiungi_riga, etichetta, attributo, tipo_):
+        f = se_stesso.form
+
+        definisci cambia(valore):
+            prova:
+                nuovo = int(valore) se tipo_ == "numero" altrimenti valore
+            eccetto ValueError:
+                ritorna
+            se tipo_ == "numero":
+                nuovo = max(60, nuovo)
+            se getattr(f, attributo) != nuovo:
+                setattr(f, attributo, nuovo)
+                se_stesso._disegna_griglia()
+                se_stesso._registra()
+        se tipo_ == "si_no":
+            var = tk.BooleanVar(value=getattr(f, attributo))
+            aggiungi_riga(etichetta, lambda p: tk.Checkbutton(p, variable=var, command=lambda: cambia(var.get()),
+                                                               background=se_stesso.colori["pannello"],
+                                                               selectcolor=se_stesso.colori["campo"],
+                                                               activebackground=se_stesso.colori["pannello"]))
+        altrimenti_se tipo_ == "colore":
+            aggiungi_riga(etichetta, lambda p: se_stesso._campo_colore(p, getattr(f, attributo), cambia))
+        altrimenti:
+            aggiungi_riga(etichetta, lambda p: se_stesso._entry(p, testo(getattr(f, attributo)), cambia))
+
+    definisci _campo_colore(se_stesso, genitore, valore, alla_conferma):
+        cornice = tk.Frame(genitore, background=se_stesso.colori["pannello"])
+        e = se_stesso._entry(cornice, valore, alla_conferma, larghezza=6)
+        e.pack(side="left", fill="x", expand=Vero)
+
+        definisci scegli():
+            scelto = colorchooser.askcolor(color=e.get() o Nessuno, parent=se_stesso)
+            se scelto e scelto[1]:
+                e.delete(0, "end")
+                e.insert(0, scelto[1])
+                alla_conferma(scelto[1])
+        tk.Button(cornice, text="…", command=scegli, width=3, relief="flat",
+                  background=se_stesso.colori["pulsante"], foreground=se_stesso.colori["primo_piano"]).pack(side="left", padx=2)
+        tk.Button(cornice, text="✕", command=lambda: (e.delete(0, "end"), alla_conferma("")), width=2, relief="flat",
+                  background=se_stesso.colori["pulsante"], foreground=se_stesso.colori["primo_piano"]).pack(side="left")
+        ritorna cornice
+
+    definisci _editor_valore(se_stesso, genitore, c, chiave, tipo_):
+        c_ = se_stesso.colori
+        valore = c.valori.get(chiave)
+        se tipo_ == "si_no":
+            var = tk.BooleanVar(value=bool(valore))
+            ritorna tk.Checkbutton(genitore, variable=var, background=c_["pannello"], selectcolor=c_["campo"],
+                                   activebackground=c_["pannello"],
+                                   command=lambda: se_stesso._modifica(c, chiave, var.get()))
+        se tipo_.startswith("scelta:"):
+            opzioni = tipo_.split(":", 1)[1].split(",")
+            cb = ttk.Combobox(genitore, values=opzioni, state="readonly", width=10)
+            cb.set(valore)
+            cb.bind("<<ComboboxSelected>>", lambda ev: se_stesso._modifica(c, chiave, cb.get()))
+            ritorna cb
+        se tipo_ == "colore":
+            ritorna se_stesso._campo_colore(genitore, valore o "", lambda v: se_stesso._modifica(c, chiave, v))
+        se tipo_ == "elenco":
+            ritorna se_stesso._entry(genitore, ", ".join(testo(x) per x in (valore o [])),
+                                     lambda v: se_stesso._modifica(c, chiave, [x.strip() per x in v.split(",") se x.strip()]))
+        se tipo_ == "numero":
+            def_ = lambda v: se_stesso._modifica(c, chiave, se_stesso._numero(v, valore))
+            ritorna se_stesso._entry(genitore, testo(valore), def_)
+        se tipo_ == "file":
+            cornice = tk.Frame(genitore, background=c_["pannello"])
+            e = se_stesso._entry(cornice, valore o "", lambda v: se_stesso._modifica(c, chiave, v), larghezza=6)
+            e.pack(side="left", fill="x", expand=Vero)
+
+            definisci scegli():
+                p = filedialog.askopenfilename(parent=se_stesso, initialdir=se_stesso.cartella,
+                                               filetypes=[("Immagini", "*.png *.jpg *.jpeg *.gif *.bmp"), ("Tutti", "*.*")])
+                se non p:
+                    ritorna
+                radice_progetto = se_stesso.azioni.cartella_progetto() o se_stesso.cartella
+                se non os.path.abspath(p).startswith(os.path.abspath(radice_progetto)):
+                    cartella_risorse = os.path.join(radice_progetto, "risorse")
+                    os.makedirs(cartella_risorse, exist_ok=Vero)
+                    nuovo = os.path.join(cartella_risorse, os.path.basename(p))
+                    shutil.copy2(p, nuovo)
+                    p = nuovo
+                    se_stesso.azioni.info("Immagine copiata in risorse/")
+                rel = os.path.relpath(p, se_stesso.cartella).replace("\\", "/")
+                e.delete(0, "end")
+                e.insert(0, rel)
+                se_stesso._modifica(c, chiave, rel)
+            tk.Button(cornice, text="…", command=scegli, width=3, relief="flat",
+                      background=c_["pulsante"], foreground=c_["primo_piano"]).pack(side="left", padx=2)
+            ritorna cornice
+        se tipo_ == "evento":
+            cornice = tk.Frame(genitore, background=c_["pannello"])
+            e = se_stesso._entry(cornice, valore o "", lambda v: se_stesso._modifica(c, chiave, v.strip()), larghezza=6)
+            e.pack(side="left", fill="x", expand=Vero)
+
+            definisci crea_gestore():
+                se non e.get().strip():
+                    e.insert(0, f"{chiave}_{c.nome}")
+                se_stesso._modifica(c, chiave, e.get().strip())
+                se_stesso.vai_al_gestore(c, chiave)
+            tk.Button(cornice, text="⏎", command=crea_gestore, width=3, relief="flat",
+                      background=c_["pulsante"], foreground=c_["primo_piano"]).pack(side="left", padx=2)
+            ritorna cornice
+        ritorna se_stesso._entry(genitore, testo(valore se valore è non Nessuno altrimenti ""),
+                                 lambda v: se_stesso._modifica(c, chiave, v))
+
+    @staticmethod
+    definisci _numero(testo_, predefinito):
+        prova:
+            n = float(testo_)
+            ritorna int(n) se n == int(n) altrimenti n
+        eccetto ValueError:
+            ritorna predefinito
+
+    definisci _rinomina(se_stesso, c, nuovo):
+        nuovo = nuovo.strip()
+        se nuovo == c.nome:
+            ritorna
+        vecchio = c.nome
+        se se_stesso.form.rinomina(vecchio, nuovo):
+            se_stesso.widget[nuovo] = se_stesso.widget.pop(vecchio)
+            se_stesso.selezione_ = [nuovo se n == vecchio altrimenti n per n in se_stesso.selezione_]
+            w = se_stesso.widget[nuovo]
+            per sequenza, funzione in (("<ButtonPress-1>", se_stesso._premi), ("<B1-Motion>", se_stesso._trascina),
+                                       ("<ButtonRelease-1>", se_stesso._rilascia), ("<Double-Button-1>", se_stesso._doppio),
+                                       ("<Button-3>", se_stesso._menu_widget)):
+                w.bind(sequenza, lambda ev, n=nuovo, f=funzione: f(ev, n))
+            se_stesso._registra()
+            se_stesso._aggiorna_stato()
+        altrimenti:
+            se_stesso.azioni.info(f"Nome non valido o già usato: {nuovo}")
+            se_stesso._riempi_ispettore()
+
+    definisci _imposta_geometria(se_stesso, c, attributo, valore):
+        prova:
+            n = int(float(valore))
+        eccetto ValueError:
+            ritorna
+        n = max(0 se attributo in ("x", "y") altrimenti 4, n)
+        se getattr(c, attributo) != n:
+            setattr(c, attributo, n)
+            se_stesso.widget[c.nome].place_configure(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
+            se_stesso._aggiorna_maniglie()
+            se_stesso._aggiorna_stato()
+            se_stesso._registra()
+
+    definisci _modifica(se_stesso, c, chiave, valore):
+        se c.valori.get(chiave) == valore:
+            ritorna
+        c.valori[chiave] = valore
+        se_stesso._aggiorna_widget(c)
+        se_stesso._registra()
+
+    definisci imposta_proprieta(se_stesso, nome, chiave, valore):
+        """Per l'AI e per il codice: cambia una proprietà di un componente."""
+        c = se_stesso.form.trova(nome)
+        se non c:
+            ritorna Falso
+        se chiave in ("x", "y", "larghezza", "altezza"):
+            se_stesso._imposta_geometria(c, chiave, valore)
+        altrimenti:
+            se_stesso._modifica(c, chiave, valore)
+        se_stesso._riempi_ispettore()
+        ritorna Vero
+
+    # ------------------------------------------------------------ file e collegamenti al codice
+    definisci contenuto(se_stesso):
+        ritorna se_stesso.form.a_json()
+
+    definisci imposta_form(se_stesso, nuovo_form):
+        """Sostituisce l'intero form (usato dall'AI)."""
+        se_stesso.form = nuovo_form
+        se_stesso.ricostruisci()
+        se_stesso.seleziona([])
+        se_stesso._registra()
+
+    definisci salva(se_stesso, percorso=Nessuno):
+        problemi = se_stesso.form.problemi()
+        scritti = form_modello.salva_form(se_stesso.form, se_stesso.cartella)
+        se_stesso.percorso = form_modello.percorsi_form(se_stesso.cartella, se_stesso.form.nome)["json"]
+        se_stesso._segna_modificato(Falso)
+        se_stesso.azioni.file_scritti(scritti)
+        se_stesso.azioni.info("Salvato: " + ", ".join(os.path.basename(p) per p in scritti)
+                              + (f"   ⚠ {lunghezza(problemi)} avvisi" se problemi altrimenti ""))
+        ritorna Vero
+
+    definisci ricarica_se_cambiato_su_disco(se_stesso):
+        se se_stesso.modificato o non os.path.exists(se_stesso.percorso):
+            ritorna Falso
+        prova:
+            su_disco = open(se_stesso.percorso, encoding="utf-8").read()
+            nuovo = Form.da_json(su_disco)
+        eccetto (OSError, ValueError, KeyError):
+            ritorna Falso
+        se nuovo.a_json() != se_stesso.form.a_json():
+            nomi = lista(se_stesso.selezione_)
+            se_stesso.form = nuovo
+            se_stesso.cronologia = [nuovo.a_json()]
+            se_stesso.indice_cronologia = 0
+            se_stesso.ricostruisci()
+            se_stesso.seleziona([n per n in nomi se nuovo.trova(n)])
+            ritorna Vero
+        ritorna Falso
+
+    definisci percorso_logica(se_stesso):
+        ritorna form_modello.percorsi_form(se_stesso.cartella, se_stesso.form.nome)["logica"]
+
+    definisci vai_al_codice(se_stesso):
+        se_stesso.salva()
+        se_stesso.azioni.apri_file(se_stesso.percorso_logica())
+
+    definisci vai_al_gestore(se_stesso, c, chiave):
+        se_stesso.salva()
+        nome_fn = (c.valori.get(chiave) o "").strip()
+        se_stesso.azioni.apri_file_a_funzione(se_stesso.percorso_logica(), nome_fn)
+
+    definisci esegui(se_stesso):
+        se_stesso.salva()
+        se_stesso.azioni.esegui_file(se_stesso.percorso_logica())
+
+    definisci chiudi(se_stesso):
+        passa

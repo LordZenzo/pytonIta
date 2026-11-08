@@ -1,0 +1,219 @@
+"""Finestra delle impostazioni di PitStudio (tutto è configurabile e salvato in ~/.rad/config.json)."""
+importa tkinter come tk
+importa tkinter.font come tkfont
+da tkinter importa ttk, colorchooser, messagebox
+
+da rad.tema importa TEMI
+da rad.dialoghi importa DialogoBase
+
+SCHEDE = [
+    ("Editor", [
+        ("editor.carattere", "Carattere", "carattere", Nessuno),
+        ("editor.dimensione", "Dimensione", "numero", (6, 40)),
+        ("editor.tabulazione", "Spazi per tabulazione", "numero", (1, 12)),
+        ("editor.numeri_riga", "Numeri di riga", "si_no", Nessuno),
+        ("editor.a_capo", "A capo automatico", "si_no", Nessuno),
+        ("editor.evidenzia_riga", "Evidenzia la riga corrente", "si_no", Nessuno),
+        ("editor.chiudi_parentesi", "Chiudi automaticamente parentesi e virgolette", "si_no", Nessuno),
+        ("editor.suggerimenti", "Suggerimenti automatici mentre scrivi", "si_no", Nessuno),
+        ("editor.ritardo_suggerimenti_ms", "Ritardo suggerimenti (ms)", "numero", (0, 2000)),
+        ("editor.salvataggio_automatico", "Salvataggio automatico dopo (secondi, 0 = no)", "numero", (0, 3600)),
+    ]),
+    ("Esecuzione", [
+        ("esecuzione.interprete", "Interprete pitonit (vuoto = quello di PitStudio)", "testo", Nessuno),
+        ("esecuzione.argomenti", "Argomenti del programma", "testo", Nessuno),
+        ("esecuzione.salva_prima", "Salva tutto prima di eseguire", "si_no", Nessuno),
+        ("esecuzione.pulisci_console", "Pulisci la console a ogni esecuzione", "si_no", Nessuno),
+    ]),
+    ("Assistente AI", [
+        ("ai.chiave_api", "Chiave API Anthropic", "segreto", Nessuno),
+        ("ai.modello", "Modello", "testo", Nessuno),
+        ("ai.max_token", "Lunghezza massima della risposta (token)", "numero", (256, 64000)),
+        ("ai.passi_massimi", "Passi massimi per richiesta", "numero", (1, 100)),
+        ("ai.conferma_scrittura", "Chiedi conferma prima di scrivere file", "si_no", Nessuno),
+        ("ai.conferma_esecuzione", "Chiedi conferma prima di eseguire programmi", "si_no", Nessuno),
+        ("ai.includi_file_attivo", "Includi file attivo e selezione nei messaggi", "si_no", Nessuno),
+        ("ai.url", "Indirizzo dell'API", "testo", Nessuno),
+        ("ai.istruzioni_extra", "Istruzioni aggiuntive per l'assistente", "lungo", Nessuno),
+    ]),
+    ("Scorciatoie", [
+        ("scorciatoie.salva", "Salva", "testo", Nessuno),
+        ("scorciatoie.salva_tutto", "Salva tutto", "testo", Nessuno),
+        ("scorciatoie.apri_progetto", "Apri progetto", "testo", Nessuno),
+        ("scorciatoie.nuovo_file", "Nuovo file", "testo", Nessuno),
+        ("scorciatoie.esegui", "Esegui", "testo", Nessuno),
+        ("scorciatoie.ferma", "Ferma", "testo", Nessuno),
+        ("scorciatoie.trova", "Trova", "testo", Nessuno),
+        ("scorciatoie.vai_a_riga", "Vai a riga", "testo", Nessuno),
+        ("scorciatoie.commenta", "Commenta/decommenta", "testo", Nessuno),
+        ("scorciatoie.suggerisci", "Mostra suggerimenti", "testo", Nessuno),
+        ("scorciatoie.chat", "Mostra/nascondi chat", "testo", Nessuno),
+        ("scorciatoie.chiudi_scheda", "Chiudi scheda", "testo", Nessuno),
+    ]),
+]
+
+COLORI_MODIFICABILI = [
+    ("sfondo", "Sfondo finestra"), ("pannello", "Pannelli"), ("editor", "Sfondo editor"),
+    ("editor_testo", "Testo editor"), ("selezione", "Selezione"), ("accento", "Accento"),
+    ("parola_chiave", "Parole chiave"), ("builtin", "Funzioni predefinite"), ("stringa", "Stringhe"),
+    ("commento", "Commenti"), ("numero", "Numeri"), ("definizione", "Nomi definiti"),
+    ("costante", "Vero / Falso / Nessuno"), ("decoratore", "Decoratori"), ("errore", "Errori"),
+]
+
+
+classe Impostazioni(DialogoBase):
+    definisci __inizializza__(se_stesso, genitore, config, colori):
+        DialogoBase.__init__(se_stesso, genitore, "Impostazioni", colori, 640, 560)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.config_ = config
+        se_stesso.var = {}
+        se_stesso.var_colori = {}
+        c = colori
+        se_stesso.grid_columnconfigure(0, weight=1)
+        se_stesso.grid_rowconfigure(0, weight=1)
+        blocco = ttk.Notebook(se_stesso)
+        blocco.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        se_stesso.blocco = blocco
+        se_stesso._scheda_tema(blocco)
+        per titolo, campi in SCHEDE:
+            se_stesso._scheda(blocco, titolo, campi)
+        pulsanti = tk.Frame(se_stesso, background=c["pannello"])
+        pulsanti.grid(row=1, column=0, sticky="e", padx=10, pady=(0, 10))
+        tk.Button(pulsanti, text="Annulla", command=se_stesso.destroy, background=c["pulsante"],
+                  foreground=c["primo_piano"], relief="flat", padx=14).pack(side="right", padx=4)
+        tk.Button(pulsanti, text="Applica", command=se_stesso.applica, background=c["pulsante"],
+                  foreground=c["primo_piano"], relief="flat", padx=14).pack(side="right", padx=4)
+        tk.Button(pulsanti, text="OK", command=se_stesso.conferma, background=c["accento"],
+                  foreground="#ffffff", relief="flat", padx=18).pack(side="right", padx=4)
+
+    # --- schede
+    definisci _pagina(se_stesso, blocco, titolo):
+        cornice = tk.Frame(blocco, background=se_stesso.colori["pannello"])
+        blocco.add(cornice, text=f" {titolo} ")
+        cornice.grid_columnconfigure(1, weight=1)
+        ritorna cornice
+
+    definisci _scheda(se_stesso, blocco, titolo, campi):
+        pagina = se_stesso._pagina(blocco, titolo)
+        c = se_stesso.colori
+        per riga, (percorso, etichetta, tipo_, extra) in enumera(campi):
+            valore = se_stesso.config_.ottieni(percorso)
+            tk.Label(pagina, text=etichetta, anchor="w", background=c["pannello"], foreground=c["primo_piano"],
+                     wraplength=250, justify="left").grid(row=riga, column=0, sticky="w", padx=12, pady=5)
+            se tipo_ == "si_no":
+                var = tk.BooleanVar(value=bool(valore))
+                w = tk.Checkbutton(pagina, variable=var, background=c["pannello"], selectcolor=c["campo"],
+                                   activebackground=c["pannello"])
+            altrimenti_se tipo_ == "numero":
+                var = tk.StringVar(value=testo(valore))
+                w = tk.Spinbox(pagina, textvariable=var, from_=extra[0], to=extra[1], width=10,
+                               background=c["campo"], foreground=c["primo_piano"], relief="flat",
+                               insertbackground=c["cursore"], buttonbackground=c["pulsante"])
+            altrimenti_se tipo_ == "carattere":
+                var = tk.StringVar(value=valore)
+                famiglie = sorted(set(tkfont.families()))
+                w = ttk.Combobox(pagina, textvariable=var, values=famiglie, width=30)
+            altrimenti_se tipo_ == "lungo":
+                var = tk.StringVar(value=valore)
+                w = tk.Text(pagina, width=40, height=6, wrap="word", background=c["campo"], foreground=c["primo_piano"],
+                            insertbackground=c["cursore"], relief="flat", highlightthickness=1,
+                            highlightbackground=c["bordo"])
+                w.insert("1.0", valore)
+                w._variabile_lunga = Vero
+            altrimenti:
+                var = tk.StringVar(value=testo(valore se valore è non Nessuno altrimenti ""))
+                w = tk.Entry(pagina, textvariable=var, width=40, background=c["campo"], foreground=c["primo_piano"],
+                             insertbackground=c["cursore"], relief="flat", highlightthickness=1,
+                             highlightbackground=c["bordo"], highlightcolor=c["accento"],
+                             show="•" se tipo_ == "segreto" altrimenti "")
+            w.grid(row=riga, column=1, sticky="we" se tipo_ non in ("si_no", "numero") altrimenti "w", padx=12, pady=5)
+            se_stesso.var[percorso] = (var, w, tipo_, valore)
+
+    definisci _scheda_tema(se_stesso, blocco):
+        pagina = se_stesso._pagina(blocco, "Tema")
+        c = se_stesso.colori
+        tk.Label(pagina, text="Tema", anchor="w", background=c["pannello"], foreground=c["primo_piano"]).grid(
+            row=0, column=0, sticky="w", padx=12, pady=8)
+        se_stesso.var_tema = tk.StringVar(value=se_stesso.config_.ottieni("tema"))
+        cb = ttk.Combobox(pagina, textvariable=se_stesso.var_tema, values=lista(TEMI.keys()), state="readonly", width=14)
+        cb.grid(row=0, column=1, sticky="w", padx=12)
+        cb.bind("<<ComboboxSelected>>", lambda e: se_stesso._ricarica_colori())
+        tk.Label(pagina, text="Colori personalizzati (vuoto = quelli del tema)", anchor="w",
+                 background=c["pannello"], foreground=c["tenue"]).grid(row=1, column=0, columnspan=2, sticky="w", padx=12)
+        griglia = tk.Frame(pagina, background=c["pannello"])
+        griglia.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=12, pady=6)
+        se_stesso.griglia_colori = griglia
+        per i, (chiave, etichetta) in enumera(COLORI_MODIFICABILI):
+            col = (i % 2) * 3
+            riga = i // 2
+            tk.Label(griglia, text=etichetta, anchor="w", background=c["pannello"], foreground=c["primo_piano"],
+                     width=20).grid(row=riga, column=col, sticky="w", pady=3)
+            var = tk.StringVar()
+            e = tk.Entry(griglia, textvariable=var, width=9, background=c["campo"], foreground=c["primo_piano"],
+                         relief="flat", insertbackground=c["cursore"])
+            e.grid(row=riga, column=col + 1, padx=4)
+            campione = tk.Label(griglia, text="   ", width=3, relief="solid", borderwidth=1)
+            campione.grid(row=riga, column=col + 2, padx=(0, 14))
+            campione.bind("<Button-1>", lambda ev, v=var, k=chiave: se_stesso._scegli_colore(v, k))
+            var.trace_add("write", lambda *a, v=var, l=campione: se_stesso._aggiorna_campione(v, l))
+            se_stesso.var_colori[chiave] = (var, campione)
+        tk.Button(pagina, text="Ripristina i colori del tema", command=se_stesso._azzera_colori,
+                  relief="flat", background=c["pulsante"], foreground=c["primo_piano"]).grid(
+            row=3, column=0, columnspan=2, sticky="w", padx=12, pady=8)
+        se_stesso._ricarica_colori()
+
+    definisci _ricarica_colori(se_stesso):
+        tema = se_stesso.var_tema.get()
+        base = TEMI.get(tema, TEMI["scuro"])
+        personalizzati = se_stesso.config_.ottieni("temi_personalizzati." + tema, {}) o {}
+        per chiave, (var, campione) in se_stesso.var_colori.items():
+            var.set(personalizzati.get(chiave, ""))
+            se_stesso._aggiorna_campione(var, campione, base.get(chiave))
+
+    definisci _aggiorna_campione(se_stesso, var, campione, predefinito=Nessuno):
+        tema = TEMI.get(se_stesso.var_tema.get(), TEMI["scuro"])
+        chiave = [k per k, (v, c) in se_stesso.var_colori.items() se v è var]
+        valore = var.get().strip() o (predefinito o (tema.get(chiave[0]) se chiave altrimenti "#888888"))
+        prova:
+            campione.configure(background=valore)
+        eccetto tk.TclError:
+            campione.configure(background="#888888")
+
+    definisci _scegli_colore(se_stesso, var, chiave):
+        tema = TEMI.get(se_stesso.var_tema.get(), TEMI["scuro"])
+        scelto = colorchooser.askcolor(color=var.get() o tema.get(chiave), parent=se_stesso)
+        se scelto e scelto[1]:
+            var.set(scelto[1])
+
+    definisci _azzera_colori(se_stesso):
+        per var, campione in se_stesso.var_colori.values():
+            var.set("")
+
+    # --- applicazione
+    definisci applica(se_stesso):
+        cfg = se_stesso.config_
+        per percorso, (var, w, tipo_, originale) in se_stesso.var.items():
+            se tipo_ == "si_no":
+                nuovo = bool(var.get())
+            altrimenti_se tipo_ == "numero":
+                prova:
+                    nuovo = int(float(var.get()))
+                eccetto ValueError:
+                    nuovo = originale
+            altrimenti_se tipo_ == "lungo":
+                nuovo = w.get("1.0", "end").strip()
+            altrimenti:
+                nuovo = var.get().strip()
+            se nuovo != cfg.ottieni(percorso):
+                cfg.imposta(percorso, nuovo, notifica=Falso)
+        tema = se_stesso.var_tema.get()
+        cfg.imposta("tema", tema, notifica=Falso)
+        personalizzati = {k: v.get().strip() per k, (v, c) in se_stesso.var_colori.items() se v.get().strip()}
+        cfg.imposta("temi_personalizzati." + tema, personalizzati, notifica=Falso)
+        cfg.salva()
+        cfg.notifica("*")
+
+    definisci conferma(se_stesso):
+        se_stesso.applica()
+        se_stesso.risultato = Vero
+        se_stesso.destroy()

@@ -1,0 +1,40 @@
+importa sys, os, tempfile, importlib
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.form_modello importa Form, salva_form, carica_form, TIPI, ORDINE_PALETTE, genera_ui_completa
+
+f = Form("Prova", "Finestra di prova")
+f.larghezza, f.altezza = 520, 420
+x = 10
+per tipo_ in ORDINE_PALETTE:
+    c = f.aggiungi(tipo_, x, 10 + (ORDINE_PALETTE.index(tipo_) % 6) * 50)
+    x += 3
+f.trova("pulsante1").valori["al_clic"] = "premuto"
+f.trova("campoTesto1").valori["al_invio"] = "invio"
+f.trova("elenco1").valori["elementi"] = ["uno", "due", "tre"]
+f.trova("cursore1").valori["al_cambio"] = "cambia"
+f.trova("immagine1").valori["file"] = "non_esiste.png"
+stampa("problemi:", f.problemi()[:2])
+cartella = tempfile.mkdtemp()
+scritti = salva_form(f, cartella)
+stampa([os.path.basename(p) per p in scritti])
+# rigenera con un nuovo gestore: la logica esistente deve restare e ricevere solo il gestore nuovo
+f.trova("casellaSelezione1").valori["al_clic"] = "spunta"
+con open(os.path.join(cartella, "prova.pit"), "a", encoding="utf-8") come fl:
+    fl.write("\n# nota dell'utente\n")
+salva_form(f, cartella)
+logica = open(os.path.join(cartella, "prova.pit"), encoding="utf-8").read()
+stampa("gestori:", [r.strip() per r in logica.splitlines() se r.strip().startswith("definisci") e "evento" in r])
+stampa("nota utente conservata:", "nota dell'utente" in logica)
+# ricaricamento
+g = carica_form(os.path.join(cartella, "prova.form.json"))
+stampa("ricaricato:", lunghezza(g.componenti), g.trova("elenco1").valori["elementi"])
+# esecuzione vera della UI generata
+sys.path.insert(0, cartella)
+importa tkinter come tk
+modulo = importlib.import_module("prova")
+radice = tk.Tk()
+finestra = modulo.Prova(radice)
+radice.update()
+stampa("widget creati:", lunghezza(radice.winfo_children()), "titolo:", radice.title())
+finestra.premuto()
+radice.destroy()

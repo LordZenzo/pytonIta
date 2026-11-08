@@ -1,0 +1,539 @@
+"""Conversione inversa: da un programma pytonIta (.pit) a un programma a mattonelle.
+
+Si usa l'albero sintattico dell'interprete: ogni costrutto che ha una mattonella corrispondente diventa mattonella;
+il resto (classi, costrutti rari...) viene conservato com'è in mattonelle «codice» / «espressione» oppure come
+codice di modulo, così il programma convertito fa le stesse cose dell'originale.
+"""
+importa ast
+importa io
+importa re
+importa textwrap
+importa tokenize
+
+da rad.mattonelle_modello importa (Mattonella, Programma, Funzione, collega_pila, definizione, ingressi_di)
+
+BINARI = {ast.Add: "somma", ast.Sub: "sottrai", ast.Mult: "moltiplica", ast.Div: "dividi", ast.FloorDiv: "dividi_intero",
+          ast.Mod: "resto", ast.Pow: "potenza"}
+CONFRONTI = {ast.Eq: "uguale", ast.NotEq: "diverso", ast.Lt: "minore", ast.Gt: "maggiore", ast.LtE: "minore_uguale",
+             ast.GtE: "maggiore_uguale", ast.In: "contiene"}
+UNARIE = {"intero": "intero_di", "int": "intero_di", "decimale": "decimale_di", "float": "decimale_di",
+          "testo": "testo_di", "str": "testo_di", "lunghezza": "lunghezza_di", "len": "lunghezza_di",
+          "arrotonda": "arrotonda", "round": "arrotonda", "assoluto": "assoluto", "abs": "assoluto",
+          "ordinato": "ordina_lista", "sorted": "ordina_lista", "somma": "somma_lista", "sum": "somma_lista"}
+BINARIE = {"massimo": "massimo_di", "max": "massimo_di", "minimo": "minimo_di", "min": "minimo_di"}
+METODI_TESTO = {"maiuscolo": "maiuscolo", "upper": "maiuscolo", "minuscolo": "minuscolo", "lower": "minuscolo"}
+
+
+definisci _primo_ingresso(tipo_):
+    """Nome del primo ingresso di un tipo di mattonella."""
+    ritorna ingressi_di(definizione(tipo_))[0][1]
+
+
+classe Convertitore:
+    """Trasforma il testo di un programma pytonIta in un Programma a mattonelle."""
+
+    definisci __inizializza__(se_stesso, sorgente, nome="programma"):
+        se_stesso.sorgente = sorgente.replace("\r\n", "\n")
+        se_stesso.righe = se_stesso.sorgente.split("\n")
+        se_stesso.programma = Programma(nome)
+        se_stesso.funzioni = {}            # nome -> numero di parametri
+        se_stesso.commenti = {}            # riga -> testo dei commenti a riga intera
+        se_stesso.rapporto = {"funzioni": 0, "mattonelle": 0, "righe_libere": 0, "espressioni_libere": 0,
+                              "commenti": 0, "classi_e_codice_di_modulo": 0, "libere": [], "avvisi": []}
+        se_stesso._leggi_commenti()
+
+    # ------------------------------------------------------------ utilità sul testo
+    definisci _leggi_commenti(se_stesso):
+        prova:
+            per t in tokenize.generate_tokens(io.StringIO(se_stesso.sorgente).readline):
+                se t.type == tokenize.COMMENT e se_stesso.righe[t.start[0] - 1].strip().startswith("#"):
+                    se_stesso.commenti[t.start[0]] = t.string.lstrip("#").strip()
+        eccetto (tokenize.TokenError, IndentationError, SyntaxError):
+            passa
+
+    definisci testo_di(se_stesso, nodo):
+        """Le righe originali del nodo, con il rientro tolto."""
+        righe = se_stesso.righe[nodo.lineno - 1:nodo.end_lineno]
+        ritorna textwrap.dedent("\n".join(righe)).rstrip()
+
+    definisci segmento(se_stesso, nodo):
+        s = ast.get_source_segment(se_stesso.sorgente, nodo)
+        ritorna s.strip() se s altrimenti "Nessuno"
+
+    definisci nuova(se_stesso, tipo_):
+        se_stesso.rapporto["mattonelle"] += 1
+        ritorna Mattonella(tipo_, se_stesso.programma)
+
+    definisci _collega(se_stesso, padre, slot, figlio):
+        padre.ingressi[slot] = figlio
+        figlio.padre, figlio.ruolo = padre, f"ingresso:{slot}"
+
+    # ------------------------------------------------------------ espressioni
+    definisci _tipo_slot(se_stesso, m, slot):
+        per i in ingressi_di(definizione(m.tipo, se_stesso.programma)):
+            se i[1] == slot:
+                ritorna i[2]
+        ritorna "valore"
+
+    definisci ingresso(se_stesso, m, slot, nodo):
+        """Collega l'espressione 'nodo' all'ingresso 'slot' di m (come valore scritto a mano o come mattonella)."""
+        tipo_slot = se_stesso._tipo_slot(m, slot)
+        numero = Nessuno
+        se isinstance(nodo, ast.Constant) e isinstance(nodo.value, (int, float)) e non isinstance(nodo.value, bool):
+            numero = repr(nodo.value)
+        altrimenti_se (isinstance(nodo, ast.UnaryOp) e isinstance(nodo.op, ast.USub) e isinstance(nodo.operand, ast.Constant)
+                       e isinstance(nodo.operand.value, (int, float)) e non isinstance(nodo.operand.value, bool)):
+            numero = "-" + repr(nodo.operand.value)
+        se numero è non Nessuno e tipo_slot in ("numero", "valore", "booleano"):
+            m.letterali[slot] = numero
+            ritorna
+        se isinstance(nodo, ast.Constant) e isinstance(nodo.value, str) e tipo_slot == "testo":
+            m.letterali[slot] = nodo.value
+            ritorna
+        se isinstance(nodo, ast.Constant) e (nodo.value è Nessuno o isinstance(nodo.value, bool)) e tipo_slot in ("valore", "booleano"):
+            m.letterali[slot] = {Vero: "Vero", Falso: "Falso"}.get(nodo.value, "Nessuno") se nodo.value è non Nessuno altrimenti "Nessuno"
+            ritorna
+        se_stesso._collega(m, slot, se_stesso.espressione(nodo))
+
+    definisci _libera(se_stesso, nodo):
+        m = se_stesso.nuova("espressione")
+        m.campi["testo"] = se_stesso.segmento(nodo)
+        se_stesso.rapporto["espressioni_libere"] += 1
+        se lunghezza(se_stesso.rapporto["libere"]) < 25:
+            se_stesso.rapporto["libere"].append((nodo.lineno, m.campi["testo"][:70]))
+        ritorna m
+
+    definisci espressione(se_stesso, nodo):
+        """Mattonella-valore per un'espressione (o 'espressione' libera se non c'è un equivalente)."""
+        se isinstance(nodo, ast.Constant):
+            v = nodo.value
+            se isinstance(v, bool):
+                ritorna se_stesso.nuova("vero" se v altrimenti "falso")
+            se v è Nessuno:
+                ritorna se_stesso.nuova("nessuno")
+            se isinstance(v, (int, float)):
+                m = se_stesso.nuova("numero")
+                m.campi["valore"] = repr(v)
+                ritorna m
+            se isinstance(v, str):
+                m = se_stesso.nuova("testo_lett")
+                m.campi["valore"] = v
+                ritorna m
+            ritorna se_stesso._libera(nodo)
+        se isinstance(nodo, ast.Name):
+            m = se_stesso.nuova("variabile")
+            m.campi["nome"] = nodo.id
+            ritorna m
+        se isinstance(nodo, ast.UnaryOp):
+            se isinstance(nodo.op, ast.Not):
+                m = se_stesso.nuova("non_logico")
+                se_stesso.ingresso(m, "a", nodo.operand)
+                ritorna m
+            se isinstance(nodo.op, ast.USub) e isinstance(nodo.operand, ast.Constant) e isinstance(nodo.operand.value, (int, float)):
+                m = se_stesso.nuova("numero")
+                m.campi["valore"] = "-" + repr(nodo.operand.value)
+                ritorna m
+            ritorna se_stesso._libera(nodo)
+        se isinstance(nodo, ast.BinOp) e tipo(nodo.op) in BINARI:
+            m = se_stesso.nuova(BINARI[tipo(nodo.op)])
+            se_stesso.ingresso(m, "a", nodo.left)
+            se_stesso.ingresso(m, "b", nodo.right)
+            ritorna m
+        se isinstance(nodo, ast.Compare) e lunghezza(nodo.ops) == 1 e tipo(nodo.ops[0]) in CONFRONTI:
+            m = se_stesso.nuova(CONFRONTI[tipo(nodo.ops[0])])
+            se_stesso.ingresso(m, "a", nodo.left)
+            se_stesso.ingresso(m, "b", nodo.comparators[0])
+            ritorna m
+        se isinstance(nodo, ast.BoolOp):
+            tipo_ = "e_logico" se isinstance(nodo.op, ast.And) altrimenti "o_logico"
+            acc = nodo.values[0]
+            m = Nessuno
+            per v in nodo.values[1:]:
+                m = se_stesso.nuova(tipo_)
+                se isinstance(acc, Mattonella):
+                    se_stesso._collega(m, "a", acc)
+                altrimenti:
+                    se_stesso.ingresso(m, "a", acc)
+                se_stesso.ingresso(m, "b", v)
+                acc = m
+            ritorna m
+        se isinstance(nodo, ast.Subscript) e non isinstance(nodo.slice, (ast.Slice, ast.Tuple)):
+            m = se_stesso.nuova("elemento_di")
+            se_stesso.ingresso(m, "n", nodo.slice)
+            se_stesso.ingresso(m, "lista", nodo.value)
+            ritorna m
+        se isinstance(nodo, ast.List) e lunghezza(nodo.elts) <= 3 e non any(isinstance(e, ast.Starred) per e in nodo.elts):
+            se non nodo.elts:
+                ritorna se_stesso.nuova("lista_vuota")
+            m = se_stesso.nuova("lista_di")
+            per slot, e in zip("abc", nodo.elts):
+                se_stesso.ingresso(m, slot, e)
+            ritorna m
+        se isinstance(nodo, ast.Call):
+            m = se_stesso._chiamata(nodo)
+            se m è non Nessuno:
+                ritorna m
+        ritorna se_stesso._libera(nodo)
+
+    definisci _semplice(se_stesso, chiamata):
+        """Vero se la chiamata ha solo argomenti posizionali (niente nome=valore, *args)."""
+        ritorna non chiamata.keywords e non any(isinstance(a, ast.Starred) per a in chiamata.args)
+
+    definisci _chiamata(se_stesso, c):
+        f = c.func
+        n = lunghezza(c.args)
+        se isinstance(f, ast.Name) e se_stesso._semplice(c):
+            nome = f.id
+            se nome in ("leggi", "input") e n <= 1:
+                m = se_stesso.nuova("leggi")
+                se n:
+                    se_stesso.ingresso(m, "messaggio", c.args[0])
+                ritorna m
+            se nome in UNARIE e n == 1:
+                m = se_stesso.nuova(UNARIE[nome])
+                se_stesso.ingresso(m, _primo_ingresso(m.tipo), c.args[0])
+                ritorna m
+            se nome in BINARIE e n == 2:
+                m = se_stesso.nuova(BINARIE[nome])
+                se_stesso.ingresso(m, "a", c.args[0])
+                se_stesso.ingresso(m, "b", c.args[1])
+                ritorna m
+            se nome in ("intervallo", "range") e n == 2:
+                m = se_stesso.nuova("intervallo")
+                se_stesso.ingresso(m, "a", c.args[0])
+                se_stesso.ingresso(m, "b", c.args[1])
+                ritorna m
+            se nome in se_stesso.funzioni e se_stesso.funzioni[nome] == n:
+                m = se_stesso.nuova("fnv:" + nome)
+                per i, a in enumera(c.args):
+                    se_stesso.ingresso(m, f"p{i}", a)
+                ritorna m
+        se isinstance(f, ast.Attribute) e se_stesso._semplice(c):
+            se f.attr in METODI_TESTO e n == 0:
+                m = se_stesso.nuova(METODI_TESTO[f.attr])
+                se_stesso.ingresso(m, "v", f.value)
+                ritorna m
+            se f.attr == "intero_casuale" e isinstance(f.value, ast.Name) e f.value.id == "casuale" e n == 2:
+                m = se_stesso.nuova("casuale_tra")
+                se_stesso.ingresso(m, "a", c.args[0])
+                se_stesso.ingresso(m, "b", c.args[1])
+                ritorna m
+        se se_stesso._semplice(c) e n <= 3 e se_stesso._nome_chiamabile(f):
+            m = se_stesso.nuova("chiamata")
+            m.campi["nome"] = se_stesso.segmento(f)
+            per slot, a in zip("abc", c.args):
+                se_stesso.ingresso(m, slot, a)
+            ritorna m
+        ritorna Nessuno
+
+    definisci _nome_chiamabile(se_stesso, f):
+        """Nome semplice o catena di attributi (a.b.c): si può scrivere nel campo di una mattonella «chiama»."""
+        mentre isinstance(f, ast.Attribute):
+            f = f.value
+        ritorna isinstance(f, ast.Name)
+
+    # ------------------------------------------------------------ istruzioni
+    definisci _riga_libera(se_stesso, nodo):
+        m = se_stesso.nuova("codice")
+        m.campi["testo"] = se_stesso.testo_di(nodo)
+        se_stesso.rapporto["righe_libere"] += 1
+        se lunghezza(se_stesso.rapporto["libere"]) < 25:
+            se_stesso.rapporto["libere"].append((nodo.lineno, m.campi["testo"].split("\n")[0][:70]))
+        ritorna [m]
+
+    definisci corpo(se_stesso, nodi, commenti=Vero):
+        """Lista di mattonelle per una sequenza di istruzioni (con i commenti che le precedono)."""
+        tessere = []
+        per n in nodi:
+            se commenti:
+                tessere.extend(se_stesso._commenti_prima(n))
+            tessere.extend(se_stesso.istruzione(n))
+        ritorna tessere
+
+    definisci _commenti_prima(se_stesso, nodo):
+        righe = []
+        r = nodo.lineno - 1
+        mentre r >= 1 e r in se_stesso.commenti:
+            righe.append(r)
+            r -= 1
+        tessere = []
+        per r in reversed(righe):
+            m = se_stesso.nuova("commento")
+            m.campi["testo"] = se_stesso.commenti[r]
+            se_stesso.rapporto["commenti"] += 1
+            tessere.append(m)
+        ritorna tessere
+
+    definisci _riempi(se_stesso, m, nome_corpo, nodi):
+        pila = se_stesso.corpo(nodi)
+        m.corpi[nome_corpo] = pila
+        collega_pila(pila, m, f"corpo:{nome_corpo}")
+
+    definisci istruzione(se_stesso, nodo):
+        """Lista di mattonelle (di solito una) per un'istruzione."""
+        se isinstance(nodo, ast.Expr) e isinstance(nodo.value, ast.Call):
+            c = nodo.value
+            f = c.func
+            n = lunghezza(c.args)
+            se isinstance(f, ast.Name) e se_stesso._semplice(c):
+                se f.id in ("stampa", "print") e 1 <= n <= 3:
+                    m = se_stesso.nuova("stampa")
+                    per slot, a in zip(("valore", "valore2", "valore3"), c.args):
+                        se_stesso.ingresso(m, slot, a)
+                    ritorna [m]
+                se f.id in se_stesso.funzioni e se_stesso.funzioni[f.id] == n:
+                    m = se_stesso.nuova("fn:" + f.id)
+                    per i, a in enumera(c.args):
+                        se_stesso.ingresso(m, f"p{i}", a)
+                    ritorna [m]
+            se se_stesso._semplice(c) e n <= 3 e se_stesso._nome_chiamabile(f):
+                m = se_stesso.nuova("chiama")
+                m.campi["nome"] = se_stesso.segmento(f)
+                per slot, a in zip("abc", c.args):
+                    se_stesso.ingresso(m, slot, a)
+                ritorna [m]
+            se isinstance(f, ast.Attribute) e f.attr in ("aggiungi", "append") e n == 1 e se_stesso._semplice(c):
+                m = se_stesso.nuova("aggiungi_a_lista")
+                se_stesso.ingresso(m, "valore", c.args[0])
+                se_stesso.ingresso(m, "lista", f.value)
+                ritorna [m]
+        se isinstance(nodo, ast.Assign) e lunghezza(nodo.targets) == 1 e isinstance(nodo.targets[0], ast.Name):
+            m = se_stesso.nuova("imposta")
+            m.campi["var"] = nodo.targets[0].id
+            se_stesso.ingresso(m, "valore", nodo.value)
+            ritorna [m]
+        se isinstance(nodo, ast.AugAssign) e isinstance(nodo.target, ast.Name) e isinstance(nodo.op, ast.Add):
+            m = se_stesso.nuova("cambia")
+            m.campi["var"] = nodo.target.id
+            se_stesso.ingresso(m, "valore", nodo.value)
+            ritorna [m]
+        se isinstance(nodo, ast.If):
+            m = se_stesso.nuova("se_altrimenti" se nodo.orelse altrimenti "se")
+            se_stesso.ingresso(m, "cond", nodo.test)
+            se_stesso._riempi(m, "corpo", nodo.body)
+            se nodo.orelse:
+                se_stesso._riempi(m, "altro", nodo.orelse)
+            ritorna [m]
+        se isinstance(nodo, ast.For) e non nodo.orelse e isinstance(nodo.target, ast.Name):
+            it = nodo.iter
+            se (nodo.target.id == "_" e isinstance(it, ast.Call) e isinstance(it.func, ast.Name) e it.func.id in ("intervallo", "range")
+                    e lunghezza(it.args) == 1 e se_stesso._semplice(it)):
+                m = se_stesso.nuova("ripeti")
+                se_stesso.ingresso(m, "n", it.args[0])
+            altrimenti:
+                m = se_stesso.nuova("per_ogni")
+                m.campi["var"] = nodo.target.id
+                se_stesso.ingresso(m, "elenco", it)
+            se_stesso._riempi(m, "corpo", nodo.body)
+            ritorna [m]
+        se isinstance(nodo, ast.While) e non nodo.orelse:
+            m = se_stesso.nuova("mentre")
+            se_stesso.ingresso(m, "cond", nodo.test)
+            se_stesso._riempi(m, "corpo", nodo.body)
+            ritorna [m]
+        se isinstance(nodo, ast.Break):
+            ritorna [se_stesso.nuova("interrompi")]
+        se isinstance(nodo, ast.Continue):
+            ritorna [se_stesso.nuova("continua")]
+        se isinstance(nodo, ast.Pass):
+            ritorna [se_stesso.nuova("passa")]
+        se isinstance(nodo, ast.Return):
+            m = se_stesso.nuova("ritorna")
+            se nodo.value è non Nessuno:
+                se_stesso.ingresso(m, "valore", nodo.value)
+            ritorna [m]
+        se isinstance(nodo, ast.Global):
+            tessere = []
+            per nome in nodo.names:
+                m = se_stesso.nuova("globale")
+                m.campi["var"] = nome
+                tessere.append(m)
+            ritorna tessere
+        se isinstance(nodo, ast.Try) e lunghezza(nodo.handlers) <= 1 e non nodo.orelse e (nodo.handlers o nodo.finalbody):
+            h = nodo.handlers[0] se nodo.handlers altrimenti Nessuno
+            tipo_ok = h è Nessuno o (h.name in (Nessuno, "errore") e (h.type è Nessuno o (isinstance(h.type, ast.Name) e h.type.id in ("Eccezione", "Exception"))))
+            se tipo_ok:
+                m = se_stesso.nuova("prova")
+                se_stesso._riempi(m, "corpo", nodo.body)
+                se h è non Nessuno:
+                    se_stesso._riempi(m, "errore", h.body)
+                se nodo.finalbody:
+                    se_stesso._riempi(m, "infine", nodo.finalbody)
+                ritorna [m]
+        se isinstance(nodo, ast.With) e lunghezza(nodo.items) == 1:
+            it = nodo.items[0]
+            e = it.context_expr
+            se (isinstance(e, ast.Call) e isinstance(e.func, ast.Name) e e.func.id in ("apri", "open") e lunghezza(e.args) == 1
+                    e se_stesso._semplice(e) e isinstance(it.optional_vars, ast.Name)):
+                m = se_stesso.nuova("con_file")
+                m.campi["var"] = it.optional_vars.id
+                se_stesso.ingresso(m, "nome", e.args[0])
+                se_stesso._riempi(m, "corpo", nodo.body)
+                ritorna [m]
+        ritorna se_stesso._riga_libera(nodo)
+
+    # ------------------------------------------------------------ funzioni
+    definisci _parametri(se_stesso, f):
+        """Testo dei parametri di una funzione semplice, oppure Nessuno se non è convertibile."""
+        a = f.args
+        se a.posonlyargs:
+            ritorna Nessuno
+        pezzi = []
+        n_pos = lunghezza(a.args)
+        n_def = lunghezza(a.defaults)
+        per i, arg in enumera(a.args):
+            k = i - (n_pos - n_def)
+            pezzi.append(arg.arg + ("=" + se_stesso.segmento(a.defaults[k]) se k >= 0 altrimenti ""))
+        se a.vararg:
+            pezzi.append("*" + a.vararg.arg)
+        altrimenti_se a.kwonlyargs:
+            pezzi.append("*")
+        per arg, d in zip(a.kwonlyargs, a.kw_defaults):
+            pezzi.append(arg.arg + ("=" + se_stesso.segmento(d) se d è non Nessuno altrimenti ""))
+        se a.kwarg:
+            pezzi.append("**" + a.kwarg.arg)
+        ritorna ", ".join(pezzi)
+
+    definisci _convertibile(se_stesso, nodo):
+        ritorna (isinstance(nodo, ast.FunctionDef) e non nodo.decorator_list e se_stesso._parametri(nodo) è non Nessuno)
+
+    # ------------------------------------------------------------ programma intero
+    definisci converti(se_stesso):
+        albero = compile(se_stesso.sorgente, "<conversione>", "exec", ast.PyCF_ONLY_AST)
+        p = se_stesso.programma
+        nodi = albero.body
+        # 1) registra le funzioni convertibili (nome e parametri), così le chiamate trovano la definizione
+        funzioni = []
+        per n in nodi:
+            se se_stesso._convertibile(n) e non p.funzione(n.name):
+                f = Funzione(n.name, se_stesso._parametri(n))
+                p.funzioni.append(f)
+                se_stesso.funzioni[n.name] = lunghezza(f.parametri())
+                funzioni.append((n, f))
+        # 2) il resto del modulo
+        flusso = []
+        per i, n in enumera(nodi):
+            se isinstance(n, (ast.Import, ast.ImportFrom)):
+                p.importazioni.append(se_stesso.testo_di(n))
+            altrimenti_se se_stesso._convertibile(n) e p.funzione(n.name) e n in [x[0] per x in funzioni]:
+                continua
+            altrimenti_se isinstance(n, ast.Expr) e isinstance(n.value, ast.Constant) e isinstance(n.value.value, str) e i == 0:
+                continua                                  # docstring del modulo
+            altrimenti_se isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                p.codice_iniziale += se_stesso.testo_di(n) + "\n\n\n"
+                se_stesso.rapporto["classi_e_codice_di_modulo"] += 1
+            altrimenti_se se_stesso._è_costante(n):
+                p.codice_iniziale += se_stesso.testo_di(n) + "\n"
+                se_stesso.rapporto["classi_e_codice_di_modulo"] += 1
+            altrimenti_se (isinstance(n, ast.If) e isinstance(n.test, ast.Compare) e isinstance(n.test.left, ast.Name)
+                         e n.test.left.id == "__name__" e n.orelse == []):
+                flusso.extend(se_stesso.corpo(n.body))     # il blocco "se __nome__ == '__main__'" è già generato
+            altrimenti:
+                flusso.extend(se_stesso.corpo([n]))
+        # 3) corpi delle funzioni
+        per n, f in funzioni:
+            corpo = n.body
+            tessere = []
+            se (corpo e isinstance(corpo[0], ast.Expr) e isinstance(corpo[0].value, ast.Constant) e isinstance(corpo[0].value.value, str)):
+                c = se_stesso.nuova("commento")
+                c.campi["testo"] = corpo[0].value.value.strip().split("\n")[0][:100]
+                tessere.append(c)
+                corpo = corpo[1:]
+            tessere.extend(se_stesso.corpo(corpo))
+            cap = f.area.cappello
+            cap.lista.extend(tessere)
+            collega_pila(cap.lista, cap.padre, "radice")
+            se_stesso.rapporto["funzioni"] += 1
+        cap = p.principale.cappello
+        cap.lista.extend(flusso)
+        collega_pila(cap.lista, cap.padre, "radice")
+        # 4) variabili assegnate nel flusso principale e usate dalle funzioni = globali
+        se_stesso._variabili_globali(nodi, funzioni)
+        ritorna p
+
+    definisci _è_costante(se_stesso, nodo):
+        """Assegnazioni di modulo 'COSTANTE = ...' o '_nome = ...': restano codice di modulo."""
+        se isinstance(nodo, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            bersagli = nodo.targets se isinstance(nodo, ast.Assign) altrimenti [nodo.target]
+            ritorna tutti(isinstance(t, ast.Name) e (t.id.isupper() o t.id.startswith("_")) per t in bersagli)
+        ritorna Falso
+
+    definisci _nomi_liberi(se_stesso, f):
+        """Nomi letti in una funzione che non sono suoi parametri né variabili locali."""
+        a = f.args
+        locali = {x.arg per x in a.posonlyargs + a.args + a.kwonlyargs}
+        se a.vararg:
+            locali.add(a.vararg.arg)
+        se a.kwarg:
+            locali.add(a.kwarg.arg)
+        globali = set()
+        corpo = f.body se isinstance(f.body, lista) altrimenti [f.body]
+        per n in corpo:
+            per x in ast.walk(n):
+                se isinstance(x, (ast.Global, ast.Nonlocal)):
+                    globali.update(x.names)
+        per n in corpo:
+            per x in ast.walk(n):
+                se isinstance(x, ast.Name) e isinstance(x.ctx, (ast.Store, ast.Del)) e x.id non in globali:
+                    locali.add(x.id)
+        letti = set()
+        per n in corpo:
+            per x in ast.walk(n):
+                se isinstance(x, ast.Name) e isinstance(x.ctx, ast.Load) e x.id non in locali:
+                    letti.add(x.id)
+        ritorna letti | globali
+
+    definisci _variabili_globali(se_stesso, nodi, funzioni):
+        usati = set()
+        per n in nodi:
+            se isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                per g in ast.walk(n):
+                    se isinstance(g, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                        usati |= se_stesso._nomi_liberi(g)
+        assegnati = []
+        per n in nodi:
+            se isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Import, ast.ImportFrom)) o se_stesso._è_costante(n):
+                continua
+            per x in ast.walk(n):
+                se isinstance(x, ast.Name) e isinstance(x.ctx, ast.Store) e x.id non in assegnati:
+                    assegnati.append(x.id)
+        p = se_stesso.programma
+        for_nomi = [x per x in assegnati se x in usati]
+        per nome in for_nomi:
+            p.variabili_globali.append(nome)
+        # avviso: una funzione assegna lo stesso nome senza dichiararlo globale
+        per n, f in funzioni:
+            dichiarati = set()
+            per x in ast.walk(n):
+                se isinstance(x, ast.Global):
+                    dichiarati.update(x.names)
+            per x in ast.walk(n):
+                se isinstance(x, ast.Name) e isinstance(x.ctx, ast.Store) e x.id in for_nomi e x.id non in dichiarati:
+                    se_stesso.rapporto["avvisi"].append(f"«{x.id}» è assegnata nella funzione {n.name} come variabile locale, "
+                                                        "ma è anche una variabile globale del flusso principale: controlla.")
+                    interrompi
+
+
+definisci converti_sorgente(sorgente, nome="programma"):
+    """(Programma, rapporto). Solleva SyntaxError se il sorgente non è pytonIta valido."""
+    c = Convertitore(sorgente, nome)
+    p = c.converti()
+    ritorna p, c.rapporto
+
+
+definisci descrivi_rapporto(r):
+    """Testo leggibile del rapporto di conversione."""
+    righe = [f"Funzioni convertite: {r['funzioni']}",
+             f"Mattonelle create: {r['mattonelle']}",
+             f"Commenti conservati: {r['commenti']}"]
+    se r["classi_e_codice_di_modulo"]:
+        righe.append(f"Classi e costanti lasciate come codice di modulo: {r['classi_e_codice_di_modulo']}")
+    libere = r["righe_libere"] + r["espressioni_libere"]
+    se libere:
+        righe.append(f"Parti conservate come testo (senza mattonella equivalente): {r['righe_libere']} istruzioni, "
+                     f"{r['espressioni_libere']} espressioni")
+        per riga, t in r["libere"][:8]:
+            righe.append(f"   riga {riga}: {t}")
+    per a in r["avvisi"][:5]:
+        righe.append("⚠ " + a)
+    ritorna "\n".join(righe)

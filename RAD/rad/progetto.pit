@@ -1,0 +1,531 @@
+"""Progetti di PitStudio: cartella + manifesto, modelli iniziali, operazioni sui file, pannello ad albero."""
+importa json
+importa os
+importa re
+importa shutil
+importa subprocess
+importa sys
+importa time
+importa tkinter come tk
+da tkinter importa ttk, messagebox, simpledialog, filedialog
+
+da rad importa form_modello
+
+NOME_MANIFESTO = "progetto.rad.json"
+IGNORA = {"__pycache__", ".git", ".rad", ".idea", ".vscode", "node_modules"}
+ESTENSIONI_CODICE = {".pit"}
+ESTENSIONI_IMMAGINE = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tif", ".tiff"}
+ESTENSIONI_TABELLA = {".csv", ".tsv"}
+ESTENSIONI_TESTO = {".txt", ".md", ".ini", ".cfg", ".toml", ".yaml", ".yml", ".xml", ".html",
+                    ".css", ".js", ".log", ".bat", ".sh", ".sql", ".rst"}
+
+MODELLI = {
+    "console": "Programma da console",
+    "finestra": "Programma con finestra (progettista)",
+    "mattonelle": "Programma a mattonelle",
+    "vuoto": "Progetto vuoto",
+    "libreria": "Libreria (pacchetto)",
+    "python": "Programma Python classico (.py)",
+}
+
+PROGRAMMA_CONSOLE = '''"""{nome} - programma da console pytonIta."""
+
+
+definisci principale():
+    nome = leggi("Come ti chiami? ")
+    stampa(f"Ciao, {{nome}}!")
+    per i in intervallo(1, 4):
+        stampa("Conto:", i)
+
+
+se __nome__ == "__main__":
+    principale()
+'''
+
+
+PROGRAMMA_PYTHON = '''"""{nome} - programma Python classico (eseguito da pitonit)."""
+
+
+def main():
+    nome = input("Come ti chiami? ")
+    print(f"Ciao, {{nome}}!")
+    for i in range(1, 4):
+        print("Conto:", i)
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+
+definisci tipo_file(percorso):
+    """Categoria di un file: codice, form, immagine, json, tabella, testo, binario."""
+    nome = os.path.basename(percorso).lower()
+    estensione = os.path.splitext(nome)[1]
+    se nome.endswith(".mattonelle.json"):
+        ritorna "mattonelle"
+    se nome.endswith(".form.json"):
+        ritorna "form"
+    se estensione in ESTENSIONI_CODICE:
+        ritorna "codice"
+    se estensione in (".py", ".pyw"):
+        ritorna "python"
+    se estensione == ".json":
+        ritorna "json"
+    se estensione in ESTENSIONI_IMMAGINE:
+        ritorna "immagine"
+    se estensione in ESTENSIONI_TABELLA:
+        ritorna "tabella"
+    se estensione in ESTENSIONI_TESTO o nome in ("readme", "license", "makefile"):
+        ritorna "testo"
+    # prova a capire se è testo
+    prova:
+        con open(percorso, "rb") come f:
+            blocco = f.read(2048)
+        se b"\0" in blocco:
+            ritorna "binario"
+        blocco.decode("utf-8")
+        ritorna "testo"
+    eccetto (OSError, UnicodeDecodeError):
+        ritorna "binario"
+
+
+classe Progetto:
+    definisci __inizializza__(se_stesso, cartella):
+        se_stesso.cartella = os.path.abspath(cartella)
+        se_stesso.manifesto = {}
+        se_stesso.carica_manifesto()
+
+    # --- manifesto
+    @property
+    definisci percorso_manifesto(se_stesso):
+        ritorna os.path.join(se_stesso.cartella, NOME_MANIFESTO)
+
+    definisci carica_manifesto(se_stesso):
+        prova:
+            con open(se_stesso.percorso_manifesto, encoding="utf-8") come f:
+                se_stesso.manifesto = json.load(f)
+        eccetto (OSError, ValueError):
+            se_stesso.manifesto = {"nome": os.path.basename(se_stesso.cartella), "principale": "",
+                                   "descrizione": "", "argomenti": ""}
+
+    definisci salva_manifesto(se_stesso):
+        con open(se_stesso.percorso_manifesto, "w", encoding="utf-8") come f:
+            json.dump(se_stesso.manifesto, f, indent=2, ensure_ascii=Falso)
+
+    @property
+    definisci nome(se_stesso):
+        ritorna se_stesso.manifesto.get("nome") o os.path.basename(se_stesso.cartella)
+
+    @property
+    definisci principale(se_stesso):
+        ritorna se_stesso.manifesto.get("principale", "")
+
+    definisci imposta_principale(se_stesso, relativo):
+        se_stesso.manifesto["principale"] = relativo
+        se_stesso.salva_manifesto()
+
+    definisci percorso_principale(se_stesso):
+        se se_stesso.principale:
+            p = se_stesso.assoluto(se_stesso.principale)
+            se os.path.exists(p):
+                ritorna p
+        ritorna Nessuno
+
+    # --- percorsi
+    definisci assoluto(se_stesso, relativo):
+        p = os.path.normpath(os.path.join(se_stesso.cartella, relativo))
+        se non (p == se_stesso.cartella o p.startswith(se_stesso.cartella + os.sep)):
+            solleva ErroreDiValore(f"percorso fuori dal progetto: {relativo}")
+        ritorna p
+
+    definisci relativo(se_stesso, assoluto):
+        ritorna os.path.relpath(assoluto, se_stesso.cartella).replace("\\", "/")
+
+    definisci contiene(se_stesso, percorso):
+        p = os.path.abspath(percorso)
+        ritorna p == se_stesso.cartella o p.startswith(se_stesso.cartella + os.sep)
+
+    # --- creazione
+    @staticmethod
+    definisci nuovo(cartella, nome, modello="console"):
+        os.makedirs(cartella, exist_ok=Vero)
+        se os.path.exists(os.path.join(cartella, NOME_MANIFESTO)):
+            solleva FileEsistente("esiste già un progetto in questa cartella")
+        p = Progetto(cartella)
+        p.manifesto = {"nome": nome, "principale": "", "descrizione": "", "argomenti": "",
+                       "creato": time.strftime("%Y-%m-%d %H:%M"), "modello": modello}
+        se modello == "console":
+            p.crea_file("principale.pit", PROGRAMMA_CONSOLE.format(nome=nome))
+            p.manifesto["principale"] = "principale.pit"
+        altrimenti_se modello == "finestra":
+            f = form_modello.Form("Principale", nome)
+            f.larghezza, f.altezza = 420, 260
+            f.aggiungi("Etichetta", 20, 20, testo="Ciao dal progettista!", larghezza=260)
+            f.aggiungi("CampoTesto", 20, 60, larghezza=260)
+            f.aggiungi("Pulsante", 20, 110, testo="Saluta", al_clic="al_clic_saluta", larghezza=120)
+            form_modello.salva_form(f, cartella)
+            p.manifesto["principale"] = "principale.pit"
+        altrimenti_se modello == "mattonelle":
+            da rad importa mattonelle_modello
+            prog = mattonelle_modello.programma_di_esempio("principale")
+            mattonelle_modello.salva_programma(prog, cartella)
+            p.manifesto["principale"] = "principale.pit"
+        altrimenti_se modello == "python":
+            p.crea_file("principale.py", PROGRAMMA_PYTHON.format(nome=nome))
+            p.manifesto["principale"] = "principale.py"
+        altrimenti_se modello == "libreria":
+            nome_pacchetto = re.sub(r"\W+", "_", nome.lower()) o "pacchetto"
+            p.crea_file(f"{nome_pacchetto}/__init__.pit", f'"""Pacchetto {nome}."""\n\nVERSIONE = "0.1"\n')
+            p.crea_file("prova.pit", f"da {nome_pacchetto} importa VERSIONE\n\nstampa(\"versione\", VERSIONE)\n")
+            p.manifesto["principale"] = "prova.pit"
+        altrimenti:
+            p.crea_file("principale.pit", f'"""{nome}."""\n\nstampa("Ciao!")\n')
+            p.manifesto["principale"] = "principale.pit"
+        p.crea_file("LEGGIMI.md", f"# {nome}\n\nProgetto creato con PitStudio.\n")
+        p.salva_manifesto()
+        ritorna p
+
+    # --- file
+    definisci crea_file(se_stesso, relativo, contenuto=""):
+        p = se_stesso.assoluto(relativo)
+        os.makedirs(os.path.dirname(p), exist_ok=Vero)
+        con open(p, "w", encoding="utf-8", newline="\n") come f:
+            f.write(contenuto)
+        ritorna p
+
+    definisci crea_cartella(se_stesso, relativo):
+        p = se_stesso.assoluto(relativo)
+        os.makedirs(p, exist_ok=Vero)
+        ritorna p
+
+    definisci leggi(se_stesso, relativo):
+        con open(se_stesso.assoluto(relativo), "rb") come f:
+            dati = f.read()
+        prova:
+            ritorna dati.decode("utf-8")
+        eccetto UnicodeDecodeError:
+            ritorna dati.decode("latin-1")
+
+    definisci cancella(se_stesso, relativo):
+        p = se_stesso.assoluto(relativo)
+        se p == se_stesso.cartella:
+            solleva ErroreDiValore("non si può eliminare la cartella del progetto")
+        se os.path.isdir(p):
+            shutil.rmtree(p)
+        altrimenti:
+            os.remove(p)
+        se se_stesso.principale == relativo:
+            se_stesso.imposta_principale("")
+
+    definisci rinomina(se_stesso, relativo, nuovo_nome):
+        p = se_stesso.assoluto(relativo)
+        nuovo = os.path.join(os.path.dirname(p), nuovo_nome)
+        se os.path.exists(nuovo):
+            solleva FileEsistente(nuovo_nome)
+        os.rename(p, nuovo)
+        nuovo_rel = se_stesso.relativo(nuovo)
+        se se_stesso.principale == relativo:
+            se_stesso.imposta_principale(nuovo_rel)
+        ritorna nuovo
+
+    definisci aggiungi_risorse(se_stesso, file_origine, sottocartella="risorse"):
+        destinazione = se_stesso.assoluto(sottocartella)
+        os.makedirs(destinazione, exist_ok=Vero)
+        copiati = []
+        per f in file_origine:
+            d = os.path.join(destinazione, os.path.basename(f))
+            shutil.copy2(f, d)
+            copiati.append(d)
+        ritorna copiati
+
+    definisci elenca(se_stesso, relativo=""):
+        """[(nome, è_cartella)] ordinati: prima le cartelle."""
+        p = se_stesso.assoluto(relativo) se relativo altrimenti se_stesso.cartella
+        voci = []
+        prova:
+            nomi = os.listdir(p)
+        eccetto OSError:
+            ritorna []
+        per n in nomi:
+            se n in IGNORA o n.endswith(".pyc"):
+                continua
+            voci.append((n, os.path.isdir(os.path.join(p, n))))
+        voci.sort(key=lambda v: (non v[1], v[0].lower()))
+        ritorna voci
+
+    definisci tutti_i_file(se_stesso, estensioni=Nessuno, massimo=5000):
+        risultato = []
+        per radice, cartelle, file in os.walk(se_stesso.cartella):
+            cartelle[:] = [d per d in cartelle se d non in IGNORA]
+            per n in file:
+                se n.endswith(".pyc"):
+                    continua
+                se estensioni e os.path.splitext(n)[1].lower() non in estensioni:
+                    continua
+                risultato.append(se_stesso.relativo(os.path.join(radice, n)))
+                se lunghezza(risultato) >= massimo:
+                    ritorna risultato
+        ritorna sorted(risultato)
+
+    definisci forms(se_stesso):
+        ritorna [r per r in se_stesso.tutti_i_file() se r.endswith(".form.json")]
+
+    definisci cerca(se_stesso, testo_, estensioni=Nessuno, maiuscole=Falso, massimo=200):
+        """[(relativo, riga, contenuto)] delle righe che contengono il testo."""
+        chiave = testo_ se maiuscole altrimenti testo_.lower()
+        trovati = []
+        per rel in se_stesso.tutti_i_file(estensioni):
+            p = se_stesso.assoluto(rel)
+            se tipo_file(p) non in ("codice", "testo", "json", "tabella", "form"):
+                continua
+            prova:
+                righe = open(p, encoding="utf-8", errors="replace").read().splitlines()
+            eccetto OSError:
+                continua
+            per n, riga in enumera(righe, 1):
+                se chiave in (riga se maiuscole altrimenti riga.lower()):
+                    trovati.append((rel, n, riga.strip()[:200]))
+                    se lunghezza(trovati) >= massimo:
+                        ritorna trovati
+        ritorna trovati
+
+
+# --------------------------------------------------------------------------- pannello
+ICONE = {"cartella": "📁", "codice": "🧩", "python": "🐍", "form": "🪟", "mattonelle": "🧱", "immagine": "🖼", "json": "{}",
+         "tabella": "▦", "testo": "📄", "binario": "▪"}
+
+
+classe PannelloProgetto(tk.Frame):
+    """Albero del progetto con menu contestuale e barra degli strumenti."""
+
+    definisci __inizializza__(se_stesso, genitore, azioni, config):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.azioni = azioni
+        se_stesso.config_ = config
+        se_stesso.progetto = Nessuno
+        se_stesso._nodi = {}
+        barra = tk.Frame(se_stesso)
+        barra.pack(fill="x")
+        se_stesso.etichetta = tk.Label(barra, text="Nessun progetto", anchor="w")
+        se_stesso.etichetta.pack(side="left", fill="x", expand=Vero, padx=6, pady=4)
+        se_stesso.barra = barra
+        per simbolo, suggerimento, comando in (("⟳", "Aggiorna", se_stesso.aggiorna),
+                                               ("＋", "Nuovo file", lambda: se_stesso.nuovo_file()),
+                                               ("📁", "Nuova cartella", lambda: se_stesso.nuova_cartella())):
+            b = tk.Button(barra, text=simbolo, command=comando, width=3)
+            b.pack(side="right", padx=1, pady=2)
+        se_stesso.albero = ttk.Treeview(se_stesso, show="tree", selectmode="browse")
+        barra_y = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.albero.yview)
+        se_stesso.albero.configure(yscrollcommand=barra_y.set)
+        barra_y.pack(side="right", fill="y")
+        se_stesso.albero.pack(fill="both", expand=Vero)
+        se_stesso.albero.bind("<<TreeviewOpen>>", se_stesso._alla_apertura)
+        se_stesso.albero.bind("<Double-1>", se_stesso._doppio_clic)
+        se_stesso.albero.bind("<Return>", se_stesso._doppio_clic)
+        se_stesso.albero.bind("<Button-3>", se_stesso._menu_contestuale)
+        se_stesso.albero.bind("<F2>", lambda e: se_stesso.rinomina())
+        se_stesso.albero.bind("<Delete>", lambda e: se_stesso.cancella())
+        se_stesso.menu = tk.Menu(se_stesso, tearoff=0)
+
+    # --- albero
+    definisci imposta_progetto(se_stesso, progetto):
+        se_stesso.progetto = progetto
+        se_stesso.etichetta.configure(text=progetto.nome se progetto altrimenti "Nessun progetto")
+        se_stesso.aggiorna()
+
+    definisci aggiorna(se_stesso):
+        espansi = {r per r, n in se_stesso._nodi.items() se se_stesso.albero.exists(n) e se_stesso.albero.item(n, "open")}
+        se_stesso.albero.delete(*se_stesso.albero.get_children())
+        se_stesso._nodi = {}
+        se non se_stesso.progetto:
+            ritorna
+        se_stesso._riempi("", "")
+        per rel in sorted(espansi, key=lambda r: r.count("/")):
+            n = se_stesso._nodi.get(rel)
+            se n e se_stesso.albero.exists(n):
+                se_stesso.albero.item(n, open=Vero)
+                se_stesso._carica_figli(n)
+
+    definisci _riempi(se_stesso, nodo, relativo):
+        per nome_, e_cartella in se_stesso.progetto.elenca(relativo):
+            rel = f"{relativo}/{nome_}" se relativo altrimenti nome_
+            p = se_stesso.progetto.assoluto(rel)
+            se e_cartella:
+                icona = ICONE["cartella"]
+            altrimenti:
+                icona = ICONE.get(tipo_file(p), "📄")
+            testo_ = f"{icona}  {nome_}"
+            se rel == se_stesso.progetto.principale:
+                testo_ += "   ★"
+            n = se_stesso.albero.insert(nodo, "end", text=testo_, values=(rel, "d" se e_cartella altrimenti "f"))
+            se_stesso._nodi[rel] = n
+            se e_cartella:
+                se_stesso.albero.insert(n, "end", text="…", values=("", "ph"))
+
+    definisci _carica_figli(se_stesso, nodo):
+        figli = se_stesso.albero.get_children(nodo)
+        se lunghezza(figli) == 1 e se_stesso.albero.item(figli[0], "values")[1] == "ph":
+            se_stesso.albero.delete(figli[0])
+            rel = se_stesso.albero.item(nodo, "values")[0]
+            se_stesso._riempi(nodo, rel)
+
+    definisci _alla_apertura(se_stesso, e):
+        nodo = se_stesso.albero.focus()
+        se nodo:
+            se_stesso._carica_figli(nodo)
+
+    definisci _selezionato(se_stesso):
+        """(relativo, è_cartella) del nodo scelto, oppure ('', Vero) per la radice."""
+        nodo = se_stesso.albero.focus()
+        se non nodo:
+            ritorna "", Vero
+        rel, tipo_ = se_stesso.albero.item(nodo, "values")[:2]
+        ritorna rel, tipo_ == "d"
+
+    definisci _cartella_di_destinazione(se_stesso):
+        rel, e_cartella = se_stesso._selezionato()
+        se e_cartella:
+            ritorna rel
+        ritorna os.path.dirname(rel).replace("\\", "/")
+
+    definisci _doppio_clic(se_stesso, e=Nessuno):
+        rel, e_cartella = se_stesso._selezionato()
+        se rel e non e_cartella:
+            se_stesso.azioni.apri_file(se_stesso.progetto.assoluto(rel))
+
+    # --- menu contestuale
+    definisci _menu_contestuale(se_stesso, e):
+        riga = se_stesso.albero.identify_row(e.y)
+        se riga:
+            se_stesso.albero.selection_set(riga)
+            se_stesso.albero.focus(riga)
+        se non se_stesso.progetto:
+            ritorna
+        rel, e_cartella = se_stesso._selezionato()
+        m = se_stesso.menu
+        m.delete(0, "end")
+        se rel e non e_cartella:
+            m.add_command(label="Apri", command=se_stesso._doppio_clic)
+            m.add_command(label="Imposta come file principale ★", command=se_stesso.imposta_principale)
+            se rel.lower().endswith(".pit"):
+                m.add_command(label="Converti in mattonelle…", command=se_stesso.converti_in_mattonelle)
+            se rel.lower().endswith(".py"):
+                m.add_command(label="Traduci in pytonIta (.pit)…", command=se_stesso.traduci_in_pit)
+            m.add_separator()
+        m.add_command(label="Nuovo file…", command=se_stesso.nuovo_file)
+        m.add_command(label="Nuova cartella…", command=se_stesso.nuova_cartella)
+        m.add_command(label="Nuova finestra (progettista)…", command=se_stesso.nuova_finestra)
+        m.add_command(label="Nuovo programma a mattonelle…", command=se_stesso.nuovo_mattonelle)
+        m.add_command(label="Aggiungi risorse (immagini, json, …)…", command=se_stesso.aggiungi_risorse)
+        se rel:
+            m.add_separator()
+            m.add_command(label="Rinomina…   F2", command=se_stesso.rinomina)
+            m.add_command(label="Elimina   Canc", command=se_stesso.cancella)
+            m.add_command(label="Mostra in Esplora risorse", command=se_stesso.mostra_in_esplora)
+        m.add_separator()
+        m.add_command(label="Aggiorna", command=se_stesso.aggiorna)
+        m.tk_popup(e.x_root, e.y_root)
+
+    # --- azioni
+    definisci nuovo_file(se_stesso, nome_=Nessuno):
+        se non se_stesso.progetto:
+            ritorna
+        cartella = se_stesso._cartella_di_destinazione()
+        nome_ = nome_ o simpledialog.askstring("Nuovo file", "Nome del file (es. modulo.pit):", parent=se_stesso)
+        se non nome_:
+            ritorna
+        rel = f"{cartella}/{nome_}" se cartella altrimenti nome_
+        prova:
+            p = se_stesso.progetto.crea_file(rel, "")
+        eccetto (OSError, ErroreDiValore) come errore:
+            messagebox.showerror("Errore", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.aggiorna()
+        se_stesso.azioni.apri_file(p)
+
+    definisci nuova_cartella(se_stesso):
+        se non se_stesso.progetto:
+            ritorna
+        cartella = se_stesso._cartella_di_destinazione()
+        nome_ = simpledialog.askstring("Nuova cartella", "Nome della cartella:", parent=se_stesso)
+        se non nome_:
+            ritorna
+        se_stesso.progetto.crea_cartella(f"{cartella}/{nome_}" se cartella altrimenti nome_)
+        se_stesso.aggiorna()
+
+    definisci nuova_finestra(se_stesso):
+        se_stesso.azioni.nuovo_form(se_stesso._cartella_di_destinazione())
+
+    definisci traduci_in_pit(se_stesso):
+        rel, e_cartella = se_stesso._selezionato()
+        se rel e non e_cartella:
+            se_stesso.azioni.traduci_in_pit(se_stesso.progetto.assoluto(rel))
+
+    definisci converti_in_mattonelle(se_stesso):
+        rel, e_cartella = se_stesso._selezionato()
+        se rel e non e_cartella:
+            se_stesso.azioni.converti_in_mattonelle(se_stesso.progetto.assoluto(rel))
+
+    definisci nuovo_mattonelle(se_stesso):
+        se_stesso.azioni.nuovo_mattonelle(se_stesso._cartella_di_destinazione())
+
+    definisci aggiungi_risorse(se_stesso):
+        se non se_stesso.progetto:
+            ritorna
+        file = filedialog.askopenfilenames(parent=se_stesso, title="Aggiungi risorse al progetto",
+                                           filetypes=[("Tutti i file", "*.*"),
+                                                      ("Immagini", "*.png *.jpg *.jpeg *.gif *.bmp *.ico"),
+                                                      ("JSON", "*.json"), ("Tabelle", "*.csv *.tsv")])
+        se non file:
+            ritorna
+        se_stesso.progetto.aggiungi_risorse(file)
+        se_stesso.aggiorna()
+        se_stesso.azioni.info(f"{lunghezza(file)} risorse aggiunte a risorse/")
+
+    definisci rinomina(se_stesso):
+        rel, e_cartella = se_stesso._selezionato()
+        se non rel:
+            ritorna
+        nuovo = simpledialog.askstring("Rinomina", "Nuovo nome:", initialvalue=os.path.basename(rel), parent=se_stesso)
+        se non nuovo o nuovo == os.path.basename(rel):
+            ritorna
+        vecchio = se_stesso.progetto.assoluto(rel)
+        prova:
+            nuovo_p = se_stesso.progetto.rinomina(rel, nuovo)
+        eccetto OSError come errore:
+            messagebox.showerror("Errore", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.azioni.file_rinominato(vecchio, nuovo_p)
+        se_stesso.aggiorna()
+
+    definisci cancella(se_stesso):
+        rel, e_cartella = se_stesso._selezionato()
+        se non rel:
+            ritorna
+        se non messagebox.askyesno("Elimina", f"Eliminare definitivamente «{rel}»?", parent=se_stesso):
+            ritorna
+        p = se_stesso.progetto.assoluto(rel)
+        prova:
+            se_stesso.progetto.cancella(rel)
+        eccetto OSError come errore:
+            messagebox.showerror("Errore", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.azioni.file_eliminato(p)
+        se_stesso.aggiorna()
+
+    definisci imposta_principale(se_stesso):
+        rel, e_cartella = se_stesso._selezionato()
+        se rel e non e_cartella:
+            se_stesso.progetto.imposta_principale(rel)
+            se_stesso.aggiorna()
+            se_stesso.azioni.info(f"File principale: {rel}")
+
+    definisci mostra_in_esplora(se_stesso):
+        rel, e_cartella = se_stesso._selezionato()
+        p = se_stesso.progetto.assoluto(rel) se rel altrimenti se_stesso.progetto.cartella
+        se sys.platform == "win32":
+            se os.path.isdir(p):
+                subprocess.Popen(["explorer", p])
+            altrimenti:
+                subprocess.Popen(["explorer", "/select,", p])
