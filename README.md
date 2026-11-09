@@ -31,6 +31,13 @@ Viene installato in `%LOCALAPPDATA%\Programs\pytonIta`, con le voci nel menu Sta
 - `installatore/` — la costruzione dell'installatore
 - `docs/` — la pagina web del progetto
 
+## Domande e contatti
+
+- Domande e idee: [Discussions](https://github.com/LordZenzo/pytonIta/discussions)
+- Errori e problemi: [Issues](https://github.com/LordZenzo/pytonIta/issues)
+- Senza GitHub: pytonita.progetto@gmail.com
+- Pagina web: https://lordzenzo.github.io/pytonIta/
+
 ## Licenza
 
 Il software è gratuito da usare, ma **non è modificabile né ridistribuibile in versione modificata**: vedi [LICENSE](LICENSE). Le parti derivate da CPython restano sotto la licenza PSF.
