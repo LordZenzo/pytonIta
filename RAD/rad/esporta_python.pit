@@ -1,0 +1,50 @@
+"""Esporta il progetto aperto come progetto Python normale (pit2py): file .py, requirements.txt e script per installare le librerie."""
+importa os
+importa sys
+
+
+definisci carica_pit2py():
+    """Importa pit2py_progetto (cartella pitonit/tools, accanto a PitStudio sia nello sviluppo sia nell'installazione)."""
+    strumenti = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "pitonit", "tools")
+    se strumenti non in sys.path:
+        sys.path.insert(0, strumenti)
+    importa pit2py_progetto
+    ritorna pit2py_progetto
+
+
+definisci proposta_destinazione(origine):
+    """<cartella>_python accanto al progetto; se esiste già, <cartella>_python_2, _3..."""
+    base = os.path.normpath(origine) + "_python"
+    scelta = base
+    n = 2
+    mentre os.path.exists(scelta):
+        scelta = f"{base}_{n}"
+        n += 1
+    ritorna scelta
+
+
+definisci esporta(origine, destinazione):
+    """Converte il progetto; ritorna un dizionario col risultato (vedi pit2py_progetto.converti_progetto)."""
+    ritorna carica_pit2py().converti_progetto(origine, destinazione)
+
+
+definisci riassunto(r):
+    """Testo breve, in italiano, per dire all'utente com'è andata."""
+    righe = [f"Creato il progetto Python in:\n{r['destinazione']}", "",
+             f"File Python: {r['file_python']}   ·   altri file copiati: {r['altri_file']}"]
+    se r["pacchetti"]:
+        righe.append("Librerie da installare: " + ", ".join(n + ("==" + v se v altrimenti "") per n, v in r["pacchetti"]))
+        righe.append("Chi riceve il programma trova requirements.txt e installa_librerie.bat (Windows) / installa_librerie.sh.")
+    altrimenti:
+        righe.append("Non servono librerie esterne.")
+    se r["sconosciuti"]:
+        righe.append("Moduli non riconosciuti (da aggiungere a requirements.txt): " + ", ".join(r["sconosciuti"]))
+    scelte = r["note"].get("scelta a esecuzione", 0)
+    se scelte:
+        righe.append(f"{scelte} punti dove un nome italiano era ambiguo: il programma sceglie mentre gira (vedi CONVERSIONE.md).")
+    se r["errori"]:
+        righe.append("")
+        righe.append(f"Non convertiti ({lunghezza(r['errori'])}):")
+        per f, e in r["errori"][:6]:
+            righe.append(f"  · {f}: {e}")
+    ritorna "\n".join(righe)

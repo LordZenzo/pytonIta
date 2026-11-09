@@ -94,7 +94,7 @@ def costruisci_pacchetti():
             else:
                 scrivi(zc, percorso, "pitonit/" + rel)
                 n_core += 1
-        for nome in ("py2pit.py", "tipi_ast.pit"):
+        for nome in ("py2pit.py", "tipi_ast.pit", "pit2py.py", "pit2py_tabelle.py", "pit2py_progetto.py"):
             scrivi(zc, os.path.join(STRUMENTI, nome), "pitonit/tools/" + nome)
         scrivi(zc, os.path.join(RADICE, "pitonit", "src", "LICENSE"), "pitonit/LICENSE_CPython.txt")
         scrivi(zc, os.path.join(RADICE, "LICENSE"), "pitonit/LICENSE_pytonIta.txt")

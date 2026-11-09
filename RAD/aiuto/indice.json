@@ -120,6 +120,11 @@
   "gruppo": "Programmare"
  },
  {
+  "id": "esporta-python",
+  "titolo": "Esportare il progetto come Python",
+  "gruppo": "Programmare"
+ },
+ {
   "id": "debugger",
   "titolo": "Il debugger",
   "gruppo": "Programmare"

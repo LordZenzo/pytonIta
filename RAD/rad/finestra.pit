@@ -14,6 +14,7 @@ da rad importa registro_ai
 da rad.storia importa Storia
 da rad importa claude_code
 da rad importa converti_progetto
+da rad importa esporta_python
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
 da rad importa barra come barra_mod
@@ -224,6 +225,7 @@ classe Applicazione:
         file.add_command(label="Converti il file corrente in mattonelle…", command=lambda: se_stesso.converti_in_mattonelle())
         file.add_command(label="Traduci il file .py corrente in pytonIta…", command=lambda: se_stesso.traduci_in_pit())
         file.add_command(label="Converti un progetto Python in pytonIta…", command=lambda: se_stesso.converti_progetto_py())
+        file.add_command(label="Esporta il progetto come Python…", command=lambda: se_stesso.esporta_progetto_python())
         file.add_separator()
         file.add_command(label="Salva", command=se_stesso.salva_scheda, accelerator="Ctrl+S")
         file.add_command(label="Salva tutto", command=se_stesso.salva_tutto, accelerator="Ctrl+Maiusc+S")
@@ -253,6 +255,7 @@ classe Applicazione:
         prog.add_command(label="Imposta il file corrente come principale", command=se_stesso.imposta_corrente_principale)
         prog.add_command(label="Proprietà del progetto…", command=se_stesso.proprieta_progetto)
         prog.add_command(label="Converti questo progetto Python in pytonIta…", command=lambda: se_stesso.converti_progetto_py(se_stesso.progetto.cartella se se_stesso.progetto altrimenti ""))
+        prog.add_command(label="Esporta il progetto come Python…", command=lambda: se_stesso.esporta_progetto_python())
         prog.add_command(label="Aggiorna l'albero", command=lambda: se_stesso.pannello_progetto.aggiorna())
         barra.add_cascade(label="Progetto", menu=prog)
 
@@ -983,6 +986,34 @@ classe Applicazione:
         mattonelle_modello.salva_programma(prog, cartella)
         se_stesso.pannello_progetto.aggiorna()
         ritorna se_stesso.apri_file(mattonelle_modello.percorsi_programma(cartella, nome)["json"])
+
+    definisci esporta_progetto_python(se_stesso):
+        """Crea una cartella con il progetto convertito in Python (senza bisogno di pytonIta) e le librerie da installare."""
+        se non se_stesso.progetto:
+            messagebox.showinfo("Esporta come Python", "Apri o crea prima un progetto.", parent=se_stesso.radice)
+            ritorna Nessuno
+        se_stesso.salva_tutto()
+        origine = se_stesso.progetto.cartella
+        scelta = filedialog.askdirectory(parent=se_stesso.radice, title="In quale cartella creo il progetto Python?",
+                                         initialdir=os.path.dirname(os.path.normpath(origine)), mustexist=Vero)
+        se non scelta:
+            ritorna Nessuno
+        destinazione = esporta_python.proposta_destinazione(os.path.join(scelta, os.path.basename(os.path.normpath(origine))))
+        se_stesso.info("Converto il progetto in Python…")
+        se_stesso.radice.update_idletasks()
+        prova:
+            r = esporta_python.esporta(origine, destinazione)
+        eccetto Exception come e:
+            messagebox.showerror("Esporta come Python", f"Non sono riuscito a convertire il progetto:\n{e}", parent=se_stesso.radice)
+            se_stesso.info("Esportazione non riuscita")
+            ritorna Nessuno
+        se_stesso.info(f"Progetto Python creato in {destinazione}")
+        se messagebox.askyesno("Esporta come Python", esporta_python.riassunto(r) + "\n\nAprire la cartella?", parent=se_stesso.radice):
+            prova:
+                os.startfile(destinazione)
+            eccetto Exception:
+                passa
+        ritorna r
 
     definisci converti_progetto_py(se_stesso, origine=""):
         """Apre la finestra che converte un intero progetto Python in un nuovo progetto pytonIta."""

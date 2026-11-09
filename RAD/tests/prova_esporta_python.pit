@@ -1,0 +1,83 @@
+"""Esporta come Python: il progetto convertito gira con un Python normale e dà lo stesso risultato; requirements.txt elenca le librerie."""
+importa sys, os, tempfile, subprocess, shutil, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa esporta_python
+
+PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
+base = tempfile.mkdtemp()
+origine = os.path.join(base, "Conti")
+os.makedirs(os.path.join(origine, "util"))
+open(os.path.join(origine, "progetto.rad.json"), "w", encoding="utf-8").write(json.dumps({"nome": "Conti", "principale": "principale.pit"}))
+open(os.path.join(origine, "util", "__init__.pit"), "w", encoding="utf-8").write("")
+open(os.path.join(origine, "util", "conto.pit"), "w", encoding="utf-8").write('''"""Un conto con un metodo che si chiama come un alias di libreria."""
+
+
+classe Conto:
+    definisci __inizializza__(se_stesso, titolare):
+        se_stesso.titolare = titolare
+        se_stesso.movimenti = []
+
+    definisci aggiungi(se_stesso, importo):
+        se importo <= 0:
+            solleva ErroreDiValore("importo non valido")
+        se_stesso.movimenti.append(importo)
+
+    definisci totale(se_stesso):
+        ritorna somma(se_stesso.movimenti)
+''')
+open(os.path.join(origine, "principale.pit"), "w", encoding="utf-8").write('''"""Programma di prova."""
+importa matematica
+importa numerico come n
+da util.conto importa Conto
+
+c = Conto("Anna")
+c.aggiungi(10)
+c.aggiungi(32)
+cifre = []
+cifre.aggiungi(3)
+cifre.estendi([1, 2])
+cifre.ordina(inverso=Vero)
+d = {"b": 2, "a": 1}
+parole = "ciao mondo".maiuscolo().separa()
+stampa(c.titolare, c.totale(), cifre, ordinato(d.chiavi()), parole)
+stampa(arrotonda(matematica.radice_quadrata(16) + matematica.pigreco, 2))
+a = n.matrice([[1, 2], [3, 4]])
+stampa("numpy:", a.somma(), lunghezza(a.forma))
+se c.totale() > 40 e non c.movimenti == []:
+    stampa(f"ok {c.totale():>5}")
+per i, x in enumera(cifre, inizio=1):
+    stampa(i, x)
+prova:
+    c.aggiungi(-1)
+eccetto ErroreDiValore come e:
+    stampa("errore:", e)
+''')
+dest = os.path.join(base, "Conti_python")
+r = esporta_python.esporta(origine, dest)
+stampa("file Python:", r["file_python"], "| errori:", r["errori"], "| principale:", r["principale"])
+stampa("librerie:", r["pacchetti"], "| non riconosciute:", r["sconosciuti"])
+stampa("file creati:", sorted(f per f in os.listdir(dest)))
+req = open(os.path.join(dest, "requirements.txt"), encoding="utf-8").read()
+stampa("requirements.txt elenca numpy con versione:", "numpy==" in req, "| non elenca matematica ne' util:", "matematica" non in req e "util" non in req)
+stampa("script di installazione:", "pip install -r" in open(os.path.join(dest, "installa_librerie.bat"), encoding="utf-8").read(),
+       "pip install -r" in open(os.path.join(dest, "installa_librerie.sh"), encoding="utf-8").read())
+stampa("LEGGIMI spiega come avviare:", "python principale.py" in open(os.path.join(dest, "LEGGIMI.txt"), encoding="utf-8").read())
+stampa("riassunto:", esporta_python.riassunto(r).split("\n")[0])
+codice = open(os.path.join(dest, "principale.py"), encoding="utf-8").read()
+stampa("il codice è inglese:", "import math" in codice, "cifre.append(3)" in codice, "sorted(d.keys())" in codice, "math.sqrt(16)" in codice)
+stampa("il metodo dell'utente resta suo:", "def aggiungi" in open(os.path.join(dest, "util", "conto.py"), encoding="utf-8").read(), "c.aggiungi(10)" in codice)
+stampa("nessun file pitonit nel risultato:", non any(f.endswith(".pit") per _, _, fs in os.walk(dest) per f in fs))
+
+# stessa uscita con pitonit e con un Python normale
+python = shutil.which("python") o shutil.which("py")
+se python:
+    ambiente = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    a1 = subprocess.run([PITONIT, "-W", "ignore", os.path.join(origine, "principale.pit")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=origine, env=ambiente, timeout=120)
+    a2 = subprocess.run([python, "-W", "ignore", os.path.join(dest, "principale.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, env=ambiente, timeout=120)
+    atteso = a1.stdout.replace("Vero", "True").replace("Falso", "False").replace("Nessuno", "None")
+    stampa("pitonit:", repr(a1.stdout[:90]), a1.returncode)
+    stampa("python:", repr(a2.stdout[:90]), a2.returncode, a2.stderr.strip()[-150:])
+    stampa("stessa uscita (a parte Vero/Falso):", atteso == a2.stdout)
+altrimenti:
+    stampa("python non trovato: confronto saltato")
+shutil.rmtree(base, ignore_errors=Vero)
