@@ -1,0 +1,24 @@
+"""Schermate della barra personalizzabile e del suo dialogo (per controllo a occhio)."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa barra
+
+uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x700+20+20")
+app = Applicazione(radice, cfg)
+app.imposta_barra(barra.PREDEFINITA[:6] + ["Modifica/Annulla", "Esegui/Pulisci la console", "Visualizza/Tema chiaro / scuro", barra.SPAZIO] + barra.PREDEFINITA[-3:])
+radice.update()
+radice.after(700, lambda: (ImageGrab.grab(bbox=(20, 20, 1320, 140)).save(os.path.join(uscita, "barra.png")), radice.quit()))
+radice.mainloop()
+d = barra.DialogoBarra(radice, app.colori, app.comandi_menu, app.elementi_barra())
+d.geometry("+60+60")
+d.update()
+d.after(700, lambda: (ImageGrab.grab(bbox=(60, 60, 830, 580)).save(os.path.join(uscita, "dialogo_barra.png")), d.destroy(), radice.quit()))
+radice.mainloop()
+radice.destroy()

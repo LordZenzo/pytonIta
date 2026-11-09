@@ -16,6 +16,7 @@ da rad importa claude_code
 da rad importa converti_progetto
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
+da rad importa barra come barra_mod
 da rad.progetto importa Progetto, PannelloProgetto, tipo_file
 da rad.risorse importa crea_visore
 da rad.progettista importa Progettista
@@ -60,40 +61,17 @@ classe Applicazione:
         c = se_stesso.colori
         stile.imposta_icona_finestra(r)
         se_stesso._menu_principale()
-        # ---- barra degli strumenti
+        # ---- barra degli strumenti (personalizzabile: ogni comando dei menu può diventare un pulsante)
         se_stesso.barra = tk.Frame(r)
         se_stesso.barra.pack(side="top", fill="x")
         se_stesso.pulsanti_barra = []
         se_stesso._logo_barra = stile.logo_tk(26)
         tk.Label(se_stesso.barra, image=se_stesso._logo_barra, borderwidth=0).pack(side="left", padx=(10, 6), pady=5)
         se_stesso._etichetta_logo = se_stesso.barra.winfo_children()[0]
-
-        definisci aggiungi(icona, testo_, comando, aiuto, accento=Falso, lato="left"):
-            b = stile.PulsanteIcona(se_stesso.barra, icona, testo_, comando, c, accento, aiuto)
-            b.pack(side=lato, padx=1, pady=4)
-            se_stesso.pulsanti_barra.append(b)
-            ritorna b
-
-        definisci separa(lato="left"):
-            sep = stile.Separatore(se_stesso.barra, c)
-            sep.pack(side=lato, fill="y", padx=6, pady=9)
-            se_stesso.pulsanti_barra.append(sep)
-
-        aggiungi("apri", "", se_stesso.apri_progetto, "Apri progetto  (Ctrl+O)")
-        aggiungi("nuovo", "", se_stesso.nuovo_progetto, "Nuovo progetto")
-        separa()
-        aggiungi("salva", "", se_stesso.salva_scheda, "Salva  (Ctrl+S)")
-        separa()
-        se_stesso.pulsante_esegui = aggiungi("esegui", "Esegui", se_stesso.esegui_principale, "Esegui il programma  (F5)", Vero)
-        se_stesso.pulsante_ferma = aggiungi("ferma", "", se_stesso.ferma, "Ferma l'esecuzione  (Maiusc+F5)")
-        se_stesso.pulsante_debug = aggiungi("debug", "", se_stesso.debug_avvia, "Esegui con il debugger  (F6) · punti di arresto: F9 o clic sul margine")
-        separa()
-        aggiungi("finestra", "", lambda: se_stesso.nuovo_form(), "Nuova finestra (progettista grafico)")
-        aggiungi("mattonelle", "", lambda: se_stesso.nuovo_mattonelle(), "Nuovo programma a mattonelle")
-        aggiungi("cerca", "", se_stesso.cerca_nel_progetto, "Cerca nel progetto")
-        aggiungi("impostazioni", "", se_stesso.impostazioni, "Impostazioni", lato="right")
-        aggiungi("aiuto", "", lambda: se_stesso.apri_aiuto(), "Guida  (F1)", lato="right")
-        se_stesso.pulsante_chat = aggiungi("chat", "Assistente", se_stesso.mostra_chat, "Mostra/nascondi l'assistente AI  (Ctrl+J)", lato="right")
+        se_stesso.barra.bind("<Button-3>", lambda e: se_stesso._menu_barra(e))
+        se_stesso._etichetta_logo.bind("<Button-3>", lambda e: se_stesso._menu_barra(e))
+        se_stesso.comandi_menu = barra_mod.raccogli_comandi(se_stesso.menu_barra)
+        se_stesso._costruisci_barra()
         se_stesso.riga_barra = tk.Frame(r, height=1)
         se_stesso.riga_barra.pack(side="top", fill="x")
         # ---- barra di stato
@@ -114,6 +92,10 @@ classe Applicazione:
         se_stesso.testo_versione = segmento("pytonIta " + VERSIONE_INTERPRETE())
         se_stesso.testo_posizione = segmento("")
         se_stesso.testo_progetto = segmento("")
+        per lab_, aiuto_ in ((se_stesso.testo_ai, "Stato dell'assistente AI"), (se_stesso.testo_versione, "Versione dell'interprete pytonIta"),
+                             (se_stesso.testo_posizione, "Riga e colonna del cursore"), (se_stesso.testo_progetto, "Progetto aperto")):
+            stile.suggerisci(lab_, aiuto_, c)
+        stile.suggerisci(se_stesso.testo_stato, "Ultimo messaggio di PitStudio", c)
         # ---- corpo
         se_stesso.corpo = tk.PanedWindow(r, orient="horizontal", sashwidth=5, borderwidth=0, sashrelief="flat")
         se_stesso.corpo.pack(fill="both", expand=Vero)
@@ -130,6 +112,8 @@ classe Applicazione:
             b = tk.Label(se_stesso.schede_sinistra, text=testo_, padx=12, pady=6, cursor="hand2", font=("Segoe UI", 9))
             b.pack(side="left")
             b.bind("<Button-1>", lambda e, k=chiave: se_stesso.mostra_pannello_sinistro(k))
+            stile.suggerisci(b, "Mostra i file e le cartelle del progetto" se chiave == "progetto" altrimenti
+                             "Mostra le librerie: spunta per aggiungere l'importazione al file aperto", c)
             se_stesso.pulsanti_sinistra[chiave] = b
         se_stesso.pannello_sinistro = "progetto"
         se_stesso.mostra_pannello_sinistro("progetto")
@@ -156,6 +140,71 @@ classe Applicazione:
         se non se_stesso.config_.ottieni("finestra.progetti_visibile", Vero):
             se_stesso.corpo.forget(se_stesso.sinistra)
         se_stesso._aggiorna_stato_ai()
+
+    # ================================================================== barra degli strumenti personalizzabile
+    definisci elementi_barra(se_stesso):
+        """Gli elementi scelti dall'utente (id dei comandi, separatori, spazio), o quelli predefiniti."""
+        salvati = se_stesso.config_.ottieni("finestra.barra", Nessuno)
+        se isinstance(salvati, lista) e salvati:
+            ritorna [x per x in salvati se x in (barra_mod.SEPARATORE, barra_mod.SPAZIO) o x in se_stesso.comandi_menu]
+        ritorna [x per x in barra_mod.PREDEFINITA se x in (barra_mod.SEPARATORE, barra_mod.SPAZIO) o x in se_stesso.comandi_menu]
+
+    definisci _costruisci_barra(se_stesso):
+        """(Ri)crea i pulsanti della barra secondo la scelta dell'utente. Ogni pulsante ha il suo suggerimento."""
+        c = se_stesso.colori
+        per b in se_stesso.pulsanti_barra:
+            b.destroy()
+        se_stesso.pulsanti_barra = []
+        se_stesso.pulsanti_per_id = {}
+        elementi = se_stesso.elementi_barra()
+        a_destra = barra_mod.SPAZIO in elementi
+        lato = "left"
+        sequenza = []
+        per x in elementi:
+            se x == barra_mod.SPAZIO:
+                lato = "right"
+                continua
+            sequenza.append((x, lato))
+        # a destra si impacchetta dall'ultimo: nella barra l'ordine resta quello della lista, da sinistra a destra
+        ordine = [t per t in sequenza se t[1] == "left"] + [t per t in sequenza se t[1] == "right"][::-1]
+        per x, lato in ordine:
+            se x == barra_mod.SEPARATORE:
+                sep = stile.Separatore(se_stesso.barra, c)
+                sep.pack(side=lato, fill="y", padx=6, pady=9)
+                sep.bind("<Button-3>", lambda e: se_stesso._menu_barra(e))
+                se_stesso.pulsanti_barra.append(sep)
+                continua
+            dati = se_stesso.comandi_menu[x]
+            icona, testo_, aiuto, accento = barra_mod.aspetto(dati)
+            b = stile.PulsanteIcona(se_stesso.barra, icona, testo_, dati["esegui"], c, accento, aiuto)
+            b.pack(side=lato, padx=1, pady=4)
+            per w in [b] + b.winfo_children():
+                w.bind("<Button-3>", lambda e, i=x: se_stesso._menu_barra(e, i))
+            se_stesso.pulsanti_barra.append(b)
+            se_stesso.pulsanti_per_id[x] = b
+        se_stesso.pulsante_chat = se_stesso.pulsanti_per_id.get("Visualizza/Assistente AI")
+
+    definisci personalizza_barra(se_stesso):
+        """Apre «Personalizza barra»: aggiungere, togliere e riordinare i comandi dei menu nella barra."""
+        scelta = barra_mod.DialogoBarra(se_stesso.radice, se_stesso.colori, se_stesso.comandi_menu, se_stesso.elementi_barra()).mostra()
+        se scelta è non Nessuno:
+            se_stesso.imposta_barra(scelta)
+
+    definisci imposta_barra(se_stesso, elementi):
+        se_stesso.config_.imposta("finestra.barra", lista(elementi))
+        se_stesso.config_.salva()
+
+    definisci _menu_barra(se_stesso, e, id_=Nessuno):
+        """Clic destro sulla barra: personalizzare, togliere il pulsante, tornare alla barra predefinita."""
+        m = tk.Menu(se_stesso.radice, tearoff=0)
+        se id_:
+            m.add_command(label="Togli questo pulsante dalla barra", command=lambda: se_stesso.imposta_barra([x per x in se_stesso.elementi_barra() se x != id_]))
+            m.add_separator()
+        m.add_command(label="Personalizza barra…", command=se_stesso.personalizza_barra)
+        m.add_command(label="Ripristina la barra predefinita", command=lambda: se_stesso.imposta_barra(barra_mod.PREDEFINITA))
+        se_stesso._menu_colori(m, se_stesso.colori)
+        m.tk_popup(e.x_root, e.y_root)
+        ritorna "break"
 
     definisci _menu_principale(se_stesso):
         r = se_stesso.radice
@@ -232,6 +281,8 @@ classe Applicazione:
         vista.add_command(label="Tema chiaro / scuro", command=se_stesso.commuta_tema)
         vista.add_command(label="Ingrandisci il testo", command=lambda: se_stesso.zoom(1), accelerator="Ctrl++")
         vista.add_command(label="Riduci il testo", command=lambda: se_stesso.zoom(-1), accelerator="Ctrl+-")
+        vista.add_separator()
+        vista.add_command(label="Personalizza la barra degli strumenti…", command=lambda: se_stesso.personalizza_barra())
         barra.add_cascade(label="Visualizza", menu=vista)
 
         strumenti = tk.Menu(barra, tearoff=0)
@@ -413,6 +464,9 @@ classe Applicazione:
                     w.applica_impostazioni()
                     w.applica_colori(se_stesso.colori)
             se_stesso.console.applica_colori(se_stesso.colori)
+        se percorso in ("*",) o percorso.startswith("finestra.barra"):
+            se hasattr(se_stesso, "comandi_menu"):
+                se_stesso._costruisci_barra()
         se percorso in ("*",) o percorso.startswith("scorciatoie"):
             se_stesso._associa_scorciatoie()
         se percorso in ("*",) o percorso.startswith("ai"):
@@ -1098,6 +1152,7 @@ classe Applicazione:
             lab_d.grid(row=1, column=1, sticky="nw", padx=(0, 14), pady=(0, 12))
             per w in (carta, lab_i, lab_t, lab_d):
                 w.bind("<Button-1>", lambda e, fn=comando: fn())
+                stile.suggerisci(w, titolo + ": " + descr, c)
                 w.bind("<Enter>", lambda e, k=carta: k.configure(highlightbackground=c["accento"]))
                 w.bind("<Leave>", lambda e, k=carta: k.configure(highlightbackground=c["bordo"]))
         recenti = [r per r in se_stesso.config_.ottieni("recenti", []) se os.path.isdir(r)][:5]
@@ -1114,6 +1169,7 @@ classe Applicazione:
                 perc.pack(side="left")
                 per w in (riga, nome_, perc):
                     w.bind("<Button-1>", lambda e, p=r: se_stesso.apri_progetto(p))
+                    stile.suggerisci(w, "Apri il progetto " + r, c)
         tk.Label(f, text="Premi F1 in qualsiasi momento per aprire la guida", font=("Segoe UI", 9), background=c["editor"],
                  foreground=c["tenue"]).place(relx=0.5, rely=0.97, anchor="s")
         se_stesso._benvenuto = f

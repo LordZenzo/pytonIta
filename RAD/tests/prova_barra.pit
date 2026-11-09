@@ -1,0 +1,73 @@
+"""Barra degli strumenti personalizzabile: predefinita con suggerimenti, aggiungere/togliere/spostare comandi dei menu, salvataggio."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa barra, stile
+
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+
+
+definisci pulsanti():
+    ritorna [b per b in app.pulsanti_barra se isinstance(b, stile.PulsanteIcona)]
+
+
+stampa("comandi dei menu trovati:", lunghezza(app.comandi_menu) > 40, "| tutti con un id Menu/Voce:", all("/" in k per k in app.comandi_menu))
+stampa("barra predefinita: pulsanti", lunghezza(pulsanti()), "| separatori", lunghezza(app.pulsanti_barra) - lunghezza(pulsanti()))
+stampa("ogni pulsante ha il suo suggerimento:", all(b.suggerimento è non Nessuno e b.suggerimento.testo per b in pulsanti()))
+stampa("debug = passo passo:", "passo passo" in app.pulsanti_per_id["Esegui/Debug: avvia passo passo dalla prima riga"].suggerimento.testo)
+stampa("l'assistente è a destra:", app.pulsante_chat.pack_info()["side"] == "right")
+
+# ---- il dialogo: aggiungere, spostare, separatore, togliere
+d = barra.DialogoBarra(radice, app.colori, app.comandi_menu, app.elementi_barra())
+d.withdraw()
+n0 = lunghezza(d.elementi)
+d.lista_barra.selection_clear(0, "end")
+d.aggiungi(["Esegui/Pulisci la console", "Modifica/Annulla", "Modifica/Annulla"])
+stampa("aggiunti 2 comandi (il doppione no):", lunghezza(d.elementi) == n0 + 2, d.elementi[-2:])
+d.lista_barra.selection_clear(0, "end")
+d.lista_barra.selection_set(lunghezza(d.elementi) - 1)
+d.sposta(-1)
+stampa("spostato su di uno:", d.elementi[-2:])
+d.aggiungi_separatore()
+d.aggiungi_spazio()
+d.aggiungi_spazio()
+stampa("lo spazio resta uno solo:", d.elementi.count(barra.SPAZIO) == 1)
+d.lista_barra.selection_clear(0, "end")
+d.lista_barra.selection_set(0)
+d.togli()
+stampa("tolto il primo:", d.elementi[0] != "File/Apri progetto…")
+risultato = lista(d.elementi)
+d._conferma()
+stampa("risultato del dialogo:", risultato == d.risultato)
+
+# ---- applico e controllo la barra reale
+app.imposta_barra(risultato)
+radice.update()
+stampa("nella barra ora c'è «Annulla»:", "Modifica/Annulla" in app.pulsanti_per_id, "| «Apri progetto» non c'è più:", "File/Apri progetto…" non in app.pulsanti_per_id)
+stampa("e anche questi hanno il suggerimento:", all(b.suggerimento è non Nessuno per b in pulsanti()))
+stampa("un comando senza icona mostra il nome:", app.pulsanti_per_id["Esegui/Pulisci la console"].icona.cget("text") != "")
+stampa("salvata nella configurazione:", Configurazione(cfg.file).ottieni("finestra.barra") == risultato)
+
+# un pulsante aggiunto esegue davvero il comando del menu
+provato = []
+app.console.pulisci = lambda: provato.append(1)
+app.pulsanti_per_id["Esegui/Pulisci la console"].comando()
+stampa("il pulsante «Pulisci la console» esegue il comando:", provato == [1])
+
+# ripristino
+app.imposta_barra(barra.PREDEFINITA)
+radice.update()
+stampa("predefinita ripristinata:", lunghezza(pulsanti()) == 12 o lunghezza(pulsanti()))
+# un comando che non esiste più viene ignorato
+app.imposta_barra(["Boh/Niente", "File/Salva"])
+radice.update()
+stampa("id sconosciuti ignorati:", lista(app.pulsanti_per_id.keys()))
+app.imposta_barra(barra.PREDEFINITA)
+radice.destroy()

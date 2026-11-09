@@ -58,7 +58,7 @@ classe DialogoNuovoProgetto(DialogoBase):
         DialogoBase.__init__(se_stesso, genitore, "Nuovo progetto", colori, 520, 260)
         se_stesso.var_nome = tk.StringVar(value="MioProgetto")
         se_stesso.var_cartella = tk.StringVar(value=cartella_base)
-        se_stesso.var_modello = tk.StringVar(value="console")
+        se_stesso.var_modello = tk.StringVar(value=MODELLI["console"])      # si vede il nome, non l'identificativo interno
         se_stesso.grid_columnconfigure(1, weight=1)
         se_stesso.nome = se_stesso.riga("Nome:", se_stesso.campo(se_stesso.var_nome), 0)
         cornice = tk.Frame(se_stesso, background=colori["pannello"])
@@ -68,7 +68,7 @@ classe DialogoNuovoProgetto(DialogoBase):
                   foreground=colori["primo_piano"]).pack(side="left", padx=(6, 0))
         se_stesso.riga("In cartella:", lambda p: cornice, 1)
         se_stesso.riga("Modello:", lambda p: ttk.Combobox(p, textvariable=se_stesso.var_modello, state="readonly",
-                                                         values=lista(MODELLI.keys())), 2)
+                                                         values=lista(MODELLI.values()), width=36), 2)
         se_stesso.pulsanti(3, "Crea progetto", se_stesso._conferma)
         se_stesso.nome.focus_set()
         se_stesso.nome.select_range(0, "end")
@@ -87,7 +87,9 @@ classe DialogoNuovoProgetto(DialogoBase):
             ritorna
         se non base:
             ritorna
-        se_stesso.risultato = (nome, os.path.join(base, nome), se_stesso.var_modello.get())
+        scelto = se_stesso.var_modello.get()
+        modello = ([k per k, v in MODELLI.items() se v == scelto] o [scelto])[0]
+        se_stesso.risultato = (nome, os.path.join(base, nome), modello)
         se_stesso.destroy()
 
 

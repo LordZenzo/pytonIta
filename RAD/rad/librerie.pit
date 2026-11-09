@@ -9,7 +9,7 @@ importa tkinter come tk
 da tkinter importa ttk
 
 da rad importa parole
-da rad.stile importa posizione_fumetto
+da rad.stile importa posizione_fumetto, suggerisci
 
 # modulo italiano -> (categoria, descrizione)
 CATALOGO = {
@@ -183,6 +183,15 @@ definisci rileva_importazioni(sorgente, nomi_italiani):
     ritorna trovati
 
 
+definisci righe_che_importano(sorgente, nome_it, nomi_italiani):
+    """[(numero di riga, testo)] delle righe del sorgente che importano la libreria (in qualunque forma)."""
+    trovate = []
+    per numero, riga in enumera(sorgente.split("\n"), 1):
+        se riga.lstrip().startswith(("importa ", "import ", "da ", "from ")) e nome_it in rileva_importazioni(riga, nomi_italiani):
+            trovate.append((numero, riga.strip()))
+    ritorna trovate
+
+
 SPUNTATO = "☑"
 VUOTO = "☐"
 
@@ -213,6 +222,8 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso.solo = tk.Checkbutton(riga, text="solo spuntate", variable=se_stesso.var_solo, font=("Segoe UI", 9),
                                         command=se_stesso.riempi)
         se_stesso.solo.pack(side="right", padx=(6, 0))
+        suggerisci(se_stesso.solo, "Mostra solo le librerie spuntate (scelte per il progetto o usate nel file aperto)")
+        suggerisci(se_stesso.campo, "Cerca una libreria per nome o descrizione")
         se_stesso.riga_ricerca = riga
         se_stesso.var_cerca.trace_add("write", lambda *a: se_stesso.riempi())
         se_stesso.descrizione = tk.Label(se_stesso, text="Seleziona una libreria per vederne la descrizione.", anchor="nw", justify="left",
@@ -337,6 +348,24 @@ classe PannelloLibrerie(tk.Frame):
             se_stesso.rimuovi_importazione(nome_it)
         se_stesso.aggiorna_uso(subito=Vero)
         se_stesso._aggiorna_riga(nome_it)
+        se non valore e nome_it in se_stesso.in_uso:
+            # resta spuntata perché il file la importa ancora in una forma che non cancello da solo: lo dico, non sembri un errore
+            spiegazione = se_stesso.spiega_uso(nome_it)
+            se_stesso.descrizione.configure(text=spiegazione)
+            se_stesso.app.info(f"«{nome_it}» resta spuntata: il file aperto la importa ancora (non l'ho tolta perché il codice la usa).")
+
+    definisci spiega_uso(se_stesso, nome_it):
+        """Perché una libreria risulta spuntata anche se non è scelta per il progetto: il file aperto la importa."""
+        ed = se_stesso.app._editor_corrente() se hasattr(se_stesso.app, "_editor_corrente") altrimenti Nessuno
+        righe_ = []
+        se ed è non Nessuno:
+            prova:
+                righe_ = righe_che_importano(ed.contenuto(), nome_it, {v[0] per v in se_stesso.tutte})
+            eccetto Exception:
+                righe_ = []
+        elenco_ = "\n".join(f"   riga {n}:  {r[:60]}" per n, r in righe_[:4])
+        ritorna (f"☑ «{nome_it}» è spuntata perché il file aperto la usa, non per una scelta del progetto.\n"
+                 f"Per toglierla cancella tu l'importazione dal codice (se il codice la usa smetterebbe di funzionare):\n{elenco_}")
 
     definisci _nome_di(se_stesso, iid):
         ritorna iid[4:] se iid.startswith("lib:") altrimenti Nessuno
@@ -371,6 +400,8 @@ classe PannelloLibrerie(tk.Frame):
             testo_ = f"{nome_it}  (= {orig})\n{descr}"
             se non e_installata(nome_it):
                 testo_ += "\n⚠ Libreria non installata: serve il componente «librerie scientifiche»."
+            altrimenti_se nome_it in se_stesso.in_uso e nome_it non in se_stesso.spuntate:
+                testo_ = se_stesso.spiega_uso(nome_it)
             altrimenti:
                 testo_ += "\nSpunta per averla sempre nei suggerimenti · doppio clic: inserisce «importa»."
             se_stesso.descrizione.configure(text=testo_)

@@ -62,6 +62,21 @@ radice.update()
 stampa("anche una libreria già usata si toglie:", "importa matematica" non in ed.contenuto().splitlines(), riga_di("matematica").startswith(VUOTO))
 stampa("«casuale» è rimasta:", "da casuale importa scelta" in ed.contenuto())
 
+# libreria importata in una forma che non cancello da solo («da … importa»): resta spuntata ma lo spiego
+ed.imposta_contenuto('da interfaccia importa Finestra\n\nf = Finestra()\n')
+radice.update()
+pl.aggiorna_uso(subito=Vero)
+stampa("«interfaccia» risulta spuntata perché usata:", riga_di("interfaccia").startswith(SPUNTATO))
+pl.attiva("interfaccia")
+radice.update()
+stampa("togliendo la spunta il codice non viene toccato:", "da interfaccia importa Finestra" in ed.contenuto())
+testo_desc = pl.descrizione.cget("text")
+stampa("il pannello spiega perché resta spuntata:", "perché il file aperto la usa" in testo_desc, "| indica la riga:", "riga 1" in testo_desc)
+stampa("e la barra di stato lo dice:", "resta spuntata" in app.testo_stato.cget("text"))
+stampa("tooltip del campo e di «solo spuntate»:", pl.solo._suggerimento.testo != "", pl.campo._suggerimento.testo != "")
+stampa("tooltip delle linguette Progetto/Librerie e della barra di stato:",
+       all(b._suggerimento.testo per b in app.pulsanti_sinistra.values()), app.testo_posizione._suggerimento.testo != "")
+
 # senza file aperto: la scelta vale per il progetto
 app.chiudi_tutte() se hasattr(app, "chiudi_tutte") altrimenti Nessuno
 radice.destroy()

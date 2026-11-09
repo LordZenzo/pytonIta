@@ -22,8 +22,8 @@ ESTENSIONI_TESTO = {".txt", ".md", ".ini", ".cfg", ".toml", ".yaml", ".yml", ".x
 MODELLI = {
     "console": "Programma da console",
     "finestra": "Programma con finestra (progettista)",
-    "mattonelle": "Programma a mattonelle (console)",
-    "mattonelle_finestra": "Programma a mattonelle con finestra",
+    "mattonelle": "Mattonelle a console",
+    "mattonelle_finestra": "Mattonelle a finestra",
     "vuoto": "Progetto vuoto",
     "libreria": "Libreria (pacchetto)",
     "python": "Programma Python classico (.py)",

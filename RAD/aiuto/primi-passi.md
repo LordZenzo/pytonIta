@@ -49,3 +49,7 @@ Apri *Strumenti → Impostazioni → Assistente AI* e inserisci la tua chiave AP
 *«Aggiungi al programma un contatore che chiede quante volte salutare»*. Vedi [Assistente AI](#assistente).
 
 > **Nota:** tutto ciò che fai viene salvato in file normali nella cartella del progetto: puoi aprirli, copiarli o versionarli come vuoi.
+
+## La barra degli strumenti è tua
+
+Con *Visualizza → Personalizza la barra degli strumenti…* (o clic destro sulla barra) scegli quali comandi dei menu avere sempre a portata di clic: aggiungi, togli, riordina, inserisci separatori. Passando il mouse su ogni pulsante compare un suggerimento che dice cosa fa.

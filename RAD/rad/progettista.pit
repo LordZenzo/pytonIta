@@ -1022,6 +1022,14 @@ classe Progettista(tk.Frame):
         sp.insert(0, testo(valore))
         sp.bind("<Return>", lambda ev: alla_conferma(sp.get()))
         sp.bind("<FocusOut>", lambda ev: alla_conferma(sp.get()))
+
+        definisci rotella(ev):
+            # rotella in su = aumenta, in giù = diminuisce (come le freccette, dentro i limiti); non fa scorrere il pannello sotto
+            sp.invoke("buttonup" se ev.delta > 0 altrimenti "buttondown")
+            ritorna "break"
+        sp.bind("<MouseWheel>", rotella)
+        sp.bind("<Button-4>", lambda ev: (sp.invoke("buttonup"), "break")[1])
+        sp.bind("<Button-5>", lambda ev: (sp.invoke("buttondown"), "break")[1])
         ritorna sp
 
     definisci limiti_geometria(se_stesso, c, attributo):

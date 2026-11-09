@@ -15,7 +15,7 @@ Premi il pulsante **▦** nella barra (oppure *File → Nuovo programma a matton
 
 ## Programmi con una finestra
 
-Creando un progetto scegli **Programma a mattonelle con finestra**: trovi già un esempio (un'etichetta, un campo di testo e un pulsante che saluta), costruito con le mattonelle della categoria **Finestre**: *crea la finestra*, *titolo*, *misure*, *crea etichetta / pulsante / campo di testo / area di testo / casella / elenco / riquadro*, *mostra* e *posiziona* un componente, *scrivi nell'etichetta*, *testo scritto in* un campo e *mostra la finestra e aspetta*. Per far reagire un pulsante al clic metti nel suo ingresso «al clic» una mattonella **lambda** che chiama una tua funzione.
+Creando un progetto scegli **Mattonelle a finestra**: trovi già un esempio (un'etichetta, un campo di testo e un pulsante che saluta), costruito con le mattonelle della categoria **Finestre**: *crea la finestra*, *titolo*, *misure*, *crea etichetta / pulsante / campo di testo / area di testo / casella / elenco / riquadro*, *mostra* e *posiziona* un componente, *scrivi nell'etichetta*, *testo scritto in* un campo e *mostra la finestra e aspetta*. Per far reagire un pulsante al clic metti nel suo ingresso «al clic» una mattonella **lambda** che chiama una tua funzione.
 
 ## Forme e colori
 

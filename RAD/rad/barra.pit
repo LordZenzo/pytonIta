@@ -1,0 +1,219 @@
+"""Barra degli strumenti personalizzabile di PitStudio: ogni comando dei menu può diventare un pulsante."""
+importa tkinter come tk
+da tkinter importa messagebox
+
+da rad.dialoghi importa DialogoBase
+da rad.stile importa suggerisci
+
+SEPARATORE = "|"        # linea sottile tra due gruppi di pulsanti
+SPAZIO = "<spazio>"     # da qui in poi i pulsanti vanno a destra
+
+# Aspetto dei comandi più comuni: id = «Menu/Voce» -> (icona, testo accanto all'icona, suggerimento, evidenziato)
+DECORAZIONI = {
+    "File/Apri progetto…": ("apri", "", "Apri progetto  (Ctrl+O)", Falso),
+    "File/Nuovo progetto…": ("nuovo", "", "Nuovo progetto", Falso),
+    "File/Salva": ("salva", "", "Salva  (Ctrl+S)", Falso),
+    "File/Salva tutto": ("salva", "Tutto", "Salva tutti i file  (Ctrl+Maiusc+S)", Falso),
+    "File/Nuova finestra (progettista)…": ("finestra", "", "Nuova finestra (progettista grafico)", Falso),
+    "File/Nuovo programma a mattonelle…": ("mattonelle", "", "Nuovo programma a mattonelle", Falso),
+    "Modifica/Annulla": ("annulla", "", "Annulla  (Ctrl+Z)", Falso),
+    "Modifica/Ripeti": ("ripeti", "", "Ripeti  (Ctrl+Y)", Falso),
+    "Esegui/Esegui il file principale": ("esegui", "Esegui", "Esegui il programma  (F5)", Vero),
+    "Esegui/Ferma": ("ferma", "", "Ferma l'esecuzione  (Maiusc+F5)", Falso),
+    "Esegui/Debug: avvia passo passo dalla prima riga": (
+        "debug", "", "Debug passo passo dalla prima riga  (poi F10 passo, F11 entra, Maiusc+F11 esci, F9 punto di arresto)", Falso),
+    "Esegui/Debug: avvia il file principale": ("debug", "F6", "Debug: si ferma ai punti di arresto  (F6)", Falso),
+    "Esegui/Pulisci la console": ("elimina", "", "Pulisci la console", Falso),
+    "Progetto/Cerca nel progetto…": ("cerca", "", "Cerca nel progetto", Falso),
+    "Progetto/Aggiorna l'albero": ("aggiorna", "", "Aggiorna l'albero del progetto", Falso),
+    "Visualizza/Ingrandisci il testo": ("zoom_piu", "", "Ingrandisci il testo  (Ctrl++)", Falso),
+    "Visualizza/Riduci il testo": ("zoom_meno", "", "Riduci il testo  (Ctrl+-)", Falso),
+    "Visualizza/Assistente AI": ("chat", "Assistente", "Mostra/nascondi l'assistente AI  (Ctrl+J)", Falso),
+    "Strumenti/Impostazioni…": ("impostazioni", "", "Impostazioni", Falso),
+    "Aiuto/Guida di PitStudio": ("aiuto", "", "Guida  (F1)", Falso),
+}
+
+PREDEFINITA = [
+    "File/Apri progetto…", "File/Nuovo progetto…", SEPARATORE,
+    "File/Salva", SEPARATORE,
+    "Esegui/Esegui il file principale", "Esegui/Ferma", "Esegui/Debug: avvia passo passo dalla prima riga", SEPARATORE,
+    "File/Nuova finestra (progettista)…", "File/Nuovo programma a mattonelle…", "Progetto/Cerca nel progetto…",
+    SPAZIO,
+    "Visualizza/Assistente AI", "Aiuto/Guida di PitStudio", "Strumenti/Impostazioni…",
+]
+
+
+definisci raccogli_comandi(menu_barra):
+    """Tutti i comandi dei menu, nell'ordine in cui compaiono: {id: dati}. L'id è «Menu/Voce»."""
+    comandi = {}
+    ultimo_m = menu_barra.index("end")
+    se ultimo_m è Nessuno:
+        ritorna comandi
+    per im in intervallo(ultimo_m + 1):
+        se menu_barra.type(im) != "cascade":
+            continua
+        nome_menu = menu_barra.entrycget(im, "label")
+        sotto = menu_barra.nametowidget(menu_barra.entrycget(im, "menu"))
+        ultimo = sotto.index("end")
+        se ultimo è Nessuno:
+            continua
+        per i in intervallo(ultimo + 1):
+            se sotto.type(i) != "command":
+                continua
+            voce = sotto.entrycget(i, "label")
+            id_ = f"{nome_menu}/{voce}"
+            comandi[id_] = {"id": id_, "menu": nome_menu, "voce": voce, "acc": sotto.entrycget(i, "accelerator"),
+                            "esegui": lambda m=sotto, k=i: m.invoke(k)}
+    ritorna comandi
+
+
+definisci aspetto(dati):
+    """(icona, testo, suggerimento, evidenziato) di un comando: quello noto oppure uno generico col nome della voce."""
+    se dati["id"] in DECORAZIONI:
+        ritorna DECORAZIONI[dati["id"]]
+    nome = dati["voce"].rstrip("….")
+    aiuto = nome + (f"  ({dati['acc']})" se dati["acc"] altrimenti "")
+    ritorna ("", nome, aiuto, Falso)
+
+
+definisci voce_leggibile(id_, comandi):
+    """Come si mostra un elemento della barra nelle liste del dialogo."""
+    se id_ == SEPARATORE:
+        ritorna "────────  separatore"
+    se id_ == SPAZIO:
+        ritorna "⇥  spazio: da qui i pulsanti vanno a destra"
+    se id_ in comandi:
+        d = comandi[id_]
+        ritorna f"{d['menu']}  ›  {d['voce']}"
+    ritorna id_
+
+
+classe DialogoBarra(DialogoBase):
+    """«Personalizza barra»: a sinistra i comandi dei menu, a destra quelli presenti nella barra."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, comandi, attuale):
+        DialogoBase.__init__(se_stesso, genitore, "Personalizza la barra degli strumenti", colori, 760, 500)
+        se_stesso.comandi = comandi
+        se_stesso.elementi = [x per x in attuale se x in (SEPARATORE, SPAZIO) o x in comandi]
+        se_stesso.disponibili = lista(comandi.keys())
+        c = colori
+        tk.Label(se_stesso, text="Comandi dei menu", background=c["pannello"], foreground=c["primo_piano"], anchor="w",
+                 font=("Segoe UI Semibold", 10)).grid(row=0, column=0, sticky="we", padx=(14, 4), pady=(12, 2))
+        tk.Label(se_stesso, text="Nella barra (da sinistra a destra)", background=c["pannello"], foreground=c["primo_piano"],
+                 anchor="w", font=("Segoe UI Semibold", 10)).grid(row=0, column=2, sticky="we", padx=(4, 14), pady=(12, 2))
+        se_stesso.lista_comandi = se_stesso._crea_lista(1, 0)
+        se_stesso.lista_barra = se_stesso._crea_lista(1, 2)
+        centro = tk.Frame(se_stesso, background=c["pannello"])
+        centro.grid(row=1, column=1, padx=4)
+        se_stesso.pulsanti_dialogo = {}
+        per chiave, etichetta, aiuto, azione in (
+                ("aggiungi", "Aggiungi  ›", "Mette nella barra i comandi selezionati a sinistra (anche doppio clic)", se_stesso.aggiungi),
+                ("togli", "‹  Togli", "Toglie dalla barra gli elementi selezionati a destra (anche doppio clic)", se_stesso.togli),
+                ("su", "▲  Su", "Sposta l'elemento selezionato verso sinistra", lambda: se_stesso.sposta(-1)),
+                ("giu", "▼  Giù", "Sposta l'elemento selezionato verso destra", lambda: se_stesso.sposta(1)),
+                ("separatore", "Separatore", "Aggiunge una linea sottile tra due gruppi di pulsanti", se_stesso.aggiungi_separatore),
+                ("spazio", "Spazio a destra", "I pulsanti dopo questo punto vanno attaccati al bordo destro", se_stesso.aggiungi_spazio),
+                ("predefinita", "Predefinita", "Rimette la barra com'era all'origine", se_stesso.predefinita)):
+            b = tk.Button(centro, text=etichetta, command=azione, width=14, relief="flat", background=c["pulsante"],
+                          foreground=c["primo_piano"], activebackground=c["pulsante_attivo"])
+            b.pack(pady=3)
+            suggerisci(b, aiuto, c)
+            se_stesso.pulsanti_dialogo[chiave] = b
+        se_stesso.grid_columnconfigure(0, weight=1)
+        se_stesso.grid_columnconfigure(2, weight=1)
+        se_stesso.grid_rowconfigure(1, weight=1)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.pulsanti(2, "Applica", se_stesso._conferma)
+        se_stesso.grid_slaves(row=2)[0].grid_configure(columnspan=3)
+        se_stesso.lista_comandi.bind("<Double-Button-1>", lambda e: se_stesso.aggiungi())
+        se_stesso.lista_barra.bind("<Double-Button-1>", lambda e: se_stesso.togli())
+        se_stesso.riempi()
+
+    definisci _crea_lista(se_stesso, riga, colonna):
+        c = se_stesso.colori
+        cornice = tk.Frame(se_stesso, background=c["pannello"])
+        cornice.grid(row=riga, column=colonna, sticky="nsew", padx=(14 se colonna == 0 altrimenti 4, 4 se colonna == 0 altrimenti 14), pady=4)
+        lb = tk.Listbox(cornice, selectmode="extended", exportselection=Falso, activestyle="none", background=c["campo"],
+                        foreground=c["primo_piano"], selectbackground=c["accento"], selectforeground="#ffffff", relief="flat",
+                        highlightthickness=1, highlightbackground=c["bordo"], font=("Segoe UI", 9), width=40)
+        sb = tk.Scrollbar(cornice, command=lb.yview)
+        lb.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        lb.pack(side="left", fill="both", expand=Vero)
+        ritorna lb
+
+    definisci riempi(se_stesso, seleziona_barra=Nessuno):
+        """Ridisegna le due liste; «seleziona_barra» = posizioni da riselezionare a destra."""
+        se_stesso.lista_comandi.delete(0, "end")
+        per id_ in se_stesso.disponibili:
+            presente = "✓  " se id_ in se_stesso.elementi altrimenti "     "
+            se_stesso.lista_comandi.insert("end", presente + voce_leggibile(id_, se_stesso.comandi))
+        se_stesso.lista_barra.delete(0, "end")
+        per id_ in se_stesso.elementi:
+            se_stesso.lista_barra.insert("end", voce_leggibile(id_, se_stesso.comandi))
+        per i in (seleziona_barra o []):
+            se 0 <= i < lunghezza(se_stesso.elementi):
+                se_stesso.lista_barra.selection_set(i)
+                se_stesso.lista_barra.see(i)
+
+    definisci _punto_di_inserimento(se_stesso):
+        sel = se_stesso.lista_barra.curselection()
+        ritorna (max(sel) + 1) se sel altrimenti lunghezza(se_stesso.elementi)
+
+    definisci aggiungi(se_stesso, ids=Nessuno):
+        """Mette nella barra i comandi indicati (o quelli selezionati a sinistra), dopo l'elemento selezionato a destra."""
+        se ids è Nessuno:
+            ids = [se_stesso.disponibili[i] per i in se_stesso.lista_comandi.curselection()]
+        pos = se_stesso._punto_di_inserimento()
+        nuovi = []
+        per id_ in ids:
+            se id_ in se_stesso.comandi e id_ non in se_stesso.elementi e id_ non in nuovi:
+                nuovi.append(id_)
+        se_stesso.elementi[pos:pos] = nuovi
+        se_stesso.riempi(intervallo(pos, pos + lunghezza(nuovi)))
+
+    definisci togli(se_stesso, posizioni=Nessuno):
+        se posizioni è Nessuno:
+            posizioni = lista(se_stesso.lista_barra.curselection())
+        se non posizioni:
+            ritorna
+        primo = min(posizioni)
+        se_stesso.elementi = [x per i, x in enumera(se_stesso.elementi) se i non in posizioni]
+        se_stesso.riempi([min(primo, lunghezza(se_stesso.elementi) - 1)] se se_stesso.elementi altrimenti [])
+
+    definisci sposta(se_stesso, verso):
+        sel = sorted(se_stesso.lista_barra.curselection())
+        se non sel:
+            ritorna
+        el = se_stesso.elementi
+        se verso < 0 e sel[0] == 0:
+            ritorna
+        se verso > 0 e sel[-1] == lunghezza(el) - 1:
+            ritorna
+        per i in (sel se verso < 0 altrimenti sel[::-1]):
+            el[i], el[i + verso] = el[i + verso], el[i]
+        se_stesso.riempi([i + verso per i in sel])
+
+    definisci aggiungi_separatore(se_stesso):
+        pos = se_stesso._punto_di_inserimento()
+        se_stesso.elementi.insert(pos, SEPARATORE)
+        se_stesso.riempi([pos])
+
+    definisci aggiungi_spazio(se_stesso):
+        """Lo spazio è uno solo: se c'è già lo sposto nel punto indicato."""
+        pos = se_stesso._punto_di_inserimento()
+        se SPAZIO in se_stesso.elementi:
+            vecchio = se_stesso.elementi.index(SPAZIO)
+            se_stesso.elementi.pop(vecchio)
+            se vecchio < pos:
+                pos -= 1
+        se_stesso.elementi.insert(pos, SPAZIO)
+        se_stesso.riempi([pos])
+
+    definisci predefinita(se_stesso):
+        se_stesso.elementi = [x per x in PREDEFINITA se x in (SEPARATORE, SPAZIO) o x in se_stesso.comandi]
+        se_stesso.riempi()
+
+    definisci _conferma(se_stesso):
+        se_stesso.risultato = lista(se_stesso.elementi)
+        se_stesso.destroy()

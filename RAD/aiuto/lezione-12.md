@@ -38,7 +38,7 @@ Metti un punto d'arresto sulla riga `ritorna totale / ...`.
 
 ## Avviare il debugger
 
-Premi **F6** (o il pulsante con l'insetto 🐞 nella barra). Il programma parte e si ferma sul tuo punto: la riga si evidenzia di giallo con una freccia ▶ nel margine e sotto l'editor compare il **pannello Debug**:
+Premi **F6**. (Il pulsante con l'insetto 🐞 nella barra invece parte *passo passo*, fermandosi alla prima riga.) Il programma parte e si ferma sul tuo punto: la riga si evidenzia di giallo con una freccia ▶ nel margine e sotto l'editor compare il **pannello Debug**:
 
 | Zona | Cosa mostra |
 |---|---|

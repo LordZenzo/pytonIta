@@ -23,8 +23,14 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 - **La finestra si ridimensiona trascinando** le maniglie fuori dal bordo destro, da quello inferiore e dall'angolo.
 - **Suggerimenti vicino al mouse anche con più monitor** (prima finivano su un altro schermo).
 - **Pannello Librerie**: le librerie già importate dal file aperto risultano spuntate; spuntarne una aggiunge `importa …` al codice, togliendo la spunta la riga sparisce.
-- **Programmi a mattonelle con una finestra**: nuovo modello di progetto «Programma a mattonelle con finestra» con un esempio pronto (etichetta, campo, pulsante) e la nuova categoria di mattonelle **Finestre** (16 mattonelle).
+- **Programmi a mattonelle con una finestra**: nuovo modello di progetto «Mattonelle a finestra» con un esempio pronto (etichetta, campo, pulsante) e la nuova categoria di mattonelle **Finestre** (16 mattonelle).
 - **Modello «Libreria» spiegato**: pacchetto completo con funzione, classe, prova e `LEGGIMI.md` che spiega come funziona e come si riusa.
+- **Barra degli strumenti personalizzabile**: *Visualizza → Personalizza la barra degli strumenti…* (o clic destro sulla barra) permette di mettere e togliere come pulsanti **qualsiasi comando dei menu**, riordinarli, aggiungere separatori e uno spazio che porta i pulsanti a destra; c'è «Predefinita» per tornare all'inizio. La scelta si salva.
+- **Suggerimento su ogni pulsante** dell'interfaccia principale (barra, linguette dei pannelli, X delle schede, barra di stato, mattonelle, schermata di benvenuto).
+- Il pulsante **Debug** della barra ora avvia il debug **passo passo** dalla prima riga (il menu Esegui resta com'era).
+- **Rotella del mouse** nei campi numerici dell'ispettore.
+- **Pannello Librerie**: se una libreria resta spuntata perché il file aperto la importa in una forma che non cancello da solo (per esempio `da interfaccia importa …`), il pannello lo spiega e indica le righe.
+- Nella scelta del modello di nuovo progetto si vedono i nomi **«Mattonelle a console»** e **«Mattonelle a finestra»** al posto degli identificativi interni.
 
 ## Novità della 1.19
 

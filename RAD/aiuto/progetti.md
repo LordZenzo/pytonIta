@@ -12,8 +12,8 @@ I progetti recenti compaiono nel menu *File → Progetti recenti* e nella scherm
 |---|---|
 | **Programma da console** | `principale.pit` con un programma che legge e scrive testo |
 | **Programma con finestra** | una finestra già disegnata (`principale.form.json`, il codice generato e la logica) |
-| **Programma a mattonelle (console)** | un programma di esempio a mattonelle già collegato |
-| **Programma a mattonelle con finestra** | un programma a mattonelle che apre una finestra con un'etichetta, un campo di testo e un pulsante che saluta |
+| **Mattonelle a console** | un programma di esempio a mattonelle già collegato |
+| **Mattonelle a finestra** | un programma a mattonelle che apre una finestra con un'etichetta, un campo di testo e un pulsante che saluta |
 | **Libreria** | un pacchetto completo da riempire: `__init__.pit` (la «porta» della libreria), due moduli di esempio (una funzione e una classe), `prova.pit` che li usa e un `LEGGIMI.md` che spiega come funziona e come riusarla in altri programmi |
 | **Progetto vuoto** | solo un `principale.pit` minimo |
 

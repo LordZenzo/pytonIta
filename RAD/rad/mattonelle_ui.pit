@@ -62,15 +62,17 @@ classe DialogoTesto(tk.Toplevel):
         barra.grid(row=1, column=0, sticky="we", padx=10, pady=(0, 10))
         se_stesso.var_a_capo = tk.BooleanVar(value=DialogoTesto.a_capo.get(se_stesso._chiave, non e_codice))
         se_stesso._imposta_a_capo()
-        tk.Checkbutton(barra, text="A capo automatico", variable=se_stesso.var_a_capo, command=se_stesso._imposta_a_capo,
-                       background=colori["pannello"], foreground=colori["primo_piano"], activebackground=colori["pannello"],
-                       activeforeground=colori["primo_piano"], selectcolor=colori["campo"]).pack(side="left", padx=(0, 12))
+        casella_ = tk.Checkbutton(barra, text="A capo automatico", variable=se_stesso.var_a_capo, command=se_stesso._imposta_a_capo,
+                                  background=colori["pannello"], foreground=colori["primo_piano"], activebackground=colori["pannello"],
+                                  activeforeground=colori["primo_piano"], selectcolor=colori["campo"])
+        casella_.pack(side="left", padx=(0, 12))
+        suggerisci(casella_, "Manda a capo le righe lunghe invece di farle scorrere di lato")
         tk.Label(barra, text="Ctrl+Invio per applicare · Esc per annullare", background=colori["pannello"],
                  foreground=colori["secondario"] se "secondario" in colori altrimenti colori["primo_piano"]).pack(side="left")
-        tk.Button(barra, text="Annulla", command=se_stesso._chiudi, background=colori["pulsante"],
-                  foreground=colori["primo_piano"], relief="flat", padx=12).pack(side="right", padx=(4, 0))
-        tk.Button(barra, text="Applica", command=se_stesso.applica, background=colori["accento"],
-                  foreground="#ffffff", relief="flat", padx=12).pack(side="right", padx=4)
+        suggerisci(tk.Button(barra, text="Annulla", command=se_stesso._chiudi, background=colori["pulsante"],
+                             foreground=colori["primo_piano"], relief="flat", padx=12), "Chiude senza salvare  (Esc)").pack(side="right", padx=(4, 0))
+        suggerisci(tk.Button(barra, text="Applica", command=se_stesso.applica, background=colori["accento"],
+                             foreground="#ffffff", relief="flat", padx=12), "Salva il testo nella mattonella  (Ctrl+Invio)").pack(side="right", padx=4)
         se_stesso.bind("<Escape>", lambda e: se_stesso._chiudi())
         se_stesso.t.bind("<Control-Return>", lambda e: (se_stesso.applica(), "break")[1])
         se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
@@ -134,10 +136,10 @@ classe DialogoClasse(tk.Toplevel):
         se_stesso.t.grid(row=2, column=1, sticky="nsew", padx=(0, 10), pady=6)
         barra = tk.Frame(se_stesso, background=colori["pannello"])
         barra.grid(row=3, column=0, columnspan=2, sticky="e", padx=10, pady=10)
-        tk.Button(barra, text="Annulla", command=se_stesso.destroy, background=colori["pulsante"], foreground=colori["primo_piano"],
-                  relief="flat", padx=12).pack(side="right", padx=4)
-        tk.Button(barra, text="Applica", command=se_stesso.applica, background=colori["accento"], foreground="#ffffff",
-                  relief="flat", padx=12).pack(side="right", padx=4)
+        suggerisci(tk.Button(barra, text="Annulla", command=se_stesso.destroy, background=colori["pulsante"], foreground=colori["primo_piano"],
+                             relief="flat", padx=12), "Chiude senza salvare  (Esc)").pack(side="right", padx=4)
+        suggerisci(tk.Button(barra, text="Applica", command=se_stesso.applica, background=colori["accento"], foreground="#ffffff",
+                             relief="flat", padx=12), "Salva le modifiche").pack(side="right", padx=4)
         se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
 
     definisci applica(se_stesso):
@@ -634,6 +636,7 @@ classe Tavolozza(tk.Frame):
             b = tk.Label(se_stesso.colonna, text=nome, anchor="w", padx=8, pady=5, cursor="hand2", font=("Segoe UI", 9, "bold"))
             b.pack(fill="x")
             b.bind("<Button-1>", lambda e, c=cat: se_stesso.scegli(c))
+            suggerisci(b, f"Mostra le mattonelle della categoria «{nome}»")
             se_stesso.bottoni[cat] = b
         se_stesso.tela = tk.Canvas(se_stesso, highlightthickness=0, width=270)
         se_stesso.tela._tema_proprio = Vero
@@ -719,6 +722,7 @@ classe Tavolozza(tk.Frame):
         se se_stesso.categoria == "variabili":
             b = tk.Button(t, text="＋ Nuova variabile…", command=se_stesso.editor.nuova_variabile, relief="flat",
                           background=c["pulsante"], foreground=c["primo_piano"], activebackground=c["pulsante_attivo"])
+            suggerisci(b, "Crea una nuova variabile da usare nel programma")
             t.create_window(14, y + 4, anchor="nw", window=b)
             y += 40
         t.configure(scrollregion=(0, 0, 240, y + 20))

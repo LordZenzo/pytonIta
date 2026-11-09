@@ -87,14 +87,15 @@ definisci posizione_fumetto(widget, larghezza, altezza):
 classe Suggerimento:
     """Piccolo fumetto che compare quando si resta fermi su un widget."""
 
-    definisci __inizializza__(se_stesso, widget, testo_, colori, ritardo=550):
+    definisci __inizializza__(se_stesso, widget, testo_, colori, ritardo=550, automatico=Vero):
         se_stesso.widget = widget
         se_stesso.testo = testo_
         se_stesso.colori = colori
         se_stesso.ritardo = ritardo
         se_stesso._finestra = Nessuno
         se_stesso._lavoro = Nessuno
-        widget.bind("<Enter>", se_stesso._programma, add="+")
+        se automatico:       # altrimenti è il widget a dire quando mostrarlo (parti interne, come la X delle schede)
+            widget.bind("<Enter>", se_stesso._programma, add="+")
         widget.bind("<Leave>", se_stesso._nascondi, add="+")
         widget.bind("<ButtonPress>", se_stesso._nascondi, add="+")
 
@@ -151,12 +152,14 @@ classe PulsanteIcona(tk.Frame):
         se_stesso.accento = accento
         se_stesso.colori = colori
         se_stesso._attivo = Vero
-        se_stesso.icona = tk.Label(se_stesso, text=glifo(icona), font=(famiglia_icone() o "Segoe UI Symbol", 12))
-        se_stesso.icona.pack(side="left", padx=(9, 4 se testo_ altrimenti 9), pady=5)
+        # senza icona (comandi dei menu che non ne hanno una) il pulsante mostra solo il testo
+        se_stesso.icona = tk.Label(se_stesso, text=glifo(icona) se icona altrimenti "", font=(famiglia_icone() o "Segoe UI Symbol", 12))
+        se icona:
+            se_stesso.icona.pack(side="left", padx=(9, 4 se testo_ altrimenti 9), pady=5)
         se_stesso.etichetta = Nessuno
         se testo_:
             se_stesso.etichetta = tk.Label(se_stesso, text=testo_, font=("Segoe UI Semibold", 9))
-            se_stesso.etichetta.pack(side="left", padx=(0, 10), pady=5)
+            se_stesso.etichetta.pack(side="left", padx=(0 se icona altrimenti 10, 10), pady=5)
         per w in (se_stesso, se_stesso.icona, se_stesso.etichetta):
             se w:
                 w.bind("<Enter>", se_stesso._entra)
@@ -297,13 +300,18 @@ classe SchedeChiudibili(ttk.Notebook):
         se_stesso.quando_chiudi = quando_chiudi
         se_stesso._premuta = Nessuno
         se_stesso.colori = colori
+        se_stesso._sul_x = Falso
+        se_stesso._suggerimento_x = Suggerimento(se_stesso, "Chiudi la scheda  (Ctrl+W)", colori, automatico=Falso)
         se_stesso.applica_stile(colori)
+        se_stesso.bind("<Motion>", se_stesso._movimento, "+")
         se_stesso.bind("<ButtonPress-1>", se_stesso._premi, Vero)
         se_stesso.bind("<ButtonRelease-1>", se_stesso._rilascia)
 
     definisci applica_stile(se_stesso, c):
         """(Ri)crea immagini ed elementi per i colori del tema."""
         se_stesso.colori = c
+        se hasattr(se_stesso, "_suggerimento_x"):
+            se_stesso._suggerimento_x.colori = c
         SchedeChiudibili._versione += 1
         n = SchedeChiudibili._versione
         se_stesso._img = (_immagine_x(c["tenue"], Nessuno), _immagine_x("#ffffff", c["errore"]), _immagine_x("#ffffff", scurisci_colore(c["errore"])))
@@ -322,6 +330,16 @@ classe SchedeChiudibili(ttk.Notebook):
                     borderwidth=0, font=("Segoe UI", 9))
         s.map("SchedeX.TNotebook.Tab", background=[("selected", c["editor"]), ("active", c["pulsante"])],
               foreground=[("selected", c["primo_piano"]), ("active", c["primo_piano"])])
+
+    definisci _movimento(se_stesso, e):
+        """Suggerimento sulla X delle linguette: compare solo quando il mouse è sopra la X."""
+        sopra = "chiudi" in se_stesso.identify(e.x, e.y)
+        se sopra e non se_stesso._sul_x:
+            se_stesso._sul_x = Vero
+            se_stesso._suggerimento_x._programma()
+        altrimenti_se non sopra e se_stesso._sul_x:
+            se_stesso._sul_x = Falso
+            se_stesso._suggerimento_x._nascondi()
 
     definisci _premi(se_stesso, e):
         elemento = se_stesso.identify(e.x, e.y)
