@@ -1,0 +1,132 @@
+"""MySQL vero: serve un server. Si esegue solo con RAD_PROVA_MYSQL=1 (e, se servono, RAD_MYSQL_SERVER/PORTA/UTENTE/PASSWORD).
+Lavora in un database nuovo («pitstudio_prova») che crea e poi cancella: non tocca gli altri."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa database_modello come dbm
+
+se os.environ.get("RAD_PROVA_MYSQL") != "1":
+    stampa("(prova MySQL saltata: imposta RAD_PROVA_MYSQL=1 con un server MySQL/MariaDB avviato)")
+    sys.exit(0)
+server = os.environ.get("RAD_MYSQL_SERVER", "localhost")
+porta = int(os.environ.get("RAD_MYSQL_PORTA", "3306"))
+utente = os.environ.get("RAD_MYSQL_UTENTE", "root")
+password = os.environ.get("RAD_MYSQL_PASSWORD", "")
+NOME = "pitstudio_prova"
+c = dbm.apri_mysql(server, porta, utente, password, "")
+stampa("collegato:", c.nome_visibile, c.dialetto, c.esegui("SELECT VERSION()").righe[0][0] != "")
+se NOME in [x[0] per x in c.esegui("SHOW DATABASES").righe]:
+    stampa("ATTENZIONE: il database di prova esiste già: non lo tocco")
+    sys.exit(1)
+prova:
+    c.esegui(f"CREATE DATABASE {NOME} CHARACTER SET utf8mb4")
+    c.esegui(f"USE {NOME}")
+    stampa("tabelle all'inizio:", c.tabelle())
+
+    colonne = [dbm.Colonna("id", "INT", chiave=Vero, autoincremento=Vero, non_nullo=Vero), dbm.Colonna("nome", "VARCHAR(255)", non_nullo=Vero),
+               dbm.Colonna("prezzo", "DECIMAL(10,2)", predefinito="9.5"), dbm.Colonna("creato", "TIMESTAMP", predefinito="CURRENT_TIMESTAMP"),
+               dbm.Colonna("codice", "VARCHAR(20)", unica=Vero)]
+    c.crea_tabella("prodotti", colonne)
+    stampa("tabelle:", c.tabelle())
+    stampa("colonne:", [(k.nome, k.tipo, k.chiave, k.non_nullo, k.autoincremento, k.predefinito) per k in c.colonne("prodotti")])
+
+    c.inserisci_riga("prodotti", {"nome": "Penna", "prezzo": 1.2, "codice": "P1"})
+    c.inserisci_riga("prodotti", {"nome": "Quaderno", "codice": "Q1"})
+    c.esegui("INSERT INTO prodotti (nome, prezzo, codice) VALUES ('Zaino', 30, 'Z1'); INSERT INTO prodotti (nome, prezzo, codice) VALUES ('O''Brien', 5, 'O1')")
+    nomi, righe, totale, ids = c.righe("prodotti")
+    stampa("righe:", totale, nomi, [r[:3] per r in righe[:2]], ids)
+    nomi, righe, totale, ids = c.righe("prodotti", filtro="prezzo > 5", ordine="prezzo", discendente=Vero)
+    stampa("filtro e ordine:", [r[1] per r in righe], totale)
+    nomi, righe, totale, ids = c.righe("prodotti", limite=2, scostamento=2)
+    stampa("seconda pagina:", [r[1] per r in righe], totale)
+
+    # modifica per chiave primaria, eliminazione, chiave duplicata
+    nomi, righe, totale, ids = c.righe("prodotti", filtro="nome = 'Penna'")
+    c.aggiorna_cella("prodotti", ids[0], "prezzo", dbm.da_testo("2.5", "DECIMAL(10,2)"))
+    stampa("aggiornato:", c.esegui("SELECT nome, prezzo FROM prodotti WHERE nome = 'Penna'").righe)
+    c.elimina_riga("prodotti", c.righe("prodotti", filtro="nome = 'Zaino'")[3][0])
+    stampa("dopo l'eliminazione:", [r[0] per r in c.esegui("SELECT nome FROM prodotti ORDER BY id").righe])
+    prova:
+        c.inserisci_riga("prodotti", {"nome": "Doppione", "codice": "P1"})
+    eccetto dbm.ErroreDatabase come e:
+        stampa("errore comprensibile (duplicato):", "Duplicate" in str(e) o "1062" in str(e))
+    prova:
+        c.esegui("SELECT 1; SELEKT 2")
+    eccetto dbm.ErroreDatabase come e:
+        stampa("errore nel secondo comando:", str(e).startswith("Istruzione 2 di 2"))
+
+    # chiave esterna, colonna aggiunta, vista, aggregati
+    c.esegui("CREATE TABLE righe_ordine (id INT AUTO_INCREMENT PRIMARY KEY, prodotto INT NOT NULL, q INT NOT NULL DEFAULT 1, "
+             "FOREIGN KEY (prodotto) REFERENCES prodotti(id)) ENGINE=InnoDB")
+    stampa("chiavi esterne:", c.chiavi_esterne("righe_ordine"))
+    c.aggiungi_colonna("righe_ordine", dbm.Colonna("sconto", "DOUBLE"))
+    c.esegui("CREATE VIEW costosi AS SELECT nome FROM prodotti WHERE prezzo > 4")
+    stampa("elenco:", c.tabelle())
+    nomi, righe, totale, ids = c.righe("costosi")
+    stampa("vista (sola lettura):", righe, ids[:1])
+    r = c.esegui("SELECT COUNT(*) AS n, SUM(prezzo) AS somma FROM prodotti")
+    stampa("aggregati:", r.colonne, r.righe, "|", r.riassunto().split(" in ")[0])
+    r = c.esegui("UPDATE prodotti SET prezzo = prezzo * 2 WHERE nome LIKE 'P%'")
+    stampa("update:", r.modificate)
+    stampa("testo con accenti e emoji:", c.esegui("SELECT 'perché ✓ 🙂'").righe)
+
+    # CSV
+    percorso = os.path.join(tempfile.mkdtemp(), "p.csv")
+    c.esporta_csv(c.esegui("SELECT id, nome, prezzo FROM prodotti ORDER BY id"), percorso)
+    stampa("csv:", open(percorso, encoding="utf-8-sig").read().splitlines())
+    c.crea_tabella("copia", [dbm.Colonna("id", "INT", chiave=Vero), dbm.Colonna("nome", "VARCHAR(255)"), dbm.Colonna("prezzo", "DECIMAL(10,2)")])
+    stampa("importate:", c.importa_csv("copia", percorso), "righe;", c.esegui("SELECT COUNT(*) FROM copia").righe)
+
+    # eliminazioni
+    c.elimina_tabella("costosi", è_vista=Vero)
+    c.elimina_tabella("righe_ordine")
+    c.elimina_tabella("copia")
+    stampa("dopo le eliminazioni:", [t per t, _ in c.tabelle()])
+    # l'interfaccia su MySQL: scheda, dati, modifica di una cella, SQL con «%» e dialogo di nuova tabella
+    importa tkinter come tk
+    da tkinter importa messagebox
+    messagebox.showwarning = lambda *a, **k: Nessuno
+    messagebox.showerror = lambda *a, **k: Nessuno
+    da rad.config importa Configurazione
+    da rad.tema importa colori
+    da rad.database_ui importa VisoreDatabase, DialogoTabella
+    cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+    radice = tk.Tk()
+    radice.geometry("1100x700+20+20")
+    col = colori(cfg)
+    c.crea_tabella("clienti", [dbm.Colonna("id", "INT", chiave=Vero, autoincremento=Vero, non_nullo=Vero), dbm.Colonna("nome", "VARCHAR(100)")])
+    c.inserisci_riga("clienti", {"nome": "Anna"})
+    w = VisoreDatabase(radice, "mysql://prova", col, cfg, Nessuno, connessione=c)
+    w.pack(fill="both", expand=Vero)
+    w.applica_colori(col)
+    radice.update()
+    stampa("scheda MySQL:", w.titolo_scheda, "|", [w.elenco.item(i, "text") per i in w.elenco.get_children()])
+    w.elenco.selection_set("clienti")
+    radice.update()
+    stampa("dati:", w.griglia.colonne, w.griglia.righe, w.info_pagina.cget("text"))
+    w._modifica_cella(0, 1, "Anna Maria")
+    stampa("cella modificata:", w.griglia.righe[0], "|", w.stato.cget("text"))
+    w.editor_sql.insert("1.0", "SELECT nome FROM clienti WHERE nome LIKE 'Anna%'")
+    w.esegui_sql()
+    stampa("SQL con %:", w.griglia_sql.righe, "|", w.stato.cget("text").split(" in ")[0])
+    d = DialogoTabella(radice, col, c)
+    d.withdraw()
+    d.var_nome.set("fornitori")
+    d.righe_colonne[1]["nome"].set("ragione")
+    d.righe_colonne[1]["tipo"].set("VARCHAR(255)")
+    radice.update()
+    stampa("anteprima MySQL:", "ENGINE=InnoDB" in d.anteprima.get("1.0", "end"), "AUTO_INCREMENT" in d.anteprima.get("1.0", "end"))
+    d._conferma()
+    w.conn.esegui(d.risultato)
+    w.aggiorna_elenco()
+    stampa("tabella creata dal dialogo:", [w.elenco.item(i, "text") per i in w.elenco.get_children()])
+    w.destroy()
+    radice.destroy()
+infine:
+    c.esegui(f"DROP DATABASE IF EXISTS {NOME}")
+    stampa("database di prova eliminato:", NOME non in [x[0] per x in c.esegui("SHOW DATABASES").righe])
+    c.chiudi()
+# password sbagliata: messaggio chiaro
+prova:
+    dbm.apri_mysql(server, porta, "utente_inesistente_xyz", "no", "")
+eccetto dbm.ErroreDatabase come e:
+    stampa("accesso negato:", "Collegamento a MySQL non riuscito" in str(e))

@@ -207,7 +207,10 @@ classe Connessione:
         """Esegue una sola istruzione e ritorna (cursore, colonne, righe, modificate). Gli errori diventano ErroreDatabase."""
         prova:
             cur = se_stesso.conn.cursor()
-            cur.execute(sql, tuple(parametri))
+            se parametri:
+                cur.execute(sql, tuple(parametri))
+            altrimenti:
+                cur.execute(sql)           # senza parametri: pymysql non deve trattare i «%» del testo come segnaposto
         eccetto Exception come e:
             solleva ErroreDatabase(testo(e)) da e
         colonne = [d[0] per d in cur.description] se cur.description altrimenti []
