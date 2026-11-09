@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.26
+
+- **Progettista più completo**: **barra dei menu** (voci collegate ai gestori, separatori, apertura di altre finestre), **timer**, **Schede** e **Riquadri con componenti dentro**, **ancoraggio ai bordi** (i componenti si allargano o restano attaccati quando si ridimensiona la finestra), **pulsanti che aprono altre finestre** (anche come dialogo) e **ordine di tabulazione**. Il codice generato funziona anche dopo l'esportazione in Python.
+
 ## Novità della 1.25
 
 - **Maschere collegate ai dati**: dalla scheda di un database, **▤ Maschera…** (o *Database → Crea una maschera dalla tabella…*) crea nel progetto una finestra del progettista già collegata alla tabella: ricerca, elenco dei record, campi, **Nuovo / Salva / Elimina / Annulla** con controlli (campi obbligatori, numeri). Funziona con SQLite e MySQL (la password è chiesta all'avvio, mai salvata), si modifica nel progettista e si esporta in Python. Il collegamento sta in `fonte_dati.pit` (`FonteDati`, `MascheraDati`), usabile anche con finestre disegnate a mano.

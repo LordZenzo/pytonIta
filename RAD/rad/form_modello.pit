@@ -68,9 +68,32 @@ TIPI = {
     "Separatore": dict(classe_tk="Separatore", modulo="tema", larghezza=200, altezza=4, icona="─",
                        proprieta={"orientamento": ("scelta:orizzontale,verticale", "orizzontale", "Orientamento")}),
 }
+# componenti senza aspetto: nel progettista compaiono come piccole etichette gialle, nel programma non si vedono
+TIPI["BarraMenu"] = dict(classe_tk="Menu", modulo="tk", larghezza=110, altezza=24, icona="☰", visivo=Falso,
+                         proprieta={"voci": ("menu", "File\n  Nuovo = nuovo_clic\n  Apri = apri_clic\n  -\n  Esci = esci_clic\nAiuto\n  Informazioni = info_clic", "Voci del menu")})
+TIPI["Timer"] = dict(classe_tk="", modulo="tk", larghezza=110, altezza=24, icona="⏱", visivo=Falso,
+                     proprieta={"intervallo": ("numero", 1000, "Intervallo (millisecondi)"),
+                                "attivo": ("si_no", Vero, "Parte da solo"),
+                                "al_tempo": ("evento", "", "Evento: scade il tempo")})
+TIPI["Schede"] = dict(classe_tk="Schede", modulo="tema", larghezza=320, altezza=200, icona="▭", contenitore=Vero,
+                      proprieta={"pagine": ("elenco", ["Pagina 1", "Pagina 2"], "Pagine (schede)")})
+TIPI["Riquadro"]["contenitore"] = Vero
 ORDINE_PALETTE = ["Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione",
                   "PulsanteOpzione", "Cursore", "CasellaCombinata", "BarraProgresso", "Albero",
-                  "Tela", "Riquadro", "Immagine", "Separatore"]
+                  "Tela", "Riquadro", "Schede", "Immagine", "Separatore", "BarraMenu", "Timer"]
+# Pulsante: apre un'altra finestra del progetto
+TIPI["Pulsante"]["proprieta"]["apre"] = ("finestra", "", "Apre la finestra")
+TIPI["Pulsante"]["proprieta"]["apre_dialogo"] = ("si_no", Falso, "…come dialogo (blocca la principale)")
+
+
+definisci e_contenitore(tipo_):
+    """True per i componenti che possono contenerne altri (Riquadro e Schede)."""
+    ritorna TIPI[tipo_].get("contenitore", Falso)
+
+
+definisci e_visivo(tipo_):
+    """False per i componenti senza aspetto (barra dei menu, timer)."""
+    ritorna TIPI[tipo_].get("visivo", Vero)
 
 _RE_NOME = re.compile(r"^[^\W\d]\w*$")
 PAROLE_RISERVATE = {"classe", "definisci", "se", "per", "da", "con", "e", "o", "non", "in", "passa",
@@ -102,7 +125,11 @@ definisci colonne_albero(valori):
 definisci proprieta_di(tipo_):
     """Proprietà specifiche del tipo + quelle comuni (tranne dove non hanno senso)."""
     p = dict(TIPI[tipo_]["proprieta"])
-    se tipo_ non in ("Riquadro", "Tela", "Separatore", "Immagine", "BarraProgresso", "Albero"):
+    se e_visivo(tipo_):
+        p["ancoraggio"] = ("ancoraggio", "sa", "Si aggancia ai bordi")
+    altrimenti:
+        ritorna p
+    se tipo_ non in ("Riquadro", "Schede", "Tela", "Separatore", "Immagine", "BarraProgresso", "Albero"):
         per k, v in COMUNI.items():
             p.setdefault(k, v)
     se tipo_ in ("Riquadro", "Immagine", "BarraProgresso"):
@@ -111,10 +138,11 @@ definisci proprieta_di(tipo_):
 
 
 classe Componente:
-    definisci __inizializza__(se_stesso, tipo_, nome, x=10, y=10, larghezza=Nessuno, altezza=Nessuno, valori=Nessuno):
+    definisci __inizializza__(se_stesso, tipo_, nome, x=10, y=10, larghezza=Nessuno, altezza=Nessuno, valori=Nessuno, genitore=""):
         info = TIPI[tipo_]
         se_stesso.tipo = tipo_
         se_stesso.nome = nome
+        se_stesso.genitore = genitore        # "" = la finestra; "riquadro1" = dentro un riquadro; "schede1#0" = nella prima pagina di una Schede
         se_stesso.x = x
         se_stesso.y = y
         se_stesso.larghezza = larghezza o info["larghezza"]
@@ -126,14 +154,17 @@ classe Componente:
             se_stesso.valori.update(valori)
 
     definisci a_dizionario(se_stesso):
-        ritorna {"tipo": se_stesso.tipo, "nome": se_stesso.nome, "x": se_stesso.x, "y": se_stesso.y,
-                 "larghezza": se_stesso.larghezza, "altezza": se_stesso.altezza,
-                 "valori": copy.deepcopy(se_stesso.valori)}
+        d = {"tipo": se_stesso.tipo, "nome": se_stesso.nome, "x": se_stesso.x, "y": se_stesso.y,
+             "larghezza": se_stesso.larghezza, "altezza": se_stesso.altezza,
+             "valori": copy.deepcopy(se_stesso.valori)}
+        se se_stesso.genitore:
+            d["genitore"] = se_stesso.genitore
+        ritorna d
 
     @staticmethod
     definisci da_dizionario(d):
         ritorna Componente(d["tipo"], d["nome"], d.get("x", 10), d.get("y", 10),
-                           d.get("larghezza"), d.get("altezza"), d.get("valori"))
+                           d.get("larghezza"), d.get("altezza"), d.get("valori"), d.get("genitore", ""))
 
 
 classe Form:
@@ -160,8 +191,9 @@ classe Form:
     definisci aggiungi(se_stesso, tipo_, x=10, y=10, **valori):
         se tipo_ non in TIPI:
             solleva ErroreDiValore(f"tipo di componente sconosciuto: {tipo_}")
+        genitore = valori.pop("genitore", "")
         c = Componente(tipo_, valori.pop("nome", Nessuno) o se_stesso.nome_libero(tipo_), x, y,
-                       valori.pop("larghezza", Nessuno), valori.pop("altezza", Nessuno), valori)
+                       valori.pop("larghezza", Nessuno), valori.pop("altezza", Nessuno), valori, genitore)
         se non nome_valido(c.nome) o se_stesso.trova(c.nome):
             c.nome = se_stesso.nome_libero(tipo_)
         se_stesso.componenti.append(c)
@@ -173,8 +205,19 @@ classe Form:
                 ritorna c
         ritorna Nessuno
 
+    definisci figli(se_stesso, nome):
+        """I componenti che stanno dentro il contenitore (anche in profondità)."""
+        trovati = []
+        per c in se_stesso.componenti:
+            se c.genitore.split("#")[0] == nome:
+                trovati.append(c)
+                trovati.extend(se_stesso.figli(c.nome))
+        ritorna trovati
+
     definisci rimuovi(se_stesso, nome):
-        se_stesso.componenti = [c per c in se_stesso.componenti se c.nome != nome]
+        """Toglie il componente e tutto quello che contiene."""
+        via = {nome} | {c.nome per c in se_stesso.figli(nome)}
+        se_stesso.componenti = [c per c in se_stesso.componenti se c.nome non in via]
 
     definisci rinomina(se_stesso, vecchio, nuovo):
         se non nome_valido(nuovo) o (se_stesso.trova(nuovo) e nuovo != vecchio):
@@ -183,6 +226,9 @@ classe Form:
         se c è Nessuno:
             ritorna Falso
         c.nome = nuovo
+        per f in se_stesso.componenti:
+            se f.genitore.split("#")[0] == vecchio:
+                f.genitore = nuovo + f.genitore[lunghezza(vecchio):]
         ritorna Vero
 
     # --- serializzazione
@@ -215,6 +261,11 @@ classe Form:
         """Elenco (componente, proprieta_evento, nome_funzione) dei gestori richiesti."""
         risultato = []
         per c in se_stesso.componenti:
+            se c.tipo == "BarraMenu":
+                per titolo, voci in voci_menu(c.valori.get("voci", "")):
+                    per etichetta, gestore in voci:
+                        se gestore e non gestore.startswith("@") e nome_valido(gestore):
+                            risultato.append((c, "voci", gestore))
             per k, (t, d, desc) in proprieta_di(c.tipo).items():
                 se t == "evento":
                     nome_fn = (c.valori.get(k) o "").strip()
@@ -230,7 +281,9 @@ classe Form:
             se c.nome in visti:
                 p.append(f"nome duplicato: {c.nome}")
             visti.add(c.nome)
-            se c.x + c.larghezza > se_stesso.larghezza o c.y + c.altezza > se_stesso.altezza:
+            se c.genitore e non se_stesso.trova(c.genitore.split("#")[0]):
+                p.append(f"{c.nome}: il contenitore «{c.genitore.split('#')[0]}» non esiste")
+            se e_visivo(c.tipo) e non c.genitore e (c.x + c.larghezza > se_stesso.larghezza o c.y + c.altezza > se_stesso.altezza):
                 p.append(f"{c.nome} esce dalla finestra")
             per k, (t, d, desc) in proprieta_di(c.tipo).items():
                 se t == "evento" e c.valori.get(k) e non nome_valido(c.valori[k]):
@@ -239,6 +292,48 @@ classe Form:
 
 
 # --------------------------------------------------------------------------- generazione
+definisci voci_menu(testo_):
+    """Legge il testo di una barra dei menu: [(titolo, [(etichetta, gestore)])]. Il gestore vuoto = voce senza azione, «-» = separatore,
+    «@Finestra» = apre un'altra finestra del progetto.
+
+        File
+          Nuovo = nuovo_clic
+          -
+          Esci = esci_clic
+    """
+    menu = []
+    per riga in (testo_ o "").split("\n"):
+        se non riga.strip():
+            continua
+        rientro = lunghezza(riga) - lunghezza(riga.lstrip())
+        se rientro == 0:
+            menu.append((riga.strip(), []))
+        altrimenti_se menu:
+            t = riga.strip()
+            se t == "-":
+                menu[-1][1].append(("-", ""))
+            altrimenti_se "=" in t:
+                e_, g = t.split("=", 1)
+                menu[-1][1].append((e_.strip(), g.strip()))
+            altrimenti:
+                menu[-1][1].append((t, ""))
+    ritorna menu
+
+
+definisci finestre_aperte(form):
+    """I nomi delle finestre che questa finestra apre (da pulsanti e da voci di menu)."""
+    nomi = []
+    per c in form.componenti:
+        se c.tipo == "Pulsante" e (c.valori.get("apre") o "").strip():
+            nomi.append(c.valori["apre"].strip())
+        se c.tipo == "BarraMenu":
+            per titolo, voci in voci_menu(c.valori.get("voci", "")):
+                per etichetta, gestore in voci:
+                    se gestore.startswith("@") e gestore[1:].strip():
+                        nomi.append(gestore[1:].strip())
+    ritorna lista(dict.fromkeys(nomi))
+
+
 definisci _lit(valore):
     """Letterale pytonIta per un valore Python."""
     se valore è Vero:
@@ -280,10 +375,49 @@ definisci genera_ui(form):
     se form.sfondo:
         r.append(f"        radice.configura(sfondo={_lit(form.sfondo)})")
     r.append("        se_stesso.immagini = []")
-    per c in form.componenti:
-        r.extend(_codice_componente(c))
+    per c in ordine_creazione(form):
+        r.extend(_codice_componente(c, form))
     r.append("        ritorna radice")
     r.append("")
+    # timer: avvia/ferma e il giro che richiama l'evento
+    per c in form.componenti:
+        se c.tipo == "Timer":
+            gestore_t = (c.valori.get("al_tempo") o "").strip()
+            r.append(f"    definisci {c.nome}_avvia(se_stesso):")
+            r.append(f'        """Fa partire il timer {c.nome} (ogni {c.valori.get("intervallo", 1000)} ms)."""')
+            r.append(f"        se non se_stesso._timer_{c.nome}_attivo:")
+            r.append(f"            se_stesso._timer_{c.nome}_attivo = Vero")
+            r.append(f"            se_stesso.radice.after({int(c.valori.get('intervallo', 1000))}, se_stesso._timer_{c.nome}_passo)")
+            r.append("")
+            r.append(f"    definisci {c.nome}_ferma(se_stesso):")
+            r.append(f"        se_stesso._timer_{c.nome}_attivo = Falso")
+            r.append("")
+            r.append(f"    definisci _timer_{c.nome}_passo(se_stesso):")
+            r.append(f"        se non se_stesso._timer_{c.nome}_attivo:")
+            r.append("            ritorna")
+            se gestore_t e nome_valido(gestore_t):
+                r.append(f"        se_stesso.{gestore_t}()")
+            r.append(f"        se se_stesso._timer_{c.nome}_attivo:")
+            r.append(f"            se_stesso.radice.after({int(c.valori.get('intervallo', 1000))}, se_stesso._timer_{c.nome}_passo)")
+            r.append("")
+    # finestre che si aprono da pulsanti e voci di menu
+    per nome_f in finestre_aperte(form):
+        se non nome_valido(nome_f):
+            continua
+        come_dialogo = any(c.tipo == "Pulsante" e (c.valori.get("apre") o "").strip() == nome_f e c.valori.get("apre_dialogo") per c in form.componenti)
+        chiamate = [c.valori.get("al_clic").strip() per c in form.componenti
+                    se c.tipo == "Pulsante" e (c.valori.get("apre") o "").strip() == nome_f e (c.valori.get("al_clic") o "").strip() e nome_valido(c.valori["al_clic"].strip())]
+        r.append(f"    definisci _apri_{nome_f}(se_stesso, evento=Nessuno):")
+        r.append(f'        """Apre la finestra {nome_f} (disegnata in {nome_f.lower()}.form.json)."""')
+        per g in lista(dict.fromkeys(chiamate)):
+            r.append(f"        se_stesso.{g}()")
+        r.append(f"        da {nome_f.lower()} importa {_nome_classe(nome_f)}")
+        r.append("        finestra = tk.Toplevel(se_stesso.radice)")
+        r.append(f"        {_nome_classe(nome_f)}(finestra)")
+        se come_dialogo:
+            r.append("        finestra.transient(se_stesso.radice)")
+            r.append("        finestra.grab_set()")
+        r.append("")
     # gestori predefiniti (vuoti): la classe di logica li ridefinisce
     gestori = []
     per comp, k, nome_fn in form.eventi():
@@ -310,7 +444,58 @@ definisci _opzioni_comuni(c):
     ritorna o
 
 
-definisci _codice_componente(c):
+definisci padre_codice(c):
+    """Come si scrive, nel codice generato, il contenitore di un componente."""
+    se non c.genitore:
+        ritorna "radice"
+    nome, _, indice = c.genitore.partition("#")
+    se indice:
+        ritorna f"se_stesso.{nome}_pagina{int(indice) + 1}"
+    ritorna f"se_stesso.{nome}"
+
+
+definisci ordine_creazione(form):
+    """I componenti con i contenitori prima di quello che contengono."""
+    fatti = []
+    nomi = {c.nome per c in form.componenti}
+    in_attesa = lista(form.componenti)
+    mentre in_attesa:
+        avanzato = Falso
+        per c in lista(in_attesa):
+            padre = c.genitore.split("#")[0]
+            se non padre o padre non in nomi o any(f.nome == padre per f in fatti):
+                fatti.append(c)
+                in_attesa.remove(c)
+                avanzato = Vero
+        se non avanzato:
+            fatti.extend(in_attesa)
+            interrompi
+    ritorna fatti
+
+
+definisci _geometria(c, form):
+    """Argomenti di posiziona(): posizione fissa oppure legata ai bordi della finestra (ancoraggio: s=sinistra, a=alto, d=destra, b=basso)."""
+    anc = (c.valori.get("ancoraggio") o "sa")
+    se form è Nessuno o anc == "sa" o c.genitore:
+        ritorna f"x={c.x}, y={c.y}, width={c.larghezza}, height={c.altezza}"
+    L, H = form.larghezza, form.altezza
+    parti = []
+    se "s" in anc e "d" in anc:
+        parti += [f"x={c.x}", "relwidth=1", f"width={-(L - c.x - c.larghezza)}"]
+    altrimenti_se "d" in anc:
+        parti += ["relx=1", f"x={-(L - c.x)}", f"width={c.larghezza}"]
+    altrimenti:
+        parti += [f"x={c.x}", f"width={c.larghezza}"]
+    se "a" in anc e "b" in anc:
+        parti += [f"y={c.y}", "relheight=1", f"height={-(H - c.y - c.altezza)}"]
+    altrimenti_se "b" in anc:
+        parti += ["rely=1", f"y={-(H - c.y)}", f"height={c.altezza}"]
+    altrimenti:
+        parti += [f"y={c.y}", f"height={c.altezza}"]
+    ritorna ", ".join(parti)
+
+
+definisci _codice_componente(c, form=Nessuno):
     v = c.valori
     n = c.nome
     ind = "        "
@@ -323,7 +508,10 @@ definisci _codice_componente(c):
     opz = _opzioni_comuni(c)
     se c.tipo == "Pulsante":
         o = [f"testo={_lit(v['testo'])}"] + opz
-        se gestore("al_clic"):
+        apre = (v.get("apre") o "").strip()
+        se apre e nome_valido(apre):
+            o.append(f"comando=se_stesso._apri_{apre}")
+        altrimenti_se gestore("al_clic"):
             o.append(f"comando={gestore('al_clic')}")
         r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
     altrimenti_se c.tipo == "Etichetta":
@@ -400,13 +588,43 @@ definisci _codice_componente(c):
         se v.get("sfondo"):
             o.append(f"background={_lit(v['sfondo'])}")
         r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+    altrimenti_se c.tipo == "Schede":
+        r.append(f"{ind}{nome_att} = {cl}(radice)")
+        per i, nome_pagina in enumera(lista(v.get("pagine", [])) o ["Pagina 1"]):
+            r.append(f"{ind}{nome_att}_pagina{i + 1} = tk.Riquadro({nome_att})")
+            r.append(f"{ind}{nome_att}.add({nome_att}_pagina{i + 1}, text={_lit(nome_pagina)})")
     altrimenti_se c.tipo == "Immagine":
         r.append(f"{ind}{nome_att} = {cl}(radice)")
         se v.get("file"):
             r.append(f"{ind}se_stesso.carica_immagine({nome_att}, {_lit(v['file'])}, {c.larghezza}, {c.altezza})")
     altrimenti_se c.tipo == "Separatore":
         r.append(f"{ind}{nome_att} = {cl}(radice, orient={_lit('horizontal' se v['orientamento'] == 'orizzontale' altrimenti 'vertical')})")
-    r.append(f"{ind}{nome_att}.posiziona(x={c.x}, y={c.y}, width={c.larghezza}, height={c.altezza})")
+    altrimenti_se c.tipo == "BarraMenu":
+        r.append(f"{ind}{nome_att} = tk.Menu(radice)")
+        per i, (titolo, voci) in enumera(voci_menu(v.get("voci", ""))):
+            m = f"{nome_att}_{i + 1}"
+            r.append(f"{ind}{m} = tk.Menu({nome_att}, tearoff=0)")
+            per etichetta, g in voci:
+                se etichetta == "-":
+                    r.append(f"{ind}{m}.add_separator()")
+                altrimenti_se g.startswith("@") e nome_valido(g[1:].strip()):
+                    r.append(f"{ind}{m}.add_command(label={_lit(etichetta)}, command=se_stesso._apri_{g[1:].strip()})")
+                altrimenti_se g e nome_valido(g):
+                    r.append(f"{ind}{m}.add_command(label={_lit(etichetta)}, command=se_stesso.{g})")
+                altrimenti:
+                    r.append(f"{ind}{m}.add_command(label={_lit(etichetta)}, state='disabled')")
+            r.append(f"{ind}{nome_att}.add_cascade(label={_lit(titolo)}, menu={m})")
+        r.append(f"{ind}radice.config(menu={nome_att})")
+        ritorna r
+    altrimenti_se c.tipo == "Timer":
+        r.append(f"{ind}se_stesso._timer_{n}_attivo = Falso")
+        se v.get("attivo"):
+            r.append(f"{ind}se_stesso.{n}_avvia()")
+        ritorna r
+    r.append(f"{ind}{nome_att}.posiziona({_geometria(c, form)})")
+    se c.genitore:
+        padre = padre_codice(c)
+        r = [riga.replace(f"{cl}(radice", f"{cl}({padre}", 1) se f"{cl}(radice" in riga altrimenti riga per riga in r]
     ritorna r
 
 

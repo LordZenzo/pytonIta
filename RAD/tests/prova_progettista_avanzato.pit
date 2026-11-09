@@ -1,0 +1,222 @@
+"""Progettista avanzato: ancoraggio ai bordi, barra dei menu, timer, apertura di altre finestre e ordine di tabulazione; il codice generato gira davvero."""
+importa sys, os, tempfile, importlib, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad importa form_modello, progettista
+da rad.form_modello importa Form, voci_menu, finestre_aperte
+
+stampa("voci di menu:", voci_menu("File\n  Nuovo = nuovo_clic\n  -\n  Apri = @Seconda\n  Spenta\nAiuto\n  Info = info_clic"))
+cartella = tempfile.mkdtemp()
+
+# --- la finestra principale: menu, timer, elenco ancorato, pulsante che apre «Seconda» come dialogo
+f = Form("Principale", "Principale")
+f.larghezza, f.altezza = 480, 320
+f.aggiungi("Etichetta", 10, 10, nome="titolo", testo="Ciao", larghezza=200)
+f.aggiungi("Elenco", 10, 40, nome="elenco", larghezza=300, altezza=200, elementi=["a", "b", "c"])
+f.aggiungi("Pulsante", 330, 280, nome="pulsante_ok", testo="OK", larghezza=100, altezza=30, ancoraggio="db", al_clic="ok_clic")
+f.trova("elenco").valori["ancoraggio"] = "sadb"
+f.aggiungi("Pulsante", 330, 40, nome="pulsante_apri", testo="Apri", larghezza=100, altezza=30, apre="Seconda", apre_dialogo=Vero, ancoraggio="ad")
+f.aggiungi("BarraMenu", 10, 290, nome="barraMenu1", voci="File\n  Nuovo = nuovo_clic\n  -\n  Seconda = @Seconda\n  Esci = esci_clic\nAiuto\n  Info = info_clic")
+f.aggiungi("Timer", 130, 290, nome="timer1", intervallo=40, attivo=Vero, al_tempo="tic")
+stampa("problemi del form:", f.problemi())
+stampa("gestori:", sorted({n per _, _, n in f.eventi()}))
+stampa("finestre aperte:", finestre_aperte(f))
+ui = form_modello.genera_ui_completa(f)
+stampa("ancoraggio nel codice:", "relwidth=1" in ui, "relheight=1" in ui, "relx=1" in ui, "rely=1" in ui)
+stampa("apre finestra:", "_apri_Seconda" in ui, "grab_set" in ui, "timer1_avvia" in ui, "add_cascade" in ui, "radice.config(menu=" in ui)
+form_modello.salva_form(f, cartella)
+# la logica scritta dall'utente: il timer conta, i gestori segnano
+logica = open(os.path.join(cartella, "principale.pit"), encoding="utf-8").read()
+logica = logica.replace("    definisci tic(se_stesso, evento=Nessuno):\n        # timer1: Evento: scade il tempo\n        passa\n",
+                        "    definisci tic(se_stesso, evento=Nessuno):\n        se_stesso.battiti = getattr(se_stesso, 'battiti', 0) + 1\n")
+logica = logica.replace("    definisci nuovo_clic(se_stesso, evento=Nessuno):\n        # barraMenu1: Voci del menu\n        passa\n",
+                        "    definisci nuovo_clic(se_stesso, evento=Nessuno):\n        se_stesso.scelto = 'nuovo'\n")
+open(os.path.join(cartella, "principale.pit"), "w", encoding="utf-8").write(logica)
+# la seconda finestra
+g = Form("Seconda", "Seconda")
+g.larghezza, g.altezza = 300, 160
+g.aggiungi("Etichetta", 10, 10, nome="saluto", testo="Sono la seconda finestra", larghezza=250)
+form_modello.salva_form(g, cartella)
+stampa("file:", sorted(x per x in os.listdir(cartella)))
+
+sys.path.insert(0, cartella)
+messagebox.showwarning = lambda *a, **k: Nessuno
+modulo = importlib.import_module("principale")
+radice = tk.Tk()
+radice.geometry("+20+20")
+app = modulo.Principale(radice)
+radice.update()
+stampa("titolo e menu:", radice.title(), "| ha un menu:", bool(radice.cget("menu")))
+m = radice.nametowidget(radice.cget("menu"))
+stampa("menu:", [m.entrycget(i, "label") per i in intervallo(m.index("end") + 1) se m.type(i) == "cascade"])
+sotto = radice.nametowidget(m.entrycget(1, "menu")) se m.type(0) != "cascade" altrimenti radice.nametowidget(m.entrycget(0, "menu"))
+etichette = [sotto.entrycget(i, "label") se sotto.type(i) != "separator" altrimenti "---" per i in intervallo(sotto.index("end") + 1)]
+stampa("voci di «File»:", etichette)
+# voce «Nuovo» -> gestore dell'utente
+sotto.invoke(0)
+stampa("voce di menu collegata al gestore:", getattr(app, "scelto", Nessuno))
+# timer
+import_t = __import__("time")
+fine = import_t.time() + 0.6
+mentre import_t.time() < fine:
+    radice.update()
+    import_t.sleep(0.01)
+b = getattr(app, "battiti", 0)
+stampa("il timer batte:", b >= 5, "(", b, ")")
+app.timer1_ferma()
+fermo = app.battiti
+fine = import_t.time() + 0.25
+mentre import_t.time() < fine:
+    radice.update()
+    import_t.sleep(0.01)
+stampa("fermato: non batte più:", app.battiti == fermo)
+# ancoraggio: allargo la finestra e guardo
+radice.geometry("700x500")
+radice.update()
+stampa("elenco ancorato (sadb) si allarga:", app.elenco.winfo_width() > 400, app.elenco.winfo_height() > 300, "|", app.elenco.winfo_width(), "x", app.elenco.winfo_height())
+stampa("pulsante OK (db) resta in basso a destra:", app.pulsante_ok.winfo_x() > 450, app.pulsante_ok.winfo_y() > 400, "| larghezza invariata:", app.pulsante_ok.winfo_width())
+stampa("pulsante Apri (ad) resta in alto a destra:", app.pulsante_apri.winfo_x() > 450, app.pulsante_apri.winfo_y() < 60)
+stampa("etichetta (sa) non si muove:", app.titolo.winfo_x(), app.titolo.winfo_y())
+# apertura della seconda finestra come dialogo
+prima = [w per w in radice.winfo_children() se isinstance(w, tk.Toplevel)]
+app.pulsante_apri.invoke()
+radice.update()
+dopo = [w per w in radice.winfo_children() se isinstance(w, tk.Toplevel)]
+stampa("si è aperta una finestra:", lunghezza(dopo) - lunghezza(prima), "| titolo:", dopo[-1].title() se dopo altrimenti "", "| scritta:", [x.cget("text") per x in dopo[-1].winfo_children() se x.winfo_class() == "Label"] se dopo altrimenti "")
+radice.destroy()
+
+# --- il progettista: tipi senza aspetto, ordine, editor delle nuove proprietà
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+radice2 = tk.Tk()
+radice2.geometry("1300x760+10+10")
+configura_stile(radice2, col)
+p = progettista.Progettista(radice2, os.path.join(cartella, "principale.form.json"), form_modello.carica_form(os.path.join(cartella, "principale.form.json")), col, cfg,
+                            type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella)})())
+p.pack(fill="both", expand=Vero)
+applica(radice2, col)
+radice2.update()
+stampa("palette:", [t per t in progettista.ORDINE_PALETTE][-3:], "| etichette gialle:", [p.widget[n].cget("text") per n in ("barraMenu1", "timer1")])
+p.seleziona(["pulsante_ok"])
+radice2.update()
+righe = [w per w in p.righe_ispettore.winfo_children() se w.winfo_class() == "Label"]
+stampa("ispettore del pulsante:", [w.cget("text") per w in righe][-5:])
+p.seleziona(["barraMenu1"])
+radice2.update()
+stampa("ispettore della barra dei menu:", [w.cget("text") per w in p.righe_ispettore.winfo_children() se w.winfo_class() == "Label"][-2:])
+ordine = [c.nome per c in p.form.componenti]
+nuovo = [ordine[-1]] + ordine[:-1]
+p.imposta_ordine(nuovo)
+stampa("ordine cambiato:", [c.nome per c in p.form.componenti][:2], "| i widget ci sono ancora:", lunghezza(p.widget) == lunghezza(ordine))
+p.annulla()
+radice2.update()
+stampa("annulla rimette l'ordine:", [c.nome per c in p.form.componenti] == ordine)
+radice2.destroy()
+
+# --- esportato in Python: menu, timer, ancoraggi e finestra secondaria funzionano senza pytonIta
+da rad importa esporta_python
+dest = os.path.join(tempfile.mkdtemp(), "export")
+e = esporta_python.esporta(cartella, dest)
+stampa("esportato:", e["file_python"], "file | errori:", e["errori"])
+open(os.path.join(dest, "prova_py.py"), "w", encoding="utf-8").write("""
+import os, sys, time, tkinter as tk
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import principale
+r = tk.Tk(); r.geometry('+20+20')
+app = principale.Principale(r)
+r.update()
+menu = r.nametowidget(r.cget('menu'))
+fine = time.time() + 0.5
+while time.time() < fine:
+    r.update(); time.sleep(0.01)
+r.geometry('700x500'); r.update()
+app.pulsante_apri.invoke(); r.update()
+print('menu:', menu.index('end') + 1, 'voci | battiti>=5:', app.battiti >= 5, '| elenco largo:', app.elenco.winfo_width() > 400,
+      '| finestre:', len([w for w in r.winfo_children() if isinstance(w, tk.Toplevel)]))
+r.destroy()
+""")
+python_ = __import__("shutil").which("python") o __import__("shutil").which("py")
+se python_:
+    u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "prova_py.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=120,
+                       env=dict(os.environ, PYTHONUTF8="1"))
+    stampa("con Python normale:", u.stdout.strip(), u.returncode, u.stderr.strip()[-200:])
+
+# --- contenitori: un riquadro e una Schede con componenti dentro
+cartella3 = tempfile.mkdtemp()
+h = Form("Contenitori", "Contenitori")
+h.larghezza, h.altezza = 500, 360
+h.aggiungi("Riquadro", 10, 10, nome="riquadro1", larghezza=200, altezza=120)
+h.aggiungi("Etichetta", 8, 8, nome="in_riquadro", testo="Dentro il riquadro", larghezza=150, genitore="riquadro1")
+h.aggiungi("Schede", 10, 150, nome="schede1", larghezza=400, altezza=190, pagine=["Dati", "Altro"])
+h.aggiungi("CampoTesto", 10, 10, nome="in_pagina1", larghezza=150, genitore="schede1#0")
+h.aggiungi("Pulsante", 10, 10, nome="in_pagina2", testo="Nell'altra pagina", larghezza=150, genitore="schede1#1")
+stampa("problemi:", h.problemi(), "| figli di schede1:", [c.nome per c in h.figli("schede1")])
+ui3 = form_modello.genera_ui_completa(h)
+stampa("codice: figlio nel riquadro:", "tk.Etichetta(se_stesso.riquadro1," in ui3, "| pagine:", "schede1_pagina2" in ui3, "| figlio nella pagina 2:", "tk.Pulsante(se_stesso.schede1_pagina2" in ui3)
+stampa("prima il contenitore:", ui3.index("se_stesso.riquadro1 = ") < ui3.index("se_stesso.in_riquadro = "), ui3.index("se_stesso.schede1 = ") < ui3.index("se_stesso.in_pagina1 = "))
+d3 = form_modello.Form.da_json(h.a_json())
+stampa("salvataggio e rilettura:", [c.genitore per c in d3.componenti])
+form_modello.salva_form(h, cartella3)
+sys.path.insert(0, cartella3)
+m3 = importlib.import_module("contenitori")
+r3 = tk.Tk()
+r3.geometry("+20+20")
+a3 = m3.Contenitori(r3)
+r3.update()
+stampa("in esecuzione:", a3.in_riquadro.master == a3.riquadro1, "|", a3.in_pagina1.master == a3.schede1_pagina1, a3.in_pagina2.master == a3.schede1_pagina2, "| schede:", a3.schede1.tab(0, "text"), a3.schede1.tab(1, "text"))
+r3.destroy()
+# esportato in Python
+dest3 = os.path.join(tempfile.mkdtemp(), "e3")
+e3 = esporta_python.esporta(cartella3, dest3)
+open(os.path.join(dest3, "p3.py"), "w", encoding="utf-8").write("import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport contenitori\nr = tk.Tk(); a = contenitori.Contenitori(r); r.update()\nprint('python:', a.in_pagina2.master == a.schede1_pagina2, a.schede1.tab(1, 'text'))\nr.destroy()\n")
+se python_:
+    u3 = subprocess.run([python_, "-W", "ignore", os.path.join(dest3, "p3.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest3, timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
+    stampa("con Python normale:", u3.stdout.strip(), u3.returncode, u3.stderr.strip()[-150:])
+
+# nel progettista: aggiungere dentro il contenitore e cancellarlo
+radice4 = tk.Tk()
+radice4.geometry("1300x760+10+10")
+configura_stile(radice4, col)
+p4 = progettista.Progettista(radice4, os.path.join(cartella3, "contenitori.form.json"), form_modello.carica_form(os.path.join(cartella3, "contenitori.form.json")), col, cfg,
+                             type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella3)})())
+p4.pack(fill="both", expand=Vero)
+applica(radice4, col)
+radice4.update()
+stampa("progettista: widget dei figli dentro i contenitori:", p4.widget["in_riquadro"].master == p4.widget["riquadro1"], p4.widget["in_pagina2"].master == p4.widget["schede1"]._pagine[1])
+
+
+classe Ev:
+    definisci __inizializza__(se_stesso, w, dx, dy):
+        se_stesso.x_root = w.winfo_rootx() + dx
+        se_stesso.y_root = w.winfo_rooty() + dy
+        se_stesso.state = 0
+        se_stesso.widget = w
+
+
+p4.da_aggiungere = "Pulsante"
+p4._premi(Ev(p4.widget["riquadro1"], 60, 60), "riquadro1")
+nuovo = p4.form.componenti[-1]
+stampa("cliccando nel riquadro, il pulsante ci finisce dentro:", nuovo.tipo, nuovo.genitore, (nuovo.x, nuovo.y))
+p4.da_aggiungere = "CampoTesto"
+pagina2 = p4.widget["schede1"]._pagine[1]
+p4._premi(Ev(pagina2, 40, 40), "schede1")
+stampa("cliccando nella scheda corrente:", p4.form.componenti[-1].genitore)
+p4.widget["schede1"].select(1)
+p4.da_aggiungere = "Etichetta"
+p4._premi(Ev(pagina2, 80, 80), "schede1")
+stampa("dopo aver scelto la seconda scheda:", p4.form.componenti[-1].genitore)
+radice4.update()
+p4.seleziona([nuovo.nome])
+radice4.update()
+stampa("contorno e maniglie nello stesso contenitore:", lunghezza(p4.maniglie), "|", p4._bordi[nuovo.nome].master == p4.widget["riquadro1"])
+p4.seleziona(["riquadro1"])
+p4.elimina_selezionati()
+radice4.update()
+stampa("eliminato il riquadro: spariscono anche i figli:", [c.nome per c in p4.form.componenti se c.genitore.startswith("riquadro1")], "| widget:", sorted(p4.widget))
+p4.annulla()
+radice4.update()
+stampa("annulla li rimette:", "in_riquadro" in p4.widget, lunghezza(p4.form.componenti))
+radice4.destroy()

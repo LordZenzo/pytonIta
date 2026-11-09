@@ -77,3 +77,31 @@ classe Saluto(SalutoUI):
 ```
 
 > **Nota:** la finestra usa posizioni assolute (in punti): è semplice e prevedibile. Se ti serve una finestra ridimensionabile con componenti che si adattano, scrivi il codice con `impacchetta`/`griglia` nel file della logica.
+
+## Novità: menu, timer, schede, ancoraggio, altre finestre
+
+**Barra dei menu.** Aggiungi il componente **BarraMenu** dalla palette: compare come una piccola etichetta gialla (non si vede nel programma). Nelle proprietà premi **Modifica…** e scrivi i menu: i titoli a margine, le voci rientrate di due spazi.
+
+```
+File
+  Nuovo = nuovo_clic
+  Apri = apri_clic
+  -
+  Seconda finestra = @Seconda
+  Esci = esci_clic
+Aiuto
+  Informazioni = info_clic
+```
+
+`Etichetta = nome_funzione` collega la voce a un gestore (PitStudio crea la funzione nel file della logica), `-` è un separatore, `= @NomeFinestra` apre un'altra finestra del progetto, e una voce senza «=» resta spenta.
+
+**Timer.** Il componente **Timer** richiama un gestore a intervalli regolari (millisecondi). Può partire da solo; nel codice trovi `timer1_avvia()` e `timer1_ferma()`.
+
+**Schede e riquadri con dentro altri componenti.** Scegli **Schede** (o **Riquadro**) dalla palette e disegnalo. Poi scegli un altro componente e **clicca dentro** la scheda (nella pagina visibile) o dentro il riquadro: il nuovo componente ci entra e le sue coordinate sono relative al contenitore. Le pagine si cambiano dalla proprietà *Pagine* (nomi separati da virgola). Eliminando un contenitore si eliminano anche i suoi componenti (l'annulla li rimette).
+
+**Si aggancia ai bordi.** Ogni componente ha quattro caselle ◀ ▲ ▶ ▼: indicano da quali bordi della finestra resta a distanza fissa. Con ◀ e ▶ insieme si **allarga** quando si allarga la finestra, con ▲ e ▼ si **allunga**; solo ▶ o solo ▼ lo tiene attaccato a destra o in basso. La finestra deve essere *ridimensionabile*. (Dentro schede e riquadri l'ancoraggio non si usa.)
+
+**Aprire un'altra finestra.** Un **Pulsante** ha la proprietà *Apre la finestra*: scegli una finestra del progetto e, al clic, si apre (con *come dialogo* blocca la principale finché non si chiude). Vale anche per le voci di menu con `@Finestra`.
+
+**Ordine di tabulazione.** **⇅ Ordine…** nella barra del progettista cambia l'ordine dei componenti: è l'ordine in cui il tasto Tab passa da uno all'altro.
+

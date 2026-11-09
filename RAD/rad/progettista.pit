@@ -8,7 +8,7 @@ da tkinter importa ttk, messagebox, colorchooser, filedialog, simpledialog
 
 da rad importa form_modello
 da rad.stile importa suggerisci come stile_suggerisci
-da rad.form_modello importa Form, TIPI, ORDINE_PALETTE, proprieta_di, nome_valido, colonne_albero
+da rad.form_modello importa Form, TIPI, ORDINE_PALETTE, proprieta_di, nome_valido, colonne_albero, e_visivo, voci_menu, e_contenitore
 
 GRIGLIA = 8
 MANIGLIE = {  # nome: (cursore, ancora_x, ancora_y)
@@ -133,6 +133,16 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
                     w.create_line(0, 0, 0, e.height, fill="#a0a0a0", tags="riga")
                     w.create_line(1, 0, 1, e.height, fill="#ffffff", tags="riga")
             w.bind("<Configure>", _linee)
+        altrimenti_se t == "Schede":
+            w = ttk.Notebook(genitore)
+            w._pagine = []
+            per nome_pagina in (lista(v.get("pagine", [])) o ["Pagina 1"]):
+                pagina = tk.Frame(w, background="#ffffff")
+                w.add(pagina, text=nome_pagina)
+                w._pagine.append(pagina)
+        altrimenti_se non e_visivo(t):
+            w = tk.Label(genitore, text=f"{TIPI[t]['icona']} {c.nome}", relief="raised", borderwidth=1, background="#fff3bf", foreground="#4a3b00",
+                         anchor="w", font=("Segoe UI", 8))
         altrimenti:
             w = tk.Label(genitore, text=t)
         se carattere e t in ("Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione", "PulsanteOpzione"):
@@ -308,6 +318,101 @@ classe DialogoColonne(tk.Toplevel):
         ritorna se_stesso.risultato
 
 
+classe DialogoMenu(tk.Toplevel):
+    """Modifica il testo di una barra dei menu: i titoli a margine, le voci rientrate («Etichetta = gestore»), «-» per un separatore."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, testo_):
+        tk.Toplevel.__init__(se_stesso, genitore)
+        se_stesso.title("Barra dei menu")
+        se_stesso.transient(genitore.winfo_toplevel())
+        se_stesso.configure(background=colori["pannello"])
+        se_stesso.geometry("560x460")
+        se_stesso.risultato = Nessuno
+        c = colori
+        tk.Label(se_stesso, background=c["pannello"], foreground=c["tenue"], justify="left", anchor="w", wraplength=520,
+                 text="Scrivi i titoli dei menu senza rientro e le voci con un rientro (due spazi).\n"
+                      "«Etichetta = nome_funzione» collega la voce a un gestore; «-» è un separatore; «Etichetta = @NomeFinestra» apre un'altra finestra "
+                      "del progetto; senza «=» la voce resta spenta.").pack(fill="x", padx=12, pady=(10, 4))
+        se_stesso.testo = tk.Text(se_stesso, font=("Consolas", 11), undo=Vero, background=c["campo"], foreground=c["primo_piano"],
+                                  insertbackground=c["cursore"], relief="flat", highlightthickness=1, highlightbackground=c["bordo"])
+        se_stesso.testo.pack(fill="both", expand=Vero, padx=12, pady=4)
+        se_stesso.testo.insert("1.0", testo_ o "")
+        fondo = tk.Frame(se_stesso, background=c["pannello"])
+        fondo.pack(fill="x", padx=12, pady=10)
+        tk.Button(fondo, text="Annulla", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        tk.Button(fondo, text="Applica", command=se_stesso.conferma, background=c["accento"], foreground="#ffffff", relief="flat", padx=12).pack(side="right", padx=4)
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.testo.focus_set()
+
+    definisci conferma(se_stesso):
+        se_stesso.risultato = se_stesso.testo.get("1.0", "end").rstrip() + ""
+        se_stesso.destroy()
+
+    definisci mostra(se_stesso):
+        se_stesso.grab_set()
+        se_stesso.wait_window()
+        ritorna se_stesso.risultato
+
+
+classe DialogoOrdine(tk.Toplevel):
+    """Ordine dei componenti: è anche l'ordine in cui si passa dall'uno all'altro con il tasto Tab (e chi sta più in basso nell'elenco sta sopra agli altri)."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, nomi):
+        tk.Toplevel.__init__(se_stesso, genitore)
+        se_stesso.title("Ordine di tabulazione")
+        se_stesso.transient(genitore.winfo_toplevel())
+        se_stesso.configure(background=colori["pannello"])
+        se_stesso.geometry("360x480")
+        se_stesso.risultato = Nessuno
+        c = colori
+        se_stesso.nomi = lista(nomi)
+        tk.Label(se_stesso, text="Il tasto Tab passa dai componenti in questo ordine, dall'alto in basso.", background=c["pannello"], foreground=c["tenue"],
+                 anchor="w", wraplength=330, justify="left").pack(fill="x", padx=12, pady=(10, 4))
+        centro = tk.Frame(se_stesso, background=c["pannello"])
+        centro.pack(fill="both", expand=Vero, padx=12)
+        se_stesso.elenco = tk.Listbox(centro, activestyle="none", exportselection=Falso, background=c["campo"], foreground=c["primo_piano"],
+                                      selectbackground=c["accento"], selectforeground="#ffffff", relief="flat", highlightthickness=1, highlightbackground=c["bordo"])
+        se_stesso.elenco.pack(side="left", fill="both", expand=Vero)
+        colonna = tk.Frame(centro, background=c["pannello"])
+        colonna.pack(side="left", padx=8)
+        per testo_, passo in (("▲ Su", -1), ("▼ Giù", 1)):
+            tk.Button(colonna, text=testo_, command=lambda p=passo: se_stesso.sposta(p), width=8, relief="flat", background=c["pulsante"],
+                      foreground=c["primo_piano"]).pack(pady=3)
+        fondo = tk.Frame(se_stesso, background=c["pannello"])
+        fondo.pack(fill="x", padx=12, pady=10)
+        tk.Button(fondo, text="Annulla", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        tk.Button(fondo, text="Applica", command=se_stesso.conferma, background=c["accento"], foreground="#ffffff", relief="flat", padx=12).pack(side="right", padx=4)
+        se_stesso.riempi()
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+
+    definisci riempi(se_stesso, scelta=Nessuno):
+        se_stesso.elenco.delete(0, "end")
+        per i, n in enumera(se_stesso.nomi, 1):
+            se_stesso.elenco.insert("end", f"{i:>3}   {n}")
+        se scelta è non Nessuno:
+            se_stesso.elenco.selection_set(scelta)
+            se_stesso.elenco.see(scelta)
+
+    definisci sposta(se_stesso, passo):
+        sel = se_stesso.elenco.curselection()
+        se non sel:
+            ritorna
+        i = sel[0]
+        j = i + passo
+        se 0 <= j < lunghezza(se_stesso.nomi):
+            se_stesso.nomi[i], se_stesso.nomi[j] = se_stesso.nomi[j], se_stesso.nomi[i]
+            se_stesso.riempi(j)
+
+    definisci conferma(se_stesso):
+        se_stesso.risultato = lista(se_stesso.nomi)
+        se_stesso.destroy()
+
+    definisci mostra(se_stesso):
+        se_stesso.grab_set()
+        se_stesso.wait_window()
+        ritorna se_stesso.risultato
+
+
 classe Progettista(tk.Frame):
     """Scheda di progettazione di una finestra (un file .form.json)."""
 
@@ -365,6 +470,9 @@ classe Progettista(tk.Frame):
             m.add_command(label=etichetta, command=lambda md=modo: se_stesso.allinea(md))
         se_stesso.menu_allinea.configure(menu=m)
         se_stesso.menu_allinea.pack(side="left", padx=4)
+        b_ordine = tk.Button(barra, text="⇅ Ordine…", command=se_stesso.modifica_ordine)
+        b_ordine.pack(side="left", padx=2, pady=3)
+        stile_suggerisci(b_ordine, "Cambia l'ordine dei componenti: è l'ordine del tasto Tab")
         se_stesso.stato = tk.Label(barra, text="", anchor="e")
         se_stesso.stato.pack(side="right", padx=8)
 
@@ -530,21 +638,38 @@ classe Progettista(tk.Frame):
             w.destroy()
         se_stesso.widget = {}
         se_stesso._disegna_griglia()
-        per c in se_stesso.form.componenti:
+        per c in form_modello.ordine_creazione(se_stesso.form):
             se_stesso._crea(c)
         se_stesso._aggiorna_maniglie()
 
+    definisci _padre_widget(se_stesso, c):
+        """Il widget dentro cui sta il componente: la superficie, un riquadro o la pagina di una Schede."""
+        se non c.genitore:
+            ritorna se_stesso.superficie
+        nome, _, indice = c.genitore.partition("#")
+        w = se_stesso.widget.get(nome)
+        se w è Nessuno:
+            ritorna se_stesso.superficie
+        se indice e hasattr(w, "_pagine") e int(indice) < lunghezza(w._pagine):
+            ritorna w._pagine[int(indice)]
+        ritorna w
+
     definisci _crea(se_stesso, c):
-        w = crea_widget_di_progetto(c, se_stesso.superficie, se_stesso.cartella)
+        w = crea_widget_di_progetto(c, se_stesso._padre_widget(c), se_stesso.cartella)
         w.place(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
         per sequenza, funzione in (("<ButtonPress-1>", se_stesso._premi), ("<B1-Motion>", se_stesso._trascina),
                                    ("<ButtonRelease-1>", se_stesso._rilascia), ("<Double-Button-1>", se_stesso._doppio),
                                    ("<Button-3>", se_stesso._menu_widget)):
             w.bind(sequenza, lambda e, n=c.nome, f=funzione: f(e, n))
+            per pagina in getattr(w, "_pagine", []):
+                pagina.bind(sequenza, lambda e, n=c.nome, f=funzione: f(e, n))
         se_stesso.widget[c.nome] = w
         ritorna w
 
     definisci _aggiorna_widget(se_stesso, c):
+        se e_contenitore(c.tipo):
+            se_stesso.ricostruisci()          # i componenti dentro vanno ricreati insieme al contenitore
+            ritorna
         vecchio = se_stesso.widget.pop(c.nome, Nessuno)
         se vecchio:
             vecchio.destroy()
@@ -589,7 +714,7 @@ classe Progettista(tk.Frame):
             se non c o non w:
                 continua
             # contorno di selezione
-            bordo = tk.Frame(se_stesso.superficie, background=se_stesso.colori["accento"])
+            bordo = tk.Frame(se_stesso._padre_widget(c), background=se_stesso.colori["accento"])
             per lato in ("n", "s", "e", "o"):
                 passa
             se_stesso.maniglie.append(bordo)
@@ -599,7 +724,7 @@ classe Progettista(tk.Frame):
             w.tk.call("raise", w._w)
             se lunghezza(se_stesso.selezione_) == 1:
                 per chiave, (cursore, ax, ay) in MANIGLIE.items():
-                    m = tk.Frame(se_stesso.superficie, background=se_stesso.colori["accento"], width=8, height=8,
+                    m = tk.Frame(se_stesso._padre_widget(c), background=se_stesso.colori["accento"], width=8, height=8,
                                  cursor=cursore, borderwidth=1, relief="solid")
                     m.place(x=c.x + int(c.larghezza * ax) - 4, y=c.y + int(c.altezza * ay) - 4)
                     m.bind("<ButtonPress-1>", lambda e, k=chiave, n=nome: se_stesso._inizia_ridimensiona(e, k, n))
@@ -646,6 +771,27 @@ classe Progettista(tk.Frame):
         se_stesso.seleziona([c.nome])
         ritorna c
 
+    definisci _destinazione(se_stesso, e, nome):
+        """(genitore, x, y) dove inserire un nuovo componente cliccando sul componente «nome»."""
+        c = se_stesso.form.trova(nome)
+        w = se_stesso.widget.get(nome)
+        se c è non Nessuno e w è non Nessuno e e_contenitore(c.tipo):
+            se c.tipo == "Schede":
+                pagine = getattr(w, "_pagine", [])
+                prova:
+                    indice = w.index(w.select())
+                eccetto tk.TclError:
+                    indice = 0
+                se pagine:
+                    pagina = pagine[min(indice, lunghezza(pagine) - 1)]
+                    ritorna f"{nome}#{min(indice, lunghezza(pagine) - 1)}", e.x_root - pagina.winfo_rootx(), e.y_root - pagina.winfo_rooty()
+            altrimenti:
+                ritorna nome, e.x_root - w.winfo_rootx(), e.y_root - w.winfo_rooty()
+        se c è non Nessuno e c.genitore:
+            padre = se_stesso._padre_widget(c)
+            ritorna c.genitore, e.x_root - padre.winfo_rootx(), e.y_root - padre.winfo_rooty()
+        ritorna "", e.x_root - se_stesso.superficie.winfo_rootx(), e.y_root - se_stesso.superficie.winfo_rooty()
+
     definisci _aggancia(se_stesso, v):
         se se_stesso.griglia_attiva.get():
             ritorna int(round(v / GRIGLIA) * GRIGLIA)
@@ -663,10 +809,9 @@ classe Progettista(tk.Frame):
     definisci _premi(se_stesso, e, nome):
         se_stesso.focus_set()
         se se_stesso.da_aggiungere:
-            # inserisce sopra al widget cliccato, nella posizione del puntatore
-            x = e.x_root - se_stesso.superficie.winfo_rootx()
-            y = e.y_root - se_stesso.superficie.winfo_rooty()
-            se_stesso.aggiungi_componente(se_stesso.da_aggiungere, x, y)
+            # inserisce nella posizione del puntatore: dentro il contenitore cliccato (o accanto al componente cliccato)
+            genitore, x, y = se_stesso._destinazione(e, nome)
+            se_stesso.aggiungi_componente(se_stesso.da_aggiungere, x, y, genitore=genitore)
             se_stesso._annulla_aggiunta()
             ritorna "break"
         se e.state & 0x1:       # Maiusc: aggiunge/toglie dalla selezione
@@ -840,7 +985,11 @@ classe Progettista(tk.Frame):
             se_stesso.form.rimuovi(n)
             w = se_stesso.widget.pop(n, Nessuno)
             se w:
-                w.destroy()
+                prova:
+                    w.destroy()
+                eccetto tk.TclError:
+                    passa
+        se_stesso.widget = {k: v per k, v in se_stesso.widget.items() se se_stesso.form.trova(k)}      # tolti anche i componenti che stavano dentro
         se_stesso.selezione_ = []
         se_stesso._registra()
         se_stesso.seleziona([])
@@ -892,6 +1041,21 @@ classe Progettista(tk.Frame):
                 w_ = se_stesso.widget[n]
                 w_.tk.call("lower", w_._w)
         se_stesso._aggiorna_maniglie()
+        se_stesso._registra()
+
+    definisci modifica_ordine(se_stesso):
+        """Finestra per cambiare l'ordine dei componenti (e quindi del tasto Tab)."""
+        nuovo = DialogoOrdine(se_stesso, se_stesso.colori, [c.nome per c in se_stesso.form.componenti]).mostra()
+        se nuovo:
+            se_stesso.imposta_ordine(nuovo)
+
+    definisci imposta_ordine(se_stesso, nomi):
+        """Rimette i componenti nell'ordine dato (lista di nomi) e ridisegna la finestra."""
+        per_nome = {c.nome: c per c in se_stesso.form.componenti}
+        se set(nomi) != set(per_nome):
+            ritorna
+        se_stesso.form.componenti = [per_nome[n] per n in nomi]
+        se_stesso.ricostruisci()
         se_stesso._registra()
 
     definisci allinea(se_stesso, modo):
@@ -1035,6 +1199,17 @@ classe Progettista(tk.Frame):
     definisci limiti_geometria(se_stesso, c, attributo):
         """Minimo e massimo naturali per x, y, larghezza e altezza di un componente: restano dentro la finestra."""
         f = se_stesso.form
+        se c.genitore:
+            padre = f.trova(c.genitore.split("#")[0])
+            se padre è non Nessuno:
+                L, H = padre.larghezza, padre.altezza - (30 se "#" in c.genitore altrimenti 0)
+                se attributo == "x":
+                    ritorna 0, max(L - c.larghezza, c.x, 0)
+                se attributo == "y":
+                    ritorna 0, max(H - c.altezza, c.y, 0)
+                se attributo == "larghezza":
+                    ritorna 4, max(L - c.x, c.larghezza, 4)
+                ritorna 4, max(H - c.y, c.altezza, 4)
         se attributo == "x":
             ritorna 0, max(f.larghezza - c.larghezza, c.x, 0)
         se attributo == "y":
@@ -1137,6 +1312,43 @@ classe Progettista(tk.Frame):
                           command=lambda: se_stesso.modifica_colonne(c))
             b.pack(side="right", padx=2)
             stile_suggerisci(b, "Nomi, larghezza e allineamento delle colonne", c_)
+            ritorna cornice
+        se tipo_ == "ancoraggio":
+            cornice = tk.Frame(genitore, background=c_["pannello"])
+            variabili = {}
+
+            definisci cambia_ancoraggio():
+                v = "".join(k per k in "sadb" se variabili[k].get())
+                se_stesso._modifica(c, chiave, v o "sa")
+            per k, etichetta_, aiuto in (("s", "◀", "Resta a distanza fissa dal bordo sinistro"), ("a", "▲", "Resta a distanza fissa dal bordo alto"),
+                                         ("d", "▶", "Resta a distanza fissa dal bordo destro (se anche sinistra: si allarga con la finestra)"),
+                                         ("b", "▼", "Resta a distanza fissa dal bordo basso (se anche alto: si allunga con la finestra)")):
+                variabili[k] = tk.BooleanVar(value=(k in (valore o "sa")))
+                cb = tk.Checkbutton(cornice, text=etichetta_, variable=variabili[k], command=cambia_ancoraggio, background=c_["pannello"], foreground=c_["primo_piano"],
+                                    selectcolor=c_["campo"], activebackground=c_["pannello"])
+                cb.pack(side="left")
+                stile_suggerisci(cb, aiuto, c_)
+            ritorna cornice
+        se tipo_ == "finestra":
+            altre = sorted(f[:-len(".form.json")] per f in os.listdir(se_stesso.cartella) se f.endswith(".form.json") e f[:-len(".form.json")].lower() != se_stesso.form.nome.lower())
+            cb = ttk.Combobox(genitore, values=[""] + altre, state="readonly", width=12)
+            cb.set(valore o "")
+            cb.bind("<<ComboboxSelected>>", lambda ev: se_stesso._modifica(c, chiave, cb.get()))
+            stile_suggerisci(cb, "Il pulsante apre questa finestra del progetto", c_)
+            ritorna cb
+        se tipo_ == "menu":
+            cornice = tk.Frame(genitore, background=c_["pannello"])
+            titoli = ", ".join(t per t, _ in voci_menu(valore o ""))
+            tk.Label(cornice, text=titoli o "vuota", anchor="w", background=c_["pannello"], foreground=c_["primo_piano"], wraplength=120, justify="left").pack(side="left", fill="x", expand=Vero)
+
+            definisci apri_menu():
+                nuovo = DialogoMenu(se_stesso, c_, valore o "").mostra()
+                se nuovo è non Nessuno:
+                    se_stesso._modifica(c, chiave, nuovo)
+                    se_stesso._riempi_ispettore()
+            b = tk.Button(cornice, text="Modifica…", relief="flat", background=c_["pulsante"], foreground=c_["primo_piano"], command=apri_menu)
+            b.pack(side="right", padx=2)
+            stile_suggerisci(b, "Scrivi i menu e le loro voci", c_)
             ritorna cornice
         se tipo_ == "elenco":
             ritorna se_stesso._entry(genitore, ", ".join(testo(x) per x in (valore o [])),
