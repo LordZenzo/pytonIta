@@ -1,0 +1,66 @@
+"""Crea l'eseguibile: ambiente, comando di PyInstaller, file di dati, finestra; la costruzione vera solo con RAD_PROVA_EXE=1 (serve internet)."""
+importa sys, os, tempfile, subprocess, json, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+messagebox.showwarning = lambda *a, **k: Nessuno
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad importa crea_exe
+
+base = tempfile.mkdtemp()
+origine = os.path.join(base, "Saluto")
+os.makedirs(os.path.join(origine, "immagini"))
+open(os.path.join(origine, "progetto.rad.json"), "w", encoding="utf-8").write(json.dumps({"nome": "Saluto", "principale": "principale.pit"}))
+open(os.path.join(origine, "immagini", "logo.txt"), "w").write("logo")
+open(os.path.join(origine, "dati.json"), "w").write("{}")
+open(os.path.join(origine, "principale.pit"), "w", encoding="utf-8").write('''"""Saluto."""
+importa sys
+nome = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti "mondo"
+stampa(f"Ciao, {nome}!", lunghezza(nome))
+''')
+python = crea_exe.trova_python()
+stampa("Python normale trovato:", python è non Nessuno)
+
+# sorgente esportato e dati da aggiungere
+sorgente = os.path.join(base, "src")
+r = crea_exe.esporta_python.esporta(origine, sorgente)
+dati = crea_exe.dati_da_aggiungere(sorgente)
+stampa("dati da aggiungere:", sorted((os.path.basename(a), d) per a, d in dati))
+stampa("il codice con tkinter si riconosce:", crea_exe.usa_tkinter(sorgente), "(questo programma non ha finestre)")
+open(os.path.join(sorgente, "finestra.py"), "w").write("import tkinter as tk\n")
+stampa("... e ora sì:", crea_exe.usa_tkinter(sorgente))
+
+# comando di PyInstaller
+o = crea_exe.Opzioni("Saluto", un_file=Vero, senza_console=Falso, icona="")
+c = crea_exe.comando_pyinstaller("py.exe", "Saluto", "src/principale.py", "dist", "lavoro", "build", o, dati)
+stampa("comando:", c[:4], "...", c[-1], "| onefile:", "--onefile" in c, "| console:", "--console" in c, "| add-data:", c.count("--add-data"))
+o2 = crea_exe.Opzioni("App", un_file=Falso, senza_console=Vero)
+c2 = crea_exe.comando_pyinstaller("py.exe", "App", "x.py", "dist", "lavoro", "build", o2, [])
+stampa("cartella e senza console:", "--onedir" in c2, "--windowed" in c2, "--onefile" non in c2)
+
+# la finestra
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice = tk.Tk()
+radice.geometry("900x600+20+20")
+d = crea_exe.DialogoEseguibile(radice, colori(cfg), origine)
+d.withdraw()
+radice.update()
+opz = d.opzioni()
+stampa("opzioni della finestra:", opz.nome, opz.un_file, opz.senza_console, repr(opz.icona))
+stampa("pulsanti con suggerimento:", all(getattr(b, "_suggerimento", Nessuno) per b in (d.pulsante_avvia, d.pulsante_ferma)))
+d.destroy()
+radice.destroy()
+
+# costruzione vera (lenta: scarica PyInstaller la prima volta)
+se os.environ.get("RAD_PROVA_EXE") == "1":
+    righe = []
+    esito = crea_exe.costruisci(origine, crea_exe.Opzioni("Saluto", un_file=Vero, senza_console=Falso), righe.append)
+    stampa("costruzione:", esito["ok"], esito["errore"], esito["exe"] e os.path.basename(esito["exe"]))
+    stampa("ultime righe:", righe[-2:])
+    se esito["ok"]:
+        u = subprocess.run([esito["exe"], "Anna"], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120)
+        stampa("l'eseguibile gira da solo:", repr(u.stdout.strip()), u.returncode)
+altrimenti:
+    stampa("(costruzione vera saltata: imposta RAD_PROVA_EXE=1 per provarla)")
+shutil.rmtree(base, ignore_errors=Vero)

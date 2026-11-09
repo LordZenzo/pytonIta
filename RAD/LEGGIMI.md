@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.23
+
+- **Crea l'eseguibile (.exe)** (*File → Crea l'eseguibile (.exe)…*): converte il progetto in Python e lo impacchetta con PyInstaller in un ambiente separato dentro `.rad/build`, mostrando l'avanzamento. Opzioni: nome, icona, un solo file o cartella, con o senza finestra nera. Il risultato è in `dist`; chi lo riceve non ha bisogno di Python. Serve Python 3 sul computer di chi costruisce e internet la prima volta. Immagini, `.json`, database e altri file del progetto sono inclusi.
+
 ## Novità della 1.22
 
 - **Gestore di database** (menu *Database*): SQLite come predefinito (un file `.db` nel progetto, apribile anche con doppio clic) e MySQL/MariaDB come alternativa (driver `pymysql`, installabile dal programma; la password non viene salvata). Una scheda per database con l'elenco di tabelle e viste, **dati modificabili** (doppio clic sulla cella, filtro SQL, ordinamento, pagine, nuova riga, elimina righe), **struttura** delle tabelle, **creazione guidata di tabelle e colonne** con l'istruzione SQL in anteprima, **importazione ed esportazione CSV** e un **editor SQL** con più comandi, risultati in tabella, storia e suggerimenti.

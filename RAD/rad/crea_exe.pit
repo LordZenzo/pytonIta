@@ -1,0 +1,327 @@
+"""Crea un eseguibile (.exe) del progetto: lo esporta come Python e lo impacchetta con PyInstaller in un ambiente separato.
+
+Serve un Python 3 normale installato (python.org): PitStudio lo usa soltanto per costruire; chi riceve l'.exe non ha bisogno di nulla.
+L'ambiente di costruzione (venv con PyInstaller e le librerie del progetto) sta in <progetto>/.rad/build e si riusa alle volte successive.
+"""
+importa os
+importa queue
+importa shutil
+importa subprocess
+importa sys
+importa threading
+importa tkinter come tk
+da tkinter importa ttk, messagebox, filedialog
+
+da rad importa esporta_python
+da rad.dialoghi importa DialogoBase
+da rad.stile importa suggerisci
+
+NASCONDI_CONSOLE = 0x08000000 se os.name == "nt" altrimenti 0          # CREATE_NO_WINDOW
+FILE_NON_DATI = ("requirements.txt", "installa_librerie.bat", "installa_librerie.sh", "LEGGIMI.txt", "CONVERSIONE.md")
+
+
+classe Opzioni:
+    """Come costruire l'eseguibile."""
+
+    definisci __inizializza__(se_stesso, nome, un_file=Vero, senza_console=Vero, icona=""):
+        se_stesso.nome = nome
+        se_stesso.un_file = un_file
+        se_stesso.senza_console = senza_console
+        se_stesso.icona = icona
+
+
+# ---------------------------------------------------------------- ambiente
+definisci trova_python():
+    """Il comando (lista) di un Python 3 normale con venv e pip, oppure Nessuno."""
+    candidati = []
+    per nome in ("py", "python", "python3"):
+        p = shutil.which(nome)
+        se p e p non in [c[0] per c in candidati]:
+            candidati.append([p, "-3"] se os.path.basename(p).lower().startswith("py.") altrimenti [p])
+    per comando in candidati:
+        prova:
+            r = subprocess.run(comando + ["-c", "import sys, venv, ensurepip; print(sys.version_info[0], sys.version_info[1])"],
+                               capture_output=Vero, text=Vero, timeout=30, creationflags=NASCONDI_CONSOLE)
+        eccetto (OSError, subprocess.SubprocessError):
+            continua
+        parti = r.stdout.split()
+        se r.returncode == 0 e lunghezza(parti) == 2 e parti[0] == "3" e int(parti[1]) >= 8:
+            ritorna comando
+    ritorna Nessuno
+
+
+definisci cartella_build(origine):
+    ritorna os.path.join(origine, ".rad", "build")
+
+
+definisci python_del_venv(origine):
+    ritorna os.path.join(cartella_build(origine), "venv", "Scripts" se os.name == "nt" altrimenti "bin", "python.exe" se os.name == "nt" altrimenti "python")
+
+
+definisci dati_da_aggiungere(sorgente):
+    """[(origine, destinazione relativa)] dei file che il programma può leggere (immagini, json, database...): tutto tranne il codice e i file di accompagnamento."""
+    risultato = []
+    per radice, cartelle, files in os.walk(sorgente):
+        cartelle[:] = [c per c in cartelle se c non in ("__pycache__", ".git", ".rad")]
+        per f in files:
+            se f.endswith((".py", ".pyc")) o (radice == sorgente e f in FILE_NON_DATI):
+                continua
+            rel = os.path.relpath(radice, sorgente)
+            risultato.append((os.path.join(radice, f), "." se rel == "." altrimenti rel))
+    ritorna risultato
+
+
+definisci usa_tkinter(sorgente):
+    """True se qualche file Python del progetto importa tkinter (quindi il programma ha finestre)."""
+    per radice, _, files in os.walk(sorgente):
+        per f in files:
+            se f.endswith(".py"):
+                prova:
+                    testo_ = open(os.path.join(radice, f), encoding="utf-8").read()
+                eccetto OSError:
+                    continua
+                se "import tkinter" in testo_ o "from tkinter" in testo_:
+                    ritorna Vero
+    ritorna Falso
+
+
+definisci comando_pyinstaller(python, nome, principale, dist, lavoro, specifica, opzioni, dati):
+    """La riga di comando di PyInstaller (funzione pura: si può provare senza costruire nulla)."""
+    c = [python, "-m", "PyInstaller", "--noconfirm", "--clean", "--name", nome, "--distpath", dist, "--workpath", lavoro, "--specpath", specifica,
+         "--onefile" se opzioni.un_file altrimenti "--onedir", "--windowed" se opzioni.senza_console altrimenti "--console"]
+    se opzioni.icona e os.path.exists(opzioni.icona):
+        c += ["--icon", opzioni.icona]
+    per origine, destinazione in dati:
+        c += ["--add-data", f"{origine}{os.pathsep}{destinazione}"]
+    c.append(principale)
+    ritorna c
+
+
+# ---------------------------------------------------------------- costruzione
+classe Interrotto(Exception):
+    """L'utente ha premuto Ferma."""
+
+
+definisci _esegui(comando, scrivi, cwd, fermato):
+    """Lancia un comando mostrando l'uscita riga per riga. Ritorna il codice di uscita."""
+    scrivi("$ " + " ".join(f'"{x}"' se " " in x altrimenti x per x in comando[:12]) + (" …" se lunghezza(comando) > 12 altrimenti ""))
+    processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=Vero, encoding="utf-8", errors="replace", cwd=cwd,
+                                creationflags=NASCONDI_CONSOLE)
+    per riga in processo.stdout:
+        scrivi(riga.rstrip())
+        se fermato e fermato():
+            processo.terminate()
+            solleva Interrotto()
+    processo.wait()
+    ritorna processo.returncode
+
+
+definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
+    """Costruisce l'eseguibile. scrivi(testo) riceve l'avanzamento. Ritorna un dizionario: ok, exe, errore, cartella."""
+    risultato = {"ok": Falso, "exe": "", "errore": "", "cartella": ""}
+    prova:
+        python = trova_python()
+        se non python:
+            risultato["errore"] = ("Non trovo Python sul computer. Installa Python 3 da https://www.python.org/downloads/ "
+                                   "(spunta «Add python.exe to PATH») e riprova.")
+            ritorna risultato
+        build = cartella_build(origine)
+        sorgente = os.path.join(build, "sorgente")
+        scrivi("1/4  Converto il progetto in Python…")
+        se os.path.exists(sorgente):
+            shutil.rmtree(sorgente, ignore_errors=Vero)
+        os.makedirs(build, exist_ok=Vero)
+        r = esporta_python.esporta(origine, sorgente)
+        se r["errori"]:
+            risultato["errore"] = "Alcuni file non si convertono in Python:\n" + "\n".join(f"  {f}: {e}" per f, e in r["errori"][:5])
+            ritorna risultato
+        scrivi(f"     {r['file_python']} file Python, {r['altri_file']} altri file.")
+        principale = os.path.join(sorgente, r["principale"])
+        se non os.path.exists(principale):
+            risultato["errore"] = f"Non trovo il file principale ({r['principale']})."
+            ritorna risultato
+        venv = os.path.join(build, "venv")
+        py = python_del_venv(origine)
+        se non os.path.exists(py):
+            scrivi("2/4  Preparo l'ambiente di costruzione (solo la prima volta)…")
+            se _esegui(python + ["-m", "venv", venv], scrivi, build, fermato) != 0:
+                risultato["errore"] = "Non sono riuscito a creare l'ambiente di costruzione."
+                ritorna risultato
+        altrimenti:
+            scrivi("2/4  Uso l'ambiente di costruzione già pronto.")
+        pacchetti = ["pyinstaller"]
+        requisiti = os.path.join(sorgente, "requirements.txt")
+        scrivi("3/4  Installo PyInstaller e le librerie del progetto (serve internet la prima volta)…")
+        comando = [py, "-m", "pip", "install", "--disable-pip-version-check", "-q"] + pacchetti
+        se os.path.exists(requisiti):
+            comando += ["-r", requisiti]
+        se _esegui(comando, scrivi, build, fermato) != 0:
+            risultato["errore"] = "Installazione delle librerie non riuscita: controlla la connessione a internet e leggi il registro qui sopra."
+            ritorna risultato
+        scrivi("4/4  Costruisco l'eseguibile (può richiedere qualche minuto)…")
+        dist = os.path.join(origine, "dist")
+        os.makedirs(dist, exist_ok=Vero)
+        comando = comando_pyinstaller(py, opzioni.nome, principale, dist, os.path.join(build, "lavoro"), build, opzioni, dati_da_aggiungere(sorgente))
+        se _esegui(comando, scrivi, sorgente, fermato) != 0:
+            risultato["errore"] = "PyInstaller non è riuscito a costruire l'eseguibile: leggi il registro qui sopra."
+            ritorna risultato
+        exe = os.path.join(dist, opzioni.nome + ".exe") se opzioni.un_file altrimenti os.path.join(dist, opzioni.nome, opzioni.nome + ".exe")
+        se non os.path.exists(exe):
+            exe = exe[:-4] se os.name != "nt" altrimenti exe
+        se non os.path.exists(exe):
+            risultato["errore"] = "L'eseguibile non è stato creato."
+            ritorna risultato
+        risultato.update(ok=Vero, exe=exe, cartella=os.path.dirname(exe))
+        scrivi(f"Fatto: {exe}  ({os.path.getsize(exe) / 1048576:.1f} MB)")
+    eccetto Interrotto:
+        risultato["errore"] = "Interrotto."
+    eccetto Exception come e:
+        risultato["errore"] = f"{type(e).__name__}: {e}"
+    ritorna risultato
+
+
+# ---------------------------------------------------------------- finestra
+classe DialogoEseguibile(DialogoBase):
+    """Opzioni e avanzamento della creazione dell'eseguibile."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, origine):
+        DialogoBase.__init__(se_stesso, genitore, "Crea l'eseguibile (.exe)", colori, 760, 600)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.origine = origine
+        se_stesso.coda = queue.Queue()
+        se_stesso.thread = Nessuno
+        se_stesso.ferma_richiesto = Falso
+        se_stesso.esito = Nessuno
+        c = colori
+        nome = os.path.basename(os.path.normpath(origine)).replace(" ", "_")
+        se_stesso.var_nome = tk.StringVar(value=nome)
+        se_stesso.var_un_file = tk.BooleanVar(value=Vero)
+        se_stesso.var_senza_console = tk.BooleanVar(value=Vero)
+        se_stesso.var_icona = tk.StringVar()
+        se_stesso.grid_columnconfigure(1, weight=1)
+        se_stesso.grid_rowconfigure(5, weight=1)
+        tk.Label(se_stesso, text="Il programma viene convertito in Python e impacchettato con PyInstaller: chi lo riceve non ha bisogno di Python.",
+                 background=c["pannello"], foreground=c["tenue"], anchor="w", wraplength=720, justify="left").grid(row=0, column=0, columnspan=3, sticky="we", padx=14, pady=(12, 6))
+        se_stesso.riga("Nome del programma:", se_stesso.campo(se_stesso.var_nome, 28), 1)
+        riga_icona = tk.Frame(se_stesso, background=c["pannello"])
+        e = se_stesso.campo(se_stesso.var_icona, 40)(riga_icona)
+        e.pack(side="left", fill="x", expand=Vero)
+        b = tk.Button(riga_icona, text="Sfoglia…", command=se_stesso._sfoglia_icona, relief="flat", background=c["pulsante"], foreground=c["primo_piano"])
+        b.pack(side="left", padx=(6, 0))
+        suggerisci(b, "Scegli un file .ico per l'icona dell'eseguibile (facoltativo)", c)
+        se_stesso.riga("Icona (.ico, facoltativa):", lambda p: riga_icona, 2)
+        se_stesso.casella_un_file = tk.Checkbutton(se_stesso, text="Un solo file .exe (più comodo da spedire; parte un po' più lentamente)", variable=se_stesso.var_un_file,
+                                                    background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"], selectcolor=c["campo"], anchor="w")
+        se_stesso.casella_un_file.grid(row=3, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.casella_console = tk.Checkbutton(se_stesso, text="Senza finestra nera (per i programmi con finestre; togli la spunta per i programmi da console)",
+                                                    variable=se_stesso.var_senza_console, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
+                                                    selectcolor=c["campo"], anchor="w")
+        se_stesso.casella_console.grid(row=4, column=0, columnspan=3, sticky="we", padx=14)
+        suggerisci(se_stesso.casella_un_file, "Con la spunta: un unico file; senza: una cartella con l'.exe e i suoi file", c)
+        suggerisci(se_stesso.casella_console, "Per i programmi che usano input()/print() lascia la finestra nera (togli la spunta)", c)
+        corpo = tk.Frame(se_stesso, background=c["pannello"])
+        corpo.grid(row=5, column=0, columnspan=3, sticky="nsew", padx=14, pady=8)
+        se_stesso.registro = tk.Text(corpo, height=14, font=("Consolas", 9), background=c["editor"], foreground=c["primo_piano"], relief="flat", state="disabled", wrap="none")
+        barra = ttk.Scrollbar(corpo, orient="vertical", command=se_stesso.registro.yview)
+        se_stesso.registro.configure(yscrollcommand=barra.set)
+        barra.pack(side="right", fill="y")
+        se_stesso.registro.pack(side="left", fill="both", expand=Vero)
+        se_stesso.progresso = ttk.Progressbar(se_stesso, mode="indeterminate")
+        se_stesso.progresso.grid(row=6, column=0, columnspan=3, sticky="we", padx=14)
+        fondo = tk.Frame(se_stesso, background=c["pannello"])
+        fondo.grid(row=7, column=0, columnspan=3, sticky="e", padx=14, pady=10)
+        se_stesso.pulsante_chiudi = tk.Button(fondo, text="Chiudi", command=se_stesso._chiudi, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12)
+        se_stesso.pulsante_chiudi.pack(side="right", padx=4)
+        se_stesso.pulsante_cartella = tk.Button(fondo, text="Apri la cartella", command=se_stesso._apri_cartella, background=c["pulsante"], foreground=c["primo_piano"],
+                                                relief="flat", padx=12, state="disabled")
+        se_stesso.pulsante_cartella.pack(side="right", padx=4)
+        se_stesso.pulsante_ferma = tk.Button(fondo, text="Ferma", command=se_stesso._ferma, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12,
+                                             state="disabled")
+        se_stesso.pulsante_ferma.pack(side="right", padx=4)
+        se_stesso.pulsante_avvia = tk.Button(fondo, text="Crea l'eseguibile", command=se_stesso._avvia, background=c["accento"], foreground="#ffffff", relief="flat", padx=12)
+        se_stesso.pulsante_avvia.pack(side="right", padx=4)
+        suggerisci(se_stesso.pulsante_avvia, "Converte il progetto e costruisce l'.exe nella cartella «dist» del progetto", c)
+        suggerisci(se_stesso.pulsante_ferma, "Interrompe la costruzione", c)
+        se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
+        se_stesso._scrivi("Pronto. La prima volta serve internet e qualche minuto (si scarica PyInstaller); le volte dopo è molto più veloce.")
+        se non trova_python():
+            se_stesso._scrivi("ATTENZIONE: non trovo Python 3 sul computer. Installalo da https://www.python.org/downloads/ (con «Add python.exe to PATH»).")
+
+    definisci _sfoglia_icona(se_stesso):
+        p = filedialog.askopenfilename(parent=se_stesso, filetypes=[("Icona", "*.ico"), ("Tutti i file", "*.*")])
+        se p:
+            se_stesso.var_icona.set(p)
+
+    definisci _scrivi(se_stesso, riga):
+        se_stesso.registro.configure(state="normal")
+        se_stesso.registro.insert("end", riga + "\n")
+        se_stesso.registro.see("end")
+        se_stesso.registro.configure(state="disabled")
+
+    definisci opzioni(se_stesso):
+        nome = "".join(ch per ch in se_stesso.var_nome.get().strip() se ch.isalnum() o ch in "_-. ").strip() o "programma"
+        ritorna Opzioni(nome, se_stesso.var_un_file.get(), se_stesso.var_senza_console.get(), se_stesso.var_icona.get().strip())
+
+    definisci _avvia(se_stesso):
+        se se_stesso.thread è non Nessuno e se_stesso.thread.is_alive():
+            ritorna
+        opzioni = se_stesso.opzioni()
+        se_stesso.ferma_richiesto = Falso
+        se_stesso.esito = Nessuno
+        se_stesso.registro.configure(state="normal")
+        se_stesso.registro.delete("1.0", "end")
+        se_stesso.registro.configure(state="disabled")
+        se_stesso.pulsante_avvia.configure(state="disabled")
+        se_stesso.pulsante_ferma.configure(state="normal")
+        se_stesso.pulsante_cartella.configure(state="disabled")
+        se_stesso.progresso.start(12)
+
+        definisci lavoro():
+            se_stesso.esito = costruisci(se_stesso.origine, opzioni, se_stesso.coda.put, lambda: se_stesso.ferma_richiesto)
+            se_stesso.coda.put(Nessuno)
+        se_stesso.thread = threading.Thread(target=lavoro, daemon=Vero)
+        se_stesso.thread.start()
+        se_stesso.after(100, se_stesso._pompa)
+
+    definisci _pompa(se_stesso):
+        prova:
+            mentre Vero:
+                riga = se_stesso.coda.get_nowait()
+                se riga è Nessuno:
+                    se_stesso._finito()
+                    ritorna
+                se_stesso._scrivi(riga)
+        eccetto queue.Empty:
+            passa
+        se_stesso.after(100, se_stesso._pompa)
+
+    definisci _finito(se_stesso):
+        se_stesso.progresso.stop()
+        se_stesso.pulsante_avvia.configure(state="normal")
+        se_stesso.pulsante_ferma.configure(state="disabled")
+        e = se_stesso.esito o {}
+        se e.get("ok"):
+            se_stesso.pulsante_cartella.configure(state="normal")
+            se_stesso._scrivi("")
+            se_stesso._scrivi("L'eseguibile è pronto. Puoi spedirlo: non serve nient'altro.")
+        altrimenti:
+            se_stesso._scrivi("")
+            se_stesso._scrivi("NON RIUSCITO: " + e.get("errore", "errore sconosciuto"))
+
+    definisci _ferma(se_stesso):
+        se_stesso.ferma_richiesto = Vero
+        se_stesso._scrivi("Mi fermo…")
+
+    definisci _apri_cartella(se_stesso):
+        se se_stesso.esito e se_stesso.esito.get("cartella"):
+            prova:
+                os.startfile(se_stesso.esito["cartella"])
+            eccetto Exception:
+                passa
+
+    definisci _chiudi(se_stesso):
+        se se_stesso.thread è non Nessuno e se_stesso.thread.is_alive():
+            se non messagebox.askyesno("Costruzione in corso", "La costruzione è ancora in corso. La fermo e chiudo?", parent=se_stesso):
+                ritorna
+            se_stesso.ferma_richiesto = Vero
+        se_stesso.destroy()

@@ -15,6 +15,7 @@ da rad.storia importa Storia
 da rad importa claude_code
 da rad importa converti_progetto
 da rad importa esporta_python
+da rad.crea_exe importa DialogoEseguibile
 da rad importa database_modello
 da rad.database_ui importa VisoreDatabase, DialogoMysql
 da rad.debug importa SessioneDebug
@@ -228,6 +229,7 @@ classe Applicazione:
         file.add_command(label="Traduci il file .py corrente in pytonIta…", command=lambda: se_stesso.traduci_in_pit())
         file.add_command(label="Converti un progetto Python in pytonIta…", command=lambda: se_stesso.converti_progetto_py())
         file.add_command(label="Esporta il progetto come Python…", command=lambda: se_stesso.esporta_progetto_python())
+        file.add_command(label="Crea l'eseguibile (.exe)…", command=lambda: se_stesso.crea_eseguibile())
         file.add_separator()
         file.add_command(label="Salva", command=se_stesso.salva_scheda, accelerator="Ctrl+S")
         file.add_command(label="Salva tutto", command=se_stesso.salva_tutto, accelerator="Ctrl+Maiusc+S")
@@ -258,6 +260,7 @@ classe Applicazione:
         prog.add_command(label="Proprietà del progetto…", command=se_stesso.proprieta_progetto)
         prog.add_command(label="Converti questo progetto Python in pytonIta…", command=lambda: se_stesso.converti_progetto_py(se_stesso.progetto.cartella se se_stesso.progetto altrimenti ""))
         prog.add_command(label="Esporta il progetto come Python…", command=lambda: se_stesso.esporta_progetto_python())
+        prog.add_command(label="Crea l'eseguibile (.exe)…", command=lambda: se_stesso.crea_eseguibile())
         prog.add_command(label="Aggiorna l'albero", command=lambda: se_stesso.pannello_progetto.aggiorna())
         barra.add_cascade(label="Progetto", menu=prog)
 
@@ -1052,6 +1055,18 @@ classe Applicazione:
         altrimenti:
             se_stesso.info("Installazione del driver non riuscita")
             messagebox.showerror("Database", "Non sono riuscito a installare pymysql:\n" + uscita, parent=se_stesso.radice)
+
+    definisci crea_eseguibile(se_stesso):
+        """Apre la finestra che costruisce un .exe del progetto (conversione in Python + PyInstaller)."""
+        se non se_stesso.progetto:
+            messagebox.showinfo("Crea l'eseguibile", "Apri o crea prima un progetto.", parent=se_stesso.radice)
+            ritorna Nessuno
+        se_stesso.salva_tutto()
+        d = DialogoEseguibile(se_stesso.radice, se_stesso.colori, se_stesso.progetto.cartella)
+        d.mostra()
+        se se_stesso.progetto:
+            se_stesso.pannello_progetto.aggiorna()
+        ritorna d.esito
 
     definisci esporta_progetto_python(se_stesso):
         """Crea una cartella con il progetto convertito in Python (senza bisogno di pytonIta) e le librerie da installare."""

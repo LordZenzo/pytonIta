@@ -15,7 +15,7 @@ Tre parti, una sola installazione:
 | Parte | Cosa è |
 |---|---|
 | **pitonit** | Un vero interprete CPython 3.13 ricompilato: le parole chiave italiane sono lette dal parser C, non da un traduttore. File `.pit`. Installazione isolata: non tocca Python, il PATH né il registro. |
-| **PitStudio** | L'ambiente di sviluppo, scritto in pytonIta: editor con suggerimenti, progetti, progettista di finestre, **programmi a mattonelle** (stile Scratch, con conversione da e verso il codice), debugger, console, assistente AI. |
+| **PitStudio** | L'ambiente di sviluppo, scritto in pytonIta: editor con suggerimenti, progetti, progettista di finestre, **programmi a mattonelle** (stile Scratch, con conversione da e verso il codice), debugger, console, assistente AI, **gestore di database** (SQLite e MySQL, con creazione guidata di tabelle ed editor SQL), **esportazione in Python** con l'elenco delle librerie e **creazione dell'eseguibile `.exe`**. |
 | **Installatore** | Un solo file `Installa_pytonIta.exe` (Windows): si scompatta in una cartella temporanea, installa e si cancella. Non servono Python né diritti di amministratore. |
 
 ## Scaricare
@@ -26,7 +26,7 @@ Viene installato in `%LOCALAPPDATA%\Programs\pytonIta`, con le voci nel menu Sta
 
 ## Cartelle del repository
 
-- `pitonit/` — la patch di CPython (`patch/pitonit.patch`), gli strumenti (traduttore `py2pit`, dizionari delle librerie), esempi e documentazione dell'interprete
+- `pitonit/` — la patch di CPython (`patch/pitonit.patch`), gli strumenti (traduttori `py2pit` e `pit2py`, dizionari delle librerie), esempi e documentazione dell'interprete
 - `RAD/` — PitStudio (sorgenti `.pit`, guida, test)
 - `installatore/` — la costruzione dell'installatore
 - `docs/` — la pagina web del progetto

@@ -125,6 +125,11 @@
   "gruppo": "Programmare"
  },
  {
+  "id": "crea-exe",
+  "titolo": "Creare un eseguibile (.exe)",
+  "gruppo": "Programmare"
+ },
+ {
   "id": "database",
   "titolo": "I database (SQLite e MySQL)",
   "gruppo": "Programmare"
