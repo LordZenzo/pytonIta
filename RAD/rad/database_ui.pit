@@ -173,7 +173,7 @@ classe DialogoTabella(DialogoBase):
         per chiave, larghezza, aiuto in (("chiave", 4, "Chiave primaria: identifica ogni riga"), ("nn", 8, "Non nulla: il valore è obbligatorio"),
                                          ("unica", 6, "Unica: due righe non possono avere lo stesso valore"),
                                          ("auto", 5, "Auto-incremento: il numero cresce da solo (solo per chiavi intere)")):
-            cb = tk.Checkbutton(riga, variable=v[chiave], width=larghezza, background=c["pannello"], activebackground=c["pannello"], selectcolor=c["campo"],
+            cb = tk.Checkbutton(riga, variable=v[chiave], width=larghezza, background=c["pannello"], activebackground=c["pannello"], selectcolor=c["casella"],
                                 foreground=c["primo_piano"])
             cb.pack(side="left", padx=2)
             suggerisci(cb, aiuto, c)

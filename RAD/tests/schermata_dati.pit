@@ -1,0 +1,59 @@
+"""Schermate dei dati nelle finestre: la finestra in esecuzione e il progettista in tema scuro con le caselle di spunta (controllo a occhio)."""
+importa sys, os, tempfile, importlib
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad importa database_modello come dbm, form_modello, progettista
+da rad.form_modello importa Form
+
+uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+cartella = tempfile.mkdtemp()
+db = os.path.join(cartella, "clienti.db")
+c = dbm.apri_sqlite(db)
+c.esegui("CREATE TABLE clienti (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, citta TEXT, eta INTEGER, attivo INTEGER, note TEXT);"
+         "INSERT INTO clienti (nome, citta, eta, attivo, note) VALUES ('Anna Rossi', 'Roma', 41, 1, 'Cliente dal 2019'), ('Bruno Neri', 'Torino', 25, 0, ''), ('Carla Verdi', 'Milano', 30, 1, 'Preferisce la posta')")
+c.chiudi()
+f = Form("Anagrafica", "Anagrafica clienti")
+f.larghezza, f.altezza = 640, 470
+f.aspetto = "chiaro"
+f.aggiungi("FonteDati", 480, 6, nome="clienti_db", database="clienti.db", tabella="clienti", ordina_per="nome")
+f.aggiungi("BarraNavigazione", 16, 12, nome="barra", larghezza=608, altezza=34, fonte="clienti_db", cerca=Vero)
+f.aggiungi("Albero", 16, 56, nome="albero_clienti", larghezza=608, altezza=110, fonte="clienti_db", colonne=["id", "nome", "citta", "eta"], larghezze=[50, 220, 200, 100])
+f.aggiungi("Etichetta", 16, 184, nome="e_nome", testo="Nome", larghezza=80)
+f.aggiungi("CampoTesto", 100, 182, nome="campo_nome", larghezza=240, altezza=26, fonte="clienti_db", campo="nome")
+f.aggiungi("Etichetta", 16, 220, nome="e_citta", testo="Città", larghezza=80)
+f.aggiungi("CasellaCombinata", 100, 218, nome="campo_citta", larghezza=240, altezza=26, valori=["Roma", "Milano", "Torino"], fonte="clienti_db", campo="citta")
+f.aggiungi("Etichetta", 16, 256, nome="e_eta", testo="Età", larghezza=80)
+f.aggiungi("Cursore", 100, 246, nome="cursore_eta", larghezza=240, altezza=48, da=0, a=100, fonte="clienti_db", campo="eta")
+f.aggiungi("CasellaSelezione", 100, 300, nome="casella_attivo", testo="Cliente attivo", larghezza=200, fonte="clienti_db", campo="attivo")
+f.aggiungi("Etichetta", 360, 184, nome="e_note", testo="Note", larghezza=80)
+f.aggiungi("AreaTesto", 360, 208, nome="area_note", larghezza=264, altezza=110, fonte="clienti_db", campo="note")
+form_modello.salva_form(f, cartella)
+sys.path.insert(0, cartella)
+modulo = importlib.import_module("anagrafica")
+radice = tk.Tk()
+radice.geometry("+40+40")
+a = modulo.Anagrafica(radice)
+radice.update()
+radice.after(900, lambda: (ImageGrab.grab(bbox=(40, 40, 40 + radice.winfo_width() + 10, 40 + radice.winfo_height() + 40)).save(os.path.join(uscita, "dati_finestra.png")), radice.quit()))
+radice.mainloop()
+radice.destroy()
+
+# il progettista in tema scuro, con la casella selezionata e l'ispettore aperto sulla fonte dati
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+r2 = tk.Tk()
+r2.geometry("1260x700+10+10")
+configura_stile(r2, col)
+az = type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella)})()
+p = progettista.Progettista(r2, os.path.join(cartella, "anagrafica.form.json"), form_modello.carica_form(os.path.join(cartella, "anagrafica.form.json")), col, cfg, az)
+p.pack(fill="both", expand=Vero)
+applica(r2, col)
+r2.update()
+p.seleziona(["clienti_db"])
+r2.update()
+r2.after(900, lambda: (ImageGrab.grab(bbox=(10, 10, 10 + r2.winfo_width() + 10, 10 + r2.winfo_height() + 40)).save(os.path.join(uscita, "dati_progettista.png")), r2.quit()))
+r2.mainloop()
+r2.destroy()

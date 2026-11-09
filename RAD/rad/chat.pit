@@ -125,7 +125,7 @@ classe PannelloChat(tk.Frame):
         se_stesso.stato.configure(background=c["pannello"], foreground=c["tenue"])
         per casella in (se_stesso.casella_contesto, se_stesso.casella_economico):
             casella.configure(background=c["pannello"], foreground=c["tenue"], activebackground=c["pannello"],
-                              activeforeground=c["primo_piano"], selectcolor=c["campo"])
+                              activeforeground=c["primo_piano"], selectcolor=c["casella"])
         carattere = (se_stesso.config_.ottieni("editor.carattere", "Consolas"), 10)
         se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"], font=("Segoe UI", 10),
                               selectbackground=c["selezione"])

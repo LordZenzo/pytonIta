@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.30
+
+- **Dati nelle finestre**: due nuovi componenti nel progettista, **FonteDati** (database SQLite o MySQL, tabella, filtro, ordine; le tabelle e le colonne si scelgono da elenchi presi dal database vero) e **BarraNavigazione** (primo, precedente, successivo, ultimo, nuovo, salva, elimina, annulla, ricerca e «3 / 25», con i pulsanti scelti uno per uno). Campi, caselle, aree di testo, cursori, caselle combinate, etichette, elenchi e alberi hanno le proprietà **Fonte dati** e **Campo**: mostrano il record corrente e lo salvano senza scrivere codice. Le maschere automatiche (*Database → Crea una maschera dalla tabella…*) ora sono costruite con questi componenti e si modificano nel progettista. Funziona con l'esportazione in Python e la creazione dell'eseguibile. Guida: «Dati nelle finestre». Test: `tests/prova_dati_form.pit`.
+- **Caselle di spunta leggibili**: nel tema scuro la spunta era nera su grigio scuro e non si capiva se la casella fosse attiva; ora la casella è chiara (proprietà del progettista, impostazioni, esportazione e altre finestre).
+
 ## Novità della 1.29
 
 - **Aspetto moderno** delle finestre che crei: la proprietà **Aspetto** della finestra (classico, chiaro, scuro, verde, viola) dà colori coordinati, caratteri Segoe UI, campi con bordo sottile, pulsanti piatti, tabelle, schede e barre nello stesso stile, con anteprima fedele nel progettista. I colori scelti a mano hanno la precedenza. Nessuna libreria esterna: PitStudio aggiunge al progetto il file `aspetto.pit`. Le maschere e gli esempi della galleria lo usano.

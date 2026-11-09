@@ -78,9 +78,44 @@ TIPI["Timer"] = dict(classe_tk="", modulo="tk", larghezza=110, altezza=24, icona
 TIPI["Schede"] = dict(classe_tk="Schede", modulo="tema", larghezza=320, altezza=200, icona="▭", contenitore=Vero,
                       proprieta={"pagine": ("elenco", ["Pagina 1", "Pagina 2"], "Pagine (schede)")})
 TIPI["Riquadro"]["contenitore"] = Vero
+# --- dati: una tabella di un database collegata ai componenti
+TIPI["FonteDati"] = dict(classe_tk="", modulo="tk", larghezza=130, altezza=24, icona="🗄", visivo=Falso,
+                         proprieta={"dialetto": ("scelta:sqlite,mysql", "sqlite", "Tipo di database"),
+                                    "database": ("database", "", "Database"),
+                                    "server": ("testo", "localhost", "Server MySQL"),
+                                    "porta": ("numero", 3306, "Porta MySQL"),
+                                    "utente": ("testo", "root", "Utente MySQL"),
+                                    "tabella": ("tabella", "", "Tabella"),
+                                    "filtro": ("testo", "", "Filtro SQL (es. citta = 'Roma')"),
+                                    "ordina_per": ("campo_fonte", "", "Ordina per"),
+                                    "decrescente": ("si_no", Falso, "Ordine decrescente"),
+                                    "apri_subito": ("si_no", Vero, "Legge i dati all'avvio"),
+                                    "al_cambio": ("evento", "", "Evento: cambia il record")})
+TIPI["BarraNavigazione"] = dict(classe_tk="", modulo="", larghezza=620, altezza=34, icona="⏮",
+                                proprieta={"fonte": ("fonte", "", "Fonte dati"),
+                                           "primo": ("si_no", Vero, "Pulsante «primo»"),
+                                           "precedente": ("si_no", Vero, "Pulsante «precedente»"),
+                                           "successivo": ("si_no", Vero, "Pulsante «successivo»"),
+                                           "ultimo": ("si_no", Vero, "Pulsante «ultimo»"),
+                                           "nuovo": ("si_no", Vero, "Pulsante «nuovo»"),
+                                           "salva": ("si_no", Vero, "Pulsante «salva»"),
+                                           "elimina": ("si_no", Vero, "Pulsante «elimina»"),
+                                           "annulla": ("si_no", Vero, "Pulsante «annulla»"),
+                                           "posizione": ("si_no", Vero, "Mostra «3 / 25»"),
+                                           "cerca": ("si_no", Falso, "Casella di ricerca")})
+PULSANTI_BARRA = ("primo", "precedente", "successivo", "ultimo", "nuovo", "salva", "elimina", "annulla")
+TESTI_BARRA = {"primo": "|◀", "precedente": "◀", "successivo": "▶", "ultimo": "▶|", "nuovo": "Nuovo", "salva": "Salva", "elimina": "Elimina", "annulla": "Annulla"}
+# componenti che si possono legare a un campo della tabella: tipo -> True se serve anche il campo (l'Albero mostra più colonne)
+COLLEGABILI = {"Etichetta": Vero, "CampoTesto": Vero, "AreaTesto": Vero, "Elenco": Vero, "CasellaSelezione": Vero,
+               "Cursore": Vero, "CasellaCombinata": Vero, "Albero": Falso}
+per _tipo, _serve_campo in COLLEGABILI.items():
+    TIPI[_tipo]["proprieta"]["fonte"] = ("fonte", "", "Fonte dati")
+    se _serve_campo:
+        TIPI[_tipo]["proprieta"]["campo"] = ("campo", "", "Campo della tabella")
 ORDINE_PALETTE = ["Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione",
                   "PulsanteOpzione", "Cursore", "CasellaCombinata", "BarraProgresso", "Albero",
-                  "Tela", "Riquadro", "Schede", "Immagine", "Separatore", "BarraMenu", "Timer"]
+                  "Tela", "Riquadro", "Schede", "Immagine", "Separatore", "BarraMenu", "Timer",
+                  "FonteDati", "BarraNavigazione"]
 # Pulsante: apre un'altra finestra del progetto
 TIPI["Pulsante"]["proprieta"]["apre"] = ("finestra", "", "Apre la finestra")
 TIPI["Pulsante"]["proprieta"]["apre_dialogo"] = ("si_no", Falso, "…come dialogo (blocca la principale)")
@@ -129,7 +164,7 @@ definisci proprieta_di(tipo_):
         p["ancoraggio"] = ("ancoraggio", "sa", "Si aggancia ai bordi")
     altrimenti:
         ritorna p
-    se tipo_ non in ("Riquadro", "Schede", "Tela", "Separatore", "Immagine", "BarraProgresso", "Albero"):
+    se tipo_ non in ("Riquadro", "Schede", "Tela", "Separatore", "Immagine", "BarraProgresso", "Albero", "BarraNavigazione"):
         per k, v in COMUNI.items():
             p.setdefault(k, v)
     se tipo_ in ("Riquadro", "Immagine", "BarraProgresso"):
@@ -219,6 +254,20 @@ classe Form:
         """Toglie il componente e tutto quello che contiene."""
         via = {nome} | {c.nome per c in se_stesso.figli(nome)}
         se_stesso.componenti = [c per c in se_stesso.componenti se c.nome non in via]
+        per c in se_stesso.componenti:
+            se c.valori.get("fonte") in via:
+                c.valori["fonte"] = ""
+                se "campo" in c.valori:
+                    c.valori["campo"] = ""
+
+    definisci fonti(se_stesso):
+        """I componenti FonteDati della finestra."""
+        ritorna [c per c in se_stesso.componenti se c.tipo == "FonteDati"]
+
+    definisci fonte_di(se_stesso, c):
+        """La FonteDati a cui è legato il componente (o Nessuno)."""
+        f = se_stesso.trova(c.valori.get("fonte") o "") se c.valori.get("fonte") altrimenti Nessuno
+        ritorna f se f e f.tipo == "FonteDati" altrimenti Nessuno
 
     definisci rinomina(se_stesso, vecchio, nuovo):
         se non nome_valido(nuovo) o (se_stesso.trova(nuovo) e nuovo != vecchio):
@@ -230,6 +279,8 @@ classe Form:
         per f in se_stesso.componenti:
             se f.genitore.split("#")[0] == vecchio:
                 f.genitore = nuovo + f.genitore[lunghezza(vecchio):]
+            se c.tipo == "FonteDati" e f.valori.get("fonte") == vecchio:
+                f.valori["fonte"] = nuovo
         ritorna Vero
 
     # --- serializzazione
@@ -290,6 +341,14 @@ classe Form:
             per k, (t, d, desc) in proprieta_di(c.tipo).items():
                 se t == "evento" e c.valori.get(k) e non nome_valido(c.valori[k]):
                     p.append(f"{c.nome}.{k}: nome di funzione non valido")
+            se c.tipo == "FonteDati" e non (c.valori.get("tabella") o "").strip():
+                p.append(f"{c.nome}: scegli la tabella")
+            se c.tipo != "FonteDati" e c.valori.get("fonte"):
+                f = se_stesso.fonte_di(c)
+                se f è Nessuno:
+                    p.append(f"{c.nome}: la fonte dati «{c.valori['fonte']}» non esiste")
+                altrimenti_se "campo" in c.valori e non c.valori.get("campo"):
+                    p.append(f"{c.nome}: scegli il campo della tabella")
         ritorna p
 
 
@@ -347,6 +406,48 @@ definisci _lit(valore):
     ritorna repr(valore)
 
 
+definisci usa_dati(form):
+    """True se la finestra ha una fonte dati o una barra di navigazione (serve fonte_dati.pit nel progetto)."""
+    ritorna any(c.tipo in ("FonteDati", "BarraNavigazione") per c in form.componenti)
+
+
+definisci _codice_dati(form):
+    """I collegamenti ai dati, in fondo alla costruzione: ogni FonteDati apre la tabella e legge/scrive i componenti che le sono legati."""
+    ind = "        "
+    r = []
+    per f in form.fonti():
+        v = f.valori
+        o = [f"radice", "se_stesso.cartella", _lit(v.get("dialetto") o "sqlite"), _lit(v.get("database") o ""), _lit(v.get("tabella") o "")]
+        se v.get("dialetto") == "mysql":
+            o += [f"server={_lit(v.get('server') o 'localhost')}", f"porta={int(v.get('porta') o 3306)}", f"utente={_lit(v.get('utente') o 'root')}"]
+        se (v.get("filtro") o "").strip():
+            o.append(f"filtro={_lit(v['filtro'].strip())}")
+        se v.get("ordina_per"):
+            o.append(f"ordina_per={_lit(v['ordina_per'])}")
+            se v.get("decrescente"):
+                o.append("decrescente=Vero")
+        g = (v.get("al_cambio") o "").strip()
+        se g e nome_valido(g):
+            o.append(f"al_cambio=se_stesso.{g}")
+        r.append(f"{ind}# --- dati: {f.nome} ({v.get('tabella') o 'tabella da scegliere'})")
+        r.append(f"{ind}se_stesso.{f.nome} = dati.Collegamento.crea({', '.join(o)})")
+        per c in form.componenti:
+            se c.tipo == "FonteDati" o c.valori.get("fonte") != f.nome:
+                continua
+            campo = c.valori.get("campo") o ""
+            se c.tipo == "BarraNavigazione":
+                r.append(f"{ind}se_stesso.{f.nome}.collega_barra(se_stesso.{c.nome})")
+            altrimenti_se c.tipo == "Albero":
+                r.append(f"{ind}se_stesso.{f.nome}.collega_griglia(se_stesso.{c.nome})")
+            altrimenti_se c.tipo == "Elenco" e campo:
+                r.append(f"{ind}se_stesso.{f.nome}.collega_griglia(se_stesso.{c.nome}, {_lit(campo)})")
+            altrimenti_se campo:
+                r.append(f"{ind}se_stesso.{f.nome}.collega_campo(se_stesso.{c.nome}, {_lit(campo)})")
+        se v.get("apri_subito", Vero):
+            r.append(f"{ind}se_stesso.{f.nome}.apri()")
+    ritorna r
+
+
 definisci _nome_classe(nome_form):
     ritorna "".join(p[:1].upper() + p[1:] per p in re.split(r"[^\w]+", nome_form) se p) o "Form"
 
@@ -365,6 +466,8 @@ definisci genera_ui(form):
     r.append("importa os")
     se form.aspetto != "classico":
         r.append("da aspetto importa applica_aspetto")
+    se usa_dati(form):
+        r.append("importa fonte_dati come dati")
     r.append("")
     r.append("")
     r.append(f"classe {cl}UI:")
@@ -383,6 +486,7 @@ definisci genera_ui(form):
     r.append("        se_stesso.immagini = []")
     per c in ordine_creazione(form):
         r.extend(_codice_componente(c, form))
+    r.extend(_codice_dati(form))
     r.append("        ritorna radice")
     r.append("")
     # timer: avvia/ferma e il giro che richiama l'evento
@@ -643,10 +747,15 @@ definisci _codice_componente(c, form=Nessuno):
         se v.get("attivo"):
             r.append(f"{ind}se_stesso.{n}_avvia()")
         ritorna r
+    altrimenti_se c.tipo == "FonteDati":
+        ritorna r                     # si crea in fondo (_codice_dati), quando i componenti legati esistono
+    altrimenti_se c.tipo == "BarraNavigazione":
+        pulsanti = tuple(k per k in PULSANTI_BARRA se v.get(k, Vero))
+        r.append(f"{ind}{nome_att} = dati.BarraDati(radice, pulsanti={_lit(pulsanti)}, posizione={_lit(bool(v.get('posizione', Vero)))}, cerca={_lit(bool(v.get('cerca')))})")
     r.append(f"{ind}{nome_att}.posiziona({_geometria(c, form)})")
     se c.genitore:
         padre = padre_codice(c)
-        r = [riga.replace(f"{cl}(radice", f"{cl}({padre}", 1) se f"{cl}(radice" in riga altrimenti riga per riga in r]
+        r = [riga.replace(f"{cl}(radice", f"{cl}({padre}", 1) se f"{cl}(radice" in riga altrimenti riga.replace("dati.BarraDati(radice", f"dati.BarraDati({padre}", 1) per riga in r]
     ritorna r
 
 
@@ -751,6 +860,24 @@ definisci copia_aspetto(cartella, scritti=Nessuno):
             scritti.append(destinazione)
 
 
+MODELLO_FONTE_DATI = os.path.join(CARTELLA_MODELLI, "fonte_dati.pit")
+
+
+definisci copia_fonte_dati(cartella, scritti=Nessuno):
+    """Mette nel progetto fonte_dati.pit; sostituisce una copia vecchia (senza i componenti collegati) con quella nuova."""
+    destinazione = os.path.join(cartella, "fonte_dati.pit")
+    se non os.path.exists(MODELLO_FONTE_DATI):
+        ritorna
+    se os.path.exists(destinazione):
+        con open(destinazione, encoding="utf-8") come f:
+            se "classe Collegamento" in f.read():
+                ritorna
+    con open(MODELLO_FONTE_DATI, encoding="utf-8") come sorgente, open(destinazione, "w", encoding="utf-8", newline="\n") come f:
+        f.write(sorgente.read())
+    se scritti è non Nessuno:
+        scritti.append(destinazione)
+
+
 definisci salva_form(form, cartella):
     """Scrive form.json, la UI generata e (se manca) la logica. Ritorna i percorsi scritti."""
     p = percorsi_form(cartella, form.nome)
@@ -763,6 +890,8 @@ definisci salva_form(form, cartella):
     scritti.append(p["ui"])
     se form.aspetto != "classico":
         copia_aspetto(cartella, scritti)
+    se usa_dati(form):
+        copia_fonte_dati(cartella, scritti)
     se os.path.exists(p["logica"]):
         con open(p["logica"], encoding="utf-8") come f:
             attuale = f.read()

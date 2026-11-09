@@ -322,7 +322,7 @@ classe DialogoConversione(DialogoBase):
         per testo_, var in (("Controlla ogni file tradotto (compila e ha la stessa struttura dell'originale)", se_stesso.var_verifica),
                             ("Apri il nuovo progetto al termine", se_stesso.var_apri)):
             tk.Checkbutton(opzioni, text=testo_, variable=var, anchor="w", background=c["pannello"], foreground=c["primo_piano"],
-                           activebackground=c["pannello"], activeforeground=c["primo_piano"], selectcolor=c["campo"]).pack(fill="x")
+                           activebackground=c["pannello"], activeforeground=c["primo_piano"], selectcolor=c["casella"]).pack(fill="x")
         se_stesso.etichetta_piano = tk.Label(se_stesso, text="", anchor="w", justify="left", background=c["pannello"], foreground=c["primo_piano"],
                                              font=("Segoe UI", 9))
         se_stesso.etichetta_piano.pack(fill="x", padx=14, pady=(10, 0))

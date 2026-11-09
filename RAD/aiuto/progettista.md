@@ -95,6 +95,8 @@ Aiuto
 
 `Etichetta = nome_funzione` collega la voce a un gestore (PitStudio crea la funzione nel file della logica), `-` è un separatore, `= @NomeFinestra` apre un'altra finestra del progetto, e una voce senza «=» resta spenta.
 
+**Dati.** I componenti **FonteDati** e **BarraNavigazione** e le proprietà *Fonte dati* e *Campo* dei campi, delle caselle, degli elenchi e degli alberi collegano la finestra a una tabella SQLite o MySQL: vedi «Dati nelle finestre».
+
 **Timer.** Il componente **Timer** richiama un gestore a intervalli regolari (millisecondi). Può partire da solo; nel codice trovi `timer1_avvia()` e `timer1_ferma()`.
 
 **Schede e riquadri con dentro altri componenti.** Scegli **Schede** (o **Riquadro**) dalla palette e disegnalo. Poi scegli un altro componente e **clicca dentro** la scheda (nella pagina visibile) o dentro il riquadro: il nuovo componente ci entra e le sue coordinate sono relative al contenitore. Le pagine si cambiano dalla proprietà *Pagine* (nomi separati da virgola). Eliminando un contenitore si eliminano anche i suoi componenti (l'annulla li rimette).

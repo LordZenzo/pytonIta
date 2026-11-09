@@ -160,6 +160,11 @@
   "gruppo": "Costruire senza scrivere codice"
  },
  {
+  "id": "dati-finestre",
+  "titolo": "Dati nelle finestre",
+  "gruppo": "Costruire senza scrivere codice"
+ },
+ {
   "id": "mattonelle",
   "titolo": "Programmi a mattonelle",
   "gruppo": "Costruire senza scrivere codice"

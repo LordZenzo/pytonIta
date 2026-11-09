@@ -211,11 +211,11 @@ classe DialogoEseguibile(DialogoBase):
         suggerisci(b, "Scegli un file .ico per l'icona dell'eseguibile (facoltativo)", c)
         se_stesso.riga("Icona (.ico, facoltativa):", lambda p: riga_icona, 2)
         se_stesso.casella_un_file = tk.Checkbutton(se_stesso, text="Un solo file .exe (più comodo da spedire; parte un po' più lentamente)", variable=se_stesso.var_un_file,
-                                                    background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"], selectcolor=c["campo"], anchor="w")
+                                                    background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"], selectcolor=c["casella"], anchor="w")
         se_stesso.casella_un_file.grid(row=3, column=0, columnspan=3, sticky="we", padx=14)
         se_stesso.casella_console = tk.Checkbutton(se_stesso, text="Senza finestra nera (per i programmi con finestre; togli la spunta per i programmi da console)",
                                                     variable=se_stesso.var_senza_console, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
-                                                    selectcolor=c["campo"], anchor="w")
+                                                    selectcolor=c["casella"], anchor="w")
         se_stesso.casella_console.grid(row=4, column=0, columnspan=3, sticky="we", padx=14)
         suggerisci(se_stesso.casella_un_file, "Con la spunta: un unico file; senza: una cartella con l'.exe e i suoi file", c)
         suggerisci(se_stesso.casella_console, "Per i programmi che usano input()/print() lascia la finestra nera (togli la spunta)", c)

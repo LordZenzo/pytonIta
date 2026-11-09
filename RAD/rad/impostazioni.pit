@@ -112,7 +112,7 @@ classe Impostazioni(DialogoBase):
                      wraplength=250, justify="left").grid(row=riga, column=0, sticky="w", padx=12, pady=5)
             se tipo_ == "si_no":
                 var = tk.BooleanVar(value=bool(valore))
-                w = tk.Checkbutton(pagina, variable=var, background=c["pannello"], selectcolor=c["campo"],
+                w = tk.Checkbutton(pagina, variable=var, background=c["pannello"], selectcolor=c["casella"],
                                    activebackground=c["pannello"])
             altrimenti_se tipo_ == "numero":
                 var = tk.StringVar(value=testo(valore))

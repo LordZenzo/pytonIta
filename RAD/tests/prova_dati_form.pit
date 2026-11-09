@@ -1,0 +1,211 @@
+"""Componenti legati ai dati: fonte dati, proprietà «Fonte» e «Campo», barra di navigazione; progettista; esecuzione vera; esportazione in Python."""
+importa sys, os, tempfile, importlib, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa ttk, messagebox
+messagebox.showwarning = lambda *a, **k: Nessuno
+messagebox.showerror = lambda *a, **k: Nessuno
+messagebox.askyesno = lambda *a, **k: Vero
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad importa database_modello come dbm, form_modello, progettista, esporta_python, schema_dati
+da rad.form_modello importa Form
+
+cartella = tempfile.mkdtemp()
+db = os.path.join(cartella, "clienti.db")
+c = dbm.apri_sqlite(db)
+c.esegui("CREATE TABLE clienti (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, citta TEXT, eta INTEGER, attivo INTEGER, note TEXT);"
+         "INSERT INTO clienti (nome, citta, eta, attivo, note) VALUES ('Carla', 'Roma', 30, 1, 'prima'), ('Anna', 'Milano', 41, 0, 'seconda'), ('Bruno', 'Roma', 25, 1, 'terza'), ('Dino', 'Torino', 60, 0, 'quarta')")
+c.chiudi()
+
+# --- il form
+f = Form("Anagrafica", "Anagrafica clienti")
+f.larghezza, f.altezza = 640, 480
+f.aggiungi("FonteDati", 10, 10, nome="clienti_db", database="clienti.db", tabella="clienti", ordina_per="nome", al_cambio="record_cambiato")
+f.aggiungi("Etichetta", 16, 16, nome="etichetta_id", testo="", larghezza=60, fonte="clienti_db", campo="id")
+f.aggiungi("CampoTesto", 16, 48, nome="campo_nome", larghezza=200, fonte="clienti_db", campo="nome")
+f.aggiungi("CampoTesto", 16, 84, nome="campo_citta", larghezza=200, fonte="clienti_db", campo="citta")
+f.aggiungi("Cursore", 16, 120, nome="cursore_eta", larghezza=240, da=0, a=120, fonte="clienti_db", campo="eta")
+f.aggiungi("CasellaSelezione", 16, 180, nome="casella_attivo", testo="Attivo", fonte="clienti_db", campo="attivo")
+f.aggiungi("AreaTesto", 16, 210, nome="area_note", larghezza=300, altezza=60, fonte="clienti_db", campo="note")
+f.aggiungi("Albero", 16, 290, nome="albero_clienti", larghezza=600, altezza=100, fonte="clienti_db", colonne=["id", "nome", "citta"])
+f.aggiungi("BarraNavigazione", 16, 400, nome="barra", larghezza=600, altezza=34, fonte="clienti_db", cerca=Vero)
+stampa("problemi:", f.problemi())
+stampa("proprietà fonte/campo sui tipi:", sorted(t per t in form_modello.COLLEGABILI), "| non visivi:", [t per t in form_modello.TIPI se non form_modello.e_visivo(t)])
+scritti = form_modello.salva_form(f, cartella)
+stampa("file:", sorted(os.path.basename(x) per x in scritti))
+ui = open(os.path.join(cartella, "anagrafica_ui.pit"), encoding="utf-8").read()
+stampa("codice: import:", "importa fonte_dati come dati" in ui, "| crea:", "dati.Collegamento.crea(radice, se_stesso.cartella, 'sqlite', 'clienti.db', 'clienti', ordina_per='nome', al_cambio=se_stesso.record_cambiato)" in ui,
+       "| campo:", "collega_campo(se_stesso.campo_nome, 'nome')" in ui, "| barra:", "collega_barra(se_stesso.barra)" in ui, "| albero:", "collega_griglia(se_stesso.albero_clienti)" in ui)
+stampa("i collegamenti vengono dopo la creazione di tutti i componenti:", ui.index("collega_campo") > ui.index("se_stesso.barra = "))
+stampa("gestore richiesto:", "record_cambiato" in open(os.path.join(cartella, "anagrafica.pit"), encoding="utf-8").read())
+g = form_modello.carica_form(os.path.join(cartella, "anagrafica.form.json"))
+stampa("riletto:", g.trova("campo_nome").valori["fonte"], g.trova("campo_nome").valori["campo"], g.trova("clienti_db").valori["tabella"])
+
+# --- controlli di coerenza
+h = Form("Controlli", "x")
+h.aggiungi("FonteDati", 10, 10, nome="d1")
+h.aggiungi("CampoTesto", 10, 40, nome="c1", fonte="d1")
+h.aggiungi("CampoTesto", 10, 80, nome="c2", fonte="manca", campo="x")
+stampa("avvisi:", h.problemi())
+h.rinomina("d1", "dati")
+stampa("rinominando la fonte i componenti la seguono:", h.trova("c1").valori["fonte"])
+h.rimuovi("dati")
+stampa("eliminando la fonte i componenti restano scollegati:", repr(h.trova("c1").valori["fonte"]), repr(h.trova("c1").valori["campo"]))
+
+# --- esecuzione vera
+sys.path.insert(0, cartella)
+m = importlib.import_module("anagrafica")
+radice = tk.Tk()
+radice.geometry("660x500+20+20")
+cambi = []
+m.Anagrafica.record_cambiato = lambda se_stesso, evento=Nessuno: cambi.append(1)
+a = m.Anagrafica(radice)
+radice.update()
+d = a.clienti_db
+stampa("aperta:", d.numero_record(), "record | ordinati per nome:", [r[1]["nome"] per r in d.record])
+stampa("primo record nei campi:", a.campo_nome.get(), a.campo_citta.get(), a.etichetta_id.cget("text"), int(a.cursore_eta.get()), a.casella_attivo.getvar(testo(a.casella_attivo.cget("variable"))), repr(a.area_note.get("1.0", "end-1c")))
+stampa("albero:", [a.albero_clienti.item(i, "values") per i in a.albero_clienti.get_children()][:2], "| selezionato:", a.albero_clienti.selection())
+b = a.barra
+stampa("barra: ", b.etichetta.cget("text"), "| primo/precedente:", b.pulsanti["primo"].cget("state"), b.pulsanti["precedente"].cget("state"), "| successivo:", b.pulsanti["successivo"].cget("state"), "| elimina:", b.pulsanti["elimina"].cget("state"))
+b.pulsanti["successivo"].invoke()
+radice.update()
+stampa("successivo:", a.campo_nome.get(), a.campo_citta.get(), "|", b.etichetta.cget("text"), "| albero:", a.albero_clienti.selection(), "| evento al_cambio chiamato:", lunghezza(cambi) > 0)
+b.pulsanti["ultimo"].invoke()
+stampa("ultimo:", a.campo_nome.get(), "|", b.etichetta.cget("text"), "| successivo:", b.pulsanti["successivo"].cget("state"))
+b.pulsanti["primo"].invoke()
+a.albero_clienti.selection_set("2")
+radice.update()
+stampa("clic nell'albero porta al record:", a.campo_nome.get(), "|", b.etichetta.cget("text"))
+# modifica e salva: tutti i tipi di componente
+a.campo_citta.delete(0, "end")
+a.campo_citta.insert(0, "Napoli")
+a.cursore_eta.set(33)
+a.casella_attivo.deselect()
+a.area_note.delete("1.0", "end")
+a.area_note.insert("1.0", "cambiata")
+b.pulsanti["salva"].invoke()
+radice.update()
+c2 = dbm.apri_sqlite(db, crea=Falso)
+stampa("salvato nel database:", c2.esegui_una("SELECT nome, citta, eta, attivo, note FROM clienti WHERE nome = 'Carla'").righe)
+# annulla
+a.campo_citta.delete(0, "end")
+a.campo_citta.insert(0, "xxx")
+b.pulsanti["annulla"].invoke()
+stampa("annulla rimette i valori salvati:", a.campo_citta.get())
+# nuovo
+b.pulsanti["nuovo"].invoke()
+stampa("nuovo: campi vuoti:", repr(a.campo_nome.get()), repr(a.etichetta_id.cget("text")), "|", b.etichetta.cget("text"), "| elimina:", b.pulsanti["elimina"].cget("state"), "| albero senza selezione:", a.albero_clienti.selection())
+a.campo_nome.insert(0, "Elena")
+a.campo_citta.insert(0, "Bari")
+b.pulsanti["salva"].invoke()
+radice.update()
+stampa("inserito:", c2.esegui_una("SELECT nome, citta, eta, attivo FROM clienti WHERE nome = 'Elena'").righe, "| ora", d.numero_record(), "record | corrente:", a.campo_nome.get())
+# campo obbligatorio
+b.pulsanti["nuovo"].invoke()
+b.pulsanti["salva"].invoke()
+stampa("nome obbligatorio: non inserito:", c2.esegui_una("SELECT COUNT(*) FROM clienti").righe[0][0])
+# elimina (dalla modalità «nuovo» si torna ai record con «ultimo»)
+stampa("in «nuovo» si può tornare indietro:", b.pulsanti["primo"].cget("state"), b.pulsanti["precedente"].cget("state"), b.pulsanti["ultimo"].cget("state"), "| successivo:", b.pulsanti["successivo"].cget("state"))
+b.pulsanti["ultimo"].invoke()
+stampa("tornato all'ultimo:", b.etichetta.cget("text"), a.campo_nome.get())
+b.pulsanti["elimina"].invoke()
+radice.update()
+stampa("eliminato:", c2.esegui_una("SELECT COUNT(*) FROM clienti").righe[0][0], "| corrente:", a.campo_nome.get(), "|", b.etichetta.cget("text"))
+# ricerca
+a.barra.campo_cerca.insert(0, "roma")
+a.barra.pulsante_cerca.invoke()
+radice.update()
+stampa("ricerca «roma»:", [r[1]["nome"] per r in d.record], "| barra:", b.etichetta.cget("text"))
+a.barra.pulsante_tutti.invoke()
+stampa("tutti:", d.numero_record())
+c2.chiudi()
+radice.destroy()
+
+# --- filtro, ordine decrescente e fonte senza tabella
+f.trova("clienti_db").valori.update({"filtro": "citta = 'Roma'", "decrescente": Vero})
+form_modello.salva_form(f, cartella)
+importlib.reload(importlib.import_module("anagrafica_ui"))
+importlib.reload(m)
+radice = tk.Tk()
+a = m.Anagrafica(radice)
+radice.update()
+stampa("filtro e ordine decrescente:", [r[1]["nome"] per r in a.clienti_db.record])
+radice.destroy()
+f.trova("clienti_db").valori.update({"tabella": "", "filtro": "", "decrescente": Falso})
+avvisi = []
+messagebox.showwarning = lambda titolo, testo_, **k: avvisi.append(testo_)
+form_modello.salva_form(f, cartella)
+importlib.reload(importlib.import_module("anagrafica_ui"))
+importlib.reload(m)
+radice = tk.Tk()
+a = m.Anagrafica(radice)
+radice.update()
+stampa("senza tabella la finestra si apre lo stesso:", avvisi, "| barra:", a.barra.etichetta.cget("text"), a.barra.pulsanti["salva"].cget("state"))
+radice.destroy()
+
+f.trova("clienti_db").valori["tabella"] = "clienti"
+form_modello.salva_form(f, cartella)
+
+# --- esportato in Python
+dest = os.path.join(tempfile.mkdtemp(), "e")
+e = esporta_python.esporta(cartella, dest)
+open(os.path.join(dest, "p.py"), "w", encoding="utf-8").write(
+    "import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport anagrafica\n"
+    "r = tk.Tk(); a = anagrafica.Anagrafica(r); r.update()\nprint('python:', a.barra.etichetta.cget('text'))\nr.destroy()\n")
+python_ = __import__("shutil").which("python") o __import__("shutil").which("py")
+se python_:
+    u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "p.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
+    stampa("con Python normale:", e["errori"], u.stdout.strip(), u.returncode, u.stderr.strip()[-200:])
+
+# --- il progettista
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+r2 = tk.Tk()
+r2.geometry("1300x760+10+10")
+configura_stile(r2, col)
+az = type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella)})()
+p = progettista.Progettista(r2, os.path.join(cartella, "anagrafica.form.json"), form_modello.carica_form(os.path.join(cartella, "anagrafica.form.json")), col, cfg, az)
+p.pack(fill="both", expand=Vero)
+applica(r2, col)
+r2.update()
+stampa("palette:", [x per x in ("FonteDati", "BarraNavigazione") se x in form_modello.ORDINE_PALETTE], "| anteprima barra:", tipo(p.widget["barra"]).__name__, "| fonte come etichetta gialla:", p.widget["clienti_db"].cget("background"))
+t = p.form.trova("clienti_db")
+cb = p._combo_dati(tk.Frame(r2), t, "tabella", "tabella")
+cb.tk.call(cb.cget("postcommand"))
+stampa("elenco delle tabelle:", cb["values"])
+campo = p.form.trova("campo_nome")
+cb = p._combo_dati(tk.Frame(r2), campo, "campo", "campo")
+cb.tk.call(cb.cget("postcommand"))
+stampa("elenco dei campi:", cb["values"])
+cb = p._combo_dati(tk.Frame(r2), campo, "fonte", "fonte")
+stampa("elenco delle fonti:", cb["values"])
+cb = p._combo_dati(tk.Frame(r2), t, "ordina_per", "campo_fonte")
+cb.tk.call(cb.cget("postcommand"))
+stampa("ordina per:", cb["values"][:3])
+# un Albero appena collegato prende le colonne della tabella
+alb = p.form.aggiungi("Albero", 16, 20, nome="albero2", larghezza=300, altezza=80)
+stampa("albero nuovo:", alb.valori["colonne"])
+p._modifica(alb, "fonte", "clienti_db")
+stampa("colonne prese dalla tabella:", p.colonne_albero_da_tabella(alb), alb.valori["colonne"], alb.valori["larghezze"])
+# ispettore: MySQL nascosto per SQLite
+p.seleziona(["clienti_db"])
+r2.update()
+etichette = [w.cget("text") per w in p.righe_ispettore.winfo_children() se isinstance(w, tk.Label)]
+stampa("ispettore SQLite:", "Server MySQL" non in etichette, "| tabella:", "Tabella" in etichette)
+p._modifica(t, "dialetto", "mysql")
+p._riempi_ispettore()
+r2.update()
+etichette = [w.cget("text") per w in p.righe_ispettore.winfo_children() se isinstance(w, tk.Label)]
+stampa("ispettore MySQL:", "Server MySQL" in etichette, "Utente MySQL" in etichette)
+p._modifica(t, "dialetto", "sqlite")
+# la scelta del file di database
+da tkinter importa filedialog
+filedialog.askopenfilename = lambda *a, **k: db
+cornice = p._campo_database(tk.Frame(r2), t, "database")
+bottone = [w per w in cornice.winfo_children() se isinstance(w, tk.Button)][0]
+bottone.invoke()
+stampa("database scelto (relativo al progetto):", t.valori["database"])
+# schema con database mancante
+stampa("database che non esiste:", schema_dati.elenco_tabelle({"dialetto": "sqlite", "database": "boh.db"}, cartella), schema_dati.elenco_colonne({"dialetto": "sqlite", "database": "clienti.db", "tabella": ""}, cartella))
+r2.destroy()

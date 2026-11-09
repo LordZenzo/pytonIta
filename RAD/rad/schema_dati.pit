@@ -1,0 +1,82 @@
+"""Struttura di un database per il progettista: le tabelle e le colonne tra cui scegliere nelle proprietà di una «Fonte dati».
+La password di MySQL si chiede una volta sola e resta solo in memoria (mai su disco)."""
+importa os
+importa time
+
+da rad importa database_modello
+
+_cache = {}                 # chiave -> (scadenza o data del file, risultato)
+_password = {}              # (server, porta, utente) -> password, solo finché PitStudio è aperto
+DURATA_MYSQL = 20           # secondi
+
+
+definisci _percorso(proprieta, cartella):
+    p = (proprieta.get("database") o "").strip()
+    ritorna p se os.path.isabs(p) altrimenti os.path.join(cartella o "", p)
+
+
+definisci _chiave_e_firma(proprieta, cartella):
+    se proprieta.get("dialetto") == "mysql":
+        ritorna ("mysql", proprieta.get("server"), proprieta.get("porta"), proprieta.get("utente"), proprieta.get("database")), int(time.time() // DURATA_MYSQL)
+    percorso = _percorso(proprieta, cartella)
+    prova:
+        data = os.path.getmtime(percorso)
+    eccetto OSError:
+        data = 0
+    ritorna ("sqlite", percorso), data
+
+
+definisci _apri(proprieta, cartella, chiedi_password=Nessuno):
+    """La connessione (database_modello) al database della fonte dati, oppure ErroreDatabase."""
+    se proprieta.get("dialetto") == "mysql":
+        k = (proprieta.get("server"), proprieta.get("porta"), proprieta.get("utente"))
+        se k non in _password:
+            se chiedi_password è Nessuno:
+                solleva database_modello.ErroreDatabase("Serve la password di MySQL.")
+            risposta = chiedi_password(f"Password di {k[2]}@{k[0]}:")
+            se risposta è Nessuno:
+                solleva database_modello.ErroreDatabase("Collegamento annullato.")
+            _password[k] = risposta
+        prova:
+            ritorna database_modello.apri_mysql(k[0], k[1] o 3306, k[2], _password[k], proprieta.get("database") o "")
+        eccetto database_modello.ErroreDatabase:
+            _password.pop(k, Nessuno)          # forse la password era sbagliata: la chiederà di nuovo
+            solleva
+    se non (proprieta.get("database") o "").strip():
+        solleva database_modello.ErroreDatabase("Scegli prima il database.")
+    ritorna database_modello.apri_sqlite(_percorso(proprieta, cartella), crea=Falso)
+
+
+definisci _con_cache(nome, proprieta, cartella, chiedi_password, calcola):
+    chiave, firma = _chiave_e_firma(proprieta, cartella)
+    k = (nome, chiave, proprieta.get("tabella") se nome == "colonne" altrimenti "")
+    se k in _cache e _cache[k][0] == firma:
+        ritorna _cache[k][1], ""
+    prova:
+        conn = _apri(proprieta, cartella, chiedi_password)
+    eccetto database_modello.ErroreDatabase come problema:
+        ritorna [], testo(problema)
+    prova:
+        valore = calcola(conn)
+    eccetto database_modello.ErroreDatabase come problema:
+        ritorna [], testo(problema)
+    infine:
+        conn.chiudi()
+    _cache[k] = (firma, valore)
+    ritorna valore, ""
+
+
+definisci elenco_tabelle(proprieta, cartella, chiedi_password=Nessuno):
+    """(nomi delle tabelle, messaggio d'errore o "") del database di una fonte dati."""
+    ritorna _con_cache("tabelle", proprieta, cartella, chiedi_password, lambda conn: [nome per nome, genere in conn.tabelle()])
+
+
+definisci elenco_colonne(proprieta, cartella, chiedi_password=Nessuno):
+    """(nomi delle colonne, messaggio d'errore o "") della tabella scelta in una fonte dati."""
+    se non (proprieta.get("tabella") o "").strip():
+        ritorna [], "Scegli prima la tabella."
+    ritorna _con_cache("colonne", proprieta, cartella, chiedi_password, lambda conn: [c.nome per c in conn.colonne(proprieta["tabella"])])
+
+
+definisci dimentica():
+    _cache.clear()

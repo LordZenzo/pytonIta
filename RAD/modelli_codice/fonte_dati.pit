@@ -6,8 +6,10 @@
 
 Questo file è stato creato da PitStudio (Database > Crea una maschera dalla tabella) e si può usare anche con finestre disegnate a mano.
 """
+importa os
 importa sqlite3
-da tkinter importa messagebox
+importa tkinter come tk
+da tkinter importa messagebox, simpledialog
 
 TIPI_INTERI = ("INT",)
 TIPI_DECIMALI = ("REAL", "DOUBLE", "FLOAT", "DECIMAL", "NUMERIC")
@@ -95,23 +97,31 @@ classe FonteDati:
             solleva ErroreDati(f"La tabella «{se_stesso.tabella}» non esiste.")
 
     # ------------------------------------------------------------ lettura
-    definisci record(se_stesso, ricerca=""):
-        """Lista di (identificatore, {colonna: valore}) dei record, filtrati da un testo cercato in tutte le colonne."""
-        dove = ""
+    definisci record(se_stesso, ricerca="", filtro="", ordina_per="", decrescente=Falso):
+        """Lista di (identificatore, {colonna: valore}) dei record, filtrati da un testo cercato in tutte le colonne.
+        filtro: condizione SQL fissa (es. "citta = 'Roma'"); ordina_per: nome di una colonna."""
+        condizioni = []
         par = []
+        se filtro.strip():
+            condizioni.append("(" + filtro.strip() + ")")
         se ricerca:
             tipo_testo = "CHAR" se se_stesso.è_mysql altrimenti "TEXT"
-            dove = " WHERE " + " OR ".join(f"CAST({se_stesso._n(c)} AS {tipo_testo}) LIKE {se_stesso.segnaposto}" per c in se_stesso.colonne)
+            condizioni.append("(" + " OR ".join(f"CAST({se_stesso._n(c)} AS {tipo_testo}) LIKE {se_stesso.segnaposto}" per c in se_stesso.colonne) + ")")
             par = ["%" + ricerca + "%"] * lunghezza(se_stesso.colonne)
+        dove = (" WHERE " + " AND ".join(condizioni)) se condizioni altrimenti ""
+        ordine = ""
+        se ordina_per e ordina_per in se_stesso.colonne:
+            ordine = f" ORDER BY {se_stesso._n(ordina_per)}" + (" DESC" se decrescente altrimenti "")
         t = se_stesso._n(se_stesso.tabella)
         risultato = []
         se se_stesso.è_mysql:
-            righe = se_stesso._esegui(f"SELECT * FROM {t}{dove} LIMIT {MASSIMO_RECORD}", par).fetchall()
+            righe = se_stesso._esegui(f"SELECT * FROM {t}{dove}{ordine} LIMIT {MASSIMO_RECORD}", par).fetchall()
             per r in righe:
                 valori = dict(zip(se_stesso.colonne, r))
                 risultato.append((tuple(valori[c] per c in se_stesso.chiave) se se_stesso.chiave altrimenti Nessuno, valori))
         altrimenti:
-            righe = se_stesso._esegui(f"SELECT rowid, * FROM {t}{dove} ORDER BY rowid LIMIT {MASSIMO_RECORD}", par).fetchall()
+            ordine = ordine o " ORDER BY rowid"
+            righe = se_stesso._esegui(f"SELECT rowid, * FROM {t}{dove}{ordine} LIMIT {MASSIMO_RECORD}", par).fetchall()
             per r in righe:
                 risultato.append((r[0], dict(zip(se_stesso.colonne, r[1:]))))
         ritorna risultato
@@ -144,7 +154,7 @@ classe FonteDati:
         """Inserisce (id_ = Nessuno) o aggiorna un record. valori_testo: {colonna: testo}. Ritorna l'identificatore del record."""
         t = se_stesso._n(se_stesso.tabella)
         se id_ è Nessuno:
-            nomi = [c per c in se_stesso.colonne se non (c in se_stesso.automatiche e valori_testo.get(c, "") == "")]
+            nomi = [c per c in se_stesso.colonne se (c in valori_testo o c in se_stesso.obbligatorie) e non (c in se_stesso.automatiche e valori_testo.get(c, "") == "")]
             valori = [se_stesso._converti(c, valori_testo.get(c, "")) per c in nomi]
             se nomi:
                 elenco_nomi = ", ".join(se_stesso._n(c) per c in nomi)
@@ -157,7 +167,7 @@ classe FonteDati:
             se se_stesso.è_mysql:
                 ritorna tuple((valori_testo.get(c) se valori_testo.get(c) != "" altrimenti Nessuno) o nuovo per c in se_stesso.chiave) se se_stesso.chiave altrimenti Nessuno
             ritorna nuovo
-        nomi = [c per c in se_stesso.colonne se c non in se_stesso.automatiche]
+        nomi = [c per c in se_stesso.colonne se c non in se_stesso.automatiche e c in valori_testo]      # solo le colonne che la finestra mostra
         se non nomi:
             ritorna id_
         dove, par = se_stesso._dove(id_)
@@ -282,3 +292,367 @@ classe MascheraDati:
     definisci cerca(se_stesso, testo_cercato):
         se_stesso.ricerca = testo_cercato.strip()
         se_stesso.ricarica()
+
+
+# ---------------------------------------------------------------------------------------------- componenti collegati ai dati
+classe BarraDati(tk.Frame):
+    """Barra di navigazione di una tabella: primo, precedente, successivo, ultimo, nuovo, salva, elimina, annulla e ricerca. Si collega con Collegamento.collega_barra()."""
+    TESTI = {"primo": "|◀", "precedente": "◀", "successivo": "▶", "ultimo": "▶|", "nuovo": "Nuovo", "salva": "Salva", "elimina": "Elimina", "annulla": "Annulla"}
+    AIUTI = {"primo": "Primo record", "precedente": "Record precedente", "successivo": "Record successivo", "ultimo": "Ultimo record"}
+
+    definisci __inizializza__(se_stesso, genitore, pulsanti=("primo", "precedente", "successivo", "ultimo", "nuovo", "salva", "elimina", "annulla"), posizione=Vero, cerca=Falso, **opzioni):
+        tk.Frame.__init__(se_stesso, genitore, **opzioni)
+        se_stesso.collegamento = Nessuno
+        se_stesso.pulsanti = {}
+        se_stesso.campo_cerca = Nessuno
+        se cerca:             # (la ricerca si impacchetta per prima: se la barra è stretta si accorciano gli altri pulsanti, non lei)
+            se_stesso.pulsante_tutti = tk.Button(se_stesso, text="Tutti", command=lambda: se_stesso._cerca(""), padx=8, pady=3)
+            se_stesso.pulsante_tutti.pack(side="right", padx=(4, 0))
+            se_stesso.pulsante_cerca = tk.Button(se_stesso, text="Cerca", command=lambda: se_stesso._cerca(se_stesso.campo_cerca.get()), padx=8, pady=3)
+            se_stesso.pulsante_cerca.pack(side="right", padx=(4, 0))
+            se_stesso.campo_cerca = tk.Entry(se_stesso, width=14)
+            se_stesso.campo_cerca.pack(side="right")
+            se_stesso.campo_cerca.bind("<Return>", lambda ev: se_stesso._cerca(se_stesso.campo_cerca.get()))
+        per nome in pulsanti:
+            se nome non in se_stesso.TESTI:
+                continua
+            b = tk.Button(se_stesso, text=se_stesso.TESTI[nome], width=3 se nome in se_stesso.AIUTI altrimenti 0, command=lambda n=nome: se_stesso._premuto(n), padx=8, pady=3)
+            b.pack(side="left", padx=(0, 4))
+            se_stesso.pulsanti[nome] = b
+        se_stesso.etichetta = Nessuno
+        se posizione:
+            se_stesso.etichetta = tk.Label(se_stesso, text="", anchor="w")
+            se_stesso.etichetta.pack(side="left", padx=(6, 6))
+
+    definisci _cerca(se_stesso, testo_cercato):
+        se se_stesso.collegamento:
+            se non testo_cercato e se_stesso.campo_cerca:
+                se_stesso.campo_cerca.delete(0, "end")
+            se_stesso.collegamento.cerca(testo_cercato)
+
+    definisci _premuto(se_stesso, nome):
+        se se_stesso.collegamento:
+            getattr(se_stesso.collegamento, nome)()
+
+    definisci aggiorna(se_stesso):
+        """Abilita solo i pulsanti che in questo momento servono e scrive «3 / 25»."""
+        c = se_stesso.collegamento
+        n = c.numero_record() se c altrimenti 0
+        i = c.indice se c altrimenti -1
+        in_nuovo = bool(c e c.in_nuovo)
+        pronto = bool(c e c.fonte)
+        # scrivendo un record nuovo si può tornare ai record salvati con «primo», «precedente» e «ultimo»
+        stato = {"primo": n > 0 e (in_nuovo o i > 0), "precedente": n > 0 e (in_nuovo o i > 0), "successivo": non in_nuovo e 0 <= i < n - 1,
+                 "ultimo": n > 0 e (in_nuovo o i < n - 1),
+                 "nuovo": pronto, "salva": pronto, "elimina": pronto e non in_nuovo e i >= 0, "annulla": pronto}
+        per nome, b in se_stesso.pulsanti.items():
+            b.configure(state="normal" se stato.get(nome) altrimenti "disabled")
+        se se_stesso.etichetta è non Nessuno:
+            se non pronto:
+                se_stesso.etichetta.configure(text="(nessun database)")
+            altrimenti_se in_nuovo:
+                se_stesso.etichetta.configure(text=f"nuovo record  ·  {n} salvati")
+            altrimenti_se n == 0:
+                se_stesso.etichetta.configure(text="nessun record")
+            altrimenti:
+                se_stesso.etichetta.configure(text=f"{i + 1} / {n}")
+
+
+classe Collegamento:
+    """Collega una tabella ai componenti di una finestra: i campi mostrano il record corrente, gli elenchi mostrano tutti i record, la barra naviga.
+
+        dati = Collegamento.crea(radice, cartella, "sqlite", "dati.db", "clienti")
+        dati.collega_campo(finestra.campo_nome, "nome")      # un campo, una casella, un'area di testo, un cursore, una casella combinata, un'etichetta
+        dati.collega_griglia(finestra.albero)                # un Albero (o un Elenco con la colonna da mostrare)
+        dati.collega_barra(finestra.barra)
+        dati.apri()
+    """
+
+    definisci __inizializza__(se_stesso, radice, fonte, filtro="", ordina_per="", decrescente=Falso, al_cambio=Nessuno, errore=""):
+        se_stesso.radice = radice
+        se_stesso.fonte = fonte
+        se_stesso.errore = errore
+        se_stesso.filtro = filtro
+        se_stesso.ordina_per = ordina_per
+        se_stesso.decrescente = decrescente
+        se_stesso.al_cambio = al_cambio
+        se_stesso.record = []
+        se_stesso.indice = -1
+        se_stesso.in_nuovo = Falso
+        se_stesso.ricerca = ""
+        se_stesso.campi = []            # (componente, colonna)
+        se_stesso.griglie = []          # (componente, colonna o Nessuno)
+        se_stesso.barre = []
+        se_stesso._muovo = Falso
+
+    # ------------------------------------------------------------ creazione
+    @staticmethod
+    definisci crea(radice, cartella, dialetto, database, tabella, server="localhost", porta=3306, utente="root", password=Nessuno, filtro="", ordina_per="", decrescente=Falso, al_cambio=Nessuno):
+        """Apre la tabella. Se non ci riesce mostra l'errore e ritorna un Collegamento spento (la finestra si apre lo stesso).
+        Per MySQL la password, se manca, viene chiesta all'utente (non viene mai scritta nel programma)."""
+        errore = ""
+        fonte = Nessuno
+        prova:
+            se non tabella:
+                solleva ErroreDati("Nessuna tabella scelta: scegli «Tabella» nelle proprietà della fonte dati.")
+            se dialetto == "mysql":
+                se password è Nessuno:
+                    password = simpledialog.askstring("MySQL", f"Password di {utente}@{server}:", show="*", parent=radice) o ""
+                fonte = FonteDati.con_mysql(server, porta, utente, password, database, tabella)
+            altrimenti:
+                se non database:
+                    solleva ErroreDati("Nessun database scelto: scegli «Database» nelle proprietà della fonte dati.")
+                percorso = database se os.path.isabs(database) altrimenti os.path.join(cartella, database)
+                se non os.path.exists(percorso):
+                    solleva ErroreDati(f"Il database «{database}» non esiste.")
+                fonte = FonteDati.sqlite(percorso, tabella)
+        eccetto ErroreDati come problema:
+            errore = testo(problema)
+            messagebox.showwarning("Database", errore, parent=radice)
+        ritorna Collegamento(radice, fonte, filtro, ordina_per, decrescente, al_cambio, errore)
+
+    definisci collega_campo(se_stesso, componente, colonna):
+        se_stesso.campi.append((componente, colonna))
+
+    definisci collega_griglia(se_stesso, componente, colonna=Nessuno):
+        """Un Albero mostra le colonne che hanno lo stesso nome di quelle della tabella; un Elenco mostra la colonna indicata."""
+        se_stesso.griglie.append((componente, colonna))
+        se componente.winfo_class() == "Treeview":
+            componente.bind("<<TreeviewSelect>>", se_stesso._scelta_griglia, add="+")
+        altrimenti:
+            componente.bind("<<ListboxSelect>>", se_stesso._scelta_griglia, add="+")
+
+    definisci collega_barra(se_stesso, barra):
+        barra.collegamento = se_stesso
+        se_stesso.barre.append(barra)
+        barra.aggiorna()
+
+    # ------------------------------------------------------------ lettura e scrittura dei componenti
+    @staticmethod
+    definisci _leggi(w):
+        """Il contenuto di un componente, come testo."""
+        classe = w.winfo_class()
+        se classe == "Text":
+            ritorna w.get("1.0", "end-1c")
+        se classe == "Checkbutton":
+            ritorna "1" se testo(w.getvar(testo(w.cget("variable")))) in ("1", "True", "true") altrimenti "0"
+        se classe == "Scale":
+            x = float(w.get())
+            ritorna testo(int(x)) se x == int(x) altrimenti testo(x)
+        ritorna w.get()
+
+    @staticmethod
+    definisci _scrivi(w, valore):
+        classe = w.winfo_class()
+        testo_ = "" se valore è Nessuno altrimenti testo(valore)
+        se classe == "Label":
+            w.configure(text=testo_)
+        altrimenti_se classe == "Checkbutton":
+            prova:
+                acceso = bool(int(float(testo_ o "0")))
+            eccetto ValueError:
+                acceso = testo_.lower() in ("true", "vero", "si", "sì")
+            w.select() se acceso altrimenti w.deselect()
+        altrimenti_se classe == "Scale":
+            prova:
+                w.set(float(testo_ o "0"))
+            eccetto ValueError:
+                w.set(0)
+        altrimenti_se classe == "TCombobox":
+            w.set(testo_)
+        altrimenti_se classe == "Text":
+            disattivo = testo(w.cget("state")) == "disabled"
+            se disattivo:
+                w.configure(state="normal")
+            w.delete("1.0", "end")
+            w.insert("1.0", testo_)
+            se disattivo:
+                w.configure(state="disabled")
+        altrimenti:
+            disattivo = testo(w.cget("state")) == "disabled"
+            se disattivo:
+                w.configure(state="normal")
+            w.delete(0, "end")
+            w.insert(0, testo_)
+            se disattivo:
+                w.configure(state="disabled")
+
+    @staticmethod
+    definisci _si_salva(w):
+        """Le etichette sono solo da mostrare: non si salvano."""
+        ritorna w.winfo_class() != "Label"
+
+    # ------------------------------------------------------------ record
+    definisci numero_record(se_stesso):
+        ritorna lunghezza(se_stesso.record)
+
+    definisci corrente(se_stesso):
+        """Il record corrente come dizionario {colonna: valore} (vuoto se si sta scrivendo un record nuovo)."""
+        se 0 <= se_stesso.indice < lunghezza(se_stesso.record) e non se_stesso.in_nuovo:
+            ritorna dict(se_stesso.record[se_stesso.indice][1])
+        ritorna {}
+
+    definisci valore(se_stesso, colonna):
+        ritorna se_stesso.corrente().get(colonna)
+
+    definisci apri(se_stesso):
+        """Legge i record e mostra il primo."""
+        se_stesso.ricarica()
+
+    definisci ricarica(se_stesso, seleziona=Nessuno):
+        se non se_stesso.fonte:
+            se_stesso._aggiorna_barre()
+            ritorna
+        prova:
+            se_stesso.record = se_stesso.fonte.record(se_stesso.ricerca, se_stesso.filtro, se_stesso.ordina_per, se_stesso.decrescente)
+        eccetto ErroreDati come problema:
+            messagebox.showerror("Database", testo(problema), parent=se_stesso.radice)
+            ritorna
+        se_stesso._riempi_griglie()
+        indice = Nessuno
+        se seleziona è non Nessuno:
+            per i, (id_, valori) in enumera(se_stesso.record):
+                se id_ == seleziona:
+                    indice = i
+        se indice è Nessuno e se_stesso.record e seleziona è Nessuno:
+            indice = 0
+        se indice è non Nessuno:
+            se_stesso.vai(indice)
+        altrimenti:
+            se_stesso.nuovo()
+
+    definisci _riempi_griglie(se_stesso):
+        se_stesso._muovo = Vero
+        prova:
+            per w, colonna in se_stesso.griglie:
+                se w.winfo_class() == "Treeview":
+                    w.delete(*w.get_children())
+                    nomi = lista(w["columns"])
+                    per i, (id_, valori) in enumera(se_stesso.record):
+                        w.insert("", "end", iid=testo(i), values=["" se valori.get(n) è Nessuno altrimenti valori.get(n) per n in nomi])
+                altrimenti:
+                    w.delete(0, "end")
+                    per id_, valori in se_stesso.record:
+                        w.insert("end", "" se valori.get(colonna) è Nessuno altrimenti testo(valori.get(colonna)))
+        infine:
+            se_stesso._muovo = Falso
+
+    definisci _seleziona_nelle_griglie(se_stesso):
+        valido = 0 <= se_stesso.indice < lunghezza(se_stesso.record) e non se_stesso.in_nuovo
+        se_stesso._muovo = Vero
+        prova:
+            per w, colonna in se_stesso.griglie:
+                se w.winfo_class() == "Treeview":
+                    voluta = (testo(se_stesso.indice),) se valido altrimenti ()
+                    se tuple(w.selection()) != voluta:           # (se è già così non la tocco: ogni cambio rimanda un evento)
+                        w.selection_set(voluta) se valido altrimenti w.selection_remove(*w.selection())
+                    se valido:
+                        w.see(testo(se_stesso.indice))
+                altrimenti:
+                    voluta = (se_stesso.indice,) se valido altrimenti ()
+                    se tuple(w.curselection()) != voluta:
+                        w.selection_clear(0, "end")
+                        se valido:
+                            w.selection_set(se_stesso.indice)
+                    se valido:
+                        w.see(se_stesso.indice)
+        infine:
+            se_stesso._muovo = Falso
+
+    definisci _scelta_griglia(se_stesso, evento=Nessuno):
+        se se_stesso._muovo:
+            ritorna
+        w = evento.widget
+        sel = w.selection() se w.winfo_class() == "Treeview" altrimenti w.curselection()
+        se sel e (int(sel[0]) != se_stesso.indice o se_stesso.in_nuovo):
+            se_stesso.vai(int(sel[0]))
+
+    definisci _mostra_campi(se_stesso, valori):
+        per w, colonna in se_stesso.campi:
+            se_stesso._scrivi(w, valori.get(colonna))
+
+    definisci _aggiorna_barre(se_stesso):
+        per b in se_stesso.barre:
+            b.aggiorna()
+        se se_stesso.al_cambio:
+            se_stesso.al_cambio()
+
+    # ------------------------------------------------------------ navigazione
+    definisci vai(se_stesso, indice):
+        se non se_stesso.record:
+            ritorna
+        indice = max(0, min(lunghezza(se_stesso.record) - 1, indice))
+        se_stesso.indice = indice
+        se_stesso.in_nuovo = Falso
+        se_stesso._mostra_campi(se_stesso.record[indice][1])
+        se_stesso._seleziona_nelle_griglie()
+        se_stesso._aggiorna_barre()
+
+    definisci primo(se_stesso):
+        se_stesso.vai(0)
+
+    definisci precedente(se_stesso):
+        se_stesso.vai(lunghezza(se_stesso.record) - 1 se se_stesso.in_nuovo altrimenti se_stesso.indice - 1)
+
+    definisci successivo(se_stesso):
+        se_stesso.vai(se_stesso.indice + 1)
+
+    definisci ultimo(se_stesso):
+        se_stesso.vai(lunghezza(se_stesso.record) - 1)
+
+    # ------------------------------------------------------------ modifiche
+    definisci nuovo(se_stesso):
+        """Svuota i campi per scrivere un nuovo record."""
+        se_stesso.in_nuovo = Vero
+        se_stesso._mostra_campi({})
+        se_stesso._seleziona_nelle_griglie()
+        per w, colonna in se_stesso.campi:
+            se se_stesso._si_salva(w) e (non se_stesso.fonte o colonna non in se_stesso.fonte.automatiche):
+                prova:
+                    w.focus_set()
+                eccetto Exception:
+                    passa
+                interrompi
+        se_stesso._aggiorna_barre()
+
+    definisci salva(se_stesso):
+        se non se_stesso.fonte:
+            ritorna
+        valori = {colonna: se_stesso._leggi(w) per w, colonna in se_stesso.campi se se_stesso._si_salva(w)}
+        id_ = Nessuno se se_stesso.in_nuovo o se_stesso.indice < 0 altrimenti se_stesso.record[se_stesso.indice][0]
+        prova:
+            id_ = se_stesso.fonte.salva(valori, id_)
+        eccetto ErroreDati come problema:
+            messagebox.showwarning("Il record non è stato salvato", testo(problema), parent=se_stesso.radice)
+            ritorna
+        se_stesso.ricarica(id_)
+
+    definisci elimina(se_stesso):
+        se non se_stesso.fonte o se_stesso.in_nuovo o se_stesso.indice < 0:
+            ritorna
+        se non messagebox.askyesno("Elimina", "Elimino il record scelto? Non si può annullare.", parent=se_stesso.radice):
+            ritorna
+        prova:
+            se_stesso.fonte.elimina(se_stesso.record[se_stesso.indice][0])
+        eccetto ErroreDati come problema:
+            messagebox.showwarning("Il record non è stato eliminato", testo(problema), parent=se_stesso.radice)
+            ritorna
+        posto = se_stesso.indice
+        se_stesso.ricarica()
+        se se_stesso.record:
+            se_stesso.vai(min(posto, lunghezza(se_stesso.record) - 1))
+
+    definisci annulla(se_stesso):
+        """Torna ai valori salvati del record (o svuota i campi di uno nuovo)."""
+        se se_stesso.in_nuovo o se_stesso.indice < 0:
+            se_stesso.nuovo()
+        altrimenti:
+            se_stesso.vai(se_stesso.indice)
+
+    definisci cerca(se_stesso, testo_cercato):
+        se_stesso.ricerca = testo_cercato.strip()
+        se_stesso.ricarica()
+
+    definisci chiudi(se_stesso):
+        se se_stesso.fonte:
+            se_stesso.fonte.chiudi()

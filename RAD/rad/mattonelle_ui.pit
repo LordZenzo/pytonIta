@@ -64,7 +64,7 @@ classe DialogoTesto(tk.Toplevel):
         se_stesso._imposta_a_capo()
         casella_ = tk.Checkbutton(barra, text="A capo automatico", variable=se_stesso.var_a_capo, command=se_stesso._imposta_a_capo,
                                   background=colori["pannello"], foreground=colori["primo_piano"], activebackground=colori["pannello"],
-                                  activeforeground=colori["primo_piano"], selectcolor=colori["campo"])
+                                  activeforeground=colori["primo_piano"], selectcolor=colori["casella"])
         casella_.pack(side="left", padx=(0, 12))
         suggerisci(casella_, "Manda a capo le righe lunghe invece di farle scorrere di lato")
         tk.Label(barra, text="Ctrl+Invio per applicare · Esc per annullare", background=colori["pannello"],

@@ -31,6 +31,8 @@ stampa("ricaricato:", lunghezza(g.componenti), g.trova("elenco1").valori["elemen
 # esecuzione vera della UI generata
 sys.path.insert(0, cartella)
 importa tkinter come tk
+da tkinter importa messagebox
+messagebox.showwarning = lambda *a, **k: Nessuno
 modulo = importlib.import_module("prova")
 radice = tk.Tk()
 finestra = modulo.Prova(radice)
