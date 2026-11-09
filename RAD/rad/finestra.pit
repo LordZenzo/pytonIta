@@ -15,6 +15,8 @@ da rad.storia importa Storia
 da rad importa claude_code
 da rad importa converti_progetto
 da rad importa esporta_python
+da rad importa database_modello
+da rad.database_ui importa VisoreDatabase, DialogoMysql
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
 da rad importa barra come barra_mod
@@ -258,6 +260,14 @@ classe Applicazione:
         prog.add_command(label="Esporta il progetto come Python…", command=lambda: se_stesso.esporta_progetto_python())
         prog.add_command(label="Aggiorna l'albero", command=lambda: se_stesso.pannello_progetto.aggiorna())
         barra.add_cascade(label="Progetto", menu=prog)
+
+        database = tk.Menu(barra, tearoff=0)
+        database.add_command(label="Nuovo database SQLite…", command=lambda: se_stesso.nuovo_database_sqlite())
+        database.add_command(label="Apri un database SQLite…", command=lambda: se_stesso.apri_database_sqlite())
+        database.add_command(label="Collegati a MySQL…", command=lambda: se_stesso.collega_mysql())
+        database.add_separator()
+        database.add_command(label="Installa il driver MySQL (pymysql)", command=lambda: se_stesso.installa_driver_mysql())
+        barra.add_cascade(label="Database", menu=database)
 
         esegui = tk.Menu(barra, tearoff=0)
         esegui.add_command(label="Esegui il file principale", command=se_stesso.esegui_principale, accelerator="F5")
@@ -638,6 +648,8 @@ classe Applicazione:
             nome = "🪟 " + widget.form.nome
         altrimenti_se isinstance(widget, EditorMattonelle):
             nome = "🧱 " + widget.nome_base()
+        altrimenti_se getattr(widget, "titolo_scheda", Nessuno):
+            nome = widget.titolo_scheda
         ritorna ("● " se getattr(widget, "modificato", Falso) altrimenti "") + nome
 
     definisci scheda_modificata(se_stesso, widget):
@@ -986,6 +998,60 @@ classe Applicazione:
         mattonelle_modello.salva_programma(prog, cartella)
         se_stesso.pannello_progetto.aggiorna()
         ritorna se_stesso.apri_file(mattonelle_modello.percorsi_programma(cartella, nome)["json"])
+
+    # ================================================================== database
+    definisci nuovo_database_sqlite(se_stesso):
+        """Crea un file SQLite vuoto (di solito nella cartella del progetto) e lo apre."""
+        iniziale = se_stesso.progetto.cartella se se_stesso.progetto altrimenti os.path.expanduser("~")
+        percorso = filedialog.asksaveasfilename(parent=se_stesso.radice, title="Nuovo database SQLite", initialdir=iniziale, initialfile="dati.db",
+                                                defaultextension=".db", filetypes=[("Database SQLite", "*.db *.sqlite *.sqlite3"), ("Tutti i file", "*.*")])
+        se non percorso:
+            ritorna Nessuno
+        prova:
+            database_modello.apri_sqlite(percorso).chiudi()
+        eccetto database_modello.ErroreDatabase come errore:
+            messagebox.showerror("Database", testo(errore), parent=se_stesso.radice)
+            ritorna Nessuno
+        se se_stesso.progetto:
+            se_stesso.pannello_progetto.aggiorna()
+        ritorna se_stesso.apri_file(percorso)
+
+    definisci apri_database_sqlite(se_stesso):
+        iniziale = se_stesso.progetto.cartella se se_stesso.progetto altrimenti os.path.expanduser("~")
+        percorso = filedialog.askopenfilename(parent=se_stesso.radice, title="Apri un database SQLite", initialdir=iniziale,
+                                              filetypes=[("Database SQLite", "*.db *.sqlite *.sqlite3 *.db3"), ("Tutti i file", "*.*")])
+        se non percorso:
+            ritorna Nessuno
+        ritorna se_stesso.apri_file(percorso)
+
+    definisci collega_mysql(se_stesso):
+        """Si collega a un server MySQL/MariaDB e apre il database in una scheda."""
+        conn = DialogoMysql(se_stesso.radice, se_stesso.colori, se_stesso.config_, se_stesso.config_.interprete()).mostra()
+        se conn è Nessuno:
+            ritorna Nessuno
+        chiave = "mysql://" + conn.nome_visibile
+        se chiave in se_stesso.schede:
+            se_stesso.schede_nb.select(se_stesso.schede[chiave])
+            conn.chiudi()
+            ritorna se_stesso.schede[chiave]
+        w = VisoreDatabase(se_stesso.schede_nb, chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
+        tema.applica(w, se_stesso.colori)
+        w.applica_colori(se_stesso.colori)
+        se_stesso._aggiungi_scheda(chiave, w)
+        ritorna w
+
+    definisci installa_driver_mysql(se_stesso):
+        se_stesso.info("Installo il driver MySQL (pymysql)…")
+        se_stesso.radice.update_idletasks()
+        riuscito, uscita = database_modello.installa_driver_mysql(se_stesso.config_.interprete())
+        se riuscito:
+            importa importlib
+            importlib.invalidate_caches()
+            se_stesso.info("Driver MySQL installato.")
+            messagebox.showinfo("Database", "Driver MySQL (pymysql) installato.", parent=se_stesso.radice)
+        altrimenti:
+            se_stesso.info("Installazione del driver non riuscita")
+            messagebox.showerror("Database", "Non sono riuscito a installare pymysql:\n" + uscita, parent=se_stesso.radice)
 
     definisci esporta_progetto_python(se_stesso):
         """Crea una cartella con il progetto convertito in Python (senza bisogno di pytonIta) e le librerie da installare."""

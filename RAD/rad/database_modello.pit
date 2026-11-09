@@ -1,0 +1,516 @@
+"""Database in PitStudio: SQLite (predefinito) e MySQL (facoltativo). Solo logica, niente interfaccia.
+
+  conn = apri_sqlite("dati.db")                       # oppure  conn = apri_mysql("localhost", 3306, "utente", "password", "negozio")
+  conn.tabelle(); conn.colonne("clienti"); conn.righe("clienti", limite=100)
+  conn.esegui("SELECT * FROM clienti WHERE citta = 'Roma'")
+  conn.crea_tabella("clienti", [Colonna("id", "INTEGER", chiave=Vero, autoincremento=Vero), Colonna("nome", "TEXT", non_nullo=Vero)])
+"""
+importa csv
+importa os
+importa sqlite3
+importa time
+
+TIPI_SQLITE = ["INTEGER", "TEXT", "REAL", "NUMERIC", "BLOB"]
+TIPI_MYSQL = ["INT", "BIGINT", "VARCHAR(255)", "TEXT", "DOUBLE", "DECIMAL(10,2)", "DATE", "DATETIME", "TIMESTAMP", "BOOLEAN", "BLOB"]
+PAROLE_SQL = ["SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "LIMIT", "INSERT INTO", "VALUES", "UPDATE", "SET", "DELETE FROM",
+              "CREATE TABLE", "DROP TABLE", "ALTER TABLE", "JOIN", "LEFT JOIN", "ON", "AS", "AND", "OR", "NOT", "NULL", "IS NULL",
+              "LIKE", "IN", "BETWEEN", "COUNT(*)", "SUM(", "AVG(", "MIN(", "MAX(", "DISTINCT", "HAVING", "PRIMARY KEY", "CREATE INDEX"]
+MASSIMO_RIGHE_RISULTATO = 5000
+
+
+classe ErroreDatabase(ValueError):
+    """Un errore del database, con un messaggio comprensibile."""
+
+
+classe DriverMancante(ErroreDatabase):
+    """Per MySQL serve il pacchetto «pymysql»."""
+
+
+classe Colonna:
+    """Una colonna di tabella (anche per descrivere una tabella da creare)."""
+
+    definisci __inizializza__(se_stesso, nome, tipo="TEXT", non_nullo=Falso, predefinito="", chiave=Falso, unica=Falso, autoincremento=Falso):
+        se_stesso.nome = nome
+        se_stesso.tipo = tipo
+        se_stesso.non_nullo = non_nullo
+        se_stesso.predefinito = predefinito       # testo: numero, NULL, CURRENT_TIMESTAMP o un testo (viene messo tra apici)
+        se_stesso.chiave = chiave
+        se_stesso.unica = unica
+        se_stesso.autoincremento = autoincremento
+
+    definisci __rappresentazione__(se_stesso):
+        ritorna f"Colonna({se_stesso.nome!r}, {se_stesso.tipo!r}, chiave={se_stesso.chiave})"
+
+
+classe Risultato:
+    """L'esito di un'istruzione SQL: colonne e righe (se restituisce dati), righe modificate, durata."""
+
+    definisci __inizializza__(se_stesso, colonne=(), righe=(), modificate=-1, durata=0.0, troncato=Falso, sql=""):
+        se_stesso.colonne = lista(colonne)
+        se_stesso.righe = lista(righe)
+        se_stesso.modificate = modificate
+        se_stesso.durata = durata
+        se_stesso.troncato = troncato
+        se_stesso.sql = sql
+
+    definisci riassunto(se_stesso):
+        se se_stesso.colonne:
+            n = lunghezza(se_stesso.righe)
+            ritorna f"{n} righe" + (" (limitato)" se se_stesso.troncato altrimenti "") + f" in {se_stesso.durata * 1000:.0f} ms"
+        se se_stesso.modificate >= 0:
+            ritorna f"{se_stesso.modificate} righe modificate in {se_stesso.durata * 1000:.0f} ms"
+        ritorna f"Eseguito in {se_stesso.durata * 1000:.0f} ms"
+
+
+# ---------------------------------------------------------------- utilità SQL
+definisci dividi_istruzioni(sql):
+    """Divide un testo SQL in istruzioni separate da «;» (senza spezzare testi tra apici né commenti)."""
+    istruzioni = []
+    corrente = []
+    i = 0
+    n = lunghezza(sql)
+    apice = Nessuno
+    mentre i < n:
+        c = sql[i]
+        se apice:
+            corrente.append(c)
+            se c == apice:
+                se i + 1 < n e sql[i + 1] == apice:      # apice doppio dentro il testo
+                    corrente.append(sql[i + 1])
+                    i += 1
+                altrimenti:
+                    apice = Nessuno
+        altrimenti_se c in "'\"`":
+            apice = c
+            corrente.append(c)
+        altrimenti_se sql.startswith("--", i) o sql.startswith("#", i) e c == "#":
+            fine = sql.find("\n", i)
+            fine = n se fine < 0 altrimenti fine
+            corrente.append(sql[i:fine])
+            i = fine - 1
+        altrimenti_se sql.startswith("/*", i):
+            fine = sql.find("*/", i + 2)
+            fine = n se fine < 0 altrimenti fine + 2
+            corrente.append(sql[i:fine])
+            i = fine - 1
+        altrimenti_se c == ";":
+            testo_ = "".join(corrente).strip()
+            se testo_:
+                istruzioni.append(testo_)
+            corrente = []
+        altrimenti:
+            corrente.append(c)
+        i += 1
+    ultimo = "".join(corrente).strip()
+    se ultimo e solo_commenti(ultimo) == Falso:
+        istruzioni.append(ultimo)
+    ritorna istruzioni
+
+
+definisci solo_commenti(sql):
+    """True se il testo contiene solo commenti e spazi."""
+    resto = sql
+    mentre resto.strip():
+        resto = resto.lstrip()
+        se resto.startswith("--"):
+            fine = resto.find("\n")
+            resto = "" se fine < 0 altrimenti resto[fine + 1:]
+        altrimenti_se resto.startswith("/*"):
+            fine = resto.find("*/")
+            resto = "" se fine < 0 altrimenti resto[fine + 2:]
+        altrimenti:
+            ritorna Falso
+    ritorna Vero
+
+
+definisci valore_sql(testo_):
+    """Il valore predefinito scritto dall'utente come espressione SQL: numeri e parole chiave restano, il resto va tra apici."""
+    t = testo_.strip()
+    se non t:
+        ritorna ""
+    se t.upper() in ("NULL", "CURRENT_TIMESTAMP", "CURRENT_DATE", "CURRENT_TIME", "TRUE", "FALSE"):
+        ritorna t.upper()
+    prova:
+        float(t)
+        ritorna t
+    eccetto ValueError:
+        passa
+    se t.startswith("(") e t.endswith(")"):
+        ritorna t
+    ritorna "'" + t.replace("'", "''") + "'"
+
+
+definisci a_testo(valore):
+    """Come si mostra un valore del database in una cella."""
+    se valore è Nessuno:
+        ritorna "NULL"
+    se isinstance(valore, (bytes, bytearray)):
+        ritorna f"<BLOB {lunghezza(valore)} byte>"
+    ritorna testo(valore)
+
+
+definisci da_testo(valore_testo, tipo=""):
+    """Dal testo di una cella al valore da scrivere: «NULL» (maiuscolo) è NULL; numeri per le colonne numeriche."""
+    se valore_testo == "NULL":
+        ritorna Nessuno
+    t = tipo.upper()
+    se valore_testo.strip() == "":
+        ritorna Nessuno se ("INT" in t o "REAL" in t o "DOUBLE" in t o "DECIMAL" in t o "NUMERIC" in t o "FLOAT" in t) altrimenti ""
+    prova:
+        se "INT" in t:
+            ritorna int(valore_testo)
+        se "REAL" in t o "DOUBLE" in t o "FLOAT" in t o "DECIMAL" in t o "NUMERIC" in t:
+            ritorna float(valore_testo)
+    eccetto ValueError:
+        ritorna valore_testo
+    ritorna valore_testo
+
+
+# ---------------------------------------------------------------- connessione generica
+classe Connessione:
+    """Interfaccia comune a SQLite e MySQL."""
+    dialetto = ""
+    segnaposto = "?"
+    nome_visibile = ""
+
+    definisci __inizializza__(se_stesso, conn):
+        se_stesso.conn = conn
+        se_stesso.storia = []
+
+    # --- da specializzare
+    definisci citato(se_stesso, nome):
+        ritorna nome
+
+    definisci tipi(se_stesso):
+        ritorna []
+
+    definisci tabelle(se_stesso):
+        ritorna []
+
+    definisci colonne(se_stesso, tabella):
+        ritorna []
+
+    definisci _con_rowid(se_stesso, tabella):
+        ritorna Falso
+
+    definisci sql_crea_tabella(se_stesso, nome, colonne):
+        ritorna ""
+
+    # --- comuni
+    definisci chiudi(se_stesso):
+        prova:
+            se_stesso.conn.close()
+        eccetto Exception:
+            passa
+
+    definisci _eseguibile(se_stesso, sql, parametri=()):
+        """Esegue una sola istruzione e ritorna (cursore, colonne, righe, modificate). Gli errori diventano ErroreDatabase."""
+        prova:
+            cur = se_stesso.conn.cursor()
+            cur.execute(sql, tuple(parametri))
+        eccetto Exception come e:
+            solleva ErroreDatabase(testo(e)) da e
+        colonne = [d[0] per d in cur.description] se cur.description altrimenti []
+        righe = []
+        troncato = Falso
+        se colonne:
+            righe = cur.fetchmany(MASSIMO_RIGHE_RISULTATO + 1)
+            se lunghezza(righe) > MASSIMO_RIGHE_RISULTATO:
+                righe = righe[:MASSIMO_RIGHE_RISULTATO]
+                troncato = Vero
+        ritorna cur, colonne, [lista(r) per r in righe], cur.rowcount, troncato
+
+    definisci esegui_una(se_stesso, sql, parametri=()):
+        """Esegue UNA istruzione, conferma le modifiche e ritorna un Risultato."""
+        inizio = time.perf_counter()
+        cur, colonne, righe, modificate, troncato = se_stesso._eseguibile(sql, parametri)
+        se non colonne:
+            prova:
+                se_stesso.conn.commit()
+            eccetto Exception come e:
+                solleva ErroreDatabase(testo(e)) da e
+        ritorna Risultato(colonne, righe, modificate se non colonne altrimenti -1, time.perf_counter() - inizio, troncato, sql)
+
+    definisci esegui(se_stesso, sql):
+        """Esegue uno o più comandi separati da «;». Ritorna il Risultato dell'ultimo; si ferma al primo errore."""
+        istruzioni = dividi_istruzioni(sql)
+        se non istruzioni:
+            ritorna Risultato()
+        ultimo = Risultato()
+        totale = 0.0
+        per i, istr in enumera(istruzioni, 1):
+            prova:
+                ultimo = se_stesso.esegui_una(istr)
+            eccetto ErroreDatabase come e:
+                se lunghezza(istruzioni) > 1:
+                    solleva ErroreDatabase(f"Istruzione {i} di {lunghezza(istruzioni)}: {e}") da e
+                solleva
+            totale += ultimo.durata
+        ultimo.durata = totale
+        se_stesso.storia.append(sql.strip())
+        ritorna ultimo
+
+    definisci righe(se_stesso, tabella, limite=200, scostamento=0, filtro="", ordine=Nessuno, discendente=Falso):
+        """Le righe di una tabella: ritorna (nomi colonne, righe, totale righe, id righe). L'id serve per modificare."""
+        q = se_stesso.citato(tabella)
+        dove = f" WHERE ({filtro})" se filtro.strip() altrimenti ""
+        totale = se_stesso.esegui_una(f"SELECT COUNT(*) FROM {q}{dove}").righe[0][0]
+        nomi = [c.nome per c in se_stesso.colonne(tabella)]
+        con_id = se_stesso._con_rowid(tabella)
+        elenco = (f"rowid AS {se_stesso.citato('_rowid_')}, " se con_id altrimenti "") + "*"
+        sql = f"SELECT {elenco} FROM {q}{dove}"
+        se ordine e ordine in nomi:
+            sql += f" ORDER BY {se_stesso.citato(ordine)}" + (" DESC" se discendente altrimenti "")
+        sql += f" LIMIT {int(limite)} OFFSET {int(scostamento)}"
+        r = se_stesso.esegui_una(sql)
+        se con_id:
+            ritorna r.colonne[1:], [riga[1:] per riga in r.righe], totale, [riga[0] per riga in r.righe]
+        chiavi = [c.nome per c in se_stesso.colonne(tabella) se c.chiave]
+        ids = []
+        per riga in r.righe:
+            ids.append({k: riga[r.colonne.index(k)] per k in chiavi} se chiavi altrimenti Nessuno)
+        ritorna r.colonne, r.righe, totale, ids
+
+    definisci _dove_riga(se_stesso, tabella, id_riga):
+        """(testo WHERE, parametri) per individuare una riga: con rowid o con la chiave primaria."""
+        se isinstance(id_riga, dict):
+            se non id_riga:
+                solleva ErroreDatabase("La tabella non ha una chiave primaria: non posso individuare la riga.")
+            ritorna " AND ".join(f"{se_stesso.citato(k)} = {se_stesso.segnaposto}" per k in id_riga), lista(id_riga.values())
+        se id_riga è Nessuno:
+            solleva ErroreDatabase("La tabella non ha una chiave primaria: non posso individuare la riga.")
+        ritorna f"rowid = {se_stesso.segnaposto}", [id_riga]
+
+    definisci aggiorna_cella(se_stesso, tabella, id_riga, colonna, valore):
+        dove, par = se_stesso._dove_riga(tabella, id_riga)
+        se_stesso.esegui_una(f"UPDATE {se_stesso.citato(tabella)} SET {se_stesso.citato(colonna)} = {se_stesso.segnaposto} WHERE {dove}", [valore] + par)
+
+    definisci elimina_riga(se_stesso, tabella, id_riga):
+        dove, par = se_stesso._dove_riga(tabella, id_riga)
+        se_stesso.esegui_una(f"DELETE FROM {se_stesso.citato(tabella)} WHERE {dove}", par)
+
+    definisci inserisci_riga(se_stesso, tabella, valori):
+        """valori: {colonna: valore}. Con un dizionario vuoto inserisce una riga con i valori predefiniti."""
+        q = se_stesso.citato(tabella)
+        se valori:
+            nomi = ", ".join(se_stesso.citato(k) per k in valori)
+            segn = ", ".join([se_stesso.segnaposto] * lunghezza(valori))
+            se_stesso.esegui_una(f"INSERT INTO {q} ({nomi}) VALUES ({segn})", lista(valori.values()))
+        altrimenti:
+            se_stesso.esegui_una(f"INSERT INTO {q} DEFAULT VALUES" se se_stesso.dialetto == "sqlite" altrimenti f"INSERT INTO {q} () VALUES ()")
+
+    definisci crea_tabella(se_stesso, nome, colonne):
+        se_stesso.esegui(se_stesso.sql_crea_tabella(nome, colonne))
+
+    definisci elimina_tabella(se_stesso, nome, è_vista=Falso):
+        se_stesso.esegui(f"DROP {'VIEW' se è_vista altrimenti 'TABLE'} {se_stesso.citato(nome)}")
+
+    definisci aggiungi_colonna(se_stesso, tabella, c):
+        se_stesso.esegui(f"ALTER TABLE {se_stesso.citato(tabella)} ADD COLUMN {se_stesso._definizione_colonna(c, in_tabella=Falso)}")
+
+    definisci _definizione_colonna(se_stesso, c, in_tabella=Vero):
+        ritorna ""
+
+    definisci chiavi_esterne(se_stesso, tabella):
+        ritorna []
+
+    definisci esporta_csv(se_stesso, risultato, percorso, separatore=","):
+        con open(percorso, "w", encoding="utf-8-sig", newline="") come f:
+            w = csv.writer(f, delimiter=separatore)
+            w.writerow(risultato.colonne)
+            per r in risultato.righe:
+                w.writerow(["" se v è Nessuno altrimenti (a_testo(v) se isinstance(v, (bytes, bytearray)) altrimenti v) per v in r])
+
+    definisci importa_csv(se_stesso, tabella, percorso, separatore=","):
+        """Inserisce le righe di un CSV (la prima riga = nomi delle colonne) nella tabella. Ritorna quante."""
+        con open(percorso, encoding="utf-8-sig", newline="") come f:
+            lettore = csv.reader(f, delimiter=separatore)
+            intestazione = next(lettore, Nessuno)
+            se non intestazione:
+                ritorna 0
+            esistenti = {c.nome per c in se_stesso.colonne(tabella)}
+            mancanti = [c per c in intestazione se c non in esistenti]
+            se mancanti:
+                solleva ErroreDatabase("Colonne non presenti nella tabella: " + ", ".join(mancanti))
+            n = 0
+            q = se_stesso.citato(tabella)
+            nomi = ", ".join(se_stesso.citato(c) per c in intestazione)
+            segn = ", ".join([se_stesso.segnaposto] * lunghezza(intestazione))
+            per riga in lettore:
+                se non riga:
+                    continua
+                se_stesso.esegui_una(f"INSERT INTO {q} ({nomi}) VALUES ({segn})", [(v se v != "" altrimenti Nessuno) per v in riga[:lunghezza(intestazione)]])
+                n += 1
+            ritorna n
+
+
+# ---------------------------------------------------------------- SQLite
+classe ConnessioneSqlite(Connessione):
+    dialetto = "sqlite"
+    segnaposto = "?"
+
+    definisci __inizializza__(se_stesso, conn, percorso):
+        Connessione.__init__(se_stesso, conn)
+        se_stesso.percorso = percorso
+        se_stesso.nome_visibile = os.path.basename(percorso) se percorso != ":memory:" altrimenti "(in memoria)"
+
+    definisci citato(se_stesso, nome):
+        ritorna '"' + nome.replace('"', '""') + '"'
+
+    definisci tipi(se_stesso):
+        ritorna TIPI_SQLITE
+
+    definisci tabelle(se_stesso):
+        r = se_stesso.esegui_una("SELECT name, type FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY type DESC, name")
+        ritorna [(riga[0], "vista" se riga[1] == "view" altrimenti "tabella") per riga in r.righe]
+
+    definisci colonne(se_stesso, tabella):
+        r = se_stesso.esegui_una(f"PRAGMA table_info({se_stesso.citato(tabella)})")
+        risultato = []
+        per cid, nome, tipo, nonnullo, pred, pk in r.righe:
+            risultato.append(Colonna(nome, tipo o "", bool(nonnullo), "" se pred è Nessuno altrimenti testo(pred), pk > 0))
+        ritorna risultato
+
+    definisci _con_rowid(se_stesso, tabella):
+        prova:
+            se_stesso.esegui_una(f"SELECT rowid FROM {se_stesso.citato(tabella)} LIMIT 0")
+            ritorna Vero
+        eccetto ErroreDatabase:
+            ritorna Falso
+
+    definisci chiavi_esterne(se_stesso, tabella):
+        r = se_stesso.esegui_una(f"PRAGMA foreign_key_list({se_stesso.citato(tabella)})")
+        ritorna [(riga[3], riga[2], riga[4]) per riga in r.righe]            # (colonna, tabella riferita, colonna riferita)
+
+    definisci _definizione_colonna(se_stesso, c, in_tabella=Vero, solo_una_chiave=Falso):
+        parti = [se_stesso.citato(c.nome), c.tipo]
+        se c.chiave e solo_una_chiave:
+            parti.append("PRIMARY KEY")
+            se c.autoincremento e c.tipo.upper() == "INTEGER":
+                parti.append("AUTOINCREMENT")
+        se c.non_nullo e non (c.chiave e solo_una_chiave):
+            parti.append("NOT NULL")
+        se c.unica e non c.chiave:
+            parti.append("UNIQUE")
+        pred = valore_sql(c.predefinito)
+        se pred:
+            parti.append("DEFAULT " + pred)
+        ritorna " ".join(p per p in parti se p)
+
+    definisci sql_crea_tabella(se_stesso, nome, colonne):
+        se non nome.strip():
+            solleva ErroreDatabase("Dai un nome alla tabella.")
+        se non colonne:
+            solleva ErroreDatabase("Servono almeno una colonna.")
+        chiavi = [c per c in colonne se c.chiave]
+        una = lunghezza(chiavi) == 1
+        righe = ["  " + se_stesso._definizione_colonna(c, solo_una_chiave=una) per c in colonne]
+        se lunghezza(chiavi) > 1:
+            righe.append("  PRIMARY KEY (" + ", ".join(se_stesso.citato(c.nome) per c in chiavi) + ")")
+        ritorna f"CREATE TABLE {se_stesso.citato(nome)} (\n" + ",\n".join(righe) + "\n)"
+
+
+# ---------------------------------------------------------------- MySQL
+classe ConnessioneMysql(Connessione):
+    dialetto = "mysql"
+    segnaposto = "%s"
+
+    definisci __inizializza__(se_stesso, conn, descrizione):
+        Connessione.__init__(se_stesso, conn)
+        se_stesso.nome_visibile = descrizione
+
+    definisci citato(se_stesso, nome):
+        ritorna "`" + nome.replace("`", "``") + "`"
+
+    definisci tipi(se_stesso):
+        ritorna TIPI_MYSQL
+
+    definisci tabelle(se_stesso):
+        r = se_stesso.esegui_una("SHOW FULL TABLES")
+        ritorna [(riga[0], "vista" se riga[1] == "VIEW" altrimenti "tabella") per riga in r.righe]
+
+    definisci colonne(se_stesso, tabella):
+        r = se_stesso.esegui_una(f"SHOW COLUMNS FROM {se_stesso.citato(tabella)}")
+        risultato = []
+        per campo, tipo, nullo, chiave, pred, extra in [riga[:6] per riga in r.righe]:
+            risultato.append(Colonna(campo, a_testo(tipo) se isinstance(tipo, (bytes, bytearray)) altrimenti testo(tipo), nullo == "NO",
+                                     "" se pred è Nessuno altrimenti testo(pred), chiave == "PRI", chiave == "UNI", "auto_increment" in testo(extra)))
+        ritorna risultato
+
+    definisci chiavi_esterne(se_stesso, tabella):
+        prova:
+            r = se_stesso.esegui_una("SELECT COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                                     "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND REFERENCED_TABLE_NAME IS NOT NULL", [tabella])
+            ritorna [tuple(riga) per riga in r.righe]
+        eccetto ErroreDatabase:
+            ritorna []
+
+    definisci _definizione_colonna(se_stesso, c, in_tabella=Vero):
+        parti = [se_stesso.citato(c.nome), c.tipo]
+        se c.non_nullo o c.chiave:
+            parti.append("NOT NULL")
+        se c.autoincremento:
+            parti.append("AUTO_INCREMENT")
+        pred = valore_sql(c.predefinito)
+        se pred e non c.autoincremento:
+            parti.append("DEFAULT " + pred)
+        se c.unica e non c.chiave:
+            parti.append("UNIQUE")
+        ritorna " ".join(p per p in parti se p)
+
+    definisci sql_crea_tabella(se_stesso, nome, colonne):
+        se non nome.strip():
+            solleva ErroreDatabase("Dai un nome alla tabella.")
+        se non colonne:
+            solleva ErroreDatabase("Servono almeno una colonna.")
+        righe = ["  " + se_stesso._definizione_colonna(c) per c in colonne]
+        chiavi = [c per c in colonne se c.chiave]
+        se chiavi:
+            righe.append("  PRIMARY KEY (" + ", ".join(se_stesso.citato(c.nome) per c in chiavi) + ")")
+        ritorna f"CREATE TABLE {se_stesso.citato(nome)} (\n" + ",\n".join(righe) + "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+
+
+definisci apri_sqlite(percorso, crea=Vero):
+    """Apre (o crea, se crea=Vero) un database SQLite."""
+    se percorso != ":memory:" e non crea e non os.path.exists(percorso):
+        solleva ErroreDatabase(f"File non trovato: {percorso}")
+    prova:
+        conn = sqlite3.connect(percorso)
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("SELECT name FROM sqlite_master LIMIT 1")          # controlla che sia davvero un database
+    eccetto sqlite3.Error come e:
+        solleva ErroreDatabase(f"Non riesco ad aprire il database: {e}") da e
+    ritorna ConnessioneSqlite(conn, percorso)
+
+
+definisci driver_mysql():
+    """Il modulo pymysql, oppure DriverMancante con le istruzioni."""
+    prova:
+        importa pymysql
+        ritorna pymysql
+    eccetto ImportError come e:
+        solleva DriverMancante("Per MySQL serve il pacchetto «pymysql».\nInstallalo dal menu Database › Installa il driver MySQL, "
+                               "oppure con:  pip install pymysql") da e
+
+
+definisci apri_mysql(server, porta, utente, password, database="", carattere="utf8mb4"):
+    """Si collega a un server MySQL/MariaDB (serve pymysql). La password non viene salvata da nessuna parte."""
+    pm = driver_mysql()
+    prova:
+        conn = pm.connect(host=server, port=int(porta), user=utente, password=password, database=database o Nessuno, charset=carattere,
+                          connect_timeout=8, autocommit=Falso)
+    eccetto Exception come e:
+        solleva ErroreDatabase(f"Collegamento a MySQL non riuscito: {e}") da e
+    ritorna ConnessioneMysql(conn, f"{utente}@{server}" + (f"/{database}" se database altrimenti ""))
+
+
+definisci installa_driver_mysql(interprete=Nessuno):
+    """Installa pymysql con pip nell'interprete in uso. Ritorna (riuscito, testo dell'uscita)."""
+    importa subprocess
+    importa sys
+    comando = [interprete o sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "pymysql"]
+    prova:
+        r = subprocess.run(comando, capture_output=Vero, text=Vero, encoding="utf-8", errors="replace", timeout=300)
+    eccetto Exception come e:
+        ritorna Falso, testo(e)
+    ritorna r.returncode == 0, (r.stdout + "\n" + r.stderr).strip()[-1500:]

@@ -16,6 +16,7 @@ IGNORA = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_mo
 ESTENSIONI_CODICE = {".pit"}
 ESTENSIONI_IMMAGINE = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tif", ".tiff"}
 ESTENSIONI_TABELLA = {".csv", ".tsv"}
+ESTENSIONI_DATABASE = {".db", ".sqlite", ".sqlite3", ".db3"}
 ESTENSIONI_TESTO = {".txt", ".md", ".ini", ".cfg", ".toml", ".yaml", ".yml", ".xml", ".html",
                     ".css", ".js", ".log", ".bat", ".sh", ".sql", ".rst"}
 
@@ -160,6 +161,8 @@ definisci tipo_file(percorso):
         ritorna "immagine"
     se estensione in ESTENSIONI_TABELLA:
         ritorna "tabella"
+    se estensione in ESTENSIONI_DATABASE:
+        ritorna "database"
     se estensione in ESTENSIONI_TESTO o nome in ("readme", "license", "makefile"):
         ritorna "testo"
     # prova a capire se è testo
@@ -383,7 +386,7 @@ classe Progetto:
 
 # --------------------------------------------------------------------------- pannello
 ICONE = {"cartella": "📁", "codice": "🧩", "python": "🐍", "form": "🪟", "mattonelle": "🧱", "immagine": "🖼", "json": "{}",
-         "tabella": "▦", "testo": "📄", "binario": "▪"}
+         "tabella": "▦", "database": "🗄", "testo": "📄", "binario": "▪"}
 
 
 classe PannelloProgetto(tk.Frame):

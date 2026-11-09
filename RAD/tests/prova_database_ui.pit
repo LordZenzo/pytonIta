@@ -1,0 +1,161 @@
+"""Interfaccia dei database: elenco tabelle, dati, modifica di una cella, struttura, creazione tabella dal dialogo, SQL e storia."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+messagebox.showwarning = lambda *a, **k: Nessuno       # i messaggi bloccherebbero il test
+messagebox.showerror = lambda *a, **k: Nessuno
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto, tipo_file
+da rad importa database_modello come dbm
+da rad.database_ui importa VisoreDatabase, DialogoTabella, DialogoRiga, DialogoMysql, Griglia
+
+cartella = tempfile.mkdtemp()
+c = dbm.apri_sqlite(os.path.join(cartella, "negozio.db"))
+c.esegui("CREATE TABLE prodotti (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, prezzo REAL DEFAULT 1.5);"
+         "INSERT INTO prodotti (nome, prezzo) VALUES ('Penna', 1.2), ('Quaderno', 3), ('Zaino', 30);"
+         "CREATE VIEW cari AS SELECT nome FROM prodotti WHERE prezzo > 2")
+c.chiudi()
+stampa("tipo di file:", tipo_file(os.path.join(cartella, "negozio.db")), tipo_file("a.sqlite3"), tipo_file("a.txt"))
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+stampa("menu Database:", "Database" in [app.menu_barra.entrycget(i, "label") per i in intervallo(app.menu_barra.index("end") + 1) se app.menu_barra.type(i) == "cascade"],
+       "| comandi nella barra personalizzabile:", any(k.startswith("Database/") per k in app.comandi_menu))
+
+w = app.apri_file(os.path.join(cartella, "negozio.db"))
+radice.update()
+stampa("scheda aperta:", tipo(w).__name__, "|", app._titolo_scheda(w))
+stampa("elenco:", [w.elenco.item(i, "text") per i in w.elenco.get_children()])
+w.elenco.selection_set("prodotti")
+radice.update()
+stampa("dati:", w.griglia.colonne, lunghezza(w.griglia.righe), "righe |", w.info_pagina.cget("text"))
+stampa("struttura:", [r[0] + ":" + r[1] + (":PK" se r[2] altrimenti "") per r in w.griglia_struttura.righe], "| creazione:", "CREATE TABLE" in w.testo_creazione.get("1.0", "end"))
+
+# modifica di una cella: prezzo del Quaderno 3 -> 4.5
+w._modifica_cella(1, 2, "4.5")
+stampa("cella modificata:", w.griglia.righe[1], "| messaggio:", w.stato.cget("text"))
+w._modifica_cella(0, 1, "NULL")
+stampa("NOT NULL rifiutato:", w.stato.cget("text").startswith("NOT NULL") o "NOT NULL" in w.stato.cget("text"), "| riga invariata:", w.griglia.righe[0][1])
+
+# filtro, ordinamento e pagine
+w.var_filtro.set("prezzo > 2")
+w.applica_filtro()
+stampa("filtro:", [r[1] per r in w.griglia.righe], w.info_pagina.cget("text"))
+w._ordina("nome")
+w._ordina("nome")
+stampa("ordinato per nome decrescente:", [r[1] per r in w.griglia.righe])
+w.togli_filtro()
+w.elimina_righe = w.elimina_righe       # (l'eliminazione chiede conferma: qui la provo senza finestra)
+w.conn.elimina_riga("prodotti", w._ids[2])
+w.carica_dati()
+stampa("dopo l'eliminazione:", lunghezza(w.griglia.righe))
+
+# vista in sola lettura
+w.elenco.selection_set("cari")
+radice.update()
+stampa("vista:", w.è_vista, w.griglia.righe, "|", w.info_pagina.cget("text").endswith("sola lettura (nessuna chiave)"))
+w._modifica_cella(0, 0, "x")
+stampa("vista non modificabile:", w.stato.cget("text"))
+w.elenco.selection_set("prodotti")
+radice.update()
+
+# nuova tabella dal dialogo (senza mostrarlo: lo riempio come farebbe l'utente)
+d = DialogoTabella(radice, app.colori, w.conn)
+d.withdraw()
+d.var_nome.set("clienti")
+stampa("righe iniziali del dialogo:", [(v["nome"].get(), v["tipo"].get(), v["chiave"].get(), v["auto"].get()) per v in d.righe_colonne])
+d.righe_colonne[1]["nome"].set("nome")
+d.righe_colonne[1]["nn"].set(Vero)
+d.aggiungi_riga()
+d.righe_colonne[2]["nome"].set("citta")
+d.righe_colonne[2]["pred"].set("Roma")
+radice.update()
+anteprima = d.anteprima.get("1.0", "end")
+stampa("anteprima SQL:", "CREATE TABLE \"clienti\"" in anteprima, "DEFAULT 'Roma'" in anteprima, "AUTOINCREMENT" in anteprima)
+d._conferma()
+sql_dialogo = d.risultato
+stampa("il dialogo restituisce l'SQL:", sql_dialogo.startswith("CREATE TABLE"))
+w.conn.esegui(sql_dialogo)
+w.tabella = "clienti"
+w.aggiorna_elenco()
+stampa("elenco dopo la creazione:", [w.elenco.item(i, "text") per i in w.elenco.get_children()])
+d2 = DialogoTabella(radice, app.colori, w.conn)
+d2.withdraw()
+d2.var_nome.set("clienti")
+d2.righe_colonne[1]["nome"].set("id")        # nome doppio
+d2._conferma()
+stampa("nome doppio rifiutato:", d2.risultato è Nessuno o d2.risultato.startswith("CREATE"))
+d2.destroy()
+
+# colonna aggiunta
+dc = DialogoTabella(radice, app.colori, w.conn, "clienti", solo_colonna=Vero)
+dc.withdraw()
+dc.righe_colonne[0]["nome"].set("telefono")
+dc.righe_colonne[0]["tipo"].set("TEXT")
+dc._conferma()
+stampa("ALTER:", dc.risultato)
+w.conn.esegui(dc.risultato)
+w.tabella = "clienti"
+w.carica_struttura()
+stampa("colonne di clienti:", [r[0] per r in w.griglia_struttura.righe])
+
+# riga nuova dal dialogo
+dr = DialogoRiga(radice, app.colori, w.conn.colonne("clienti"))
+dr.withdraw()
+dr.variabili["nome"].set("Anna")
+dr._conferma()
+stampa("valori della riga:", dr.risultato)
+w.conn.inserisci_riga("clienti", dr.risultato)
+w.carica_dati()
+stampa("riga inserita con il valore predefinito:", w.griglia.righe)
+
+# SQL
+w.editor_sql.delete("1.0", "end")
+w.editor_sql.insert("1.0", "SELECT nome, prezzo FROM prodotti ORDER BY prezzo DESC; SELECT COUNT(*) AS n FROM clienti")
+w.esegui_sql()
+stampa("risultato SQL:", w.griglia_sql.colonne, w.griglia_sql.righe, "|", w.stato.cget("text").split(" in ")[0])
+w.editor_sql.delete("1.0", "end")
+w.editor_sql.insert("1.0", "SELEKT 1")
+w.esegui_sql()
+stampa("errore SQL mostrato:", w.griglia_sql.colonne, "|", w.stato.cget("text"))
+w.editor_sql.delete("1.0", "end")
+w.editor_sql.insert("1.0", "INSERT INTO clienti (nome) VALUES ('Luca')")
+w.esegui_sql()
+stampa("INSERT:", w.griglia_sql.righe, "| righe di clienti ora:", w.conn.esegui("SELECT COUNT(*) FROM clienti").righe)
+stampa("storia:", lunghezza(w.storia.cget("values")), "comandi")
+w.elenco.selection_set("prodotti")
+w._scrivi_select()
+stampa("doppio clic scrive il SELECT:", w.editor_sql.get("1.0", "end").strip())
+w.editor_sql.event_generate("<KeyRelease>", keysym="a")
+w.editor_sql.insert("end-1c", " pro")
+w.editor_sql.mark_set("insert", "end-1c")
+w.editor_sql.focus_force()
+radice.update()
+w.editor_sql.event_generate("<KeyRelease>", keysym="o")
+radice.update()
+stampa("suggerimenti:", w.stato.cget("text").startswith("Suggerimenti"))
+
+# esportazione e tooltip
+percorso_csv = os.path.join(cartella, "p.csv")
+w.conn.esporta_csv(w.conn.esegui("SELECT * FROM prodotti"), percorso_csv)
+stampa("csv:", lunghezza(open(percorso_csv, encoding="utf-8-sig").read().splitlines()), "righe")
+stampa("ogni pulsante del visore ha il suggerimento:", all(getattr(b, "_suggerimento", Nessuno) per b in w.pulsanti_barra))
+
+# MySQL: finestra di collegamento e messaggio chiaro senza server
+dm = DialogoMysql(radice, app.colori, cfg)
+dm.withdraw()
+stampa("dialogo MySQL:", dm.var_server.get(), dm.var_porta.get(), dm.var_utente.get())
+dm.destroy()
+stampa("scheda MySQL (visore con collegamento finto):", ".")
+finto = dbm.ConnessioneSqlite(dbm.sqlite3.connect(":memory:"), ":memory:")
+w2 = VisoreDatabase(app.schede_nb, "mem", app.colori, cfg, app, connessione=finto)
+stampa("database in memoria:", w2.titolo_scheda, "| vuoto:", w2.stato.cget("text"))
+w2.destroy()
+app.chiudi_scheda(w, chiedi=Falso)
+radice.destroy()

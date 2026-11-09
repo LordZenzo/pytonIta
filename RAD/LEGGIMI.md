@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.22
+
+- **Gestore di database** (menu *Database*): SQLite come predefinito (un file `.db` nel progetto, apribile anche con doppio clic) e MySQL/MariaDB come alternativa (driver `pymysql`, installabile dal programma; la password non viene salvata). Una scheda per database con l'elenco di tabelle e viste, **dati modificabili** (doppio clic sulla cella, filtro SQL, ordinamento, pagine, nuova riga, elimina righe), **struttura** delle tabelle, **creazione guidata di tabelle e colonne** con l'istruzione SQL in anteprima, **importazione ed esportazione CSV** e un **editor SQL** con più comandi, risultati in tabella, storia e suggerimenti.
+
 ## Novità della 1.21
 
 - **Esporta il progetto come Python** (*File → Esporta il progetto come Python…*): crea una cartella di `.py` che gira con un Python normale, senza pytonIta. Dentro ci sono anche `requirements.txt` con le librerie scientifiche usate (e le versioni provate), gli script `installa_librerie.bat` / `.sh` e un `LEGGIMI.txt` per chi riceve il programma. Il convertitore (`pitonit/tools/pit2py.py`) traduce parole chiave, funzioni predefinite, moduli italiani e i loro nomi, metodi e opzioni; non tocca i nomi scelti dall'utente. Verificato: le parole chiave coincidono con quelle lette da `pitonit` su tutto il codice del progetto e su 152 moduli della libreria standard (andata e ritorno).

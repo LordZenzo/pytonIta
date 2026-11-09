@@ -1,0 +1,101 @@
+"""Database: SQLite (crea tabella, righe, modifiche, SQL a più istruzioni, CSV) e generazione SQL per MySQL."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.database_modello importa (apri_sqlite, Colonna, ErroreDatabase, DriverMancante, dividi_istruzioni, valore_sql, da_testo, a_testo,
+                                 ConnessioneMysql, apri_mysql, TIPI_SQLITE, TIPI_MYSQL)
+
+cartella = tempfile.mkdtemp()
+c = apri_sqlite(os.path.join(cartella, "negozio.db"))
+stampa("database vuoto:", c.tabelle(), "| dialetto:", c.dialetto, "| tipi:", c.tipi() == TIPI_SQLITE)
+
+colonne = [Colonna("id", "INTEGER", chiave=Vero, autoincremento=Vero), Colonna("nome", "TEXT", non_nullo=Vero),
+           Colonna("prezzo", "REAL", predefinito="9.5"), Colonna("note", "TEXT", predefinito="nessuna", unica=Falso)]
+sql = c.sql_crea_tabella("prodotti", colonne)
+stampa(sql)
+c.crea_tabella("prodotti", colonne)
+stampa("tabelle:", c.tabelle())
+stampa("colonne:", [(k.nome, k.tipo, k.chiave, k.non_nullo, k.predefinito) per k in c.colonne("prodotti")])
+
+# inserimenti, anche con valori predefiniti
+c.inserisci_riga("prodotti", {"nome": "Penna", "prezzo": 1.2})
+c.inserisci_riga("prodotti", {"nome": "Quaderno"})
+c.esegui("INSERT INTO prodotti (nome, prezzo) VALUES ('Zaino', 30); INSERT INTO prodotti (nome, prezzo) VALUES ('O''Brien', 5)")
+nomi, righe, totale, ids = c.righe("prodotti")
+stampa("righe:", totale, nomi, righe[:2], ids)
+nomi, righe, totale, ids = c.righe("prodotti", filtro="prezzo > 5", ordine="prezzo", discendente=Vero)
+stampa("filtrate e ordinate:", [r[1] per r in righe], totale)
+nomi, righe, totale, ids = c.righe("prodotti", limite=2, scostamento=2)
+stampa("seconda pagina:", [r[1] per r in righe], totale)
+
+# modifica ed eliminazione di una riga
+nomi, righe, totale, ids = c.righe("prodotti", filtro="nome = 'Penna'")
+c.aggiorna_cella("prodotti", ids[0], "prezzo", da_testo("2.5", "REAL"))
+c.elimina_riga("prodotti", c.righe("prodotti", filtro="nome = 'Zaino'")[3][0])
+stampa("dopo modifica ed eliminazione:", c.esegui("SELECT nome, prezzo FROM prodotti ORDER BY id").righe)
+
+# SQL libero
+r = c.esegui("SELECT COUNT(*) AS n, SUM(prezzo) AS somma FROM prodotti")
+stampa("aggregati:", r.colonne, r.righe, "|", r.riassunto().split(" in ")[0])
+r = c.esegui("UPDATE prodotti SET prezzo = prezzo * 2 WHERE nome LIKE 'P%'")
+stampa("update:", r.modificate, "|", r.riassunto().split(" in ")[0])
+prova:
+    c.esegui("SELECT * FROM non_esiste")
+eccetto ErroreDatabase come e:
+    stampa("errore comprensibile:", e)
+prova:
+    c.esegui("SELECT 1; SELEKT 2")
+eccetto ErroreDatabase come e:
+    stampa("errore nel secondo comando:", str(e).startswith("Istruzione 2 di 2"))
+stampa("storia:", lunghezza(c.storia))
+
+# tabelle con chiave composta, colonna aggiunta, vista
+c.crea_tabella("righe_ordine", [Colonna("ordine", "INTEGER", chiave=Vero), Colonna("prodotto", "INTEGER", chiave=Vero), Colonna("q", "INTEGER", non_nullo=Vero, predefinito="1")])
+stampa("chiave composta:", [k.nome per k in c.colonne("righe_ordine") se k.chiave])
+c.aggiungi_colonna("righe_ordine", Colonna("sconto", "REAL"))
+c.esegui("CREATE VIEW costosi AS SELECT nome FROM prodotti WHERE prezzo > 4")
+stampa("elenco:", c.tabelle())
+nomi, righe, totale, ids = c.righe("costosi")
+stampa("vista:", righe, "| sola lettura:", ids[:1])
+c.elimina_tabella("costosi", è_vista=Vero)
+c.elimina_tabella("righe_ordine")
+stampa("dopo le eliminazioni:", [t per t, _ in c.tabelle()])
+
+# CSV
+percorso = os.path.join(cartella, "prodotti.csv")
+c.esporta_csv(c.esegui("SELECT id, nome, prezzo FROM prodotti ORDER BY id"), percorso)
+stampa("csv:", open(percorso, encoding="utf-8-sig").read().splitlines())
+c.crea_tabella("copia", [Colonna("id", "INTEGER", chiave=Vero), Colonna("nome", "TEXT"), Colonna("prezzo", "REAL")])
+stampa("importate:", c.importa_csv("copia", percorso), "righe;", c.esegui("SELECT COUNT(*) FROM copia").righe)
+c.chiudi()
+# il file resta e si riapre
+c2 = apri_sqlite(os.path.join(cartella, "negozio.db"), crea=Falso)
+stampa("riaperto:", [t per t, _ in c2.tabelle()], c2.esegui("SELECT COUNT(*) FROM prodotti").righe)
+c2.chiudi()
+prova:
+    apri_sqlite(os.path.join(cartella, "manca.db"), crea=Falso)
+eccetto ErroreDatabase come e:
+    stampa("file mancante:", str(e).startswith("File non trovato"))
+brutto = os.path.join(cartella, "testo.db")
+open(brutto, "w").write("non sono un database, sono solo testo, " * 10)
+prova:
+    apri_sqlite(brutto)
+eccetto ErroreDatabase come e:
+    stampa("file che non è un database:", "Non riesco ad aprire" in str(e))
+
+# utilità
+stampa("divisione SQL:", dividi_istruzioni("SELECT ';' ; -- commento; no\n UPDATE t SET a = 'x;y'; /* ; */ SELECT 2;"))
+stampa("valori predefiniti:", valore_sql("5"), valore_sql("abc"), valore_sql("it's"), valore_sql("null"), valore_sql("CURRENT_TIMESTAMP"), repr(valore_sql("")))
+stampa("celle:", a_testo(Nessuno), a_testo(b"abc"), a_testo(3), da_testo("NULL"), da_testo("7", "INTEGER"), da_testo("x", "INTEGER"), da_testo("", "REAL"), repr(da_testo("", "TEXT")))
+
+# MySQL: SQL generato (senza server) e messaggio se manca il driver
+class_finta = ConnessioneMysql(Nessuno, "prova@localhost")
+sql_my = class_finta.sql_crea_tabella("clienti", [Colonna("id", "INT", chiave=Vero, autoincremento=Vero), Colonna("nome", "VARCHAR(255)", non_nullo=Vero),
+                                                  Colonna("creato", "TIMESTAMP", predefinito="CURRENT_TIMESTAMP"), Colonna("mail", "VARCHAR(255)", unica=Vero)])
+stampa(sql_my)
+stampa("citazione e segnaposto MySQL:", class_finta.citato("a`b"), class_finta.segnaposto, "| tipi:", "VARCHAR(255)" in TIPI_MYSQL)
+prova:
+    apri_mysql("localhost", 3306, "x", "y", "z")
+eccetto DriverMancante come e:
+    stampa("senza pymysql:", "pymysql" in str(e))
+eccetto ErroreDatabase come errore_mysql:
+    stampa("pymysql presente, ma nessun server:", "MySQL" in str(errore_mysql))

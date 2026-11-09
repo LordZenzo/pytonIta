@@ -443,4 +443,7 @@ definisci crea_visore(genitore, percorso, colori, config, azioni):
         ritorna VisoreTabella(genitore, percorso, colori, config, azioni)
     se tipo_ == "binario":
         ritorna VisoreBinario(genitore, percorso, colori, config, azioni)
+    se tipo_ == "database":
+        da rad.database_ui importa VisoreDatabase          # importato qui: database_ui importa questo modulo
+        ritorna VisoreDatabase(genitore, percorso, colori, config, azioni)
     ritorna Nessuno

@@ -1,0 +1,36 @@
+"""Schermate del visore database e del dialogo di nuova tabella (controllo a occhio)."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa database_modello come dbm
+da rad.database_ui importa DialogoTabella
+
+uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+cartella = tempfile.mkdtemp()
+c = dbm.apri_sqlite(os.path.join(cartella, "negozio.db"))
+c.esegui("CREATE TABLE prodotti (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, prezzo REAL DEFAULT 1.5, categoria TEXT);"
+         "INSERT INTO prodotti (nome, prezzo, categoria) VALUES ('Penna', 1.2, 'cancelleria'), ('Quaderno', 3, 'cancelleria'), ('Zaino', 30, 'scuola'), ('Righello', 0.9, 'cancelleria');"
+         "CREATE TABLE clienti (id INTEGER PRIMARY KEY, nome TEXT, citta TEXT)")
+c.chiudi()
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice = tk.Tk()
+radice.geometry("1300x760+20+20")
+app = Applicazione(radice, cfg)
+w = app.apri_file(os.path.join(cartella, "negozio.db"))
+radice.update()
+w.elenco.selection_set("prodotti")
+radice.update()
+radice.after(900, lambda: (ImageGrab.grab(bbox=(20, 20, 1320, 780)).save(os.path.join(uscita, "database.png")), radice.quit()))
+radice.mainloop()
+d = DialogoTabella(radice, app.colori, w.conn)
+d.geometry("+60+60")
+d.var_nome.set("fornitori")
+d.righe_colonne[1]["nome"].set("ragione_sociale")
+d.righe_colonne[1]["nn"].set(Vero)
+d.update()
+d.after(900, lambda: (ImageGrab.grab(bbox=(60, 60, 940, 680)).save(os.path.join(uscita, "dialogo_tabella.png")), d.destroy(), radice.quit()))
+radice.mainloop()
+radice.destroy()

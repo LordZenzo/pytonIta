@@ -1,0 +1,822 @@
+"""Interfaccia dei database (SQLite e MySQL): elenco tabelle, dati modificabili, struttura e comandi SQL; creazione di tabelle."""
+importa os
+importa tkinter come tk
+da tkinter importa ttk, messagebox, filedialog
+
+da rad importa database_modello come dbm
+da rad.risorse importa VisoreBase
+da rad.dialoghi importa DialogoBase
+da rad.stile importa suggerisci
+
+
+# ======================================================================= griglia di dati
+classe Griglia(tk.Frame):
+    """Tabella a righe e colonne (Treeview) con scorrimento, ordinamento sull'intestazione e modifica di una cella con doppio clic."""
+
+    definisci __inizializza__(se_stesso, genitore, alla_modifica=Nessuno, sull_intestazione=Nessuno):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.alla_modifica = alla_modifica          # funzione(indice riga, indice colonna, nuovo testo)
+        se_stesso.sull_intestazione = sull_intestazione  # funzione(nome colonna)
+        se_stesso.albero = ttk.Treeview(se_stesso, show="headings", selectmode="extended")
+        by = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.albero.yview)
+        bx = ttk.Scrollbar(se_stesso, orient="horizontal", command=se_stesso.albero.xview)
+        se_stesso.albero.configure(yscrollcommand=by.set, xscrollcommand=bx.set)
+        se_stesso.grid_rowconfigure(0, weight=1)
+        se_stesso.grid_columnconfigure(0, weight=1)
+        se_stesso.albero.grid(row=0, column=0, sticky="nsew")
+        by.grid(row=0, column=1, sticky="ns")
+        bx.grid(row=1, column=0, sticky="ew")
+        se_stesso.colonne = []
+        se_stesso.righe = []
+        se_stesso._modifica = Nessuno
+        se_stesso.albero.bind("<Double-Button-1>", se_stesso._doppio_clic)
+
+    definisci imposta(se_stesso, colonne, righe):
+        se_stesso._chiudi_modifica()
+        se_stesso.colonne = lista(colonne)
+        se_stesso.righe = lista(righe)
+        se_stesso.albero.delete(*se_stesso.albero.get_children())
+        sigle = [f"c{i}" per i in intervallo(lunghezza(se_stesso.colonne))]
+        se_stesso.albero.configure(columns=sigle)
+        per i, nome in enumera(se_stesso.colonne):
+            se_stesso.albero.heading(sigle[i], text=nome, command=(lambda n=nome: se_stesso.sull_intestazione(n)) se se_stesso.sull_intestazione altrimenti "")
+            larghezza = min(260, max(70, 11 * max([lunghezza(nome)] + [lunghezza(dbm.a_testo(r[i])) per r in se_stesso.righe[:40] se i < lunghezza(r)])))
+            se_stesso.albero.column(sigle[i], width=larghezza, minwidth=50, stretch=Falso)
+        per n, r in enumera(se_stesso.righe):
+            se_stesso.albero.insert("", "end", iid=testo(n), values=[dbm.a_testo(v).replace("\n", " ↵ ") per v in r])
+
+    definisci selezionate(se_stesso):
+        ritorna [int(i) per i in se_stesso.albero.selection()]
+
+    definisci _doppio_clic(se_stesso, e):
+        se non se_stesso.alla_modifica o se_stesso.albero.identify_region(e.x, e.y) != "cell":
+            ritorna
+        riga = se_stesso.albero.identify_row(e.y)
+        colonna = se_stesso.albero.identify_column(e.x)
+        se non riga:
+            ritorna
+        c = int(colonna[1:]) - 1
+        riquadro = se_stesso.albero.bbox(riga, colonna)
+        se non riquadro:
+            ritorna
+        se_stesso._chiudi_modifica()
+        x, y, larghezza, altezza = riquadro
+        valore = se_stesso.righe[int(riga)][c]
+        campo = tk.Entry(se_stesso.albero, relief="flat", highlightthickness=1, font=("Segoe UI", 9))
+        campo.insert(0, dbm.a_testo(valore))
+        campo.select_range(0, "end")
+        campo.place(x=x, y=y, width=larghezza, height=altezza)
+        campo.focus_set()
+        se_stesso._modifica = campo
+        campo.bind("<Return>", lambda ev: se_stesso._conferma_modifica(int(riga), c))
+        campo.bind("<Escape>", lambda ev: se_stesso._chiudi_modifica())
+        campo.bind("<FocusOut>", lambda ev: se_stesso._chiudi_modifica())
+
+    definisci _conferma_modifica(se_stesso, riga, c):
+        campo = se_stesso._modifica
+        se campo è Nessuno:
+            ritorna
+        nuovo = campo.get()
+        se_stesso._chiudi_modifica()
+        se_stesso.alla_modifica(riga, c, nuovo)
+
+    definisci _chiudi_modifica(se_stesso):
+        se se_stesso._modifica è non Nessuno:
+            campo = se_stesso._modifica
+            se_stesso._modifica = Nessuno
+            prova:
+                campo.destroy()
+            eccetto tk.TclError:
+                passa
+
+
+# ======================================================================= creare una tabella / una colonna
+classe DialogoTabella(DialogoBase):
+    """Nuova tabella (o nuova colonna): per ogni colonna nome, tipo, chiave, NOT NULL, unica, auto-incremento e valore predefinito.
+    L'istruzione SQL che verrà eseguita si vede e si aggiorna mentre scrivi."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, conn, nome_tabella="", solo_colonna=Falso):
+        DialogoBase.__init__(se_stesso, genitore, "Nuova colonna" se solo_colonna altrimenti "Nuova tabella", colori, 880, 600)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.conn = conn
+        se_stesso.solo_colonna = solo_colonna
+        se_stesso.nome_tabella = nome_tabella
+        se_stesso.var_nome = tk.StringVar(value=nome_tabella)
+        se_stesso.righe_colonne = []
+        c = colori
+        se_stesso.grid_columnconfigure(0, weight=1)
+        se_stesso.grid_rowconfigure(2, weight=1)
+        alto = tk.Frame(se_stesso, background=c["pannello"])
+        alto.grid(row=0, column=0, sticky="we", padx=14, pady=(12, 4))
+        tk.Label(alto, text=("Tabella:" se solo_colonna altrimenti "Nome della tabella:"), background=c["pannello"], foreground=c["primo_piano"]).pack(side="left")
+        se_stesso.campo_nome = tk.Entry(alto, textvariable=se_stesso.var_nome, width=30, background=c["campo"], foreground=c["primo_piano"],
+                                        insertbackground=c["cursore"], relief="flat", highlightthickness=1, highlightbackground=c["bordo"],
+                                        highlightcolor=c["accento"], state=("disabled" se solo_colonna altrimenti "normal"))
+        se_stesso.campo_nome.pack(side="left", padx=8)
+        tk.Label(alto, text=f"Database: {conn.nome_visibile} ({'SQLite' se conn.dialetto == 'sqlite' altrimenti 'MySQL'})", background=c["pannello"],
+                 foreground=c["tenue"]).pack(side="right")
+        testata = tk.Frame(se_stesso, background=c["pannello"])
+        testata.grid(row=1, column=0, sticky="we", padx=14)
+        per testo_, larghezza, allineamento in (("Colonna", 20, "w"), ("Tipo", 12, "w"), ("PK", 8, "center"), ("Non nulla", 10, "center"),
+                                                 ("Unica", 10, "center"), ("Auto", 7, "center"), ("Valore predefinito", 18, "w")):
+            tk.Label(testata, text=testo_, width=larghezza, anchor=allineamento, background=c["pannello"], foreground=c["tenue"], font=("Segoe UI", 9)).pack(side="left", padx=2)
+        corpo = tk.Frame(se_stesso, background=c["pannello"])
+        corpo.grid(row=2, column=0, sticky="nsew", padx=14, pady=2)
+        se_stesso.tela = tk.Canvas(corpo, highlightthickness=0, background=c["pannello"], height=190)
+        barra = ttk.Scrollbar(corpo, orient="vertical", command=se_stesso.tela.yview)
+        se_stesso.tela.configure(yscrollcommand=barra.set)
+        barra.pack(side="right", fill="y")
+        se_stesso.tela.pack(side="left", fill="both", expand=Vero)
+        se_stesso.cornice = tk.Frame(se_stesso.tela, background=c["pannello"])
+        se_stesso.tela.create_window(0, 0, window=se_stesso.cornice, anchor="nw")
+        se_stesso.cornice.bind("<Configure>", lambda ev: se_stesso.tela.configure(scrollregion=se_stesso.tela.bbox("all")))
+        pulsanti = tk.Frame(se_stesso, background=c["pannello"])
+        pulsanti.grid(row=3, column=0, sticky="we", padx=14, pady=4)
+        se_stesso.pulsante_aggiungi = tk.Button(pulsanti, text="＋ Colonna", command=se_stesso.aggiungi_riga, relief="flat", background=c["pulsante"],
+                                                foreground=c["primo_piano"], padx=10)
+        se non solo_colonna:
+            se_stesso.pulsante_aggiungi.pack(side="left")
+            suggerisci(se_stesso.pulsante_aggiungi, "Aggiunge un'altra colonna alla tabella", c)
+        tk.Label(se_stesso, text="Istruzione SQL che verrà eseguita:", anchor="w", background=c["pannello"], foreground=c["tenue"]).grid(
+            row=4, column=0, sticky="we", padx=14, pady=(6, 0))
+        se_stesso.anteprima = tk.Text(se_stesso, height=7, font=("Consolas", 10), background=c["campo"], foreground=c["primo_piano"], relief="flat",
+                                      highlightthickness=1, highlightbackground=c["bordo"], state="disabled")
+        se_stesso.anteprima.grid(row=5, column=0, sticky="we", padx=14, pady=4)
+        fondo = tk.Frame(se_stesso, background=c["pannello"])
+        fondo.grid(row=6, column=0, sticky="e", padx=14, pady=10)
+        tk.Button(fondo, text="Annulla", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        suggerisci(tk.Button(fondo, text=("Aggiungi la colonna" se solo_colonna altrimenti "Crea la tabella"), command=se_stesso._conferma, background=c["accento"],
+                             foreground="#ffffff", relief="flat", padx=12), "Esegue l'istruzione e crea l'elemento nel database", c).pack(side="right", padx=4)
+        se_stesso.var_nome.trace_add("write", lambda *a: se_stesso._aggiorna_anteprima())
+        se non solo_colonna:
+            se_stesso.aggiungi_riga(Colonna_predefinita(conn, chiave=Vero))
+            se_stesso.aggiungi_riga()
+        altrimenti:
+            se_stesso.aggiungi_riga()
+        se_stesso.bind("<Escape>", lambda ev: se_stesso.destroy())
+        (se_stesso.campo_nome se non solo_colonna altrimenti se_stesso.righe_colonne[0]["nome_campo"]).focus_set()
+
+    definisci aggiungi_riga(se_stesso, colonna=Nessuno):
+        c = se_stesso.colori
+        riga = tk.Frame(se_stesso.cornice, background=c["pannello"])
+        riga.pack(fill="x", pady=1)
+        v = {"nome": tk.StringVar(value=colonna.nome se colonna altrimenti ""), "tipo": tk.StringVar(value=colonna.tipo se colonna altrimenti se_stesso.conn.tipi()[1]),
+             "chiave": tk.BooleanVar(value=colonna.chiave se colonna altrimenti Falso), "nn": tk.BooleanVar(value=colonna.non_nullo se colonna altrimenti Falso),
+             "unica": tk.BooleanVar(value=Falso), "auto": tk.BooleanVar(value=colonna.autoincremento se colonna altrimenti Falso),
+             "pred": tk.StringVar(value=colonna.predefinito se colonna altrimenti ""), "riga": riga}
+        e = tk.Entry(riga, textvariable=v["nome"], width=20, background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"], relief="flat",
+                     highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
+        e.pack(side="left", padx=2)
+        v["nome_campo"] = e
+        tipo_ = ttk.Combobox(riga, textvariable=v["tipo"], values=se_stesso.conn.tipi(), width=15)
+        tipo_.pack(side="left", padx=2)
+        per chiave, larghezza, aiuto in (("chiave", 4, "Chiave primaria: identifica ogni riga"), ("nn", 8, "Non nulla: il valore è obbligatorio"),
+                                         ("unica", 6, "Unica: due righe non possono avere lo stesso valore"),
+                                         ("auto", 5, "Auto-incremento: il numero cresce da solo (solo per chiavi intere)")):
+            cb = tk.Checkbutton(riga, variable=v[chiave], width=larghezza, background=c["pannello"], activebackground=c["pannello"], selectcolor=c["campo"],
+                                foreground=c["primo_piano"])
+            cb.pack(side="left", padx=2)
+            suggerisci(cb, aiuto, c)
+        p = tk.Entry(riga, textvariable=v["pred"], width=18, background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"], relief="flat",
+                     highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
+        p.pack(side="left", padx=2)
+        suggerisci(p, "Valore predefinito: un numero, un testo, NULL o CURRENT_TIMESTAMP", c)
+        se non se_stesso.solo_colonna:
+            togli = tk.Button(riga, text="✕", command=lambda r=v: se_stesso.togli_riga(r), relief="flat", background=c["pulsante"], foreground=c["primo_piano"], width=3)
+            togli.pack(side="left", padx=4)
+            suggerisci(togli, "Toglie questa colonna", c)
+        se_stesso.righe_colonne.append(v)
+        per chiave in ("nome", "tipo", "chiave", "nn", "unica", "auto", "pred"):
+            v[chiave].trace_add("write", lambda *a: se_stesso._aggiorna_anteprima())
+        se_stesso._aggiorna_anteprima()
+        se_stesso.tela.update_idletasks()
+        se_stesso.tela.yview_moveto(1.0)
+
+    definisci togli_riga(se_stesso, v):
+        v["riga"].destroy()
+        se_stesso.righe_colonne = [x per x in se_stesso.righe_colonne se x è non v]
+        se_stesso._aggiorna_anteprima()
+
+    definisci colonne_attuali(se_stesso):
+        risultato = []
+        per v in se_stesso.righe_colonne:
+            nome = v["nome"].get().strip()
+            se nome:
+                risultato.append(dbm.Colonna(nome, v["tipo"].get().strip(), v["nn"].get(), v["pred"].get(), v["chiave"].get(), v["unica"].get(), v["auto"].get()))
+        ritorna risultato
+
+    definisci sql(se_stesso):
+        """L'istruzione SQL descritta dalla finestra (può sollevare ErroreDatabase se manca qualcosa)."""
+        colonne = se_stesso.colonne_attuali()
+        se se_stesso.solo_colonna:
+            se non colonne:
+                solleva dbm.ErroreDatabase("Scrivi il nome della colonna.")
+            ritorna f"ALTER TABLE {se_stesso.conn.citato(se_stesso.nome_tabella)} ADD COLUMN {se_stesso.conn._definizione_colonna(colonne[0], in_tabella=Falso)}"
+        ritorna se_stesso.conn.sql_crea_tabella(se_stesso.var_nome.get().strip(), colonne)
+
+    definisci _aggiorna_anteprima(se_stesso):
+        prova:
+            testo_ = se_stesso.sql()
+        eccetto dbm.ErroreDatabase come errore:
+            testo_ = "-- " + testo(errore)
+        se_stesso.anteprima.configure(state="normal")
+        se_stesso.anteprima.delete("1.0", "end")
+        se_stesso.anteprima.insert("1.0", testo_)
+        se_stesso.anteprima.configure(state="disabled")
+
+    definisci _conferma(se_stesso):
+        prova:
+            sql_ = se_stesso.sql()
+            nomi = [c.nome.lower() per c in se_stesso.colonne_attuali()]
+            se lunghezza(set(nomi)) != lunghezza(nomi):
+                solleva dbm.ErroreDatabase("Due colonne hanno lo stesso nome.")
+            se se_stesso.conn.dialetto == "mysql" e any(c.autoincremento e non c.chiave per c in se_stesso.colonne_attuali()):
+                solleva dbm.ErroreDatabase("In MySQL una colonna auto-incremento deve essere la chiave primaria.")
+        eccetto dbm.ErroreDatabase come errore:
+            messagebox.showwarning("Controlla i dati", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.risultato = sql_
+        se_stesso.destroy()
+
+
+definisci Colonna_predefinita(conn, chiave=Falso):
+    """La prima colonna di una nuova tabella: «id», numero intero che cresce da solo."""
+    tipo_ = "INTEGER" se conn.dialetto == "sqlite" altrimenti "INT"
+    ritorna dbm.Colonna("id", tipo_, chiave=chiave, autoincremento=chiave, non_nullo=chiave)
+
+
+classe DialogoRiga(DialogoBase):
+    """Valori di una nuova riga: i campi lasciati vuoti prendono il valore predefinito della colonna."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, colonne):
+        DialogoBase.__init__(se_stesso, genitore, "Nuova riga", colori, 520, min(620, 150 + 36 * lunghezza(colonne)))
+        se_stesso.colonne = colonne
+        se_stesso.variabili = {}
+        se_stesso.grid_columnconfigure(1, weight=1)
+        n = 0
+        per c in colonne:
+            etichetta = c.nome + ("  (chiave)" se c.chiave altrimenti "") + ("  *" se c.non_nullo e non c.predefinito e non c.autoincremento altrimenti "")
+            v = tk.StringVar()
+            se_stesso.variabili[c.nome] = v
+            se_stesso.riga(f"{etichetta}\n{c.tipo}", se_stesso.campo(v, 32), n)
+            n += 1
+        tk.Label(se_stesso, text="Lascia vuoto per usare il valore predefinito.  *  = obbligatoria.  NULL = nessun valore.", background=colori["pannello"],
+                 foreground=colori["tenue"], anchor="w").grid(row=n, column=0, columnspan=2, sticky="we", padx=14)
+        se_stesso.pulsanti(n + 1, "Aggiungi la riga", se_stesso._conferma)
+
+    definisci _conferma(se_stesso):
+        valori = {}
+        per c in se_stesso.colonne:
+            t = se_stesso.variabili[c.nome].get()
+            se t != "":
+                valori[c.nome] = dbm.da_testo(t, c.tipo)
+        se_stesso.risultato = valori
+        se_stesso.destroy()
+
+
+classe DialogoMysql(DialogoBase):
+    """Collegamento a un server MySQL/MariaDB. La password non viene salvata."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, config, interprete=Nessuno):
+        DialogoBase.__init__(se_stesso, genitore, "Collegati a MySQL", colori, 480, 330)
+        se_stesso.config_ = config
+        se_stesso.interprete = interprete
+        se_stesso.var_server = tk.StringVar(value=config.ottieni("database.mysql.server", "localhost"))
+        se_stesso.var_porta = tk.StringVar(value=testo(config.ottieni("database.mysql.porta", 3306)))
+        se_stesso.var_utente = tk.StringVar(value=config.ottieni("database.mysql.utente", "root"))
+        se_stesso.var_password = tk.StringVar()
+        se_stesso.var_database = tk.StringVar(value=config.ottieni("database.mysql.database", ""))
+        se_stesso.grid_columnconfigure(1, weight=1)
+        se_stesso.riga("Server:", se_stesso.campo(se_stesso.var_server, 28), 0)
+        se_stesso.riga("Porta:", se_stesso.campo(se_stesso.var_porta, 8), 1)
+        se_stesso.riga("Utente:", se_stesso.campo(se_stesso.var_utente, 28), 2)
+        p = se_stesso.riga("Password:", se_stesso.campo(se_stesso.var_password, 28), 3)
+        p.configure(show="•")
+        se_stesso.riga("Database:", se_stesso.campo(se_stesso.var_database, 28), 4)
+        tk.Label(se_stesso, text="Il database può restare vuoto: lo scegli dopo con USE. La password non viene salvata.", background=colori["pannello"],
+                 foreground=colori["tenue"], anchor="w", wraplength=440, justify="left").grid(row=5, column=0, columnspan=2, sticky="we", padx=14)
+        se_stesso.pulsanti(6, "Collega", se_stesso._conferma)
+        p.focus_set()
+        se_stesso.bind("<Return>", lambda ev: se_stesso._conferma())
+
+    definisci _conferma(se_stesso):
+        prova:
+            conn = dbm.apri_mysql(se_stesso.var_server.get().strip(), se_stesso.var_porta.get().strip() o 3306, se_stesso.var_utente.get().strip(),
+                                  se_stesso.var_password.get(), se_stesso.var_database.get().strip())
+        eccetto dbm.DriverMancante come errore:
+            se messagebox.askyesno("Driver MySQL mancante", testo(errore) + "\n\nLo installo adesso?", parent=se_stesso):
+                se_stesso.configure(cursor="watch")
+                se_stesso.update_idletasks()
+                riuscito, uscita = dbm.installa_driver_mysql(se_stesso.interprete)
+                se_stesso.configure(cursor="")
+                se riuscito:
+                    importa importlib
+                    importlib.invalidate_caches()
+                    messagebox.showinfo("Driver installato", "Fatto: premi di nuovo «Collega».", parent=se_stesso)
+                altrimenti:
+                    messagebox.showerror("Installazione non riuscita", uscita, parent=se_stesso)
+            ritorna
+        eccetto dbm.ErroreDatabase come errore:
+            messagebox.showerror("MySQL", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.config_.imposta("database.mysql.server", se_stesso.var_server.get().strip(), notifica=Falso)
+        se_stesso.config_.imposta("database.mysql.porta", int(se_stesso.var_porta.get().strip() o 3306), notifica=Falso)
+        se_stesso.config_.imposta("database.mysql.utente", se_stesso.var_utente.get().strip(), notifica=Falso)
+        se_stesso.config_.imposta("database.mysql.database", se_stesso.var_database.get().strip(), notifica=Falso)
+        se_stesso.config_.salva()
+        se_stesso.risultato = conn
+        se_stesso.destroy()
+
+
+# ======================================================================= il visore
+classe VisoreDatabase(VisoreBase):
+    """Scheda di un database: a sinistra le tabelle, a destra Dati, Struttura e SQL."""
+    PAGINA = 200
+
+    definisci __inizializza__(se_stesso, genitore, percorso, colori, config, azioni, connessione=Nessuno):
+        VisoreBase.__init__(se_stesso, genitore, percorso, colori, config, azioni)
+        se connessione è Nessuno:
+            connessione = dbm.apri_sqlite(percorso, crea=Falso)
+        se_stesso.conn = connessione
+        se_stesso.titolo_scheda = ("🗄 " se connessione.dialetto == "sqlite" altrimenti "🐬 ") + connessione.nome_visibile
+        se_stesso.tabella = Nessuno
+        se_stesso.è_vista = Falso
+        se_stesso.pagina = 0
+        se_stesso.ordine = Nessuno
+        se_stesso.discendente = Falso
+        se_stesso._ids = []
+        se_stesso._colonne_dati = []
+        se_stesso._tipi_dati = {}
+        se_stesso._costruisci()
+        se_stesso.aggiorna_elenco()
+
+    # ------------------------------------------------------------------ struttura della scheda
+    definisci _costruisci(se_stesso):
+        c = se_stesso.colori
+        barra = tk.Frame(se_stesso)
+        barra.pack(fill="x", padx=8, pady=(6, 2))
+        se_stesso.barra = barra
+        se_stesso.etichetta = tk.Label(barra, anchor="w", font=("Segoe UI Semibold", 10),
+                                       text=("SQLite  ·  " se se_stesso.conn.dialetto == "sqlite" altrimenti "MySQL  ·  ") + se_stesso.conn.nome_visibile)
+        se_stesso.etichetta.pack(side="left")
+        se_stesso.pulsanti_barra = []
+        per testo_, comando, aiuto, lato in (("⟳ Aggiorna", se_stesso.aggiorna_elenco, "Rilegge l'elenco delle tabelle e i dati", "right"),
+                                             ("⇪ Importa CSV…", se_stesso.importa_csv, "Inserisce nella tabella scelta le righe di un file CSV", "right"),
+                                             ("＋ Nuova tabella…", se_stesso.nuova_tabella, "Crea una nuova tabella scegliendo le colonne", "right")):
+            b = tk.Button(barra, text=testo_, command=comando, relief="flat", padx=8)
+            b.pack(side=lato, padx=2)
+            suggerisci(b, aiuto, c)
+            se_stesso.pulsanti_barra.append(b)
+        se_stesso.stato = tk.Label(se_stesso, anchor="w")
+        se_stesso.stato.pack(side="bottom", fill="x", padx=8, pady=(0, 4))
+        se_stesso.corpo = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=5, borderwidth=0)
+        se_stesso.corpo.pack(fill="both", expand=Vero, padx=4, pady=4)
+        sinistra = tk.Frame(se_stesso.corpo)
+        se_stesso.elenco = ttk.Treeview(sinistra, show="tree", selectmode="browse")
+        se_stesso.elenco.pack(fill="both", expand=Vero)
+        se_stesso.elenco.bind("<<TreeviewSelect>>", se_stesso._scelta_tabella)
+        se_stesso.elenco.bind("<Button-3>", se_stesso._menu_tabella)
+        se_stesso.corpo.add(sinistra, minsize=150, width=210)
+        se_stesso.schede = ttk.Notebook(se_stesso.corpo)
+        se_stesso.corpo.add(se_stesso.schede, minsize=300, stretch="always")
+        se_stesso._scheda_dati()
+        se_stesso._scheda_struttura()
+        se_stesso._scheda_sql()
+
+    definisci _pulsante(se_stesso, genitore, testo_, comando, aiuto, lato="left"):
+        b = tk.Button(genitore, text=testo_, command=comando, relief="flat", padx=8)
+        b.pack(side=lato, padx=2)
+        suggerisci(b, aiuto, se_stesso.colori)
+        se_stesso.pulsanti_barra.append(b)
+        ritorna b
+
+    definisci _scheda_dati(se_stesso):
+        f = tk.Frame(se_stesso.schede)
+        se_stesso.schede.add(f, text="  Dati  ")
+        su = tk.Frame(f)
+        su.pack(fill="x", padx=6, pady=4)
+        se_stesso.cornici = [su]
+        l = tk.Label(su, text="Filtro (condizione SQL):")
+        l.pack(side="left")
+        se_stesso.etichette = [l]
+        se_stesso.var_filtro = tk.StringVar()
+        se_stesso.campo_filtro = tk.Entry(su, textvariable=se_stesso.var_filtro, relief="flat", highlightthickness=1, width=36)
+        se_stesso.campo_filtro.pack(side="left", padx=4)
+        se_stesso.campo_filtro.bind("<Return>", lambda e: se_stesso.applica_filtro())
+        suggerisci(se_stesso.campo_filtro, "Per esempio:  prezzo > 5 AND nome LIKE 'P%'   (Invio per applicare)", se_stesso.colori)
+        se_stesso._pulsante(su, "Applica", se_stesso.applica_filtro, "Mostra solo le righe che soddisfano la condizione")
+        se_stesso._pulsante(su, "✕", se_stesso.togli_filtro, "Toglie il filtro")
+        se_stesso._pulsante(su, "Esporta CSV…", se_stesso.esporta_dati, "Salva le righe mostrate (con il filtro) in un file CSV", "right")
+        se_stesso._pulsante(su, "Elimina righe", se_stesso.elimina_righe, "Elimina le righe selezionate", "right")
+        se_stesso._pulsante(su, "＋ Riga…", se_stesso.nuova_riga, "Aggiunge una riga inserendo i valori", "right")
+        se_stesso.griglia = Griglia(f, alla_modifica=se_stesso._modifica_cella, sull_intestazione=se_stesso._ordina)
+        se_stesso.griglia.pack(fill="both", expand=Vero, padx=6)
+        se_stesso.griglia.albero.bind("<Delete>", lambda e: se_stesso.elimina_righe())
+        giu = tk.Frame(f)
+        giu.pack(fill="x", padx=6, pady=4)
+        se_stesso.cornici.append(giu)
+        se_stesso._pulsante(giu, "◀", lambda: se_stesso._vai_pagina(-1), "Pagina precedente")
+        se_stesso._pulsante(giu, "▶", lambda: se_stesso._vai_pagina(1), "Pagina successiva")
+        se_stesso.info_pagina = tk.Label(giu, anchor="w", text="Scegli una tabella a sinistra")
+        se_stesso.info_pagina.pack(side="left", padx=8)
+        se_stesso.etichette.append(se_stesso.info_pagina)
+        suggerisci(se_stesso.griglia.albero, "Doppio clic su una cella per modificarla (Invio conferma, Esc annulla); clic sull'intestazione per ordinare",
+                   se_stesso.colori)
+
+    definisci _scheda_struttura(se_stesso):
+        f = tk.Frame(se_stesso.schede)
+        se_stesso.schede.add(f, text="  Struttura  ")
+        su = tk.Frame(f)
+        su.pack(fill="x", padx=6, pady=4)
+        se_stesso.cornici.append(su)
+        se_stesso._pulsante(su, "＋ Colonna…", se_stesso.nuova_colonna, "Aggiunge una colonna alla tabella")
+        se_stesso._pulsante(su, "Elimina la tabella…", se_stesso.elimina_tabella, "Elimina la tabella con tutti i suoi dati (non si può annullare)", "right")
+        se_stesso.griglia_struttura = Griglia(f)
+        se_stesso.griglia_struttura.pack(fill="both", expand=Vero, padx=6)
+        tk.Label(f, text="Istruzione che ha creato la tabella:", anchor="w").pack(fill="x", padx=6, pady=(6, 0))
+        se_stesso.etichette.append(f.winfo_children()[-1])
+        se_stesso.testo_creazione = tk.Text(f, height=8, font=("Consolas", 10), relief="flat", state="disabled", wrap="none")
+        se_stesso.testo_creazione.pack(fill="x", padx=6, pady=4)
+
+    definisci _scheda_sql(se_stesso):
+        f = tk.Frame(se_stesso.schede)
+        se_stesso.schede.add(f, text="  SQL  ")
+        su = tk.Frame(f)
+        su.pack(fill="x", padx=6, pady=4)
+        se_stesso.cornici.append(su)
+        se_stesso._pulsante(su, "▶ Esegui", se_stesso.esegui_sql, "Esegue il testo (o solo la parte selezionata)  ·  Ctrl+Invio o F5")
+        se_stesso._pulsante(su, "Pulisci", lambda: (se_stesso.editor_sql.delete("1.0", "end"), se_stesso.editor_sql.focus_set()), "Svuota l'editor")
+        se_stesso.var_storia = tk.StringVar()
+        se_stesso.storia = ttk.Combobox(su, textvariable=se_stesso.var_storia, state="readonly", width=34, values=[])
+        se_stesso.storia.pack(side="right", padx=4)
+        se_stesso.storia.bind("<<ComboboxSelected>>", se_stesso._dalla_storia)
+        suggerisci(se_stesso.storia, "Comandi già eseguiti: scegline uno per riscriverlo nell'editor", se_stesso.colori)
+        l = tk.Label(su, text="Storia:")
+        l.pack(side="right")
+        se_stesso.etichette.append(l)
+        se_stesso._pulsante(su, "Esporta CSV…", se_stesso.esporta_risultato, "Salva il risultato in un file CSV", "right")
+        se_stesso.editor_sql = tk.Text(f, height=9, font=("Consolas", 11), undo=Vero, relief="flat", wrap="none", highlightthickness=1)
+        se_stesso.editor_sql.pack(fill="x", padx=6)
+        se_stesso.editor_sql.bind("<Control-Return>", lambda e: (se_stesso.esegui_sql(), "break")[1])
+        se_stesso.editor_sql.bind("<F5>", lambda e: (se_stesso.esegui_sql(), "break")[1])
+        se_stesso.editor_sql.bind("<KeyRelease>", se_stesso._suggerisci_sql)
+        suggerisci(se_stesso.editor_sql, "Scrivi uno o più comandi SQL separati da «;».  Ctrl+Invio esegue.  Doppio clic su una tabella a sinistra scrive un SELECT.",
+                   se_stesso.colori)
+        se_stesso.griglia_sql = Griglia(f)
+        se_stesso.griglia_sql.pack(fill="both", expand=Vero, padx=6, pady=4)
+        se_stesso.risultato_sql = Nessuno
+        se_stesso.elenco.bind("<Double-Button-1>", se_stesso._scrivi_select)
+
+    # ------------------------------------------------------------------ colori
+    definisci applica_colori(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        per w in (se_stesso.barra, se_stesso.corpo, se_stesso.stato, *se_stesso.cornici):
+            w.configure(background=c["pannello"])
+        per w in (se_stesso.etichetta, se_stesso.stato, *se_stesso.etichette):
+            w.configure(background=c["pannello"], foreground=c["tenue"] se w è non se_stesso.etichetta altrimenti c["primo_piano"])
+        per b in se_stesso.pulsanti_barra:
+            b.configure(background=c["pulsante"], foreground=c["primo_piano"], activebackground=c["pulsante_attivo"])
+        per t in (se_stesso.editor_sql, se_stesso.testo_creazione):
+            t.configure(background=c["editor"], foreground=c["primo_piano"], insertbackground=c["cursore"], highlightbackground=c["bordo"])
+        se_stesso.campo_filtro.configure(background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"],
+                                         highlightbackground=c["bordo"], highlightcolor=c["accento"])
+        se_stesso.stato.configure(background=c["pannello"])
+        per nb_figlio in se_stesso.schede.winfo_children():
+            nb_figlio.configure(background=c["pannello"])
+
+    # ------------------------------------------------------------------ elenco tabelle
+    definisci aggiorna_elenco(se_stesso):
+        scelta = se_stesso.tabella
+        se_stesso.elenco.delete(*se_stesso.elenco.get_children())
+        prova:
+            voci = se_stesso.conn.tabelle()
+        eccetto dbm.ErroreDatabase come errore:
+            se_stesso._messaggio(testo(errore), Vero)
+            ritorna
+        per nome, tipo_ in voci:
+            se_stesso.elenco.insert("", "end", iid=nome, text=("▦  " se tipo_ == "tabella" altrimenti "◩  ") + nome, values=(tipo_,))
+        se_stesso._messaggio(f"{lunghezza(voci)} tabelle e viste." se voci altrimenti "Il database è vuoto: crea la prima tabella con «＋ Nuova tabella…».")
+        se scelta e se_stesso.elenco.exists(scelta):
+            se_stesso.elenco.selection_set(scelta)
+        altrimenti:
+            se_stesso.tabella = Nessuno
+            se_stesso._mostra_nessuna()
+
+    definisci _mostra_nessuna(se_stesso):
+        se_stesso.griglia.imposta([], [])
+        se_stesso.griglia_struttura.imposta([], [])
+        se_stesso._testo_creazione("")
+        se_stesso.info_pagina.configure(text="Scegli una tabella a sinistra")
+
+    definisci _messaggio(se_stesso, testo_, errore=Falso):
+        c = se_stesso.colori
+        se_stesso.stato.configure(text=testo_, foreground=(c["errore"] se errore altrimenti c["tenue"]))
+
+    definisci _scelta_tabella(se_stesso, e=Nessuno):
+        sel = se_stesso.elenco.selection()
+        se non sel:
+            ritorna
+        se_stesso.tabella = sel[0]
+        se_stesso.è_vista = se_stesso.elenco.item(sel[0], "values")[0] == "vista"
+        se_stesso.pagina = 0
+        se_stesso.ordine = Nessuno
+        se_stesso.discendente = Falso
+        se_stesso.var_filtro.set("")
+        se_stesso.carica_dati()
+        se_stesso.carica_struttura()
+
+    definisci _menu_tabella(se_stesso, e):
+        iid = se_stesso.elenco.identify_row(e.y)
+        se non iid:
+            ritorna
+        se_stesso.elenco.selection_set(iid)
+        m = tk.Menu(se_stesso, tearoff=0)
+        m.add_command(label="Mostra i dati", command=lambda: se_stesso.schede.select(0))
+        m.add_command(label="Mostra la struttura", command=lambda: se_stesso.schede.select(1))
+        m.add_command(label="Scrivi un SELECT nell'editor SQL", command=se_stesso._scrivi_select)
+        m.add_separator()
+        m.add_command(label="Elimina…", command=se_stesso.elimina_tabella)
+        m.tk_popup(e.x_root, e.y_root)
+
+    definisci _scrivi_select(se_stesso, e=Nessuno):
+        sel = se_stesso.elenco.selection()
+        se non sel:
+            ritorna
+        se_stesso.editor_sql.delete("1.0", "end")
+        se_stesso.editor_sql.insert("1.0", f"SELECT * FROM {se_stesso.conn.citato(sel[0])} LIMIT 100;")
+        se_stesso.schede.select(2)
+        se_stesso.editor_sql.focus_set()
+        ritorna "break"
+
+    # ------------------------------------------------------------------ dati
+    definisci carica_dati(se_stesso):
+        se non se_stesso.tabella:
+            ritorna
+        prova:
+            nomi, righe, totale, ids = se_stesso.conn.righe(se_stesso.tabella, se_stesso.PAGINA, se_stesso.pagina * se_stesso.PAGINA, se_stesso.var_filtro.get(),
+                                                            se_stesso.ordine, se_stesso.discendente)
+            colonne = se_stesso.conn.colonne(se_stesso.tabella)
+        eccetto dbm.ErroreDatabase come errore:
+            se_stesso._messaggio(testo(errore), Vero)
+            se_stesso.griglia.imposta([], [])
+            ritorna
+        se_stesso._ids = ids
+        se_stesso._colonne_dati = nomi
+        se_stesso._tipi_dati = {k.nome: k.tipo per k in colonne}
+        se_stesso.griglia.imposta(nomi, righe)
+        a = se_stesso.pagina * se_stesso.PAGINA
+        se_stesso.info_pagina.configure(text=(f"righe {a + 1}–{a + lunghezza(righe)} di {totale}" se righe altrimenti f"0 righe di {totale}")
+                                        + ("   ·   sola lettura (nessuna chiave)" se (se_stesso.è_vista o (righe e ids[0] è Nessuno)) altrimenti ""))
+        se_stesso._totale = totale
+        se_stesso._messaggio("")
+
+    definisci _vai_pagina(se_stesso, passo):
+        se non se_stesso.tabella:
+            ritorna
+        nuova = se_stesso.pagina + passo
+        se nuova < 0 o nuova * se_stesso.PAGINA >= max(1, getattr(se_stesso, "_totale", 0)):
+            ritorna
+        se_stesso.pagina = nuova
+        se_stesso.carica_dati()
+
+    definisci applica_filtro(se_stesso):
+        se_stesso.pagina = 0
+        se_stesso.carica_dati()
+
+    definisci togli_filtro(se_stesso):
+        se_stesso.var_filtro.set("")
+        se_stesso.applica_filtro()
+
+    definisci _ordina(se_stesso, nome):
+        se se_stesso.ordine == nome:
+            se_stesso.discendente = non se_stesso.discendente
+        altrimenti:
+            se_stesso.ordine = nome
+            se_stesso.discendente = Falso
+        se_stesso.pagina = 0
+        se_stesso.carica_dati()
+
+    definisci _modifica_cella(se_stesso, riga, c, nuovo_testo):
+        se se_stesso.è_vista:
+            se_stesso._messaggio("Una vista è in sola lettura.", Vero)
+            ritorna
+        nome = se_stesso._colonne_dati[c]
+        valore = dbm.da_testo(nuovo_testo, se_stesso._tipi_dati.get(nome, ""))
+        prova:
+            se_stesso.conn.aggiorna_cella(se_stesso.tabella, se_stesso._ids[riga], nome, valore)
+        eccetto dbm.ErroreDatabase come errore:
+            se_stesso._messaggio(testo(errore), Vero)
+            messagebox.showwarning("Modifica non riuscita", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.carica_dati()
+        se_stesso._messaggio(f"Salvato: {nome} = {dbm.a_testo(valore)}")
+
+    definisci nuova_riga(se_stesso):
+        se non se_stesso.tabella o se_stesso.è_vista:
+            se_stesso._messaggio("Scegli una tabella (le viste sono in sola lettura).", Vero)
+            ritorna
+        colonne = se_stesso.conn.colonne(se_stesso.tabella)
+        valori = DialogoRiga(se_stesso.winfo_toplevel(), se_stesso.colori, colonne).mostra()
+        se valori è Nessuno:
+            ritorna
+        prova:
+            se_stesso.conn.inserisci_riga(se_stesso.tabella, valori)
+        eccetto dbm.ErroreDatabase come errore:
+            messagebox.showwarning("Riga non aggiunta", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso._totale = getattr(se_stesso, "_totale", 0) + 1
+        se_stesso.pagina = max(0, (se_stesso._totale - 1) // se_stesso.PAGINA)
+        se_stesso.carica_dati()
+        se_stesso._messaggio("Riga aggiunta.")
+
+    definisci elimina_righe(se_stesso):
+        scelte = se_stesso.griglia.selezionate()
+        se non scelte o non se_stesso.tabella o se_stesso.è_vista:
+            ritorna
+        se non messagebox.askyesno("Elimina righe", f"Elimino {lunghezza(scelte)} righe da «{se_stesso.tabella}»? Non si può annullare.", parent=se_stesso):
+            ritorna
+        prova:
+            per i in scelte:
+                se_stesso.conn.elimina_riga(se_stesso.tabella, se_stesso._ids[i])
+        eccetto dbm.ErroreDatabase come errore:
+            messagebox.showwarning("Eliminazione non riuscita", testo(errore), parent=se_stesso)
+        se_stesso.carica_dati()
+
+    definisci esporta_dati(se_stesso):
+        se non se_stesso.tabella:
+            ritorna
+        percorso = filedialog.asksaveasfilename(parent=se_stesso, defaultextension=".csv", initialfile=se_stesso.tabella + ".csv",
+                                                filetypes=[("File CSV", "*.csv"), ("Tutti i file", "*.*")])
+        se non percorso:
+            ritorna
+        filtro = se_stesso.var_filtro.get().strip()
+        prova:
+            r = se_stesso.conn.esegui_una(f"SELECT * FROM {se_stesso.conn.citato(se_stesso.tabella)}" + (f" WHERE ({filtro})" se filtro altrimenti ""))
+            se_stesso.conn.esporta_csv(r, percorso)
+        eccetto (dbm.ErroreDatabase, OSError) come errore:
+            messagebox.showerror("Esportazione non riuscita", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso._messaggio(f"Esportate {lunghezza(r.righe)} righe in {percorso}" + (" (limite raggiunto)" se r.troncato altrimenti ""))
+
+    definisci importa_csv(se_stesso):
+        se non se_stesso.tabella o se_stesso.è_vista:
+            se_stesso._messaggio("Scegli prima la tabella in cui importare.", Vero)
+            ritorna
+        percorso = filedialog.askopenfilename(parent=se_stesso, filetypes=[("File CSV", "*.csv"), ("Tutti i file", "*.*")])
+        se non percorso:
+            ritorna
+        prova:
+            n = se_stesso.conn.importa_csv(se_stesso.tabella, percorso)
+        eccetto (dbm.ErroreDatabase, OSError) come errore:
+            messagebox.showerror("Importazione non riuscita", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.carica_dati()
+        se_stesso._messaggio(f"Importate {n} righe in «{se_stesso.tabella}».")
+
+    # ------------------------------------------------------------------ struttura
+    definisci _testo_creazione(se_stesso, t):
+        se_stesso.testo_creazione.configure(state="normal")
+        se_stesso.testo_creazione.delete("1.0", "end")
+        se_stesso.testo_creazione.insert("1.0", t)
+        se_stesso.testo_creazione.configure(state="disabled")
+
+    definisci carica_struttura(se_stesso):
+        se non se_stesso.tabella:
+            ritorna
+        prova:
+            colonne = se_stesso.conn.colonne(se_stesso.tabella)
+            esterne = {c: (t, k) per c, t, k in se_stesso.conn.chiavi_esterne(se_stesso.tabella)}
+            se se_stesso.conn.dialetto == "sqlite":
+                r = se_stesso.conn.esegui_una("SELECT sql FROM sqlite_master WHERE name = ?", [se_stesso.tabella])
+                creazione = r.righe[0][0] se r.righe altrimenti ""
+            altrimenti:
+                r = se_stesso.conn.esegui_una(f"SHOW CREATE TABLE {se_stesso.conn.citato(se_stesso.tabella)}")
+                creazione = r.righe[0][1] se r.righe altrimenti ""
+        eccetto dbm.ErroreDatabase come errore:
+            se_stesso._messaggio(testo(errore), Vero)
+            ritorna
+        se_stesso.griglia_struttura.imposta(
+            ["Colonna", "Tipo", "Chiave", "Non nulla", "Predefinito", "Riferisce"],
+            [[k.nome, k.tipo, "PK" se k.chiave altrimenti "", "sì" se k.non_nullo altrimenti "", k.predefinito,
+              (f"{esterne[k.nome][0]}.{esterne[k.nome][1]}" se k.nome in esterne altrimenti "")] per k in colonne])
+        se_stesso._testo_creazione(testo(creazione))
+
+    definisci nuova_tabella(se_stesso):
+        sql = DialogoTabella(se_stesso.winfo_toplevel(), se_stesso.colori, se_stesso.conn).mostra()
+        se non sql:
+            ritorna
+        prova:
+            se_stesso.conn.esegui(sql)
+        eccetto dbm.ErroreDatabase come errore:
+            messagebox.showerror("Tabella non creata", testo(errore), parent=se_stesso)
+            ritorna
+        nome = sql.split("(", 1)[0].replace("CREATE TABLE", "").strip().strip('"`')
+        se_stesso.tabella = nome
+        se_stesso.aggiorna_elenco()
+        se_stesso._messaggio(f"Tabella «{nome}» creata.")
+
+    definisci nuova_colonna(se_stesso):
+        se non se_stesso.tabella o se_stesso.è_vista:
+            ritorna
+        sql = DialogoTabella(se_stesso.winfo_toplevel(), se_stesso.colori, se_stesso.conn, se_stesso.tabella, solo_colonna=Vero).mostra()
+        se non sql:
+            ritorna
+        prova:
+            se_stesso.conn.esegui(sql)
+        eccetto dbm.ErroreDatabase come errore:
+            messagebox.showerror("Colonna non aggiunta", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.carica_struttura()
+        se_stesso.carica_dati()
+
+    definisci elimina_tabella(se_stesso):
+        se non se_stesso.tabella:
+            ritorna
+        tipo_ = "la vista" se se_stesso.è_vista altrimenti "la tabella"
+        se non messagebox.askyesno("Elimina", f"Elimino {tipo_} «{se_stesso.tabella}» con tutti i suoi dati? Non si può annullare.", parent=se_stesso, icon="warning"):
+            ritorna
+        prova:
+            se_stesso.conn.elimina_tabella(se_stesso.tabella, se_stesso.è_vista)
+        eccetto dbm.ErroreDatabase come errore:
+            messagebox.showerror("Eliminazione non riuscita", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.tabella = Nessuno
+        se_stesso.aggiorna_elenco()
+
+    # ------------------------------------------------------------------ SQL
+    definisci esegui_sql(se_stesso):
+        testo_sql = se_stesso.editor_sql.get("sel.first", "sel.last") se se_stesso.editor_sql.tag_ranges("sel") altrimenti se_stesso.editor_sql.get("1.0", "end")
+        se non testo_sql.strip():
+            ritorna
+        prova:
+            r = se_stesso.conn.esegui(testo_sql)
+        eccetto dbm.ErroreDatabase come errore:
+            se_stesso._messaggio(testo(errore), Vero)
+            se_stesso.griglia_sql.imposta(["Errore"], [[testo(errore)]])
+            ritorna
+        se_stesso.risultato_sql = r
+        se_stesso.griglia_sql.imposta(r.colonne, r.righe) se r.colonne altrimenti se_stesso.griglia_sql.imposta(["Esito"], [[r.riassunto()]])
+        se_stesso._messaggio(r.riassunto())
+        se_stesso._aggiorna_storia()
+        # un comando può aver cambiato le tabelle
+        se non r.colonne:
+            scelta = se_stesso.tabella
+            se_stesso.aggiorna_elenco()
+            se scelta e se_stesso.elenco.exists(scelta):
+                se_stesso.tabella = scelta
+                se_stesso.carica_dati()
+                se_stesso.carica_struttura()
+
+    definisci _aggiorna_storia(se_stesso):
+        voci = []
+        per s in reversed(se_stesso.conn.storia[-30:]):
+            riga = " ".join(s.split())
+            se riga[:70] non in [v[:70] per v in voci]:
+                voci.append(riga[:120])
+        se_stesso.storia.configure(values=voci)
+
+    definisci _dalla_storia(se_stesso, e=Nessuno):
+        scelto = se_stesso.var_storia.get()
+        per s in reversed(se_stesso.conn.storia):
+            se " ".join(s.split()).startswith(scelto[:70]):
+                se_stesso.editor_sql.delete("1.0", "end")
+                se_stesso.editor_sql.insert("1.0", s)
+                interrompi
+
+    definisci _suggerisci_sql(se_stesso, e):
+        """Suggerimento leggero: mostra nella barra di stato le tabelle o le colonne che iniziano come la parola scritta."""
+        se e.keysym in ("Return", "Control_L", "Control_R", "Shift_L", "Shift_R", "BackSpace", "Escape", "F5"):
+            ritorna
+        riga = se_stesso.editor_sql.get("insert linestart", "insert")
+        parola = riga.replace("(", " ").replace(",", " ").split(" ")[-1].strip('"`')
+        se lunghezza(parola) < 2:
+            ritorna
+        candidati = [t per t, _ in se_stesso.conn.tabelle() se t.lower().startswith(parola.lower())]
+        se se_stesso.tabella:
+            candidati += [k.nome per k in se_stesso.conn.colonne(se_stesso.tabella) se k.nome.lower().startswith(parola.lower())]
+        candidati += [p per p in dbm.PAROLE_SQL se p.lower().startswith(parola.lower())]
+        se candidati:
+            se_stesso._messaggio("Suggerimenti: " + "   ".join(candidati[:8]))
+
+    definisci esporta_risultato(se_stesso):
+        r = se_stesso.risultato_sql
+        se r è Nessuno o non r.colonne:
+            se_stesso._messaggio("Esegui prima un SELECT: il risultato si può esportare.", Vero)
+            ritorna
+        percorso = filedialog.asksaveasfilename(parent=se_stesso, defaultextension=".csv", filetypes=[("File CSV", "*.csv"), ("Tutti i file", "*.*")])
+        se non percorso:
+            ritorna
+        prova:
+            se_stesso.conn.esporta_csv(r, percorso)
+        eccetto OSError come errore:
+            messagebox.showerror("Esportazione non riuscita", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso._messaggio(f"Esportate {lunghezza(r.righe)} righe in {percorso}")
+
+    # ------------------------------------------------------------------ chiusura
+    definisci chiudi(se_stesso):
+        se_stesso.conn.chiudi()
+
+    definisci contenuto(se_stesso):
+        ritorna se_stesso.editor_sql.get("1.0", "end")
