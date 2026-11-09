@@ -1,0 +1,24 @@
+"""Orologio digitale: il Timer richiama «aggiorna» ogni secondo."""
+importa time
+importa interfaccia come tk
+da orologio_ui importa OrologioUI
+
+GIORNI = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
+MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
+
+
+classe Orologio(OrologioUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        se_stesso.aggiorna()
+
+    definisci aggiorna(se_stesso, evento=Nessuno):
+        adesso = time.localtime()
+        se_stesso.etichetta_ora.configure(text=time.strftime("%H:%M:%S", adesso))
+        se_stesso.etichetta_data.configure(text=f"{GIORNI[adesso.tm_wday]} {adesso.tm_mday} {MESI[adesso.tm_mon - 1]} {adesso.tm_year}")
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Orologio(radice)
+    radice.ciclo_principale()

@@ -1,0 +1,132 @@
+"""Esercizi guidati: le soluzioni passano, il codice iniziale no, gli errori sono spiegati bene, i progressi e il report della classe funzionano."""
+importa sys, os, tempfile, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa esercizi
+da rad.config importa Configurazione
+
+PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
+lista_e = esercizi.carica_esercizi()
+stampa("esercizi:", lunghezza(lista_e), "| livelli:", sorted({e["livello"] per e in lista_e}), "| argomenti:", lunghezza({e["argomento"] per e in lista_e}))
+stampa("campi completi:", all(e["consegna"] e e["prove"] e e["soluzione"] e e["iniziale"] per e in lista_e), "| id unici:", lunghezza({e["id"] per e in lista_e}) == lunghezza(lista_e))
+cartella = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella, "c.json"))
+
+# ogni soluzione supera tutte le prove; il codice iniziale (da completare) no
+non_passano = []
+iniziale_passa = []
+per e in lista_e:
+    p = os.path.join(cartella, "sol_" + e["id"] + ".pit")
+    open(p, "w", encoding="utf-8").write(e["soluzione"])
+    r = esercizi.controlla(p, e, PITONIT)
+    se non r["ok"]:
+        non_passano.append((e["id"], r["messaggio"][:120]))
+    q = esercizi.file_dell_esercizio(e, cartella)
+    r2 = esercizi.controlla(q, e, PITONIT)
+    se r2["ok"]:
+        iniziale_passa.append(e["id"])
+stampa("soluzioni che non passano:", non_passano)
+stampa("esercizi già risolti dal solo codice iniziale:", iniziale_passa)
+e0 = lista_e[0]
+stampa("file creato per l'allievo:", os.path.relpath(esercizi.file_dell_esercizio(e0, cartella), cartella), "|", open(esercizi.file_dell_esercizio(e0, cartella), encoding="utf-8").read()[:60].splitlines()[0])
+
+# messaggi
+e = [x per x in lista_e se x["id"] == "somma_due"][0]
+p = os.path.join(cartella, "sbagliato.pit")
+open(p, "w", encoding="utf-8").write('a = intero(leggi(""))\nb = intero(leggi(""))\nstampa(a - b)\n')
+r = esercizi.controlla(p, e, PITONIT)
+stampa("risposta sbagliata:", r["ok"], r["superate"], "su", r["totale"], "|", r["messaggio"].splitlines()[0])
+open(p, "w", encoding="utf-8").write('a = intero(leggi(""))\nstampa(a + c)\n')
+r = esercizi.controlla(p, e, PITONIT)
+stampa("errore nel programma:", r["ok"], "|", r["messaggio"].splitlines()[0], "|", r["messaggio"].strip().splitlines()[-1])
+open(p, "w", encoding="utf-8").write('mentre Vero:\n    passa\n')
+r = esercizi.controlla(p, e, PITONIT, timeout=2)
+stampa("ciclo infinito:", r["ok"], "|", r["messaggio"])
+open(p, "w", encoding="utf-8").write('a = intero(leggi(""))\nb = intero(leggi(""))\nstampa(a + b)   \nstampa("")\n')
+stampa("spazi e righe vuote finali non contano:", esercizi.controlla(p, e, PITONIT)["ok"])
+
+# progressi
+stampa("progressi all'inizio:", esercizi.riassunto_progressi(cfg, lista_e))
+v = esercizi.registra_tentativo(cfg, "somma_due", Falso)
+v = esercizi.registra_tentativo(cfg, "somma_due", Vero)
+esercizi.registra_tentativo(cfg, "ciao_mondo", Vero)
+stampa("progressi dopo due tentativi:", v["tentativi"], bool(v["completato"]), esercizi.riassunto_progressi(cfg, lista_e), esercizi.completato(cfg, "somma_due"), esercizi.completato(cfg, "palindromo"))
+v2 = esercizi.registra_tentativo(cfg, "somma_due", Vero)
+stampa("la data del primo successo resta:", v2["completato"] == v["completato"], v2["tentativi"])
+cfg2 = Configurazione(cfg.file)
+stampa("si salvano su disco:", esercizi.riassunto_progressi(cfg2, lista_e))
+
+# classe: esportazione e report
+f1 = os.path.join(cartella, "anna.json")
+f2 = os.path.join(cartella, "luca.json")
+d1 = esercizi.esporta_progressi(cfg, f1, "Anna Rossi", lista_e)
+cfg3 = Configurazione(os.path.join(cartella, "c3.json"))
+esercizi.registra_tentativo(cfg3, "ciao_mondo", Vero)
+esercizi.registra_tentativo(cfg3, "somma_due", Falso)
+esercizi.esporta_progressi(cfg3, f2, "Luca Bianchi", lista_e)
+stampa("file dei progressi:", d1["allievo"], d1["totale"], lunghezza(d1["esercizi"]), d1["esercizi"]["somma_due"]["tentativi"])
+rap = esercizi.report_classe([f1, f2, os.path.join(cartella, "non_esiste.json")])
+stampa("report:", [(a["allievo"], a["fatti"], a["tentativi"]) per a in rap["allievi"]], "| il più difficile:", rap["esercizi"][0][1], "| il più facile:", rap["esercizi"][-1])
+testo_r = esercizi.testo_report(rap)
+stampa(testo_r.splitlines()[0], "|", testo_r.splitlines()[2])
+stampa("nessun file valido:", esercizi.testo_report(esercizi.report_classe([])))
+
+# esercizi di un insegnante in un'altra cartella
+extra = os.path.join(cartella, "classe_5A")
+os.makedirs(extra)
+json.dump({"id": "mio_esercizio", "titolo": "Esercizio dell'insegnante", "consegna": "Stampa ok", "prove": [{"ingresso": "", "uscita": "ok"}], "ordine": 5000}, open(os.path.join(extra, "x.json"), "w"))
+json.dump({"id": "rotto"}, open(os.path.join(extra, "y.json"), "w"))
+open(os.path.join(extra, "z.json"), "w").write("non è json")
+con_extra = esercizi.carica_esercizi([extra])
+stampa("con la cartella dell'insegnante:", lunghezza(con_extra) - lunghezza(lista_e), "in più |", con_extra[-1]["titolo"], "| i file non validi sono ignorati")
+
+# ---------------------------------------------------------------- nell'applicazione
+importa tkinter come tk
+da tkinter importa messagebox, simpledialog, filedialog
+messagebox.showinfo = lambda *a, **k: Nessuno
+messagebox.askyesno = lambda *a, **k: Vero
+da rad.finestra importa Applicazione
+da rad.esercizi_ui importa FinestraEsercizi
+da rad importa finestra come modulo_finestra
+cfg4 = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg4)
+modulo_finestra.CARTELLA_PROGETTI = tempfile.mkdtemp()
+finestra_e = app.apri_esercizi()
+radice.update()
+stampa("progetto creato da solo:", app.progetto è non Nessuno, os.path.basename(app.progetto.cartella) se app.progetto altrimenti "")
+stampa("elenco:", lunghezza(finestra_e.albero.get_children()), "gruppi |", finestra_e.riga_progressi.cget("text"))
+finestra_e.albero.selection_set("somma_due")
+radice.update()
+stampa("esercizio scelto:", finestra_e.titolo.cget("text"), "|", finestra_e.riga_info.cget("text"), "| pulsante Controlla:", finestra_e.pulsanti["controlla"].cget("state"))
+finestra_e.apri()
+radice.update()
+percorso_es = os.path.join(app.progetto.cartella, "esercizi", "somma_due.pit")
+stampa("si apre nell'editor:", os.path.exists(percorso_es), tipo(app._editor_corrente()).__name__ se app._editor_corrente() altrimenti "")
+finestra_e.controlla()
+stampa("codice iniziale:", finestra_e.risultato.get("1.0", "end").strip().splitlines()[0])
+ed = app._editor_corrente()
+ed.imposta_contenuto(lista_e[1]["soluzione"])
+finestra_e.controlla()
+radice.update()
+stampa("dopo la soluzione:", finestra_e.risultato.get("1.0", "end").strip().splitlines()[0], "|", finestra_e.riga_progressi.cget("text"))
+stampa("riga info:", finestra_e.riga_info.cget("text"))
+stampa("il segno ✓ compare nell'elenco:", "✓" in finestra_e.albero.item("somma_due", "text"))
+finestra_e.albero.selection_set("palindromo")
+radice.update()
+finestra_e.suggerimento()
+stampa("suggerimento 1:", finestra_e.risultato.get("1.0", "end").strip().splitlines()[0])
+finestra_e.suggerimento()
+finestra_e.suggerimento()
+stampa("suggerimenti mostrati:", lunghezza([r per r in finestra_e.risultato.get("1.0", "end").splitlines() se r.startswith("💡")]))
+finestra_e.soluzione()
+stampa("soluzione:", finestra_e.risultato.get("1.0", "end").strip().splitlines()[0])
+simpledialog.askstring = lambda *a, **k: "Giulia Verdi"
+filedialog.asksaveasfilename = lambda *a, **k: os.path.join(cartella, "giulia.json")
+d = app.esporta_progressi_esercizi()
+stampa("esportati:", d["allievo"], sum(1 per v in d["esercizi"].values() se v["completato"]), "completati")
+filedialog.askopenfilenames = lambda *a, **k: (os.path.join(cartella, "giulia.json"), f1, f2)
+testo_r = app.report_classe_esercizi()
+stampa("report:", testo_r.splitlines()[0], "|", [r.split()[0] per r in testo_r.splitlines()[3:6]])
+finestra_e.destroy()
+radice.destroy()

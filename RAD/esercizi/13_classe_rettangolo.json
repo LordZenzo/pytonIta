@@ -1,0 +1,30 @@
+{
+  "id": "classe_rettangolo",
+  "titolo": "La classe Rettangolo",
+  "argomento": "Classi",
+  "livello": "Avanzato",
+  "consegna": "Definisci una classe `Rettangolo` con base e altezza e due metodi: `area()` e `perimetro()`.\n\nLeggi base e altezza (due righe) e stampa `area A perimetro P`.\n\nEsempio: base 3 e altezza 4 → `area 12 perimetro 14`",
+  "iniziale": "classe Rettangolo:\n    definisci __inizializza__(se_stesso, base, altezza):\n        se_stesso.base = base\n        se_stesso.altezza = altezza\n\n    # aggiungi i metodi area e perimetro\n\n\nbase = intero(leggi(\"\"))\naltezza = intero(leggi(\"\"))\nr = Rettangolo(base, altezza)\n",
+  "prove": [
+    {
+      "ingresso": "3\n4\n",
+      "uscita": "area 12 perimetro 14"
+    },
+    {
+      "ingresso": "5\n5\n",
+      "uscita": "area 25 perimetro 20"
+    },
+    {
+      "ingresso": "1\n10\n",
+      "uscita": "area 10 perimetro 22"
+    }
+  ],
+  "suggerimenti": [
+    "Un metodo è una funzione dentro la classe, con `se_stesso` come primo parametro.",
+    "`definisci area(se_stesso): ritorna se_stesso.base * se_stesso.altezza`",
+    "Alla fine: `stampa(f\"area {r.area()} perimetro {r.perimetro()}\")`."
+  ],
+  "soluzione": "classe Rettangolo:\n    definisci __inizializza__(se_stesso, base, altezza):\n        se_stesso.base = base\n        se_stesso.altezza = altezza\n\n    definisci area(se_stesso):\n        ritorna se_stesso.base * se_stesso.altezza\n\n    definisci perimetro(se_stesso):\n        ritorna 2 * (se_stesso.base + se_stesso.altezza)\n\n\nbase = intero(leggi(\"\"))\naltezza = intero(leggi(\"\"))\nr = Rettangolo(base, altezza)\nstampa(f\"area {r.area()} perimetro {r.perimetro()}\")\n",
+  "confronto": "esatto",
+  "ordine": 13
+}

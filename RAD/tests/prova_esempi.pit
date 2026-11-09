@@ -1,0 +1,153 @@
+"""Gli esempi della galleria funzionano davvero: console con input simulato, finestre con clic simulati, esportazione in Python."""
+importa sys, os, tempfile, shutil, subprocess, json, importlib
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+messagebox.showwarning = lambda *a, **k: Nessuno
+messagebox.showerror = lambda *a, **k: Nessuno
+messagebox.showinfo = lambda *a, **k: Nessuno
+da rad importa esempi, esporta_python
+
+PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
+lavoro = tempfile.mkdtemp()
+elenco = esempi.elenco_esempi()
+stampa("esempi:", [e["id"] per e in elenco])
+stampa("categorie:", sorted({e["categoria"] per e in elenco}), "| livelli:", sorted({e["livello"] per e in elenco}))
+stampa("metadati completi:", all(e.get("titolo") e e.get("descrizione") e e.get("impara") e e.get("principale") per e in elenco))
+copie = {}
+per e in elenco:
+    destinazione = os.path.join(lavoro, e["id"])
+    shutil.copytree(e["cartella"], destinazione)
+    copie[e["id"]] = destinazione
+    stampa(" ", e["id"], "| file principale esiste:", os.path.exists(os.path.join(destinazione, e["principale"])))
+
+
+definisci esegui(id_, ingresso, argomenti=()):
+    r = subprocess.run([PITONIT, "-W", "ignore", os.path.join(copie[id_], "principale.pit"), *argomenti], input=ingresso, capture_output=Vero, text=Vero, encoding="utf-8",
+                       cwd=copie[id_], timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
+    ritorna r.returncode, r.stdout, r.stderr.strip()[-200:]
+
+
+# ---- console
+codice, uscita, err = esegui("indovina_il_numero", "abc\n50\n25\n75\n10\n90\n60\n", ["5"])
+stampa("indovina:", codice, err, "|", "Tentativo 7" in uscita, "Scrivi un numero intero" in uscita, ("Peccato" in uscita) o ("Bravo" in uscita))
+codice, uscita, err = esegui("tabelline", "7\nx\n\n")
+stampa("tabelline:", codice, err, "|", "7 x  3 =  21" in uscita, "7 x 10 =  70" in uscita, "Serve un numero" in uscita, uscita.strip().endswith("Ciao!"))
+codice, uscita, err = esegui("rubrica_json", "a\nAnna Rossi\n333\nanna@x.it\nc\nrossi\ne\nx\nu\n")
+stampa("rubrica:", codice, err, "|", "Salvato: Anna Rossi" in uscita, "Anna Rossi  333  anna@x.it" in uscita, "- Anna Rossi: 333" in uscita, "Scelta non valida." in uscita)
+stampa("rubrica.json creato:", json.load(open(os.path.join(copie["rubrica_json"], "rubrica.json"), encoding="utf-8")))
+codice, uscita, err = esegui("rubrica_json", "e\nu\n")
+stampa("e si ricarica:", "- Anna Rossi: 333" in uscita)
+codice, uscita, err = esegui("conta_parole", "Il gatto e il cane.\nIl gatto dorme!\n\n")
+stampa("conta parole:", codice, err, "|", uscita.splitlines()[-4:])
+
+# ---- finestre
+cfg_radice = tk.Tk()
+cfg_radice.withdraw()
+
+
+definisci apri(id_, modulo, classe):
+    sys.path.insert(0, copie[id_])
+    prova:
+        m = importlib.import_module(modulo)
+    infine:
+        sys.path.remove(copie[id_])
+    finestra = tk.Toplevel(cfg_radice)
+    finestra.geometry("+30+30")
+    ritorna getattr(m, classe)(finestra), finestra
+
+
+a, w = apri("calcolatrice", "calcolatrice", "Calcolatrice")
+a.campo_a.insert(0, "7,5")
+a.campo_b.insert(0, "2")
+per metodo, atteso in (("somma_clic", "9.5"), ("sottrai_clic", "5.5"), ("moltiplica_clic", "15"), ("dividi_clic", "3.75")):
+    getattr(a, metodo)()
+    stampa("calcolatrice", metodo, "->", a.risultato.cget("text"), atteso in a.risultato.cget("text"))
+a.campo_b.delete(0, "end")
+a.campo_b.insert(0, "0")
+a.dividi_clic()
+stampa("divisione per zero:", a.risultato.cget("text"))
+a.campo_a.delete(0, "end")
+a.campo_a.insert(0, "abc")
+a.somma_clic()
+stampa("testo al posto del numero:", a.risultato.cget("text"))
+w.destroy()
+
+a, w = apri("convertitore_temperature", "temperature", "Temperature")
+a.campo_celsius.insert(0, "100")
+a.converti_clic()
+stampa("temperature:", a.fahrenheit.cget("text"), "|", a.kelvin.cget("text"))
+a.campo_celsius.delete(0, "end")
+a.campo_celsius.insert(0, "-300")
+a.converti_clic()
+stampa("sotto lo zero assoluto:", a.messaggio.cget("text"))
+w.destroy()
+
+a, w = apri("lista_della_spesa", "spesa", "Spesa")
+per v in ("latte", "pane", "uova"):
+    a.campo_voce.insert(0, v)
+    a.aggiungi_clic()
+a.elenco_voci.selection_set(1)
+a.togli_clic()
+stampa("spesa:", list(a.elenco_voci.get(0, "end")), "|", a.etichetta_conto.cget("text"), "| salvata:", open(os.path.join(copie["lista_della_spesa"], "spesa.txt"), encoding="utf-8").read().split())
+w.destroy()
+a, w = apri("lista_della_spesa", "spesa", "Spesa")
+stampa("si ricarica da sola:", list(a.elenco_voci.get(0, "end")))
+w.destroy()
+
+a, w = apri("orologio_digitale", "orologio", "Orologio")
+w.update()
+testo_ora = a.etichetta_ora.cget("text")
+stampa("orologio:", testo_ora, len(testo_ora) == 8 e testo_ora[2] == ":", "|", a.etichetta_data.cget("text") != "", "| il timer c'è:", hasattr(a, "timer1_avvia"))
+w.destroy()
+
+a, w = apri("disegno_libero", "disegno", "Disegno")
+w.update()
+a.colore_scelto.set("rosso")
+a.cambia_colore()
+a.cambia_spessore("7")
+Ev = lambda x, y: type("Ev", (), {"x": x, "y": y})()
+a.inizia(Ev(10, 10))
+a.disegna(Ev(40, 30))
+a.disegna(Ev(80, 60))
+a.finisci(Ev(80, 60))
+oggetti = a.tela1.find_all()
+stampa("disegno:", lunghezza(oggetti), "segni | colore:", a.tela1.itemcget(oggetti[-1], "fill"), "| spessore:", a.tela1.itemcget(oggetti[-1], "width"))
+a.pulisci_clic()
+stampa("pulisci:", lunghezza(a.tela1.find_all()))
+w.destroy()
+
+a, w = apri("blocco_note", "notepad", "Notepad")
+w.update()
+m = w.nametowidget(w.cget("menu"))
+stampa("blocco note: menu:", [m.entrycget(i, "label") per i in intervallo(m.index("end") + 1) se m.type(i) == "cascade"])
+a.area.insert("1.0", "Ciao mondo")
+a.percorso = os.path.join(copie["blocco_note"], "nota.txt")
+a.salva_clic()
+stampa("salvato:", open(a.percorso, encoding="utf-8").read(), "|", a.stato.cget("text"))
+a.nuovo_clic()
+stampa("nuovo:", repr(a.area.get("1.0", "end-1c")), a.stato.cget("text"))
+a.area.insert("1.0", "x")
+a.cancella_clic()
+stampa("cancella tutto:", repr(a.area.get("1.0", "end-1c")))
+w.geometry("800x600")
+w.update()
+stampa("l'area si allarga con la finestra:", a.area.winfo_width() > 700)
+w.destroy()
+
+a, w = apri("rubrica_database", "mascheracontatti", "MascheraContatti")
+w.update()
+stampa("rubrica con database:", a.etichetta_stato.cget("text"), "|", a.campo_nome.get(), a.campo_citta.get())
+a.campo_cerca.insert(0, "torino")
+a.cerca_clic()
+stampa("ricerca:", [a.elenco_dati.item(i, "values")[1] per i in a.elenco_dati.get_children()])
+a.fonte.chiudi()
+w.destroy()
+cfg_radice.destroy()
+
+# ---- ogni esempio si esporta in Python senza errori
+per e in elenco:
+    r = esporta_python.esporta(e["cartella"], os.path.join(lavoro, "py_" + e["id"]))
+    se r["errori"]:
+        stampa("ESPORTAZIONE:", e["id"], r["errori"])
+stampa("esportati in Python:", lunghezza(elenco), "esempi")

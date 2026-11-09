@@ -1,0 +1,40 @@
+"""Finestra Spesa - generato da PitStudio. NON modificare: i cambi vanno nel progettista."""
+importa interfaccia come tk
+da interfaccia importa tema
+importa os
+
+
+classe SpesaUI:
+    definisci costruisci_ui(se_stesso, radice, cartella=Nessuno):
+        """Crea tutti i componenti dentro 'radice'."""
+        se_stesso.radice = radice
+        radice._interfaccia_ui = se_stesso     # tiene vive le variabili delle caselle anche se nessuno conserva l'oggetto
+        se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))
+        radice.titolo('Lista della spesa')
+        radice.geometria("380x400")
+        radice.ridimensionabile(Vero, Vero)
+        se_stesso.immagini = []
+        se_stesso.campo_voce = tk.CampoTesto(radice)
+        se_stesso.campo_voce.associa('<Return>', se_stesso.aggiungi_clic)
+        se_stesso.campo_voce.posiziona(x=16, relwidth=1, width=-114, y=16, height=28)
+        se_stesso.pulsante_aggiungi = tk.Pulsante(radice, testo='Aggiungi', comando=se_stesso.aggiungi_clic)
+        se_stesso.pulsante_aggiungi.posiziona(x=276, relwidth=1, width=-16, y=14, height=32)
+        se_stesso.elenco_voci = tk.Elenco(radice, exportselection=Falso)
+        per voce in []:
+            se_stesso.elenco_voci.inserisci('end', voce)
+        se_stesso.elenco_voci.associa('<<ListboxSelect>>', se_stesso.scelta_voce)
+        se_stesso.elenco_voci.posiziona(x=16, relwidth=1, width=-16, y=58, relheight=1, height=-62)
+        se_stesso.pulsante_togli = tk.Pulsante(radice, testo='Togli la voce scelta', comando=se_stesso.togli_clic)
+        se_stesso.pulsante_togli.posiziona(x=16, width=160, rely=1, y=-50, height=32)
+        se_stesso.etichetta_conto = tk.Etichetta(radice, testo='0 voci', justify='right', anchor='e')
+        se_stesso.etichetta_conto.posiziona(relx=1, x=-190, width=174, rely=1, y=-44, height=24)
+        ritorna radice
+
+    definisci aggiungi_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci scelta_voce(se_stesso, evento=Nessuno):
+        passa
+
+    definisci togli_clic(se_stesso, evento=Nessuno):
+        passa

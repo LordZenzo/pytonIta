@@ -1,0 +1,579 @@
+"""Crea gli esempi della galleria (cartelle RAD/esempi/<id>/). Si esegue una volta: pitonit _genera.pit   (rigenera tutto)."""
+importa json
+importa os
+importa shutil
+importa sqlite3
+importa sys
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(QUI))
+da rad importa form_modello, maschera_dati
+da rad.form_modello importa Form
+
+
+definisci scrivi(cartella, nome_file, testo_):
+    percorso = os.path.join(cartella, nome_file)
+    os.makedirs(os.path.dirname(percorso), exist_ok=Vero)
+    con open(percorso, "w", encoding="utf-8", newline="\n") come f:
+        f.write(testo_.strip("\n") + "\n")
+
+
+definisci nuovo_esempio(id_, titolo, descrizione, livello, categoria, impara, principale="principale.pit"):
+    cartella = os.path.join(QUI, id_)
+    se os.path.exists(cartella):
+        shutil.rmtree(cartella)
+    os.makedirs(cartella)
+    scrivi(cartella, "esempio.json", json.dumps({"id": id_, "titolo": titolo, "descrizione": descrizione, "livello": livello, "categoria": categoria,
+                                                  "impara": impara, "principale": principale}, indent=2, ensure_ascii=Falso))
+    scrivi(cartella, "progetto.rad.json", json.dumps({"nome": titolo, "principale": principale, "descrizione": descrizione, "argomenti": ", ".join(impara),
+                                                       "creato": "", "modello": "esempio"}, indent=2, ensure_ascii=Falso))
+    ritorna cartella
+
+
+# ====================================================================== console
+c = nuovo_esempio("indovina_il_numero", "Indovina il numero", "Il computer pensa a un numero da 1 a 100: hai 7 tentativi, ti dice se è troppo alto o basso.",
+                  "Principiante", "Console", ["numeri casuali", "ciclo per", "se / altrimenti", "leggi e stampa"])
+scrivi(c, "principale.pit", '''
+"""Indovina il numero: il computer ne sceglie uno da 1 a 100 e tu hai 7 tentativi."""
+importa random
+importa sys
+
+TENTATIVI = 7
+
+
+definisci gioca():
+    segreto = random.randint(1, 100)
+    stampa(f"Ho pensato a un numero da 1 a 100. Hai {TENTATIVI} tentativi!")
+    per tentativo in intervallo(1, TENTATIVI + 1):
+        risposta = leggi(f"Tentativo {tentativo}: ")
+        se non risposta.isdigit():
+            stampa("Scrivi un numero intero.")
+            continua
+        numero = intero(risposta)
+        se numero == segreto:
+            stampa(f"Bravo! L'hai indovinato in {tentativo} tentativi.")
+            ritorna Vero
+        altrimenti_se numero < segreto:
+            stampa("Troppo basso")
+        altrimenti:
+            stampa("Troppo alto")
+    stampa(f"Peccato, era {segreto}.")
+    ritorna Falso
+
+
+se lunghezza(sys.argv) > 1:
+    random.seed(intero(sys.argv[1]))        # per ripetere sempre la stessa partita (prova: principale.pit 5)
+gioca()
+''')
+
+c = nuovo_esempio("tabelline", "Le tabelline", "Scrivi un numero e il programma stampa la sua tabellina, con una riga per ogni moltiplicazione.",
+                  "Principiante", "Console", ["leggi un numero", "ciclo per", "f-string", "funzioni"])
+scrivi(c, "principale.pit", '''
+"""Le tabelline: scrivi un numero e vedi la sua tabellina."""
+
+
+definisci tabellina(n, fino_a=10):
+    """Le righe della tabellina di n, da 1 a fino_a."""
+    ritorna [f"{n} x {i:>2} = {n * i:>3}" per i in intervallo(1, fino_a + 1)]
+
+
+mentre Vero:
+    risposta = leggi("Di che numero vuoi la tabellina? (invio per uscire) ")
+    se risposta == "":
+        interrompi
+    se non risposta.isdigit():
+        stampa("Serve un numero intero positivo.")
+        continua
+    stampa(f"--- Tabellina del {risposta} ---")
+    per riga in tabellina(intero(risposta)):
+        stampa(riga)
+stampa("Ciao!")
+''')
+
+c = nuovo_esempio("rubrica_json", "Rubrica di contatti", "Una rubrica da console: aggiungi, cerca ed elenca i contatti. I dati restano salvati in un file JSON.",
+                  "Intermedio", "Console", ["dizionari e liste", "file JSON", "funzioni", "menu con ciclo mentre"])
+scrivi(c, "principale.pit", '''
+"""Rubrica di contatti: i dati vengono salvati in rubrica.json accanto al programma."""
+importa json
+importa os
+
+FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rubrica.json")
+
+
+definisci carica():
+    se os.path.exists(FILE):
+        con open(FILE, encoding="utf-8") come f:
+            ritorna json.load(f)
+    ritorna {}
+
+
+definisci salva(contatti):
+    con open(FILE, "w", encoding="utf-8") come f:
+        json.dump(contatti, f, indent=2, ensure_ascii=Falso)
+
+
+definisci aggiungi(contatti):
+    nome = leggi("Nome: ").strip()
+    se non nome:
+        stampa("Il nome non può essere vuoto.")
+        ritorna
+    contatti[nome] = {"telefono": leggi("Telefono: ").strip(), "email": leggi("Email: ").strip()}
+    salva(contatti)
+    stampa(f"Salvato: {nome}")
+
+
+definisci cerca(contatti):
+    parte = leggi("Cerca: ").strip().lower()
+    trovati = [n per n in contatti se parte in n.lower()]
+    se non trovati:
+        stampa("Nessun contatto trovato.")
+    per nome in trovati:
+        stampa(f"{nome}  {contatti[nome]['telefono']}  {contatti[nome]['email']}")
+
+
+definisci elenco(contatti):
+    se non contatti:
+        stampa("La rubrica è vuota.")
+    per nome in sorted(contatti):
+        stampa(f"- {nome}: {contatti[nome]['telefono']}")
+
+
+contatti = carica()
+mentre Vero:
+    scelta = leggi("[a]ggiungi, [c]erca, [e]lenco, [u]sci: ").strip().lower()
+    se scelta == "a":
+        aggiungi(contatti)
+    altrimenti_se scelta == "c":
+        cerca(contatti)
+    altrimenti_se scelta == "e":
+        elenco(contatti)
+    altrimenti_se scelta == "u":
+        interrompi
+    altrimenti:
+        stampa("Scelta non valida.")
+stampa("Alla prossima!")
+''')
+
+c = nuovo_esempio("conta_parole", "Conta le parole", "Incolla un testo e il programma conta le parole e mostra le cinque più usate.",
+                  "Intermedio", "Console", ["stringhe", "dizionari", "ordinare", "cicli"])
+scrivi(c, "principale.pit", '''
+"""Conta le parole di un testo e mostra le più frequenti."""
+
+
+definisci parole_di(testo):
+    """Le parole in minuscolo, senza punteggiatura."""
+    pulito = "".join(c se (c.isalnum() o c.isspace()) altrimenti " " per c in testo.lower())
+    ritorna pulito.split()
+
+
+definisci frequenze(parole):
+    conteggio = {}
+    per p in parole:
+        conteggio[p] = conteggio.get(p, 0) + 1
+    ritorna conteggio
+
+
+stampa("Scrivi il testo (una riga vuota per finire):")
+righe = []
+mentre Vero:
+    riga = leggi("")
+    se riga == "":
+        interrompi
+    righe.append(riga)
+parole = parole_di(" ".join(righe))
+stampa(f"Parole: {lunghezza(parole)}   Diverse: {lunghezza(set(parole))}")
+conteggio = frequenze(parole)
+piu_usate = sorted(conteggio.items(), key=lambda coppia: (-coppia[1], coppia[0]))[:5]
+per parola, quante in piu_usate:
+    stampa(f"{parola:<12} {'#' * quante} {quante}")
+''')
+
+
+# ====================================================================== finestre
+definisci logica(cartella, nome_form, testo_):
+    scrivi(cartella, nome_form.lower() + ".pit", testo_)
+
+
+# ---- Calcolatrice
+c = nuovo_esempio("calcolatrice", "Calcolatrice", "Due numeri e quattro pulsanti: somma, sottrazione, moltiplicazione e divisione.",
+                  "Principiante", "Finestre", ["campi di testo e pulsanti", "gestori degli eventi", "gestire gli errori"], "calcolatrice.pit")
+f = Form("Calcolatrice", "Calcolatrice")
+f.larghezza, f.altezza = 340, 230
+f.aggiungi("Etichetta", 16, 18, nome="etichetta_a", testo="Primo numero", larghezza=100)
+f.aggiungi("CampoTesto", 124, 16, nome="campo_a", larghezza=190, altezza=28)
+f.aggiungi("Etichetta", 16, 56, nome="etichetta_b", testo="Secondo numero", larghezza=100)
+f.aggiungi("CampoTesto", 124, 54, nome="campo_b", larghezza=190, altezza=28, al_invio="somma_clic")
+per i, (nome, testo_, gestore) in enumera((("pulsante_somma", "+", "somma_clic"), ("pulsante_sottrai", "−", "sottrai_clic"),
+                                            ("pulsante_per", "×", "moltiplica_clic"), ("pulsante_diviso", "÷", "dividi_clic"))):
+    f.aggiungi("Pulsante", 16 + i * 79, 100, nome=nome, testo=testo_, larghezza=70, altezza=36, al_clic=gestore, carattere="Segoe UI 14 bold")
+f.aggiungi("Etichetta", 16, 154, nome="risultato", testo="Risultato:", larghezza=300, altezza=40, carattere="Segoe UI 16 bold")
+form_modello.salva_form(f, c)
+logica(c, "Calcolatrice", '''"""Logica della Calcolatrice: legge i due numeri, calcola e scrive il risultato."""
+importa interfaccia come tk
+da calcolatrice_ui importa CalcolatriceUI
+
+
+classe Calcolatrice(CalcolatriceUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+
+    definisci _numeri(se_stesso):
+        """I due numeri scritti dall'utente (la virgola va bene), oppure None se uno non è valido."""
+        prova:
+            ritorna float(se_stesso.campo_a.get().replace(",", ".")), float(se_stesso.campo_b.get().replace(",", "."))
+        eccetto ValueError:
+            se_stesso.risultato.configure(text="Scrivi due numeri")
+            ritorna Nessuno
+
+    definisci _mostra(se_stesso, valore):
+        se_stesso.risultato.configure(text=f"Risultato: {valore:g}")
+
+    definisci somma_clic(se_stesso, evento=Nessuno):
+        n = se_stesso._numeri()
+        se n:
+            se_stesso._mostra(n[0] + n[1])
+
+    definisci sottrai_clic(se_stesso, evento=Nessuno):
+        n = se_stesso._numeri()
+        se n:
+            se_stesso._mostra(n[0] - n[1])
+
+    definisci moltiplica_clic(se_stesso, evento=Nessuno):
+        n = se_stesso._numeri()
+        se n:
+            se_stesso._mostra(n[0] * n[1])
+
+    definisci dividi_clic(se_stesso, evento=Nessuno):
+        n = se_stesso._numeri()
+        se n:
+            se n[1] == 0:
+                se_stesso.risultato.configure(text="Non si divide per zero")
+            altrimenti:
+                se_stesso._mostra(n[0] / n[1])
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Calcolatrice(radice)
+    radice.ciclo_principale()
+''')
+
+# ---- Convertitore di temperature
+c = nuovo_esempio("convertitore_temperature", "Convertitore di temperature", "Scrivi i gradi Celsius e vedi subito Fahrenheit e Kelvin.",
+                  "Principiante", "Finestre", ["calcoli con i decimali", "formattare i numeri", "tasto Invio"], "temperature.pit")
+f = Form("Temperature", "Convertitore di temperature")
+f.larghezza, f.altezza = 360, 220
+f.aggiungi("Etichetta", 16, 20, nome="etichetta_c", testo="Gradi Celsius:", larghezza=110)
+f.aggiungi("CampoTesto", 132, 18, nome="campo_celsius", larghezza=120, altezza=28, al_invio="converti_clic")
+f.aggiungi("Pulsante", 262, 16, nome="pulsante_converti", testo="Converti", larghezza=84, altezza=32, al_clic="converti_clic")
+f.aggiungi("Etichetta", 16, 80, nome="fahrenheit", testo="Fahrenheit: —", larghezza=320, altezza=30, carattere="Segoe UI 14")
+f.aggiungi("Etichetta", 16, 120, nome="kelvin", testo="Kelvin: —", larghezza=320, altezza=30, carattere="Segoe UI 14")
+f.aggiungi("Etichetta", 16, 168, nome="messaggio", testo="", larghezza=320, altezza=24, primo_piano="#b00020")
+form_modello.salva_form(f, c)
+logica(c, "Temperature", '''"""Convertitore di temperature."""
+importa interfaccia come tk
+da temperature_ui importa TemperatureUI
+
+
+definisci celsius_in_fahrenheit(c):
+    ritorna c * 9 / 5 + 32
+
+
+definisci celsius_in_kelvin(c):
+    ritorna c + 273.15
+
+
+classe Temperature(TemperatureUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        se_stesso.campo_celsius.focus_set()
+
+    definisci converti_clic(se_stesso, evento=Nessuno):
+        prova:
+            c = float(se_stesso.campo_celsius.get().replace(",", "."))
+        eccetto ValueError:
+            se_stesso.messaggio.configure(text="Scrivi un numero, per esempio 21,5")
+            ritorna
+        se c < -273.15:
+            se_stesso.messaggio.configure(text="Sotto lo zero assoluto non si può")
+            ritorna
+        se_stesso.messaggio.configure(text="")
+        se_stesso.fahrenheit.configure(text=f"Fahrenheit: {celsius_in_fahrenheit(c):.1f} °F")
+        se_stesso.kelvin.configure(text=f"Kelvin: {celsius_in_kelvin(c):.2f} K")
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Temperature(radice)
+    radice.ciclo_principale()
+''')
+
+# ---- Lista della spesa
+c = nuovo_esempio("lista_della_spesa", "Lista della spesa", "Aggiungi e togli le cose da comprare: la lista resta salvata in un file di testo.",
+                  "Intermedio", "Finestre", ["elenchi", "leggere e scrivere file", "ancoraggio ai bordi"], "spesa.pit")
+f = Form("Spesa", "Lista della spesa")
+f.larghezza, f.altezza = 380, 400
+f.aggiungi("CampoTesto", 16, 16, nome="campo_voce", larghezza=250, altezza=28, al_invio="aggiungi_clic", ancoraggio="sd")
+f.aggiungi("Pulsante", 276, 14, nome="pulsante_aggiungi", testo="Aggiungi", larghezza=88, altezza=32, al_clic="aggiungi_clic", ancoraggio="ds")
+f.aggiungi("Elenco", 16, 58, nome="elenco_voci", larghezza=348, altezza=280, ancoraggio="sadb", al_selezione="scelta_voce")
+f.aggiungi("Pulsante", 16, 350, nome="pulsante_togli", testo="Togli la voce scelta", larghezza=160, altezza=32, al_clic="togli_clic", ancoraggio="sb")
+f.aggiungi("Etichetta", 190, 356, nome="etichetta_conto", testo="0 voci", larghezza=174, altezza=24, allineamento="destra", ancora="e", ancoraggio="db")
+form_modello.salva_form(f, c)
+logica(c, "Spesa", '''"""Lista della spesa: si salva da sola in spesa.txt."""
+importa os
+importa interfaccia come tk
+da spesa_ui importa SpesaUI
+
+FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spesa.txt")
+
+
+classe Spesa(SpesaUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        se_stesso.elenco_voci.delete(0, "end")
+        se_stesso.voci = []
+        se os.path.exists(FILE):
+            con open(FILE, encoding="utf-8") come f:
+                se_stesso.voci = [riga.strip() per riga in f se riga.strip()]
+        per v in se_stesso.voci:
+            se_stesso.elenco_voci.insert("end", v)
+        se_stesso._aggiorna_conto()
+
+    definisci _salva(se_stesso):
+        con open(FILE, "w", encoding="utf-8") come f:
+            f.write("\\n".join(se_stesso.voci))
+        se_stesso._aggiorna_conto()
+
+    definisci _aggiorna_conto(se_stesso):
+        n = lunghezza(se_stesso.voci)
+        se_stesso.etichetta_conto.configure(text=f"{n} voc{'e' se n == 1 altrimenti 'i'}")
+
+    definisci aggiungi_clic(se_stesso, evento=Nessuno):
+        voce = se_stesso.campo_voce.get().strip()
+        se non voce:
+            ritorna
+        se_stesso.voci.append(voce)
+        se_stesso.elenco_voci.insert("end", voce)
+        se_stesso.campo_voce.delete(0, "end")
+        se_stesso._salva()
+
+    definisci togli_clic(se_stesso, evento=Nessuno):
+        scelta = se_stesso.elenco_voci.curselection()
+        se non scelta:
+            ritorna
+        indice = scelta[0]
+        se_stesso.elenco_voci.delete(indice)
+        elimina se_stesso.voci[indice]
+        se_stesso._salva()
+
+    definisci scelta_voce(se_stesso, evento=Nessuno):
+        passa
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Spesa(radice)
+    radice.ciclo_principale()
+''')
+
+# ---- Orologio digitale
+c = nuovo_esempio("orologio_digitale", "Orologio digitale", "L'ora che scorre ogni secondo, con un Timer che aggiorna la scritta.",
+                  "Principiante", "Finestre", ["il componente Timer", "data e ora", "cambiare il testo di un'etichetta"], "orologio.pit")
+f = Form("Orologio", "Orologio")
+f.larghezza, f.altezza = 360, 170
+f.sfondo = "#101820"
+f.aggiungi("Etichetta", 10, 24, nome="etichetta_ora", testo="00:00:00", larghezza=340, altezza=70, allineamento="centro", ancora="center",
+           carattere="Consolas 44 bold", sfondo="#101820", primo_piano="#39ff88", ancoraggio="sd")
+f.aggiungi("Etichetta", 10, 110, nome="etichetta_data", testo="", larghezza=340, altezza=30, allineamento="centro", ancora="center",
+           carattere="Segoe UI 14", sfondo="#101820", primo_piano="#9fb3c8", ancoraggio="sd")
+f.aggiungi("Timer", 10, 145, nome="timer1", intervallo=1000, attivo=Vero, al_tempo="aggiorna")
+form_modello.salva_form(f, c)
+logica(c, "Orologio", '''"""Orologio digitale: il Timer richiama «aggiorna» ogni secondo."""
+importa time
+importa interfaccia come tk
+da orologio_ui importa OrologioUI
+
+GIORNI = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
+MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
+
+
+classe Orologio(OrologioUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        se_stesso.aggiorna()
+
+    definisci aggiorna(se_stesso, evento=Nessuno):
+        adesso = time.localtime()
+        se_stesso.etichetta_ora.configure(text=time.strftime("%H:%M:%S", adesso))
+        se_stesso.etichetta_data.configure(text=f"{GIORNI[adesso.tm_wday]} {adesso.tm_mday} {MESI[adesso.tm_mon - 1]} {adesso.tm_year}")
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Orologio(radice)
+    radice.ciclo_principale()
+''')
+
+# ---- Disegno libero
+c = nuovo_esempio("disegno_libero", "Disegno libero", "Disegna con il mouse su una tela, scegli colore e spessore.",
+                  "Intermedio", "Finestre", ["la tela (Canvas)", "eventi del mouse", "menu a tendina e cursore"], "disegno.pit")
+f = Form("Disegno", "Disegno libero")
+f.larghezza, f.altezza = 560, 420
+f.aggiungi("Etichetta", 10, 12, nome="etichetta_colore", testo="Colore", larghezza=50)
+f.aggiungi("CasellaCombinata", 62, 10, nome="colore_scelto", larghezza=110, altezza=26, valori=["nero", "rosso", "blu", "verde", "arancione"], valore="nero", al_selezione="cambia_colore")
+f.aggiungi("Etichetta", 190, 12, nome="etichetta_spessore", testo="Spessore", larghezza=60)
+f.aggiungi("Cursore", 252, 4, nome="spessore", larghezza=150, altezza=40, da=1, a=20, valore=3, al_cambio="cambia_spessore")
+f.aggiungi("Pulsante", 450, 8, nome="pulsante_pulisci", testo="Pulisci", larghezza=96, altezza=30, al_clic="pulisci_clic", ancoraggio="ds")
+f.aggiungi("Tela", 10, 52, nome="tela1", larghezza=540, altezza=358, ancoraggio="sadb")
+form_modello.salva_form(f, c)
+logica(c, "Disegno", '''"""Disegno libero: trascina il mouse sulla tela."""
+importa interfaccia come tk
+da disegno_ui importa DisegnoUI
+
+COLORI = {"nero": "#000000", "rosso": "#d32f2f", "blu": "#1565c0", "verde": "#2e7d32", "arancione": "#ef6c00"}
+
+
+classe Disegno(DisegnoUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        se_stesso.colore = COLORI["nero"]
+        se_stesso.larghezza_penna = 3
+        se_stesso.ultimo = Nessuno
+        se_stesso.tela1.bind("<ButtonPress-1>", se_stesso.inizia)
+        se_stesso.tela1.bind("<B1-Motion>", se_stesso.disegna)
+        se_stesso.tela1.bind("<ButtonRelease-1>", se_stesso.finisci)
+
+    definisci inizia(se_stesso, e):
+        se_stesso.ultimo = (e.x, e.y)
+        se_stesso._segno(e.x, e.y, e.x, e.y)
+
+    definisci disegna(se_stesso, e):
+        se se_stesso.ultimo:
+            se_stesso._segno(se_stesso.ultimo[0], se_stesso.ultimo[1], e.x, e.y)
+            se_stesso.ultimo = (e.x, e.y)
+
+    definisci finisci(se_stesso, e):
+        se_stesso.ultimo = Nessuno
+
+    definisci _segno(se_stesso, x1, y1, x2, y2):
+        se_stesso.tela1.create_line(x1, y1, x2, y2, fill=se_stesso.colore, width=se_stesso.larghezza_penna, capstyle="round", smooth=Vero)
+
+    definisci cambia_colore(se_stesso, evento=Nessuno):
+        se_stesso.colore = COLORI.get(se_stesso.colore_scelto.get(), "#000000")
+
+    definisci cambia_spessore(se_stesso, valore=Nessuno):
+        se_stesso.larghezza_penna = int(float(valore)) se valore è non Nessuno altrimenti 3
+
+    definisci pulisci_clic(se_stesso, evento=Nessuno):
+        se_stesso.tela1.delete("all")
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Disegno(radice)
+    radice.ciclo_principale()
+''')
+
+# ---- Blocco note (menu, ancoraggio, file)
+c = nuovo_esempio("blocco_note", "Blocco note", "Un piccolo editor di testo con la barra dei menu (File, Modifica, Aiuto), che si adatta alla finestra.",
+                  "Intermedio", "Finestre", ["la barra dei menu", "ancoraggio ai bordi", "finestre di dialogo per aprire e salvare"], "notepad.pit")
+f = Form("Notepad", "Blocco note")
+f.larghezza, f.altezza = 560, 400
+f.aggiungi("BarraMenu", 10, 370, nome="barraMenu1", voci="File\n  Nuovo = nuovo_clic\n  Apri… = apri_clic\n  Salva… = salva_clic\n  -\n  Esci = esci_clic\nModifica\n  Seleziona tutto = seleziona_clic\n  Cancella tutto = cancella_clic\nAiuto\n  Informazioni = info_clic")
+f.aggiungi("AreaTesto", 8, 8, nome="area", larghezza=544, altezza=358, ancoraggio="sadb", carattere="Consolas 11")
+f.aggiungi("Etichetta", 8, 372, nome="stato", testo="Nuovo documento", larghezza=544, altezza=22, ancoraggio="sdb", carattere="Segoe UI 9")
+form_modello.salva_form(f, c)
+logica(c, "Notepad", '''"""Blocco note: menu File/Modifica/Aiuto e un'area di testo che segue la finestra."""
+importa os
+importa interfaccia come tk
+da tkinter importa filedialog, messagebox
+da notepad_ui importa NotepadUI
+
+
+classe Notepad(NotepadUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        se_stesso.percorso = Nessuno
+
+    definisci _titolo(se_stesso):
+        nome = os.path.basename(se_stesso.percorso) se se_stesso.percorso altrimenti "Nuovo documento"
+        se_stesso.stato.configure(text=nome)
+        se_stesso.radice.title(f"{nome} - Blocco note")
+
+    definisci nuovo_clic(se_stesso, evento=Nessuno):
+        se_stesso.area.delete("1.0", "end")
+        se_stesso.percorso = Nessuno
+        se_stesso._titolo()
+
+    definisci apri_clic(se_stesso, evento=Nessuno):
+        p = filedialog.askopenfilename(title="Apri", filetypes=[("Testo", "*.txt"), ("Tutti i file", "*.*")])
+        se non p:
+            ritorna
+        prova:
+            con open(p, encoding="utf-8") come f:
+                testo_ = f.read()
+        eccetto (OSError, UnicodeDecodeError) come errore:
+            messagebox.showerror("Apri", f"Non riesco ad aprire il file:\\n{errore}")
+            ritorna
+        se_stesso.area.delete("1.0", "end")
+        se_stesso.area.insert("1.0", testo_)
+        se_stesso.percorso = p
+        se_stesso._titolo()
+
+    definisci salva_clic(se_stesso, evento=Nessuno):
+        p = se_stesso.percorso o filedialog.asksaveasfilename(title="Salva", defaultextension=".txt", filetypes=[("Testo", "*.txt")])
+        se non p:
+            ritorna
+        con open(p, "w", encoding="utf-8") come f:
+            f.write(se_stesso.area.get("1.0", "end-1c"))
+        se_stesso.percorso = p
+        se_stesso._titolo()
+
+    definisci seleziona_clic(se_stesso, evento=Nessuno):
+        se_stesso.area.tag_add("sel", "1.0", "end")
+
+    definisci cancella_clic(se_stesso, evento=Nessuno):
+        se_stesso.area.delete("1.0", "end")
+
+    definisci info_clic(se_stesso, evento=Nessuno):
+        messagebox.showinfo("Blocco note", "Un esempio di PitStudio:\\nmenu, ancoraggio ai bordi e finestre di dialogo.")
+
+    definisci esci_clic(se_stesso, evento=Nessuno):
+        se_stesso.radice.destroy()
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Notepad(radice)
+    radice.ciclo_principale()
+''')
+
+
+# ====================================================================== database
+c = nuovo_esempio("rubrica_database", "Rubrica con database", "Una rubrica con la maschera creata da PitStudio: elenco, ricerca e modifica dei contatti in un database SQLite.",
+                  "Intermedio", "Database", ["SQLite", "maschera collegata ai dati", "cercare, aggiungere, modificare, eliminare"], "mascheracontatti.pit")
+db = os.path.join(c, "rubrica.db")
+conn = sqlite3.connect(db)
+conn.executescript("""
+CREATE TABLE contatti (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, cognome TEXT, telefono TEXT, email TEXT, citta TEXT);
+INSERT INTO contatti (nome, cognome, telefono, email, citta) VALUES
+ ('Anna', 'Rossi', '333 1112233', 'anna.rossi@esempio.it', 'Roma'),
+ ('Luca', 'Bianchi', '347 4445566', 'luca.bianchi@esempio.it', 'Milano'),
+ ('Sara', 'Verdi', '339 7778899', 'sara.verdi@esempio.it', 'Torino'),
+ ('Marco', 'Neri', '320 1230987', 'marco.neri@esempio.it', 'Napoli'),
+ ('Giulia', 'Gialli', '366 5551234', 'giulia.gialli@esempio.it', 'Bologna');
+""")
+conn.commit()
+conn.close()
+maschera_dati.crea_maschera(c, "MascheraContatti", "contatti", ["id", "nome", "cognome", "telefono", "email", "citta"], "sqlite", db)
+scrivi(c, "LEGGIMI.md", """
+# Rubrica con database
+
+Apri `mascheracontatti.pit` e scegli *Esegui → Esegui il file corrente*.
+
+- La finestra (`mascheracontatti.form.json`) si modifica nel progettista.
+- I dati sono in `rubrica.db`: aprilo con un doppio clic nell'albero del progetto per vederli e cambiarli (scheda *Database*).
+- `fonte_dati.pit` collega la tabella alla finestra: è usabile anche in altre finestre.
+""")
+
+print("esempi creati")

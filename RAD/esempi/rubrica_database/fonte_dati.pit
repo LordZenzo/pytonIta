@@ -1,0 +1,284 @@
+"""Collega una tabella di un database a una finestra: FonteDati legge e scrive i record, MascheraDati li mostra in un elenco e in campi di testo.
+
+    fonte = FonteDati.sqlite("dati.db", "clienti")                          # oppure FonteDati.con_mysql(server, porta, utente, password, database, "clienti")
+    maschera = MascheraDati(fonte, finestra.elenco, {"nome": finestra.campo_nome, "citta": finestra.campo_citta}, finestra.etichetta_stato)
+    maschera.ricarica()                                                     # poi: maschera.nuovo(), .salva(), .elimina(), .annulla(), .cerca("testo")
+
+Questo file è stato creato da PitStudio (Database > Crea una maschera dalla tabella) e si può usare anche con finestre disegnate a mano.
+"""
+importa sqlite3
+da tkinter importa messagebox
+
+TIPI_INTERI = ("INT",)
+TIPI_DECIMALI = ("REAL", "DOUBLE", "FLOAT", "DECIMAL", "NUMERIC")
+MASSIMO_RECORD = 2000
+
+
+classe ErroreDati(Exception):
+    """Un errore del database, con un messaggio leggibile."""
+
+
+classe FonteDati:
+    """Una tabella: ne conosce le colonne e legge, aggiunge, modifica ed elimina i record."""
+
+    definisci __inizializza__(se_stesso, conn, tabella, è_mysql=Falso):
+        se_stesso.conn = conn
+        se_stesso.tabella = tabella
+        se_stesso.è_mysql = è_mysql
+        se_stesso.segnaposto = "%s" se è_mysql altrimenti "?"
+        se_stesso.cita = "`" se è_mysql altrimenti '"'
+        se_stesso.colonne = []          # nomi
+        se_stesso.tipi = {}             # nome -> tipo in maiuscolo
+        se_stesso.chiave = []           # colonne della chiave primaria
+        se_stesso.automatiche = []      # colonne che il database riempie da solo (auto-incremento)
+        se_stesso.obbligatorie = []     # colonne NOT NULL senza valore predefinito: vanno compilate
+        se_stesso._leggi_struttura()
+
+    @staticmethod
+    definisci sqlite(percorso, tabella):
+        prova:
+            conn = sqlite3.connect(percorso)
+        eccetto sqlite3.Error come e:
+            solleva ErroreDati(f"Non riesco ad aprire il database: {e}")
+        ritorna FonteDati(conn, tabella)
+
+    @staticmethod
+    definisci con_mysql(server, porta, utente, password, database, tabella):
+        prova:
+            importa pymysql
+        eccetto ImportError:
+            solleva ErroreDati("Per MySQL serve il pacchetto pymysql (pip install pymysql).")
+        prova:
+            conn = pymysql.connect(host=server, port=int(porta), user=utente, password=password, database=database, charset="utf8mb4", connect_timeout=8)
+        eccetto Exception come e:
+            solleva ErroreDati(f"Collegamento a MySQL non riuscito: {e}")
+        ritorna FonteDati(conn, tabella, è_mysql=Vero)
+
+    definisci _n(se_stesso, nome):
+        ritorna se_stesso.cita + nome.replace(se_stesso.cita, se_stesso.cita * 2) + se_stesso.cita
+
+    definisci _esegui(se_stesso, sql, parametri=()):
+        prova:
+            cur = se_stesso.conn.cursor()
+            se parametri:
+                cur.execute(sql, tuple(parametri))
+            altrimenti:
+                cur.execute(sql)
+        eccetto Exception come e:
+            solleva ErroreDati(testo(e))
+        ritorna cur
+
+    definisci _leggi_struttura(se_stesso):
+        se se_stesso.è_mysql:
+            righe = se_stesso._esegui(f"SHOW COLUMNS FROM {se_stesso._n(se_stesso.tabella)}").fetchall()
+            per r in righe:
+                se_stesso.colonne.append(r[0])
+                se_stesso.tipi[r[0]] = testo(r[1]).upper()
+                se r[3] == "PRI":
+                    se_stesso.chiave.append(r[0])
+                se "auto_increment" in testo(r[5]):
+                    se_stesso.automatiche.append(r[0])
+                se r[2] == "NO" e r[4] è Nessuno e "auto_increment" non in testo(r[5]):
+                    se_stesso.obbligatorie.append(r[0])
+        altrimenti:
+            righe = se_stesso._esegui(f"PRAGMA table_info({se_stesso._n(se_stesso.tabella)})").fetchall()
+            per r in righe:
+                se_stesso.colonne.append(r[1])
+                se_stesso.tipi[r[1]] = (r[2] o "").upper()
+                se r[5] > 0:
+                    se_stesso.chiave.append(r[1])
+                se r[3] e r[4] è Nessuno e r[5] == 0:
+                    se_stesso.obbligatorie.append(r[1])
+            se lunghezza(se_stesso.chiave) == 1 e "INT" in se_stesso.tipi[se_stesso.chiave[0]]:
+                se_stesso.automatiche.append(se_stesso.chiave[0])
+        se non se_stesso.colonne:
+            solleva ErroreDati(f"La tabella «{se_stesso.tabella}» non esiste.")
+
+    # ------------------------------------------------------------ lettura
+    definisci record(se_stesso, ricerca=""):
+        """Lista di (identificatore, {colonna: valore}) dei record, filtrati da un testo cercato in tutte le colonne."""
+        dove = ""
+        par = []
+        se ricerca:
+            tipo_testo = "CHAR" se se_stesso.è_mysql altrimenti "TEXT"
+            dove = " WHERE " + " OR ".join(f"CAST({se_stesso._n(c)} AS {tipo_testo}) LIKE {se_stesso.segnaposto}" per c in se_stesso.colonne)
+            par = ["%" + ricerca + "%"] * lunghezza(se_stesso.colonne)
+        t = se_stesso._n(se_stesso.tabella)
+        risultato = []
+        se se_stesso.è_mysql:
+            righe = se_stesso._esegui(f"SELECT * FROM {t}{dove} LIMIT {MASSIMO_RECORD}", par).fetchall()
+            per r in righe:
+                valori = dict(zip(se_stesso.colonne, r))
+                risultato.append((tuple(valori[c] per c in se_stesso.chiave) se se_stesso.chiave altrimenti Nessuno, valori))
+        altrimenti:
+            righe = se_stesso._esegui(f"SELECT rowid, * FROM {t}{dove} ORDER BY rowid LIMIT {MASSIMO_RECORD}", par).fetchall()
+            per r in righe:
+                risultato.append((r[0], dict(zip(se_stesso.colonne, r[1:]))))
+        ritorna risultato
+
+    # ------------------------------------------------------------ scrittura
+    definisci _converti(se_stesso, colonna, valore_testo):
+        tipo_ = se_stesso.tipi.get(colonna, "")
+        numerica = any(t in tipo_ per t in TIPI_INTERI + TIPI_DECIMALI)
+        se valore_testo == "":
+            se colonna in se_stesso.obbligatorie:
+                solleva ErroreDati(f"«{colonna}» è obbligatorio: compilalo.")
+            ritorna Nessuno
+        prova:
+            se any(t in tipo_ per t in TIPI_INTERI):
+                ritorna int(valore_testo)
+            se any(t in tipo_ per t in TIPI_DECIMALI):
+                ritorna float(valore_testo.replace(",", "."))
+        eccetto ValueError:
+            solleva ErroreDati(f"«{colonna}» deve essere un numero.")
+        ritorna valore_testo
+
+    definisci _dove(se_stesso, id_):
+        se se_stesso.è_mysql:
+            se id_ è Nessuno:
+                solleva ErroreDati("La tabella non ha una chiave primaria: non posso individuare il record.")
+            ritorna " AND ".join(f"{se_stesso._n(c)} = {se_stesso.segnaposto}" per c in se_stesso.chiave), lista(id_)
+        ritorna f"rowid = {se_stesso.segnaposto}", [id_]
+
+    definisci salva(se_stesso, valori_testo, id_=Nessuno):
+        """Inserisce (id_ = Nessuno) o aggiorna un record. valori_testo: {colonna: testo}. Ritorna l'identificatore del record."""
+        t = se_stesso._n(se_stesso.tabella)
+        se id_ è Nessuno:
+            nomi = [c per c in se_stesso.colonne se non (c in se_stesso.automatiche e valori_testo.get(c, "") == "")]
+            valori = [se_stesso._converti(c, valori_testo.get(c, "")) per c in nomi]
+            se nomi:
+                elenco_nomi = ", ".join(se_stesso._n(c) per c in nomi)
+                segnaposti = ", ".join([se_stesso.segnaposto] * lunghezza(nomi))
+                cur = se_stesso._esegui(f"INSERT INTO {t} ({elenco_nomi}) VALUES ({segnaposti})", valori)
+            altrimenti:
+                cur = se_stesso._esegui(f"INSERT INTO {t} DEFAULT VALUES" se non se_stesso.è_mysql altrimenti f"INSERT INTO {t} () VALUES ()")
+            nuovo = cur.lastrowid
+            se_stesso.conn.commit()
+            se se_stesso.è_mysql:
+                ritorna tuple((valori_testo.get(c) se valori_testo.get(c) != "" altrimenti Nessuno) o nuovo per c in se_stesso.chiave) se se_stesso.chiave altrimenti Nessuno
+            ritorna nuovo
+        nomi = [c per c in se_stesso.colonne se c non in se_stesso.automatiche]
+        se non nomi:
+            ritorna id_
+        dove, par = se_stesso._dove(id_)
+        assegnazioni = ", ".join(se_stesso._n(c) + " = " + se_stesso.segnaposto per c in nomi)
+        se_stesso._esegui(f"UPDATE {t} SET {assegnazioni} WHERE {dove}", [se_stesso._converti(c, valori_testo.get(c, "")) per c in nomi] + par)
+        se_stesso.conn.commit()
+        ritorna id_
+
+    definisci elimina(se_stesso, id_):
+        dove, par = se_stesso._dove(id_)
+        se_stesso._esegui(f"DELETE FROM {se_stesso._n(se_stesso.tabella)} WHERE {dove}", par)
+        se_stesso.conn.commit()
+
+    definisci chiudi(se_stesso):
+        prova:
+            se_stesso.conn.close()
+        eccetto Exception:
+            passa
+
+
+classe MascheraDati:
+    """Collega una FonteDati a un elenco (Albero) e a campi di testo: mostra, aggiunge, salva ed elimina record."""
+
+    definisci __inizializza__(se_stesso, fonte, elenco, campi, stato=Nessuno, colonne_elenco=Nessuno):
+        se_stesso.fonte = fonte
+        se_stesso.elenco = elenco
+        se_stesso.campi = campi                # {colonna: campo di testo}
+        se_stesso.stato = stato
+        se_stesso.colonne_elenco = lista(colonne_elenco) se colonne_elenco altrimenti lista(elenco["columns"])
+        se_stesso.record = []
+        se_stesso.id_corrente = Nessuno
+        se_stesso.ricerca = ""
+
+    definisci _messaggio(se_stesso, testo_):
+        se se_stesso.stato è non Nessuno:
+            se_stesso.stato.configure(text=testo_)
+
+    definisci ricarica(se_stesso, seleziona=Nessuno):
+        """Rilegge i record (con la ricerca attuale) e seleziona quello indicato (o il primo)."""
+        prova:
+            se_stesso.record = se_stesso.fonte.record(se_stesso.ricerca)
+        eccetto ErroreDati come errore:
+            messagebox.showerror("Database", testo(errore))
+            ritorna
+        se_stesso.elenco.delete(*se_stesso.elenco.get_children())
+        indice = Nessuno
+        per i, (id_, valori) in enumera(se_stesso.record):
+            se_stesso.elenco.insert("", "end", iid=testo(i), values=["" se valori.get(c) è Nessuno altrimenti valori.get(c) per c in se_stesso.colonne_elenco])
+            se seleziona è non Nessuno e id_ == seleziona:
+                indice = i
+        se indice è Nessuno e se_stesso.record e seleziona è Nessuno:
+            indice = 0
+        se indice è non Nessuno:
+            se_stesso.elenco.selection_set(testo(indice))
+            se_stesso.elenco.see(testo(indice))
+            se_stesso.mostra(indice)
+        altrimenti:
+            se_stesso.nuovo()
+        n = lunghezza(se_stesso.record)
+        se_stesso._messaggio(f"{n} record" + (f"  ·  ricerca: «{se_stesso.ricerca}»" se se_stesso.ricerca altrimenti "") + (f"  (mostrati i primi {MASSIMO_RECORD})" se n >= MASSIMO_RECORD altrimenti ""))
+
+    definisci mostra(se_stesso, indice):
+        id_, valori = se_stesso.record[indice]
+        se_stesso.id_corrente = id_
+        se_stesso._tutti_i_campi(valori)
+
+    definisci _tutti_i_campi(se_stesso, valori):
+        per colonna, campo in se_stesso.campi.items():
+            v = valori.get(colonna)
+            campo.delete(0, "end")
+            campo.insert(0, "" se v è Nessuno altrimenti testo(v))
+
+    definisci scelta_riga(se_stesso, evento=Nessuno):
+        sel = se_stesso.elenco.selection()
+        se sel:
+            se_stesso.mostra(int(sel[0]))
+
+    definisci nuovo(se_stesso):
+        """Svuota i campi per scrivere un nuovo record."""
+        se_stesso.id_corrente = Nessuno
+        se_stesso.elenco.selection_remove(*se_stesso.elenco.selection())
+        se_stesso._tutti_i_campi({})
+        per colonna, campo in se_stesso.campi.items():
+            se colonna non in se_stesso.fonte.automatiche:
+                campo.focus_set()
+                interrompi
+        se_stesso._messaggio("Nuovo record: compila i campi e premi Salva.")
+
+    definisci salva(se_stesso):
+        valori = {colonna: campo.get() per colonna, campo in se_stesso.campi.items()}
+        prova:
+            id_ = se_stesso.fonte.salva(valori, se_stesso.id_corrente)
+        eccetto ErroreDati come errore:
+            messagebox.showwarning("Il record non è stato salvato", testo(errore))
+            ritorna
+        se_stesso.ricarica(id_)
+        se_stesso._messaggio("Salvato.")
+
+    definisci elimina(se_stesso):
+        se se_stesso.id_corrente è Nessuno:
+            se_stesso._messaggio("Scegli prima un record dall'elenco.")
+            ritorna
+        se non messagebox.askyesno("Elimina", "Elimino il record scelto? Non si può annullare."):
+            ritorna
+        prova:
+            se_stesso.fonte.elimina(se_stesso.id_corrente)
+        eccetto ErroreDati come errore:
+            messagebox.showwarning("Il record non è stato eliminato", testo(errore))
+            ritorna
+        se_stesso.id_corrente = Nessuno
+        se_stesso.ricarica()
+        se_stesso._messaggio("Record eliminato.")
+
+    definisci annulla(se_stesso):
+        """Torna ai valori salvati del record scelto (o svuota i campi di un record nuovo)."""
+        sel = se_stesso.elenco.selection()
+        se sel:
+            se_stesso.mostra(int(sel[0]))
+        altrimenti:
+            se_stesso.nuovo()
+
+    definisci cerca(se_stesso, testo_cercato):
+        se_stesso.ricerca = testo_cercato.strip()
+        se_stesso.ricarica()

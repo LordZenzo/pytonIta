@@ -1,0 +1,8 @@
+{
+  "nome": "Convertitore di temperature",
+  "principale": "temperature.pit",
+  "descrizione": "Scrivi i gradi Celsius e vedi subito Fahrenheit e Kelvin.",
+  "argomenti": "calcoli con i decimali, formattare i numeri, tasto Invio",
+  "creato": "",
+  "modello": "esempio"
+}

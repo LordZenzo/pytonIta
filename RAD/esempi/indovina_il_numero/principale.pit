@@ -1,0 +1,30 @@
+"""Indovina il numero: il computer ne sceglie uno da 1 a 100 e tu hai 7 tentativi."""
+importa random
+importa sys
+
+TENTATIVI = 7
+
+
+definisci gioca():
+    segreto = random.randint(1, 100)
+    stampa(f"Ho pensato a un numero da 1 a 100. Hai {TENTATIVI} tentativi!")
+    per tentativo in intervallo(1, TENTATIVI + 1):
+        risposta = leggi(f"Tentativo {tentativo}: ")
+        se non risposta.isdigit():
+            stampa("Scrivi un numero intero.")
+            continua
+        numero = intero(risposta)
+        se numero == segreto:
+            stampa(f"Bravo! L'hai indovinato in {tentativo} tentativi.")
+            ritorna Vero
+        altrimenti_se numero < segreto:
+            stampa("Troppo basso")
+        altrimenti:
+            stampa("Troppo alto")
+    stampa(f"Peccato, era {segreto}.")
+    ritorna Falso
+
+
+se lunghezza(sys.argv) > 1:
+    random.seed(intero(sys.argv[1]))        # per ripetere sempre la stessa partita (prova: principale.pit 5)
+gioca()

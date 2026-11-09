@@ -10,6 +10,16 @@
   "gruppo": "Per cominciare"
  },
  {
+  "id": "esempi",
+  "titolo": "Galleria di esempi",
+  "gruppo": "Per cominciare"
+ },
+ {
+  "id": "esercizi",
+  "titolo": "Esercizi guidati",
+  "gruppo": "Per cominciare"
+ },
+ {
   "id": "interfaccia",
   "titolo": "L'interfaccia",
   "gruppo": "Per cominciare"

@@ -1,0 +1,53 @@
+"""Logica della maschera MascheraContatti: i dati sono quelli della tabella «contatti». Puoi aggiungere il tuo codice."""
+importa os
+importa interfaccia come tk
+da tkinter importa messagebox, simpledialog
+da mascheracontatti_ui importa MascheraContattiUI
+da fonte_dati importa FonteDati, MascheraDati, ErroreDati
+
+
+classe MascheraContatti(MascheraContattiUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        prova:
+            se_stesso.fonte = FonteDati.sqlite(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rubrica.db'), 'contatti')
+        eccetto ErroreDati come errore:
+            messagebox.showerror('Database', testo(errore), parent=radice)
+            radice.after(50, radice.destroy)
+            ritorna
+        se_stesso.maschera = MascheraDati(se_stesso.fonte, se_stesso.elenco_dati, {
+            'id': se_stesso.campo_id,
+            'nome': se_stesso.campo_nome,
+            'cognome': se_stesso.campo_cognome,
+            'telefono': se_stesso.campo_telefono,
+            'email': se_stesso.campo_email,
+            'citta': se_stesso.campo_citta}, se_stesso.etichetta_stato)
+        se_stesso.maschera.ricarica()
+
+    definisci scelta_riga(se_stesso, evento=Nessuno):
+        se_stesso.maschera.scelta_riga()
+
+    definisci cerca_clic(se_stesso, evento=Nessuno):
+        se_stesso.maschera.cerca(se_stesso.campo_cerca.get())
+
+    definisci tutti_clic(se_stesso, evento=Nessuno):
+        se_stesso.campo_cerca.delete(0, 'end')
+        se_stesso.maschera.cerca('')
+
+    definisci nuovo_clic(se_stesso, evento=Nessuno):
+        se_stesso.maschera.nuovo()
+
+    definisci salva_clic(se_stesso, evento=Nessuno):
+        se_stesso.maschera.salva()
+
+    definisci elimina_clic(se_stesso, evento=Nessuno):
+        se_stesso.maschera.elimina()
+
+    definisci annulla_clic(se_stesso, evento=Nessuno):
+        se_stesso.maschera.annulla()
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = MascheraContatti(radice)
+    radice.ciclo_principale()

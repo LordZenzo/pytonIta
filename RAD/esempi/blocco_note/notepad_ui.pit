@@ -1,0 +1,58 @@
+"""Finestra Notepad - generato da PitStudio. NON modificare: i cambi vanno nel progettista."""
+importa interfaccia come tk
+da interfaccia importa tema
+importa os
+
+
+classe NotepadUI:
+    definisci costruisci_ui(se_stesso, radice, cartella=Nessuno):
+        """Crea tutti i componenti dentro 'radice'."""
+        se_stesso.radice = radice
+        radice._interfaccia_ui = se_stesso     # tiene vive le variabili delle caselle anche se nessuno conserva l'oggetto
+        se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))
+        radice.titolo('Blocco note')
+        radice.geometria("560x400")
+        radice.ridimensionabile(Vero, Vero)
+        se_stesso.immagini = []
+        se_stesso.barraMenu1 = tk.Menu(radice)
+        se_stesso.barraMenu1_1 = tk.Menu(se_stesso.barraMenu1, tearoff=0)
+        se_stesso.barraMenu1_1.add_command(label='Nuovo', command=se_stesso.nuovo_clic)
+        se_stesso.barraMenu1_1.add_command(label='Apri…', command=se_stesso.apri_clic)
+        se_stesso.barraMenu1_1.add_command(label='Salva…', command=se_stesso.salva_clic)
+        se_stesso.barraMenu1_1.add_separator()
+        se_stesso.barraMenu1_1.add_command(label='Esci', command=se_stesso.esci_clic)
+        se_stesso.barraMenu1.add_cascade(label='File', menu=se_stesso.barraMenu1_1)
+        se_stesso.barraMenu1_2 = tk.Menu(se_stesso.barraMenu1, tearoff=0)
+        se_stesso.barraMenu1_2.add_command(label='Seleziona tutto', command=se_stesso.seleziona_clic)
+        se_stesso.barraMenu1_2.add_command(label='Cancella tutto', command=se_stesso.cancella_clic)
+        se_stesso.barraMenu1.add_cascade(label='Modifica', menu=se_stesso.barraMenu1_2)
+        se_stesso.barraMenu1_3 = tk.Menu(se_stesso.barraMenu1, tearoff=0)
+        se_stesso.barraMenu1_3.add_command(label='Informazioni', command=se_stesso.info_clic)
+        se_stesso.barraMenu1.add_cascade(label='Aiuto', menu=se_stesso.barraMenu1_3)
+        radice.config(menu=se_stesso.barraMenu1)
+        se_stesso.area = tk.AreaTesto(radice, wrap='word', carattere=('Consolas', 11))
+        se_stesso.area.posiziona(x=8, relwidth=1, width=-8, y=8, relheight=1, height=-34)
+        se_stesso.stato = tk.Etichetta(radice, testo='Nuovo documento', justify='left', anchor='w', carattere=('Segoe UI', 9))
+        se_stesso.stato.posiziona(x=8, relwidth=1, width=-8, rely=1, y=-28, height=22)
+        ritorna radice
+
+    definisci nuovo_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci apri_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci salva_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci esci_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci seleziona_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci cancella_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci info_clic(se_stesso, evento=Nessuno):
+        passa

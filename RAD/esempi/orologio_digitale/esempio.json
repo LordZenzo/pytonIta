@@ -1,0 +1,13 @@
+{
+  "id": "orologio_digitale",
+  "titolo": "Orologio digitale",
+  "descrizione": "L'ora che scorre ogni secondo, con un Timer che aggiorna la scritta.",
+  "livello": "Principiante",
+  "categoria": "Finestre",
+  "impara": [
+    "il componente Timer",
+    "data e ora",
+    "cambiare il testo di un'etichetta"
+  ],
+  "principale": "orologio.pit"
+}

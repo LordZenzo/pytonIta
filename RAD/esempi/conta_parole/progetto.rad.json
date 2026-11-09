@@ -1,0 +1,8 @@
+{
+  "nome": "Conta le parole",
+  "principale": "principale.pit",
+  "descrizione": "Incolla un testo e il programma conta le parole e mostra le cinque più usate.",
+  "argomenti": "stringhe, dizionari, ordinare, cicli",
+  "creato": "",
+  "modello": "esempio"
+}

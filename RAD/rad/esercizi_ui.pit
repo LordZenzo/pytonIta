@@ -1,0 +1,182 @@
+"""Finestra degli esercizi guidati: scegli un esercizio, scrivi il codice nell'editor, controlla e guarda i progressi."""
+importa tkinter come tk
+da tkinter importa ttk, messagebox
+
+da rad importa esercizi
+da rad.stile importa suggerisci
+
+
+classe FinestraEsercizi(tk.Toplevel):
+    """Non modale: resta aperta accanto all'editor mentre si lavora. `azioni` è l'applicazione (apri_esercizio, controlla_esercizio, ...)."""
+    aperta = Nessuno
+
+    definisci __inizializza__(se_stesso, genitore, colori, config, lista_esercizi, azioni):
+        se FinestraEsercizi.aperta è non Nessuno:
+            prova:
+                FinestraEsercizi.aperta.destroy()
+            eccetto tk.TclError:
+                passa
+        tk.Toplevel.__init__(se_stesso, genitore)
+        FinestraEsercizi.aperta = se_stesso
+        se_stesso.title("Esercizi guidati")
+        se_stesso.configure(background=colori["pannello"])
+        se_stesso.geometry("940x640+80+60")
+        se_stesso.colori = colori
+        se_stesso.config_ = config
+        se_stesso.lista = lista_esercizi
+        se_stesso.azioni = azioni
+        se_stesso.corrente = Nessuno
+        se_stesso.suggerimenti_mostrati = 0
+        c = colori
+        se_stesso.grid_columnconfigure(1, weight=1)
+        se_stesso.grid_rowconfigure(0, weight=1)
+        sinistra = tk.Frame(se_stesso, background=c["pannello"])
+        sinistra.grid(row=0, column=0, sticky="ns", padx=(12, 6), pady=12)
+        se_stesso.albero = ttk.Treeview(sinistra, show="tree", selectmode="browse", height=22)
+        se_stesso.albero.pack(fill="y", expand=Vero)
+        se_stesso.albero.column("#0", width=270)
+        se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._scelta)
+        destra = tk.Frame(se_stesso, background=c["pannello"])
+        destra.grid(row=0, column=1, sticky="nsew", padx=(6, 12), pady=12)
+        destra.grid_columnconfigure(0, weight=1)
+        destra.grid_rowconfigure(2, weight=2)
+        destra.grid_rowconfigure(5, weight=3)
+        se_stesso.titolo = tk.Label(destra, text="Scegli un esercizio", anchor="w", background=c["pannello"], foreground=c["primo_piano"], font=("Segoe UI Semibold", 14))
+        se_stesso.titolo.grid(row=0, column=0, sticky="we")
+        se_stesso.riga_info = tk.Label(destra, text="", anchor="w", background=c["pannello"], foreground=c["accento"])
+        se_stesso.riga_info.grid(row=1, column=0, sticky="we", pady=(0, 6))
+        se_stesso.consegna = tk.Text(destra, wrap="word", relief="flat", height=8, font=("Segoe UI", 10), background=c["campo"], foreground=c["primo_piano"], state="disabled",
+                                     highlightthickness=1, highlightbackground=c["bordo"], padx=10, pady=8)
+        se_stesso.consegna.grid(row=2, column=0, sticky="nsew")
+        pulsanti = tk.Frame(destra, background=c["pannello"])
+        pulsanti.grid(row=3, column=0, sticky="we", pady=8)
+        se_stesso.pulsanti = {}
+        per chiave, testo_, comando, aiuto in (("apri", "Apri nell'editor", se_stesso.apri, "Crea (se manca) il file dell'esercizio nel progetto e lo apre: scrivi lì il tuo codice"),
+                                               ("controlla", "▶ Controlla", se_stesso.controlla, "Salva ed esegue il tuo programma con le prove dell'esercizio"),
+                                               ("suggerimento", "💡 Suggerimento", se_stesso.suggerimento, "Un aiuto alla volta, dal più generico al più preciso"),
+                                               ("soluzione", "Soluzione", se_stesso.soluzione, "Mostra una soluzione (prova prima da solo!)")):
+            b = tk.Button(pulsanti, text=testo_, command=comando, relief="flat", padx=12, pady=3, background=c["accento"] se chiave == "controlla" altrimenti c["pulsante"],
+                          foreground="#ffffff" se chiave == "controlla" altrimenti c["primo_piano"], state="disabled")
+            b.pack(side="left", padx=(0, 6))
+            suggerisci(b, aiuto, c)
+            se_stesso.pulsanti[chiave] = b
+        se_stesso.menu_classe = tk.Menubutton(pulsanti, text="Classe ▾", relief="flat", padx=10, pady=3, background=c["pulsante"], foreground=c["primo_piano"])
+        m = tk.Menu(se_stesso.menu_classe, tearoff=0)
+        m.add_command(label="Esporta i miei progressi…", command=se_stesso.azioni.esporta_progressi_esercizi)
+        m.add_command(label="Report della classe… (insegnanti)", command=se_stesso.azioni.report_classe_esercizi)
+        m.add_separator()
+        m.add_command(label="Aggiungi una cartella di esercizi…", command=se_stesso._aggiungi_cartella)
+        se_stesso.menu_classe.configure(menu=m)
+        se_stesso.menu_classe.pack(side="right")
+        suggerisci(se_stesso.menu_classe, "Per la classe: consegna i progressi all'insegnante o guarda quelli degli allievi", c)
+        tk.Label(destra, text="Risultato", anchor="w", background=c["pannello"], foreground=c["tenue"]).grid(row=4, column=0, sticky="we")
+        se_stesso.risultato = tk.Text(destra, wrap="word", relief="flat", height=8, font=("Consolas", 10), background=c["campo"], foreground=c["primo_piano"], state="disabled",
+                                      highlightthickness=1, highlightbackground=c["bordo"], padx=10, pady=8)
+        se_stesso.risultato.grid(row=5, column=0, sticky="nsew")
+        se_stesso.risultato.tag_configure("ok", foreground="#2e7d32", font=("Consolas", 10, "bold"))
+        se_stesso.risultato.tag_configure("no", foreground=c["errore"], font=("Consolas", 10, "bold"))
+        se_stesso.barra = ttk.Progressbar(destra, maximum=max(1, lunghezza(lista_esercizi)))
+        se_stesso.barra.grid(row=6, column=0, sticky="we", pady=(8, 0))
+        se_stesso.riga_progressi = tk.Label(destra, text="", anchor="w", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.riga_progressi.grid(row=7, column=0, sticky="we")
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.riempi()
+
+    definisci riempi(se_stesso, scegli=Nessuno):
+        scelto = scegli o (se_stesso.corrente["id"] se se_stesso.corrente altrimenti Nessuno)
+        se_stesso.albero.delete(*se_stesso.albero.get_children())
+        argomenti = []
+        per e in se_stesso.lista:
+            se e["argomento"] non in argomenti:
+                argomenti.append(e["argomento"])
+        per arg in argomenti:
+            se_stesso.albero.insert("", "end", iid="arg:" + arg, text=arg, open=Vero)
+            per e in se_stesso.lista:
+                se e["argomento"] == arg:
+                    segno = "✓" se esercizi.completato(se_stesso.config_, e["id"]) altrimenti "○"
+                    se_stesso.albero.insert("arg:" + arg, "end", iid=e["id"], text=f"  {segno}  {e['titolo']}")
+        fatti, totale = esercizi.riassunto_progressi(se_stesso.config_, se_stesso.lista)
+        se_stesso.barra.configure(value=fatti)
+        se_stesso.riga_progressi.configure(text=f"{fatti} esercizi completati su {totale}" + ("   —   fantastico!" se fatti == totale e totale altrimenti ""))
+        se scelto e se_stesso.albero.exists(scelto):
+            se_stesso.albero.selection_set(scelto)
+        altrimenti_se se_stesso.lista:
+            se_stesso.albero.selection_set(se_stesso.lista[0]["id"])
+
+    definisci _imposta_testo(se_stesso, widget, testo_, etichetta=Nessuno):
+        widget.configure(state="normal")
+        widget.delete("1.0", "end")
+        se etichetta:
+            widget.insert("end", testo_, etichetta)
+        altrimenti:
+            widget.insert("end", testo_)
+        widget.configure(state="disabled")
+
+    definisci _scelta(se_stesso, e=Nessuno):
+        sel = se_stesso.albero.selection()
+        per_id = {x["id"]: x per x in se_stesso.lista}
+        esercizio = per_id.get(sel[0]) se sel altrimenti Nessuno
+        se non esercizio:
+            ritorna
+        se se_stesso.corrente è non esercizio:
+            se_stesso.suggerimenti_mostrati = 0
+            se_stesso._imposta_testo(se_stesso.risultato, "Scrivi il codice e premi «Controlla».")
+        se_stesso.corrente = esercizio
+        se_stesso.titolo.configure(text=esercizio["titolo"])
+        stato = esercizi.progressi(se_stesso.config_).get(esercizio["id"], {})
+        se_stesso.riga_info.configure(text=f"{esercizio['argomento']}  ·  {esercizio['livello']}" + (f"  ·  completato il {stato['completato']}" se stato.get("completato") altrimenti "")
+                                      + (f"  ·  {stato.get('tentativi', 0)} tentativi" se stato.get("tentativi") altrimenti ""))
+        se_stesso._imposta_testo(se_stesso.consegna, esercizio["consegna"])
+        per b in se_stesso.pulsanti.values():
+            b.configure(state="normal")
+        se_stesso.pulsanti["suggerimento"].configure(state="normal" se esercizio["suggerimenti"] altrimenti "disabled")
+        se_stesso.pulsanti["soluzione"].configure(state="normal" se esercizio["soluzione"] altrimenti "disabled")
+
+    definisci apri(se_stesso):
+        se se_stesso.corrente:
+            se_stesso.azioni.apri_esercizio(se_stesso.corrente)
+
+    definisci controlla(se_stesso):
+        e = se_stesso.corrente
+        se non e:
+            ritorna
+        se_stesso.configure(cursor="watch")
+        se_stesso.update_idletasks()
+        prova:
+            r = se_stesso.azioni.controlla_esercizio(e)
+        infine:
+            se_stesso.configure(cursor="")
+        se r è Nessuno:
+            ritorna
+        se_stesso.riempi(e["id"])
+        se_stesso._scelta()
+        t = se_stesso.risultato
+        t.configure(state="normal")
+        t.delete("1.0", "end")
+        se r["ok"]:
+            t.insert("end", "✓ " + r["messaggio"] + "\n", "ok")
+        altrimenti:
+            t.insert("end", f"✗ {r['superate']} prove superate su {r['totale']}\n\n", "no")
+            t.insert("end", r["messaggio"] + "\n")
+        t.configure(state="disabled")
+
+    definisci suggerimento(se_stesso):
+        e = se_stesso.corrente
+        se non e o non e["suggerimenti"]:
+            ritorna
+        se_stesso.suggerimenti_mostrati = min(se_stesso.suggerimenti_mostrati + 1, lunghezza(e["suggerimenti"]))
+        testo_ = "\n".join(f"💡 {i}. {s}" per i, s in enumera(e["suggerimenti"][:se_stesso.suggerimenti_mostrati], 1))
+        se se_stesso.suggerimenti_mostrati < lunghezza(e["suggerimenti"]):
+            testo_ += "\n\n(Premi ancora «Suggerimento» per un aiuto più preciso.)"
+        se_stesso._imposta_testo(se_stesso.risultato, testo_)
+
+    definisci soluzione(se_stesso):
+        e = se_stesso.corrente
+        se non e o non e["soluzione"]:
+            ritorna
+        se non messagebox.askyesno("Soluzione", "Hai provato a risolverlo? Guardare subito la soluzione toglie il bello.\n\nVuoi vederla lo stesso?", parent=se_stesso):
+            ritorna
+        se_stesso._imposta_testo(se_stesso.risultato, "Una soluzione possibile:\n\n" + e["soluzione"])
+
+    definisci _aggiungi_cartella(se_stesso):
+        se_stesso.azioni.aggiungi_cartella_esercizi()

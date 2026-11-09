@@ -1,0 +1,57 @@
+{
+  "versione": 1,
+  "nome": "Notepad",
+  "titolo": "Blocco note",
+  "larghezza": 560,
+  "altezza": 400,
+  "sfondo": "",
+  "ridimensionabile": true,
+  "componenti": [
+    {
+      "tipo": "BarraMenu",
+      "nome": "barraMenu1",
+      "x": 10,
+      "y": 370,
+      "larghezza": 110,
+      "altezza": 24,
+      "valori": {
+        "voci": "File\n  Nuovo = nuovo_clic\n  Apri… = apri_clic\n  Salva… = salva_clic\n  -\n  Esci = esci_clic\nModifica\n  Seleziona tutto = seleziona_clic\n  Cancella tutto = cancella_clic\nAiuto\n  Informazioni = info_clic"
+      }
+    },
+    {
+      "tipo": "AreaTesto",
+      "nome": "area",
+      "x": 8,
+      "y": 8,
+      "larghezza": 544,
+      "altezza": 358,
+      "valori": {
+        "testo": "",
+        "a_capo": true,
+        "ancoraggio": "sadb",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": "Consolas 11"
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "stato",
+      "x": 8,
+      "y": 372,
+      "larghezza": 544,
+      "altezza": 22,
+      "valori": {
+        "testo": "Nuovo documento",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sdb",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": "Segoe UI 9"
+      }
+    }
+  ]
+}

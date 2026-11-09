@@ -1,0 +1,8 @@
+{
+  "nome": "Rubrica di contatti",
+  "principale": "principale.pit",
+  "descrizione": "Una rubrica da console: aggiungi, cerca ed elenca i contatti. I dati restano salvati in un file JSON.",
+  "argomenti": "dizionari e liste, file JSON, funzioni, menu con ciclo mentre",
+  "creato": "",
+  "modello": "esempio"
+}

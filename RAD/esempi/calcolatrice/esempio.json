@@ -1,0 +1,13 @@
+{
+  "id": "calcolatrice",
+  "titolo": "Calcolatrice",
+  "descrizione": "Due numeri e quattro pulsanti: somma, sottrazione, moltiplicazione e divisione.",
+  "livello": "Principiante",
+  "categoria": "Finestre",
+  "impara": [
+    "campi di testo e pulsanti",
+    "gestori degli eventi",
+    "gestire gli errori"
+  ],
+  "principale": "calcolatrice.pit"
+}

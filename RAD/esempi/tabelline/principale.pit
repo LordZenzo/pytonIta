@@ -1,0 +1,19 @@
+"""Le tabelline: scrivi un numero e vedi la sua tabellina."""
+
+
+definisci tabellina(n, fino_a=10):
+    """Le righe della tabellina di n, da 1 a fino_a."""
+    ritorna [f"{n} x {i:>2} = {n * i:>3}" per i in intervallo(1, fino_a + 1)]
+
+
+mentre Vero:
+    risposta = leggi("Di che numero vuoi la tabellina? (invio per uscire) ")
+    se risposta == "":
+        interrompi
+    se non risposta.isdigit():
+        stampa("Serve un numero intero positivo.")
+        continua
+    stampa(f"--- Tabellina del {risposta} ---")
+    per riga in tabellina(intero(risposta)):
+        stampa(riga)
+stampa("Ciao!")

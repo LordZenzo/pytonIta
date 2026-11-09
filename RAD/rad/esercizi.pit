@@ -1,0 +1,189 @@
+"""Esercizi guidati: carica gli esercizi (RAD/esercizi e cartelle degli insegnanti), controlla il codice dell'allievo, tiene i progressi
+e prepara il report della classe. Solo logica (senza interfaccia)."""
+importa datetime
+importa json
+importa os
+importa subprocess
+
+CARTELLA_ESERCIZI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "esercizi")
+MASSIMO_RIGHE_ERRORE = 6
+
+
+definisci carica_esercizi(cartelle_extra=()):
+    """Tutti gli esercizi (file .json): quelli di PitStudio e quelli delle cartelle indicate (per esempio create da un insegnante), ordinati."""
+    trovati = {}
+    per cartella in [CARTELLA_ESERCIZI] + lista(cartelle_extra):
+        se non cartella o non os.path.isdir(cartella):
+            continua
+        per nome in sorted(os.listdir(cartella)):
+            se non nome.lower().endswith(".json"):
+                continua
+            prova:
+                con open(os.path.join(cartella, nome), encoding="utf-8") come f:
+                    d = json.load(f)
+            eccetto (OSError, ValueError):
+                continua
+            se non isinstance(d, dict) o not_valido(d):
+                continua
+            d.setdefault("argomento", "Altri")
+            d.setdefault("livello", "Principiante")
+            d.setdefault("suggerimenti", [])
+            d.setdefault("soluzione", "")
+            d.setdefault("confronto", "esatto")
+            d.setdefault("ordine", 1000)
+            d["origine"] = cartella
+            trovati[d["id"]] = d
+    ritorna sorted(trovati.values(), key=lambda d: (d["ordine"], d["titolo"]))
+
+
+definisci not_valido(d):
+    """True se manca qualcosa di indispensabile (id, titolo, consegna, prove)."""
+    ritorna non (d.get("id") e d.get("titolo") e d.get("consegna") e d.get("prove"))
+
+
+# ---------------------------------------------------------------- controllo del codice
+definisci _normalizza(testo_):
+    """Toglie gli spazi a fine riga e le righe vuote finali: per confrontare le uscite senza sottigliezze."""
+    righe = [r.rstrip() per r in testo_.replace("\r\n", "\n").split("\n")]
+    mentre righe e righe[-1] == "":
+        righe.pop()
+    ritorna "\n".join(righe)
+
+
+definisci esegui_programma(interprete, percorso, ingresso, timeout=8):
+    """(uscita, errore, scaduto): esegue il programma dell'allievo con l'ingresso dato."""
+    prova:
+        r = subprocess.run([interprete, "-u", "-W", "ignore", percorso], input=ingresso, capture_output=Vero, text=Vero, encoding="utf-8", errors="replace",
+                           timeout=timeout, cwd=os.path.dirname(os.path.abspath(percorso)), env=dict(os.environ, PYTHONUTF8="1"))
+    eccetto subprocess.TimeoutExpired:
+        ritorna "", "", Vero
+    eccetto OSError come e:
+        ritorna "", testo(e), Falso
+    ritorna r.stdout, r.stderr, Falso
+
+
+definisci _errore_breve(errore):
+    """Le ultime righe di un messaggio d'errore (di solito dicono cosa è andato storto)."""
+    righe = [r per r in errore.strip().split("\n") se r.strip()]
+    ritorna "\n".join(righe[-MASSIMO_RIGHE_ERRORE:])
+
+
+definisci controlla(percorso, esercizio, interprete, timeout=8):
+    """Esegue il file dell'allievo su tutte le prove: {ok, risultati: [{ok, ingresso, atteso, ottenuto, errore, scaduto}], messaggio}."""
+    risultati = []
+    per prova_ in esercizio["prove"]:
+        uscita, errore, scaduto = esegui_programma(interprete, percorso, prova_["ingresso"], timeout)
+        atteso = _normalizza(prova_["uscita"])
+        ottenuto = _normalizza(uscita)
+        se esercizio.get("confronto") == "contiene":
+            giusto = atteso in ottenuto
+        altrimenti:
+            giusto = atteso == ottenuto
+        risultati.append({"ok": giusto e non scaduto e non (errore.strip() e non uscita.strip()), "ingresso": prova_["ingresso"], "atteso": atteso, "ottenuto": ottenuto,
+                          "errore": _errore_breve(errore) se (errore.strip() e (not_giusto(giusto) o scaduto)) altrimenti "", "scaduto": scaduto})
+    ok = all(r["ok"] per r in risultati)
+    se ok:
+        messaggio = "Tutte le prove sono superate. Bravo!"
+    altrimenti:
+        primo = [r per r in risultati se non r["ok"]][0]
+        se primo["scaduto"]:
+            messaggio = "Il programma non finisce mai: controlla i cicli (un «mentre» che non si ferma?)."
+        altrimenti_se primo["errore"] e non primo["ottenuto"]:
+            messaggio = "Il programma si è fermato con un errore:\n" + primo["errore"]
+        altrimenti:
+            ingresso = primo["ingresso"].strip().replace("\n", " ") o "(niente)"
+            messaggio = (f"Con l'ingresso «{ingresso}» mi aspettavo:\n{primo['atteso']}\n\ninvece il programma scrive:\n{primo['ottenuto'] o '(niente)'}")
+    ritorna {"ok": ok, "risultati": risultati, "messaggio": messaggio, "superate": sum(1 per r in risultati se r["ok"]), "totale": lunghezza(risultati)}
+
+
+definisci not_giusto(giusto):
+    ritorna non giusto
+
+
+definisci file_dell_esercizio(esercizio, cartella_progetto):
+    """Percorso del file in cui l'allievo scrive: <progetto>/esercizi/<id>.pit (creato con il codice iniziale se non c'è)."""
+    cartella = os.path.join(cartella_progetto, "esercizi")
+    os.makedirs(cartella, exist_ok=Vero)
+    percorso = os.path.join(cartella, esercizio["id"] + ".pit")
+    se non os.path.exists(percorso):
+        con open(percorso, "w", encoding="utf-8", newline="\n") come f:
+            f.write(f'"""{esercizio["titolo"]}"""\n' + esercizio.get("iniziale", ""))
+    ritorna percorso
+
+
+# ---------------------------------------------------------------- progressi
+definisci progressi(config):
+    """{id: {"completato": data o "", "tentativi": n}} letti dalla configurazione."""
+    ritorna config.ottieni("esercizi.progressi", {}) o {}
+
+
+definisci registra_tentativo(config, id_esercizio, superato):
+    p = dict(progressi(config))
+    voce = dict(p.get(id_esercizio, {"completato": "", "tentativi": 0}))
+    voce["tentativi"] = voce.get("tentativi", 0) + 1
+    se superato e non voce.get("completato"):
+        voce["completato"] = datetime.date.today().isoformat()
+    p[id_esercizio] = voce
+    config.imposta("esercizi.progressi", p, notifica=Falso)
+    config.salva()
+    ritorna voce
+
+
+definisci completato(config, id_esercizio):
+    ritorna bool(progressi(config).get(id_esercizio, {}).get("completato"))
+
+
+definisci riassunto_progressi(config, esercizi):
+    fatti = sum(1 per e in esercizi se completato(config, e["id"]))
+    ritorna fatti, lunghezza(esercizi)
+
+
+# ---------------------------------------------------------------- classe: progressi da consegnare all'insegnante e report
+definisci esporta_progressi(config, percorso, nome_allievo, esercizi):
+    """Scrive un file .json con i progressi dell'allievo (da mandare all'insegnante)."""
+    p = progressi(config)
+    dati = {"allievo": nome_allievo.strip() o "senza nome", "data": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "totale": lunghezza(esercizi),
+            "esercizi": {e["id"]: {"titolo": e["titolo"], "completato": p.get(e["id"], {}).get("completato", ""), "tentativi": p.get(e["id"], {}).get("tentativi", 0)}
+                         per e in esercizi}}
+    con open(percorso, "w", encoding="utf-8") come f:
+        json.dump(dati, f, ensure_ascii=Falso, indent=2)
+    ritorna dati
+
+
+definisci report_classe(percorsi):
+    """Mette insieme i file di progressi degli allievi: {"allievi": [{allievo, data, fatti, totale, tentativi, mancanti}], "esercizi": [(titolo, quanti completati)]}."""
+    allievi = []
+    per_esercizio = {}
+    per p in percorsi:
+        prova:
+            con open(p, encoding="utf-8") come f:
+                d = json.load(f)
+            voci = d["esercizi"]
+        eccetto (OSError, ValueError, KeyError, TypeError):
+            continua
+        fatti = [k per k, v in voci.items() se v.get("completato")]
+        allievi.append({"allievo": d.get("allievo", os.path.basename(p)), "data": d.get("data", ""), "fatti": lunghezza(fatti), "totale": d.get("totale", lunghezza(voci)),
+                        "tentativi": sum(v.get("tentativi", 0) per v in voci.values()), "mancanti": [v.get("titolo", k) per k, v in voci.items() se k non in fatti]})
+        per k, v in voci.items():
+            r = per_esercizio.setdefault(k, [v.get("titolo", k), 0])
+            se v.get("completato"):
+                r[1] += 1
+    allievi.sort(key=lambda a: (-a["fatti"], a["allievo"].lower()))
+    ritorna {"allievi": allievi, "esercizi": sorted(per_esercizio.values(), key=lambda r: (r[1], r[0]))}
+
+
+definisci testo_report(rapporto):
+    """Il report in testo semplice (da copiare o stampare)."""
+    righe = ["REPORT DELLA CLASSE", ""]
+    se non rapporto["allievi"]:
+        ritorna "Nessun file di progressi valido."
+    larghezza = max(lunghezza(a["allievo"]) per a in rapporto["allievi"])
+    righe.append(f"{'Allievo':<{larghezza}}  Fatti  Tentativi  Aggiornato")
+    per a in rapporto["allievi"]:
+        righe.append(f"{a['allievo']:<{larghezza}}  {a['fatti']:>2}/{a['totale']:<2}  {a['tentativi']:>9}  {a['data']}")
+    righe += ["", "Esercizi dal più difficile (meno completati) al più facile:"]
+    n = lunghezza(rapporto["allievi"])
+    per titolo, quanti in rapporto["esercizi"]:
+        righe.append(f"  {quanti}/{n}  {titolo}")
+    ritorna "\n".join(righe)

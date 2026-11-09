@@ -1,0 +1,14 @@
+{
+  "id": "rubrica_json",
+  "titolo": "Rubrica di contatti",
+  "descrizione": "Una rubrica da console: aggiungi, cerca ed elenca i contatti. I dati restano salvati in un file JSON.",
+  "livello": "Intermedio",
+  "categoria": "Console",
+  "impara": [
+    "dizionari e liste",
+    "file JSON",
+    "funzioni",
+    "menu con ciclo mentre"
+  ],
+  "principale": "principale.pit"
+}

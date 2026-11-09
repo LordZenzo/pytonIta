@@ -1,0 +1,122 @@
+{
+  "versione": 1,
+  "nome": "Disegno",
+  "titolo": "Disegno libero",
+  "larghezza": 560,
+  "altezza": 420,
+  "sfondo": "",
+  "ridimensionabile": true,
+  "componenti": [
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_colore",
+      "x": 10,
+      "y": 12,
+      "larghezza": 50,
+      "altezza": 24,
+      "valori": {
+        "testo": "Colore",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CasellaCombinata",
+      "nome": "colore_scelto",
+      "x": 62,
+      "y": 10,
+      "larghezza": 110,
+      "altezza": 26,
+      "valori": {
+        "valori": [
+          "nero",
+          "rosso",
+          "blu",
+          "verde",
+          "arancione"
+        ],
+        "valore": "nero",
+        "al_selezione": "cambia_colore",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_spessore",
+      "x": 190,
+      "y": 12,
+      "larghezza": 60,
+      "altezza": 24,
+      "valori": {
+        "testo": "Spessore",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Cursore",
+      "nome": "spessore",
+      "x": 252,
+      "y": 4,
+      "larghezza": 150,
+      "altezza": 40,
+      "valori": {
+        "da": 1,
+        "a": 20,
+        "valore": 3,
+        "orientamento": "orizzontale",
+        "al_cambio": "cambia_spessore",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_pulisci",
+      "x": 450,
+      "y": 8,
+      "larghezza": 96,
+      "altezza": 30,
+      "valori": {
+        "testo": "Pulisci",
+        "al_clic": "pulisci_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "ds",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Tela",
+      "nome": "tela1",
+      "x": 10,
+      "y": 52,
+      "larghezza": 540,
+      "altezza": 358,
+      "valori": {
+        "sfondo": "#ffffff",
+        "ancoraggio": "sadb"
+      }
+    }
+  ]
+}

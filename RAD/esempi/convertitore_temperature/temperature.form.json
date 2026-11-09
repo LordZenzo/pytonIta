@@ -1,0 +1,120 @@
+{
+  "versione": 1,
+  "nome": "Temperature",
+  "titolo": "Convertitore di temperature",
+  "larghezza": 360,
+  "altezza": 220,
+  "sfondo": "",
+  "ridimensionabile": true,
+  "componenti": [
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_c",
+      "x": 16,
+      "y": 20,
+      "larghezza": 110,
+      "altezza": 24,
+      "valori": {
+        "testo": "Gradi Celsius:",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_celsius",
+      "x": 132,
+      "y": 18,
+      "larghezza": 120,
+      "altezza": 28,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "converti_clic",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_converti",
+      "x": 262,
+      "y": 16,
+      "larghezza": 84,
+      "altezza": 32,
+      "valori": {
+        "testo": "Converti",
+        "al_clic": "converti_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "fahrenheit",
+      "x": 16,
+      "y": 80,
+      "larghezza": 320,
+      "altezza": 30,
+      "valori": {
+        "testo": "Fahrenheit: —",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": "Segoe UI 14"
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "kelvin",
+      "x": 16,
+      "y": 120,
+      "larghezza": 320,
+      "altezza": 30,
+      "valori": {
+        "testo": "Kelvin: —",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": "Segoe UI 14"
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "messaggio",
+      "x": 16,
+      "y": 168,
+      "larghezza": 320,
+      "altezza": 24,
+      "valori": {
+        "testo": "",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "#b00020",
+        "carattere": ""
+      }
+    }
+  ]
+}

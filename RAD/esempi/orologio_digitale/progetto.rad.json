@@ -1,0 +1,8 @@
+{
+  "nome": "Orologio digitale",
+  "principale": "orologio.pit",
+  "descrizione": "L'ora che scorre ogni secondo, con un Timer che aggiorna la scritta.",
+  "argomenti": "il componente Timer, data e ora, cambiare il testo di un'etichetta",
+  "creato": "",
+  "modello": "esempio"
+}

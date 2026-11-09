@@ -1,0 +1,13 @@
+{
+  "id": "blocco_note",
+  "titolo": "Blocco note",
+  "descrizione": "Un piccolo editor di testo con la barra dei menu (File, Modifica, Aiuto), che si adatta alla finestra.",
+  "livello": "Intermedio",
+  "categoria": "Finestre",
+  "impara": [
+    "la barra dei menu",
+    "ancoraggio ai bordi",
+    "finestre di dialogo per aprire e salvare"
+  ],
+  "principale": "notepad.pit"
+}

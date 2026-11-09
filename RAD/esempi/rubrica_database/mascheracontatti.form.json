@@ -1,0 +1,431 @@
+{
+  "versione": 1,
+  "nome": "MascheraContatti",
+  "titolo": "Maschera: contatti",
+  "larghezza": 780,
+  "altezza": 532,
+  "sfondo": "",
+  "ridimensionabile": true,
+  "componenti": [
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_cerca",
+      "x": 16,
+      "y": 16,
+      "larghezza": 52,
+      "altezza": 24,
+      "valori": {
+        "testo": "Cerca:",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_cerca",
+      "x": 70,
+      "y": 14,
+      "larghezza": 220,
+      "altezza": 26,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "cerca_clic",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_cerca",
+      "x": 298,
+      "y": 12,
+      "larghezza": 74,
+      "altezza": 28,
+      "valori": {
+        "testo": "Cerca",
+        "al_clic": "cerca_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_tutti",
+      "x": 378,
+      "y": 12,
+      "larghezza": 74,
+      "altezza": 28,
+      "valori": {
+        "testo": "Tutti",
+        "al_clic": "tutti_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_stato",
+      "x": 470,
+      "y": 16,
+      "larghezza": 294,
+      "altezza": 24,
+      "valori": {
+        "testo": "",
+        "allineamento": "destra",
+        "ancora": "e",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Albero",
+      "nome": "elenco_dati",
+      "x": 16,
+      "y": 56,
+      "larghezza": 748,
+      "altezza": 190,
+      "valori": {
+        "colonne": [
+          "id",
+          "nome",
+          "cognome",
+          "telefono",
+          "email",
+          "citta"
+        ],
+        "larghezze": [
+          120,
+          120,
+          120,
+          120,
+          120,
+          120
+        ],
+        "allineamenti": [
+          "w",
+          "w",
+          "w",
+          "w",
+          "w",
+          "w"
+        ],
+        "al_selezione": "scelta_riga",
+        "ancoraggio": "sa"
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_id",
+      "x": 16,
+      "y": 264,
+      "larghezza": 120,
+      "altezza": 24,
+      "valori": {
+        "testo": "id",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_id",
+      "x": 140,
+      "y": 262,
+      "larghezza": 300,
+      "altezza": 26,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_nome",
+      "x": 16,
+      "y": 298,
+      "larghezza": 120,
+      "altezza": 24,
+      "valori": {
+        "testo": "nome",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_nome",
+      "x": 140,
+      "y": 296,
+      "larghezza": 300,
+      "altezza": 26,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_cognome",
+      "x": 16,
+      "y": 332,
+      "larghezza": 120,
+      "altezza": 24,
+      "valori": {
+        "testo": "cognome",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_cognome",
+      "x": 140,
+      "y": 330,
+      "larghezza": 300,
+      "altezza": 26,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_telefono",
+      "x": 16,
+      "y": 366,
+      "larghezza": 120,
+      "altezza": 24,
+      "valori": {
+        "testo": "telefono",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_telefono",
+      "x": 140,
+      "y": 364,
+      "larghezza": 300,
+      "altezza": 26,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_email",
+      "x": 16,
+      "y": 400,
+      "larghezza": 120,
+      "altezza": 24,
+      "valori": {
+        "testo": "email",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_email",
+      "x": 140,
+      "y": 398,
+      "larghezza": 300,
+      "altezza": 26,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_citta",
+      "x": 16,
+      "y": 434,
+      "larghezza": 120,
+      "altezza": 24,
+      "valori": {
+        "testo": "citta",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_citta",
+      "x": 140,
+      "y": 432,
+      "larghezza": 300,
+      "altezza": 26,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_nuovo",
+      "x": 16,
+      "y": 474,
+      "larghezza": 96,
+      "altezza": 32,
+      "valori": {
+        "testo": "Nuovo",
+        "al_clic": "nuovo_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_salva",
+      "x": 120,
+      "y": 474,
+      "larghezza": 96,
+      "altezza": 32,
+      "valori": {
+        "testo": "Salva",
+        "al_clic": "salva_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_elimina",
+      "x": 224,
+      "y": 474,
+      "larghezza": 96,
+      "altezza": 32,
+      "valori": {
+        "testo": "Elimina",
+        "al_clic": "elimina_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_annulla",
+      "x": 328,
+      "y": 474,
+      "larghezza": 96,
+      "altezza": 32,
+      "valori": {
+        "testo": "Annulla",
+        "al_clic": "annulla_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    }
+  ]
+}

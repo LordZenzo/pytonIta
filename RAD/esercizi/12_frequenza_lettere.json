@@ -1,0 +1,29 @@
+{
+  "id": "frequenza_lettere",
+  "titolo": "Quante volte compare ogni lettera",
+  "argomento": "Dizionari",
+  "livello": "Intermedio",
+  "consegna": "Leggi una parola e stampa, in ordine alfabetico, ogni lettera con il numero di volte in cui compare, nel formato `lettera: numero`.\n\nEsempio: `banana` →\na: 3\nb: 1\nn: 2",
+  "iniziale": "parola = leggi(\"\")\nconteggio = {}\n",
+  "prove": [
+    {
+      "ingresso": "banana\n",
+      "uscita": "a: 3\nb: 1\nn: 2"
+    },
+    {
+      "ingresso": "aab\n",
+      "uscita": "a: 2\nb: 1"
+    },
+    {
+      "ingresso": "z\n",
+      "uscita": "z: 1"
+    }
+  ],
+  "suggerimenti": [
+    "Un dizionario conta bene: `conteggio[lettera] = conteggio.get(lettera, 0) + 1`.",
+    "Per l'ordine alfabetico: `per lettera in sorted(conteggio):`."
+  ],
+  "soluzione": "parola = leggi(\"\")\nconteggio = {}\nper lettera in parola:\n    conteggio[lettera] = conteggio.get(lettera, 0) + 1\nper lettera in sorted(conteggio):\n    stampa(f\"{lettera}: {conteggio[lettera]}\")\n",
+  "confronto": "esatto",
+  "ordine": 12
+}

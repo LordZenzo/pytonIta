@@ -1,0 +1,21 @@
+{
+  "id": "ciao_mondo",
+  "titolo": "Ciao, mondo!",
+  "argomento": "Primi passi",
+  "livello": "Principiante",
+  "consegna": "Scrivi un programma che stampa esattamente la frase:\n\nCiao, mondo!\n\nUsa la funzione `stampa`.",
+  "iniziale": "# Stampa la frase «Ciao, mondo!»\n",
+  "prove": [
+    {
+      "ingresso": "",
+      "uscita": "Ciao, mondo!"
+    }
+  ],
+  "suggerimenti": [
+    "`stampa(\"...\")` scrive un testo sullo schermo.",
+    "Il testo va tra virgolette, con la virgola e il punto esclamativo."
+  ],
+  "soluzione": "stampa(\"Ciao, mondo!\")\n",
+  "confronto": "esatto",
+  "ordine": 1
+}

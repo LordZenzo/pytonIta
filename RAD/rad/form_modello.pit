@@ -430,6 +430,22 @@ definisci genera_ui(form):
     ritorna "\n".join(r).rstrip() + "\n"
 
 
+definisci font_tk(testo_):
+    """Il carattere come lo vuole Tk: «Segoe UI 14 bold» diventa ('Segoe UI', 14, 'bold') (un nome con spazi non si può scrivere in una stringa semplice)."""
+    parti = (testo_ o "").split()
+    se non parti:
+        ritorna testo_
+    indice = Nessuno
+    per i, p in enumera(parti):
+        se p.lstrip("-").isdigit():
+            indice = i
+            interrompi
+    se indice è Nessuno:
+        ritorna (" ".join(parti),)
+    famiglia = " ".join(parti[:indice]) o "TkDefaultFont"
+    ritorna (famiglia, int(parti[indice])) + tuple(parti[indice + 1:])
+
+
 definisci _opzioni_comuni(c):
     o = []
     v = c.valori
@@ -438,7 +454,7 @@ definisci _opzioni_comuni(c):
     se v.get("primo_piano"):
         o.append(f"primo_piano={_lit(v['primo_piano'])}")
     se v.get("carattere"):
-        o.append(f"carattere={_lit(v['carattere'])}")
+        o.append(f"carattere={_lit(font_tk(v['carattere']))}")
     se v.get("stato") e v["stato"] != "normale":
         o.append(f"stato={_lit('disabled' se v['stato'] == 'disabilitato' altrimenti 'normal')}")
     ritorna o

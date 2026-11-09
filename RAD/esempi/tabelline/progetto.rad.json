@@ -1,0 +1,8 @@
+{
+  "nome": "Le tabelline",
+  "principale": "principale.pit",
+  "descrizione": "Scrivi un numero e il programma stampa la sua tabellina, con una riga per ogni moltiplicazione.",
+  "argomenti": "leggi un numero, ciclo per, f-string, funzioni",
+  "creato": "",
+  "modello": "esempio"
+}

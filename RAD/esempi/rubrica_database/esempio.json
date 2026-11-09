@@ -1,0 +1,13 @@
+{
+  "id": "rubrica_database",
+  "titolo": "Rubrica con database",
+  "descrizione": "Una rubrica con la maschera creata da PitStudio: elenco, ricerca e modifica dei contatti in un database SQLite.",
+  "livello": "Intermedio",
+  "categoria": "Database",
+  "impara": [
+    "SQLite",
+    "maschera collegata ai dati",
+    "cercare, aggiungere, modificare, eliminare"
+  ],
+  "principale": "mascheracontatti.pit"
+}

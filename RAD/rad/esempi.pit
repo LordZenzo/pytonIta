@@ -1,0 +1,56 @@
+"""Galleria di esempi: progetti pronti da aprire e studiare (cartella RAD/esempi)."""
+importa json
+importa os
+importa shutil
+
+CARTELLA_ESEMPI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "esempi")
+ORDINE_CATEGORIE = ["Console", "Finestre", "Database"]
+ORDINE_LIVELLI = {"Principiante": 0, "Intermedio": 1, "Avanzato": 2}
+
+
+definisci elenco_esempi(cartella=Nessuno):
+    """Gli esempi disponibili: [{id, titolo, descrizione, livello, categoria, impara, principale, cartella}] ordinati per categoria e livello."""
+    cartella = cartella o CARTELLA_ESEMPI
+    trovati = []
+    se non os.path.isdir(cartella):
+        ritorna trovati
+    per nome in sorted(os.listdir(cartella)):
+        p = os.path.join(cartella, nome, "esempio.json")
+        se not_file(p):
+            continua
+        prova:
+            con open(p, encoding="utf-8") come f:
+                d = json.load(f)
+        eccetto (OSError, ValueError):
+            continua
+        d["cartella"] = os.path.join(cartella, nome)
+        d.setdefault("id", nome)
+        d.setdefault("livello", "Principiante")
+        d.setdefault("categoria", "Altri")
+        d.setdefault("impara", [])
+        d.setdefault("principale", "principale.pit")
+        trovati.append(d)
+    trovati.sort(key=lambda d: (ORDINE_CATEGORIE.index(d["categoria"]) se d["categoria"] in ORDINE_CATEGORIE altrimenti 99,
+                                ORDINE_LIVELLI.get(d["livello"], 9), d["titolo"]))
+    ritorna trovati
+
+
+definisci not_file(p):
+    ritorna non os.path.isfile(p)
+
+
+definisci copia_esempio(esempio, destinazione):
+    """Copia l'esempio in una nuova cartella (che non deve esistere già con dei file dentro). Ritorna il percorso del file principale."""
+    se os.path.exists(destinazione) e os.listdir(destinazione):
+        solleva FileExistsError("La cartella esiste già e non è vuota: " + destinazione)
+    shutil.copytree(esempio["cartella"], destinazione, dirs_exist_ok=Vero, ignore=shutil.ignore_patterns("esempio.json", "__pycache__", ".rad"))
+    manifesto = os.path.join(destinazione, "progetto.rad.json")
+    prova:
+        con open(manifesto, encoding="utf-8") come f:
+            d = json.load(f)
+        d["nome"] = os.path.basename(os.path.normpath(destinazione))
+        con open(manifesto, "w", encoding="utf-8") come f:
+            json.dump(d, f, indent=2, ensure_ascii=Falso)
+    eccetto (OSError, ValueError):
+        passa
+    ritorna os.path.join(destinazione, esempio["principale"])

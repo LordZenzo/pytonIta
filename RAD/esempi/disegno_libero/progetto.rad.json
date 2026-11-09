@@ -1,0 +1,8 @@
+{
+  "nome": "Disegno libero",
+  "principale": "disegno.pit",
+  "descrizione": "Disegna con il mouse su una tela, scegli colore e spessore.",
+  "argomenti": "la tela (Canvas), eventi del mouse, menu a tendina e cursore",
+  "creato": "",
+  "modello": "esempio"
+}

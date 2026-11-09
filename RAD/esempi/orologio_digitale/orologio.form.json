@@ -1,0 +1,60 @@
+{
+  "versione": 1,
+  "nome": "Orologio",
+  "titolo": "Orologio",
+  "larghezza": 360,
+  "altezza": 170,
+  "sfondo": "#101820",
+  "ridimensionabile": true,
+  "componenti": [
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_ora",
+      "x": 10,
+      "y": 24,
+      "larghezza": 340,
+      "altezza": 70,
+      "valori": {
+        "testo": "00:00:00",
+        "allineamento": "centro",
+        "ancora": "center",
+        "ancoraggio": "sd",
+        "stato": "normale",
+        "sfondo": "#101820",
+        "primo_piano": "#39ff88",
+        "carattere": "Consolas 44 bold"
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_data",
+      "x": 10,
+      "y": 110,
+      "larghezza": 340,
+      "altezza": 30,
+      "valori": {
+        "testo": "",
+        "allineamento": "centro",
+        "ancora": "center",
+        "ancoraggio": "sd",
+        "stato": "normale",
+        "sfondo": "#101820",
+        "primo_piano": "#9fb3c8",
+        "carattere": "Segoe UI 14"
+      }
+    },
+    {
+      "tipo": "Timer",
+      "nome": "timer1",
+      "x": 10,
+      "y": 145,
+      "larghezza": 110,
+      "altezza": 24,
+      "valori": {
+        "intervallo": 1000,
+        "attivo": true,
+        "al_tempo": "aggiorna"
+      }
+    }
+  ]
+}

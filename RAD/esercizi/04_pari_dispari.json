@@ -1,0 +1,33 @@
+{
+  "id": "pari_dispari",
+  "titolo": "Pari o dispari",
+  "argomento": "Decisioni con se",
+  "livello": "Principiante",
+  "consegna": "Leggi un numero intero e stampa `pari` oppure `dispari`.",
+  "iniziale": "n = intero(leggi(\"\"))\n",
+  "prove": [
+    {
+      "ingresso": "4\n",
+      "uscita": "pari"
+    },
+    {
+      "ingresso": "7\n",
+      "uscita": "dispari"
+    },
+    {
+      "ingresso": "0\n",
+      "uscita": "pari"
+    },
+    {
+      "ingresso": "-3\n",
+      "uscita": "dispari"
+    }
+  ],
+  "suggerimenti": [
+    "Il resto della divisione per 2 si ottiene con `n % 2`.",
+    "Se il resto è 0 il numero è pari."
+  ],
+  "soluzione": "n = intero(leggi(\"\"))\nse n % 2 == 0:\n    stampa(\"pari\")\naltrimenti:\n    stampa(\"dispari\")\n",
+  "confronto": "esatto",
+  "ordine": 4
+}

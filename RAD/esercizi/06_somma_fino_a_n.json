@@ -1,0 +1,33 @@
+{
+  "id": "somma_fino_a_n",
+  "titolo": "Somma da 1 a n",
+  "argomento": "Cicli",
+  "livello": "Principiante",
+  "consegna": "Leggi un numero n e stampa la somma dei numeri da 1 a n.\n\nEsempio: con n = 4 stampa 10 (1+2+3+4).",
+  "iniziale": "n = intero(leggi(\"\"))\ntotale = 0\n# aggiungi a totale tutti i numeri da 1 a n\n",
+  "prove": [
+    {
+      "ingresso": "4\n",
+      "uscita": "10"
+    },
+    {
+      "ingresso": "1\n",
+      "uscita": "1"
+    },
+    {
+      "ingresso": "100\n",
+      "uscita": "5050"
+    },
+    {
+      "ingresso": "0\n",
+      "uscita": "0"
+    }
+  ],
+  "suggerimenti": [
+    "`per i in intervallo(1, n + 1):` passa per 1, 2, ... n.",
+    "Dentro il ciclo: `totale += i`."
+  ],
+  "soluzione": "n = intero(leggi(\"\"))\ntotale = 0\nper i in intervallo(1, n + 1):\n    totale += i\nstampa(totale)\n",
+  "confronto": "esatto",
+  "ordine": 6
+}

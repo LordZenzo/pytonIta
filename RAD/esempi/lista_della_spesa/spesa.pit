@@ -1,0 +1,55 @@
+"""Lista della spesa: si salva da sola in spesa.txt."""
+importa os
+importa interfaccia come tk
+da spesa_ui importa SpesaUI
+
+FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "spesa.txt")
+
+
+classe Spesa(SpesaUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        se_stesso.elenco_voci.delete(0, "end")
+        se_stesso.voci = []
+        se os.path.exists(FILE):
+            con open(FILE, encoding="utf-8") come f:
+                se_stesso.voci = [riga.strip() per riga in f se riga.strip()]
+        per v in se_stesso.voci:
+            se_stesso.elenco_voci.insert("end", v)
+        se_stesso._aggiorna_conto()
+
+    definisci _salva(se_stesso):
+        con open(FILE, "w", encoding="utf-8") come f:
+            f.write("\n".join(se_stesso.voci))
+        se_stesso._aggiorna_conto()
+
+    definisci _aggiorna_conto(se_stesso):
+        n = lunghezza(se_stesso.voci)
+        se_stesso.etichetta_conto.configure(text=f"{n} voc{'e' se n == 1 altrimenti 'i'}")
+
+    definisci aggiungi_clic(se_stesso, evento=Nessuno):
+        voce = se_stesso.campo_voce.get().strip()
+        se non voce:
+            ritorna
+        se_stesso.voci.append(voce)
+        se_stesso.elenco_voci.insert("end", voce)
+        se_stesso.campo_voce.delete(0, "end")
+        se_stesso._salva()
+
+    definisci togli_clic(se_stesso, evento=Nessuno):
+        scelta = se_stesso.elenco_voci.curselection()
+        se non scelta:
+            ritorna
+        indice = scelta[0]
+        se_stesso.elenco_voci.delete(indice)
+        elimina se_stesso.voci[indice]
+        se_stesso._salva()
+
+    definisci scelta_voce(se_stesso, evento=Nessuno):
+        passa
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Spesa(radice)
+    radice.ciclo_principale()

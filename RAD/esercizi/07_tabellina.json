@@ -1,0 +1,25 @@
+{
+  "id": "tabellina",
+  "titolo": "La tabellina",
+  "argomento": "Cicli",
+  "livello": "Principiante",
+  "consegna": "Leggi un numero n e stampa la sua tabellina da 1 a 10, una riga per moltiplicazione, in questo formato:\n\n3 x 1 = 3\n3 x 2 = 6\n...",
+  "iniziale": "n = intero(leggi(\"\"))\n",
+  "prove": [
+    {
+      "ingresso": "3\n",
+      "uscita": "3 x 1 = 3\n3 x 2 = 6\n3 x 3 = 9\n3 x 4 = 12\n3 x 5 = 15\n3 x 6 = 18\n3 x 7 = 21\n3 x 8 = 24\n3 x 9 = 27\n3 x 10 = 30"
+    },
+    {
+      "ingresso": "7\n",
+      "uscita": "7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35\n7 x 6 = 42\n7 x 7 = 49\n7 x 8 = 56\n7 x 9 = 63\n7 x 10 = 70"
+    }
+  ],
+  "suggerimenti": [
+    "Un ciclo `per i in intervallo(1, 11):` ripete 10 volte.",
+    "Con una f-string: `stampa(f\"{n} x {i} = {n * i}\")`."
+  ],
+  "soluzione": "n = intero(leggi(\"\"))\nper i in intervallo(1, 11):\n    stampa(f\"{n} x {i} = {n * i}\")\n",
+  "confronto": "esatto",
+  "ordine": 7
+}

@@ -1,0 +1,59 @@
+"""Rubrica di contatti: i dati vengono salvati in rubrica.json accanto al programma."""
+importa json
+importa os
+
+FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rubrica.json")
+
+
+definisci carica():
+    se os.path.exists(FILE):
+        con open(FILE, encoding="utf-8") come f:
+            ritorna json.load(f)
+    ritorna {}
+
+
+definisci salva(contatti):
+    con open(FILE, "w", encoding="utf-8") come f:
+        json.dump(contatti, f, indent=2, ensure_ascii=Falso)
+
+
+definisci aggiungi(contatti):
+    nome = leggi("Nome: ").strip()
+    se non nome:
+        stampa("Il nome non può essere vuoto.")
+        ritorna
+    contatti[nome] = {"telefono": leggi("Telefono: ").strip(), "email": leggi("Email: ").strip()}
+    salva(contatti)
+    stampa(f"Salvato: {nome}")
+
+
+definisci cerca(contatti):
+    parte = leggi("Cerca: ").strip().lower()
+    trovati = [n per n in contatti se parte in n.lower()]
+    se non trovati:
+        stampa("Nessun contatto trovato.")
+    per nome in trovati:
+        stampa(f"{nome}  {contatti[nome]['telefono']}  {contatti[nome]['email']}")
+
+
+definisci elenco(contatti):
+    se non contatti:
+        stampa("La rubrica è vuota.")
+    per nome in sorted(contatti):
+        stampa(f"- {nome}: {contatti[nome]['telefono']}")
+
+
+contatti = carica()
+mentre Vero:
+    scelta = leggi("[a]ggiungi, [c]erca, [e]lenco, [u]sci: ").strip().lower()
+    se scelta == "a":
+        aggiungi(contatti)
+    altrimenti_se scelta == "c":
+        cerca(contatti)
+    altrimenti_se scelta == "e":
+        elenco(contatti)
+    altrimenti_se scelta == "u":
+        interrompi
+    altrimenti:
+        stampa("Scelta non valida.")
+stampa("Alla prossima!")

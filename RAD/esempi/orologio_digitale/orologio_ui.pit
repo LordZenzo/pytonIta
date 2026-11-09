@@ -1,0 +1,43 @@
+"""Finestra Orologio - generato da PitStudio. NON modificare: i cambi vanno nel progettista."""
+importa interfaccia come tk
+da interfaccia importa tema
+importa os
+
+
+classe OrologioUI:
+    definisci costruisci_ui(se_stesso, radice, cartella=Nessuno):
+        """Crea tutti i componenti dentro 'radice'."""
+        se_stesso.radice = radice
+        radice._interfaccia_ui = se_stesso     # tiene vive le variabili delle caselle anche se nessuno conserva l'oggetto
+        se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))
+        radice.titolo('Orologio')
+        radice.geometria("360x170")
+        radice.ridimensionabile(Vero, Vero)
+        radice.configura(sfondo='#101820')
+        se_stesso.immagini = []
+        se_stesso.etichetta_ora = tk.Etichetta(radice, testo='00:00:00', justify='center', anchor='center', sfondo='#101820', primo_piano='#39ff88', carattere=('Consolas', 44, 'bold'))
+        se_stesso.etichetta_ora.posiziona(x=10, relwidth=1, width=-10, y=24, height=70)
+        se_stesso.etichetta_data = tk.Etichetta(radice, testo='', justify='center', anchor='center', sfondo='#101820', primo_piano='#9fb3c8', carattere=('Segoe UI', 14))
+        se_stesso.etichetta_data.posiziona(x=10, relwidth=1, width=-10, y=110, height=30)
+        se_stesso._timer_timer1_attivo = Falso
+        se_stesso.timer1_avvia()
+        ritorna radice
+
+    definisci timer1_avvia(se_stesso):
+        """Fa partire il timer timer1 (ogni 1000 ms)."""
+        se non se_stesso._timer_timer1_attivo:
+            se_stesso._timer_timer1_attivo = Vero
+            se_stesso.radice.after(1000, se_stesso._timer_timer1_passo)
+
+    definisci timer1_ferma(se_stesso):
+        se_stesso._timer_timer1_attivo = Falso
+
+    definisci _timer_timer1_passo(se_stesso):
+        se non se_stesso._timer_timer1_attivo:
+            ritorna
+        se_stesso.aggiorna()
+        se se_stesso._timer_timer1_attivo:
+            se_stesso.radice.after(1000, se_stesso._timer_timer1_passo)
+
+    definisci aggiorna(se_stesso, evento=Nessuno):
+        passa

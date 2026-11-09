@@ -1,0 +1,29 @@
+"""Conta le parole di un testo e mostra le più frequenti."""
+
+
+definisci parole_di(testo):
+    """Le parole in minuscolo, senza punteggiatura."""
+    pulito = "".join(c se (c.isalnum() o c.isspace()) altrimenti " " per c in testo.lower())
+    ritorna pulito.split()
+
+
+definisci frequenze(parole):
+    conteggio = {}
+    per p in parole:
+        conteggio[p] = conteggio.get(p, 0) + 1
+    ritorna conteggio
+
+
+stampa("Scrivi il testo (una riga vuota per finire):")
+righe = []
+mentre Vero:
+    riga = leggi("")
+    se riga == "":
+        interrompi
+    righe.append(riga)
+parole = parole_di(" ".join(righe))
+stampa(f"Parole: {lunghezza(parole)}   Diverse: {lunghezza(set(parole))}")
+conteggio = frequenze(parole)
+piu_usate = sorted(conteggio.items(), key=lambda coppia: (-coppia[1], coppia[0]))[:5]
+per parola, quante in piu_usate:
+    stampa(f"{parola:<12} {'#' * quante} {quante}")

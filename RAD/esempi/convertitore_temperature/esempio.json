@@ -1,0 +1,13 @@
+{
+  "id": "convertitore_temperature",
+  "titolo": "Convertitore di temperature",
+  "descrizione": "Scrivi i gradi Celsius e vedi subito Fahrenheit e Kelvin.",
+  "livello": "Principiante",
+  "categoria": "Finestre",
+  "impara": [
+    "calcoli con i decimali",
+    "formattare i numeri",
+    "tasto Invio"
+  ],
+  "principale": "temperature.pit"
+}

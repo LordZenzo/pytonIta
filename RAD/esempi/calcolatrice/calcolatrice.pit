@@ -1,0 +1,48 @@
+"""Logica della Calcolatrice: legge i due numeri, calcola e scrive il risultato."""
+importa interfaccia come tk
+da calcolatrice_ui importa CalcolatriceUI
+
+
+classe Calcolatrice(CalcolatriceUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+
+    definisci _numeri(se_stesso):
+        """I due numeri scritti dall'utente (la virgola va bene), oppure None se uno non è valido."""
+        prova:
+            ritorna float(se_stesso.campo_a.get().replace(",", ".")), float(se_stesso.campo_b.get().replace(",", "."))
+        eccetto ValueError:
+            se_stesso.risultato.configure(text="Scrivi due numeri")
+            ritorna Nessuno
+
+    definisci _mostra(se_stesso, valore):
+        se_stesso.risultato.configure(text=f"Risultato: {valore:g}")
+
+    definisci somma_clic(se_stesso, evento=Nessuno):
+        n = se_stesso._numeri()
+        se n:
+            se_stesso._mostra(n[0] + n[1])
+
+    definisci sottrai_clic(se_stesso, evento=Nessuno):
+        n = se_stesso._numeri()
+        se n:
+            se_stesso._mostra(n[0] - n[1])
+
+    definisci moltiplica_clic(se_stesso, evento=Nessuno):
+        n = se_stesso._numeri()
+        se n:
+            se_stesso._mostra(n[0] * n[1])
+
+    definisci dividi_clic(se_stesso, evento=Nessuno):
+        n = se_stesso._numeri()
+        se n:
+            se n[1] == 0:
+                se_stesso.risultato.configure(text="Non si divide per zero")
+            altrimenti:
+                se_stesso._mostra(n[0] / n[1])
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Calcolatrice(radice)
+    radice.ciclo_principale()

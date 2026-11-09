@@ -1,0 +1,48 @@
+"""Finestra Calcolatrice - generato da PitStudio. NON modificare: i cambi vanno nel progettista."""
+importa interfaccia come tk
+da interfaccia importa tema
+importa os
+
+
+classe CalcolatriceUI:
+    definisci costruisci_ui(se_stesso, radice, cartella=Nessuno):
+        """Crea tutti i componenti dentro 'radice'."""
+        se_stesso.radice = radice
+        radice._interfaccia_ui = se_stesso     # tiene vive le variabili delle caselle anche se nessuno conserva l'oggetto
+        se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))
+        radice.titolo('Calcolatrice')
+        radice.geometria("340x230")
+        radice.ridimensionabile(Vero, Vero)
+        se_stesso.immagini = []
+        se_stesso.etichetta_a = tk.Etichetta(radice, testo='Primo numero', justify='left', anchor='w')
+        se_stesso.etichetta_a.posiziona(x=16, y=18, width=100, height=24)
+        se_stesso.campo_a = tk.CampoTesto(radice)
+        se_stesso.campo_a.posiziona(x=124, y=16, width=190, height=28)
+        se_stesso.etichetta_b = tk.Etichetta(radice, testo='Secondo numero', justify='left', anchor='w')
+        se_stesso.etichetta_b.posiziona(x=16, y=56, width=100, height=24)
+        se_stesso.campo_b = tk.CampoTesto(radice)
+        se_stesso.campo_b.associa('<Return>', se_stesso.somma_clic)
+        se_stesso.campo_b.posiziona(x=124, y=54, width=190, height=28)
+        se_stesso.pulsante_somma = tk.Pulsante(radice, testo='+', carattere=('Segoe UI', 14, 'bold'), comando=se_stesso.somma_clic)
+        se_stesso.pulsante_somma.posiziona(x=16, y=100, width=70, height=36)
+        se_stesso.pulsante_sottrai = tk.Pulsante(radice, testo='−', carattere=('Segoe UI', 14, 'bold'), comando=se_stesso.sottrai_clic)
+        se_stesso.pulsante_sottrai.posiziona(x=95, y=100, width=70, height=36)
+        se_stesso.pulsante_per = tk.Pulsante(radice, testo='×', carattere=('Segoe UI', 14, 'bold'), comando=se_stesso.moltiplica_clic)
+        se_stesso.pulsante_per.posiziona(x=174, y=100, width=70, height=36)
+        se_stesso.pulsante_diviso = tk.Pulsante(radice, testo='÷', carattere=('Segoe UI', 14, 'bold'), comando=se_stesso.dividi_clic)
+        se_stesso.pulsante_diviso.posiziona(x=253, y=100, width=70, height=36)
+        se_stesso.risultato = tk.Etichetta(radice, testo='Risultato:', justify='left', anchor='w', carattere=('Segoe UI', 16, 'bold'))
+        se_stesso.risultato.posiziona(x=16, y=154, width=300, height=40)
+        ritorna radice
+
+    definisci somma_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci sottrai_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci moltiplica_clic(se_stesso, evento=Nessuno):
+        passa
+
+    definisci dividi_clic(se_stesso, evento=Nessuno):
+        passa

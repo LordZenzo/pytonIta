@@ -1,0 +1,14 @@
+{
+  "id": "indovina_il_numero",
+  "titolo": "Indovina il numero",
+  "descrizione": "Il computer pensa a un numero da 1 a 100: hai 7 tentativi, ti dice se è troppo alto o basso.",
+  "livello": "Principiante",
+  "categoria": "Console",
+  "impara": [
+    "numeri casuali",
+    "ciclo per",
+    "se / altrimenti",
+    "leggi e stampa"
+  ],
+  "principale": "principale.pit"
+}

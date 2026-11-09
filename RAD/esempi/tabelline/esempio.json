@@ -1,0 +1,14 @@
+{
+  "id": "tabelline",
+  "titolo": "Le tabelline",
+  "descrizione": "Scrivi un numero e il programma stampa la sua tabellina, con una riga per ogni moltiplicazione.",
+  "livello": "Principiante",
+  "categoria": "Console",
+  "impara": [
+    "leggi un numero",
+    "ciclo per",
+    "f-string",
+    "funzioni"
+  ],
+  "principale": "principale.pit"
+}

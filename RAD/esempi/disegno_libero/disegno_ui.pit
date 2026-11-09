@@ -1,0 +1,41 @@
+"""Finestra Disegno - generato da PitStudio. NON modificare: i cambi vanno nel progettista."""
+importa interfaccia come tk
+da interfaccia importa tema
+importa os
+
+
+classe DisegnoUI:
+    definisci costruisci_ui(se_stesso, radice, cartella=Nessuno):
+        """Crea tutti i componenti dentro 'radice'."""
+        se_stesso.radice = radice
+        radice._interfaccia_ui = se_stesso     # tiene vive le variabili delle caselle anche se nessuno conserva l'oggetto
+        se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))
+        radice.titolo('Disegno libero')
+        radice.geometria("560x420")
+        radice.ridimensionabile(Vero, Vero)
+        se_stesso.immagini = []
+        se_stesso.etichetta_colore = tk.Etichetta(radice, testo='Colore', justify='left', anchor='w')
+        se_stesso.etichetta_colore.posiziona(x=10, y=12, width=50, height=24)
+        se_stesso.colore_scelto = tema.CasellaCombinata(radice, values=['nero', 'rosso', 'blu', 'verde', 'arancione'])
+        se_stesso.colore_scelto.set('nero')
+        se_stesso.colore_scelto.associa('<<ComboboxSelected>>', se_stesso.cambia_colore)
+        se_stesso.colore_scelto.posiziona(x=62, y=10, width=110, height=26)
+        se_stesso.etichetta_spessore = tk.Etichetta(radice, testo='Spessore', justify='left', anchor='w')
+        se_stesso.etichetta_spessore.posiziona(x=190, y=12, width=60, height=24)
+        se_stesso.spessore = tk.Cursore(radice, from_=1, to=20, orient='horizontal', command=lambda valore: se_stesso.cambia_spessore(valore))
+        se_stesso.spessore.imposta(3)
+        se_stesso.spessore.posiziona(x=252, y=4, width=150, height=40)
+        se_stesso.pulsante_pulisci = tk.Pulsante(radice, testo='Pulisci', comando=se_stesso.pulisci_clic)
+        se_stesso.pulsante_pulisci.posiziona(x=450, relwidth=1, width=-14, y=8, height=30)
+        se_stesso.tela1 = tk.Tela(radice, background='#ffffff', highlightthickness=0)
+        se_stesso.tela1.posiziona(x=10, relwidth=1, width=-10, y=52, relheight=1, height=-10)
+        ritorna radice
+
+    definisci cambia_colore(se_stesso, evento=Nessuno):
+        passa
+
+    definisci cambia_spessore(se_stesso, evento=Nessuno):
+        passa
+
+    definisci pulisci_clic(se_stesso, evento=Nessuno):
+        passa

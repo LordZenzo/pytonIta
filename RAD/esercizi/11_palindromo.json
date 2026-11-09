@@ -1,0 +1,33 @@
+{
+  "id": "palindromo",
+  "titolo": "Palindromo",
+  "argomento": "Stringhe",
+  "livello": "Intermedio",
+  "consegna": "Una parola è palindroma se si legge uguale da destra a sinistra (come «anna»). Leggi una parola e stampa `si` se è palindroma, `no` altrimenti. Ignora maiuscole e minuscole.",
+  "iniziale": "parola = leggi(\"\").lower()\n",
+  "prove": [
+    {
+      "ingresso": "anna\n",
+      "uscita": "si"
+    },
+    {
+      "ingresso": "Ala\n",
+      "uscita": "si"
+    },
+    {
+      "ingresso": "ciao\n",
+      "uscita": "no"
+    },
+    {
+      "ingresso": "a\n",
+      "uscita": "si"
+    }
+  ],
+  "suggerimenti": [
+    "Una stringa si inverte con `parola[::-1]`.",
+    "Confronta la parola con la sua inversa: `se parola == parola[::-1]:`."
+  ],
+  "soluzione": "parola = leggi(\"\").lower()\nse parola == parola[::-1]:\n    stampa(\"si\")\naltrimenti:\n    stampa(\"no\")\n",
+  "confronto": "esatto",
+  "ordine": 11
+}

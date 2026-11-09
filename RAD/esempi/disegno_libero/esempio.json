@@ -1,0 +1,13 @@
+{
+  "id": "disegno_libero",
+  "titolo": "Disegno libero",
+  "descrizione": "Disegna con il mouse su una tela, scegli colore e spessore.",
+  "livello": "Intermedio",
+  "categoria": "Finestre",
+  "impara": [
+    "la tela (Canvas)",
+    "eventi del mouse",
+    "menu a tendina e cursore"
+  ],
+  "principale": "disegno.pit"
+}

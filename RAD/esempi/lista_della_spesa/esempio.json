@@ -1,0 +1,13 @@
+{
+  "id": "lista_della_spesa",
+  "titolo": "Lista della spesa",
+  "descrizione": "Aggiungi e togli le cose da comprare: la lista resta salvata in un file di testo.",
+  "livello": "Intermedio",
+  "categoria": "Finestre",
+  "impara": [
+    "elenchi",
+    "leggere e scrivere file",
+    "ancoraggio ai bordi"
+  ],
+  "principale": "spesa.pit"
+}

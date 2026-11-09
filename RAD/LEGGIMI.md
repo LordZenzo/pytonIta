@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.28
+
+- **Per chi impara**: la **Galleria di esempi** (11 progetti pronti: console, finestre, database; si copiano in un nuovo progetto e si provano) e gli **Esercizi guidati** (13 esercizi con controllo automatico del codice, suggerimenti, soluzione e progressi). Per le classi: gli allievi **esportano i progressi** in un file, l'insegnante ne ottiene il **report della classe** e può aggiungere **esercizi propri** (file `.json`). Entrambi si aprono dal menu *Aiuto* e dalla schermata di benvenuto.
+- Corretto: un carattere scritto come «Segoe UI 14 bold» nel progettista faceva fallire la finestra generata.
+
 ## Novità della 1.27
 
 - **Editor: navigazione nel codice**: *Vai alla definizione* (F12 o Ctrl+clic), *Trova gli usi* (Maiusc+F12), *Rinomina in tutto il progetto* (F2, anche nei gestori dei form), **documentazione al passaggio del mouse** su funzioni del progetto e parole del linguaggio, *Ripulisci il codice* (Ctrl+Maiusc+L) e **menu con il clic destro**. Lavora sui file `.pit` e `.py` leggendo i «token»: non confonde i nomi con testi e commenti.

@@ -16,6 +16,10 @@ da rad importa claude_code
 da rad importa converti_progetto
 da rad importa esporta_python
 da rad importa navigazione
+da rad importa esempi
+da rad.esempi_ui importa DialogoEsempi
+da rad importa esercizi
+da rad.esercizi_ui importa FinestraEsercizi
 da rad.navigazione_ui importa FinestraRisultati
 da rad.crea_exe importa DialogoEseguibile
 da rad importa database_modello
@@ -325,6 +329,8 @@ classe Applicazione:
 
         aiuto = tk.Menu(barra, tearoff=0)
         aiuto.add_command(label="Guida di PitStudio", command=lambda: se_stesso.apri_aiuto(), accelerator="F1")
+        aiuto.add_command(label="Galleria di esempi…", command=lambda: se_stesso.apri_galleria())
+        aiuto.add_command(label="Esercizi guidati…", command=lambda: se_stesso.apri_esercizi())
         aiuto.add_command(label="Primi passi", command=lambda: se_stesso.apri_aiuto("primi-passi"))
         aiuto.add_command(label="Scorciatoie da tastiera", command=lambda: se_stesso.apri_aiuto("scorciatoie"))
         aiuto.add_command(label="Riferimento del linguaggio pytonIta", command=lambda: se_stesso.apri_aiuto("linguaggio"))
@@ -1188,6 +1194,106 @@ classe Applicazione:
         se_stesso.info(f"Codice ripulito: {n} righe cambiate." se n altrimenti "Il codice era già in ordine.")
         ritorna n
 
+    definisci apri_galleria(se_stesso):
+        """Galleria di esempi: sceglie un esempio e lo copia in un nuovo progetto, già aperto."""
+        esempio = DialogoEsempi(se_stesso.radice, se_stesso.colori).mostra()
+        se non esempio:
+            ritorna Nessuno
+        os.makedirs(CARTELLA_PROGETTI, exist_ok=Vero)
+        scelta = filedialog.askdirectory(parent=se_stesso.radice, title="In quale cartella creo il progetto?", initialdir=CARTELLA_PROGETTI)
+        se non scelta:
+            ritorna Nessuno
+        destinazione = os.path.join(scelta, esempio["id"])
+        n = 2
+        mentre os.path.exists(destinazione) e os.listdir(destinazione):
+            destinazione = os.path.join(scelta, f"{esempio['id']}_{n}")
+            n += 1
+        prova:
+            principale = esempi.copia_esempio(esempio, destinazione)
+        eccetto (OSError, FileExistsError) come errore:
+            messagebox.showerror("Esempi", f"Non sono riuscito a copiare l'esempio:{chr(10)}{errore}", parent=se_stesso.radice)
+            ritorna Nessuno
+        se_stesso.apri_progetto(destinazione)
+        se_stesso.apri_file(principale)
+        se_stesso.info(f"Esempio «{esempio['titolo']}» copiato in {destinazione}: premi Esegui per provarlo.")
+        ritorna destinazione
+
+    # ================================================================== esercizi guidati
+    definisci _lista_esercizi(se_stesso):
+        ritorna esercizi.carica_esercizi(se_stesso.config_.ottieni("esercizi.cartelle", []))
+
+    definisci apri_esercizi(se_stesso):
+        """Apre la finestra degli esercizi. Se non c'è un progetto aperto ne crea uno («Esercizi») dove l'allievo scrive il codice."""
+        se non se_stesso.progetto:
+            cartella = os.path.join(CARTELLA_PROGETTI, "Esercizi")
+            se os.path.exists(os.path.join(cartella, "progetto.rad.json")):
+                se_stesso.apri_progetto(cartella)
+            altrimenti:
+                os.makedirs(CARTELLA_PROGETTI, exist_ok=Vero)
+                Progetto.nuovo(cartella, "Esercizi", "vuoto")
+                se_stesso.apri_progetto(cartella)
+        ritorna FinestraEsercizi(se_stesso.radice, se_stesso.colori, se_stesso.config_, se_stesso._lista_esercizi(), se_stesso)
+
+    definisci apri_esercizio(se_stesso, e):
+        """Crea (se manca) il file dell'esercizio nel progetto e lo apre nell'editor."""
+        percorso = esercizi.file_dell_esercizio(e, se_stesso.progetto.cartella)
+        se_stesso.pannello_progetto.aggiorna()
+        se_stesso.apri_file(percorso)
+        ritorna percorso
+
+    definisci controlla_esercizio(se_stesso, e):
+        """Salva tutto, esegue il programma dell'allievo con le prove dell'esercizio e registra il tentativo. Ritorna il risultato."""
+        percorso = esercizi.file_dell_esercizio(e, se_stesso.progetto.cartella)
+        se_stesso.salva_tutto()
+        aperto = se_stesso.schede.get(os.path.abspath(percorso))
+        se aperto è non Nessuno e hasattr(aperto, "salva"):
+            aperto.salva()                     # il file dell'esercizio si controlla sempre com'è nell'editor
+        r = esercizi.controlla(percorso, e, se_stesso.config_.interprete())
+        esercizi.registra_tentativo(se_stesso.config_, e["id"], r["ok"])
+        ritorna r
+
+    definisci aggiungi_cartella_esercizi(se_stesso):
+        cartella = filedialog.askdirectory(parent=se_stesso.radice, title="Cartella con gli esercizi (file .json)")
+        se cartella:
+            elenco = lista(se_stesso.config_.ottieni("esercizi.cartelle", []))
+            se cartella non in elenco:
+                elenco.append(cartella)
+            se_stesso.config_.imposta("esercizi.cartelle", elenco, notifica=Falso)
+            se_stesso.config_.salva()
+            ritorna se_stesso.apri_esercizi()
+
+    definisci esporta_progressi_esercizi(se_stesso):
+        """Salva i progressi dell'allievo in un file da consegnare all'insegnante."""
+        nome = simpledialog.askstring("I miei progressi", "Il tuo nome:", parent=se_stesso.radice)
+        se non nome:
+            ritorna Nessuno
+        percorso = filedialog.asksaveasfilename(parent=se_stesso.radice, title="Salva i progressi", defaultextension=".json",
+                                                initialfile="progressi_" + nome.strip().replace(" ", "_") + ".json", filetypes=[("Progressi", "*.json")])
+        se non percorso:
+            ritorna Nessuno
+        dati = esercizi.esporta_progressi(se_stesso.config_, percorso, nome, se_stesso._lista_esercizi())
+        messagebox.showinfo("I miei progressi", "Salvato: " + percorso + chr(10) + chr(10) + "Consegna questo file all'insegnante.", parent=se_stesso.radice)
+        ritorna dati
+
+    definisci report_classe_esercizi(se_stesso):
+        """Per gli insegnanti: sceglie i file di progressi degli allievi e mostra il report della classe."""
+        percorsi = filedialog.askopenfilenames(parent=se_stesso.radice, title="File dei progressi degli allievi", filetypes=[("Progressi", "*.json")])
+        se non percorsi:
+            ritorna Nessuno
+        testo_ = esercizi.testo_report(esercizi.report_classe(lista(percorsi)))
+        finestra = tk.Toplevel(se_stesso.radice)
+        finestra.title("Report della classe")
+        finestra.geometry("720x520+120+90")
+        finestra.configure(background=se_stesso.colori["pannello"])
+        t = tk.Text(finestra, font=("Consolas", 10), wrap="none", background=se_stesso.colori["campo"], foreground=se_stesso.colori["primo_piano"], relief="flat", padx=12, pady=10)
+        t.pack(fill="both", expand=Vero, padx=10, pady=(10, 4))
+        t.insert("1.0", testo_)
+        t.configure(state="disabled")
+        b = tk.Button(finestra, text="Copia negli appunti", relief="flat", background=se_stesso.colori["pulsante"], foreground=se_stesso.colori["primo_piano"],
+                      command=lambda: (se_stesso.radice.clipboard_clear(), se_stesso.radice.clipboard_append(testo_)))
+        b.pack(side="right", padx=10, pady=8)
+        ritorna testo_
+
     definisci nuovo_database_sqlite(se_stesso):
         """Crea un file SQLite vuoto (di solito nella cartella del progetto) e lo apre."""
         iniziale = se_stesso.progetto.cartella se se_stesso.progetto altrimenti os.path.expanduser("~")
@@ -1435,6 +1541,8 @@ classe Applicazione:
         voci = [("nuovo", "Nuovo progetto", "Console, finestra, mattonelle…", se_stesso.nuovo_progetto),
                 ("apri", "Apri progetto", "Riprendi il lavoro in una cartella", se_stesso.apri_progetto),
                 ("mattonelle", "Programma a mattonelle", "Programma senza scrivere codice", lambda: se_stesso.nuovo_mattonelle()),
+                ("stella", "Galleria di esempi", "Progetti pronti da provare e studiare", lambda: se_stesso.apri_galleria()),
+                ("libro", "Esercizi guidati", "Impara esercitandoti, con controllo automatico", lambda: se_stesso.apri_esercizi()),
                 ("aiuto", "Guida di PitStudio", "Primi passi e riferimento completo", lambda: se_stesso.apri_aiuto())]
         per i, (icona, titolo, descr, comando) in enumera(voci):
             carta = tk.Frame(carte, background=c["pannello"], cursor="hand2", highlightthickness=1, highlightbackground=c["bordo"])

@@ -1,0 +1,36 @@
+"""Convertitore di temperature."""
+importa interfaccia come tk
+da temperature_ui importa TemperatureUI
+
+
+definisci celsius_in_fahrenheit(c):
+    ritorna c * 9 / 5 + 32
+
+
+definisci celsius_in_kelvin(c):
+    ritorna c + 273.15
+
+
+classe Temperature(TemperatureUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        se_stesso.campo_celsius.focus_set()
+
+    definisci converti_clic(se_stesso, evento=Nessuno):
+        prova:
+            c = float(se_stesso.campo_celsius.get().replace(",", "."))
+        eccetto ValueError:
+            se_stesso.messaggio.configure(text="Scrivi un numero, per esempio 21,5")
+            ritorna
+        se c < -273.15:
+            se_stesso.messaggio.configure(text="Sotto lo zero assoluto non si può")
+            ritorna
+        se_stesso.messaggio.configure(text="")
+        se_stesso.fahrenheit.configure(text=f"Fahrenheit: {celsius_in_fahrenheit(c):.1f} °F")
+        se_stesso.kelvin.configure(text=f"Kelvin: {celsius_in_kelvin(c):.2f} K")
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Temperature(radice)
+    radice.ciclo_principale()

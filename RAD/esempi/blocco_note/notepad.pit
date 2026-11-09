@@ -1,0 +1,63 @@
+"""Blocco note: menu File/Modifica/Aiuto e un'area di testo che segue la finestra."""
+importa os
+importa interfaccia come tk
+da tkinter importa filedialog, messagebox
+da notepad_ui importa NotepadUI
+
+
+classe Notepad(NotepadUI):
+    definisci __inizializza__(se_stesso, radice):
+        se_stesso.costruisci_ui(radice)
+        se_stesso.percorso = Nessuno
+
+    definisci _titolo(se_stesso):
+        nome = os.path.basename(se_stesso.percorso) se se_stesso.percorso altrimenti "Nuovo documento"
+        se_stesso.stato.configure(text=nome)
+        se_stesso.radice.title(f"{nome} - Blocco note")
+
+    definisci nuovo_clic(se_stesso, evento=Nessuno):
+        se_stesso.area.delete("1.0", "end")
+        se_stesso.percorso = Nessuno
+        se_stesso._titolo()
+
+    definisci apri_clic(se_stesso, evento=Nessuno):
+        p = filedialog.askopenfilename(title="Apri", filetypes=[("Testo", "*.txt"), ("Tutti i file", "*.*")])
+        se non p:
+            ritorna
+        prova:
+            con open(p, encoding="utf-8") come f:
+                testo_ = f.read()
+        eccetto (OSError, UnicodeDecodeError) come errore:
+            messagebox.showerror("Apri", f"Non riesco ad aprire il file:\n{errore}")
+            ritorna
+        se_stesso.area.delete("1.0", "end")
+        se_stesso.area.insert("1.0", testo_)
+        se_stesso.percorso = p
+        se_stesso._titolo()
+
+    definisci salva_clic(se_stesso, evento=Nessuno):
+        p = se_stesso.percorso o filedialog.asksaveasfilename(title="Salva", defaultextension=".txt", filetypes=[("Testo", "*.txt")])
+        se non p:
+            ritorna
+        con open(p, "w", encoding="utf-8") come f:
+            f.write(se_stesso.area.get("1.0", "end-1c"))
+        se_stesso.percorso = p
+        se_stesso._titolo()
+
+    definisci seleziona_clic(se_stesso, evento=Nessuno):
+        se_stesso.area.tag_add("sel", "1.0", "end")
+
+    definisci cancella_clic(se_stesso, evento=Nessuno):
+        se_stesso.area.delete("1.0", "end")
+
+    definisci info_clic(se_stesso, evento=Nessuno):
+        messagebox.showinfo("Blocco note", "Un esempio di PitStudio:\nmenu, ancoraggio ai bordi e finestre di dialogo.")
+
+    definisci esci_clic(se_stesso, evento=Nessuno):
+        se_stesso.radice.destroy()
+
+
+se __nome__ == "__main__":
+    radice = tk.Finestra()
+    finestra = Notepad(radice)
+    radice.ciclo_principale()

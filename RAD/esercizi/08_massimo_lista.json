@@ -1,0 +1,30 @@
+{
+  "id": "massimo_lista",
+  "titolo": "Il numero più grande",
+  "argomento": "Liste",
+  "livello": "Intermedio",
+  "consegna": "Leggi una riga con dei numeri interi separati da spazi e stampa il più grande.\n\nEsempio: `4 17 9 -2` → 17",
+  "iniziale": "riga = leggi(\"\")\nnumeri = [intero(x) per x in riga.split()]\n",
+  "prove": [
+    {
+      "ingresso": "4 17 9 -2\n",
+      "uscita": "17"
+    },
+    {
+      "ingresso": "5\n",
+      "uscita": "5"
+    },
+    {
+      "ingresso": "-8 -3 -20\n",
+      "uscita": "-3"
+    }
+  ],
+  "suggerimenti": [
+    "`riga.split()` divide il testo nelle sue parti.",
+    "Per trovare il massimo c'è la funzione `massimo(numeri)`.",
+    "Oppure scorri la lista tenendo il valore più grande visto finora."
+  ],
+  "soluzione": "riga = leggi(\"\")\nnumeri = [intero(x) per x in riga.split()]\nstampa(massimo(numeri))\n",
+  "confronto": "esatto",
+  "ordine": 8
+}

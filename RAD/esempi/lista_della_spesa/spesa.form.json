@@ -1,0 +1,102 @@
+{
+  "versione": 1,
+  "nome": "Spesa",
+  "titolo": "Lista della spesa",
+  "larghezza": 380,
+  "altezza": 400,
+  "sfondo": "",
+  "ridimensionabile": true,
+  "componenti": [
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_voce",
+      "x": 16,
+      "y": 16,
+      "larghezza": 250,
+      "altezza": 28,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "aggiungi_clic",
+        "ancoraggio": "sd",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_aggiungi",
+      "x": 276,
+      "y": 14,
+      "larghezza": 88,
+      "altezza": 32,
+      "valori": {
+        "testo": "Aggiungi",
+        "al_clic": "aggiungi_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "ds",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Elenco",
+      "nome": "elenco_voci",
+      "x": 16,
+      "y": 58,
+      "larghezza": 348,
+      "altezza": 280,
+      "valori": {
+        "elementi": [],
+        "al_selezione": "scelta_voce",
+        "ancoraggio": "sadb",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_togli",
+      "x": 16,
+      "y": 350,
+      "larghezza": 160,
+      "altezza": 32,
+      "valori": {
+        "testo": "Togli la voce scelta",
+        "al_clic": "togli_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sb",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_conto",
+      "x": 190,
+      "y": 356,
+      "larghezza": 174,
+      "altezza": 24,
+      "valori": {
+        "testo": "0 voci",
+        "allineamento": "destra",
+        "ancora": "e",
+        "ancoraggio": "db",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    }
+  ]
+}

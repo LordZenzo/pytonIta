@@ -147,7 +147,7 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
             w = tk.Label(genitore, text=t)
         se carattere e t in ("Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione", "PulsanteOpzione"):
             prova:
-                w.configure(font=carattere)
+                w.configure(font=form_modello.font_tk(carattere))
             eccetto tk.TclError:
                 passa
         se t in ("Pulsante", "CampoTesto", "CasellaSelezione", "PulsanteOpzione", "Etichetta", "Cursore") e stato == "disabled":

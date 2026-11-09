@@ -1,0 +1,14 @@
+{
+  "id": "conta_parole",
+  "titolo": "Conta le parole",
+  "descrizione": "Incolla un testo e il programma conta le parole e mostra le cinque più usate.",
+  "livello": "Intermedio",
+  "categoria": "Console",
+  "impara": [
+    "stringhe",
+    "dizionari",
+    "ordinare",
+    "cicli"
+  ],
+  "principale": "principale.pit"
+}

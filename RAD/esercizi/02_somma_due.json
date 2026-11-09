@@ -1,0 +1,29 @@
+{
+  "id": "somma_due",
+  "titolo": "Somma di due numeri",
+  "argomento": "Variabili e numeri",
+  "livello": "Principiante",
+  "consegna": "Il programma legge due numeri interi (uno per riga) e stampa la loro somma.\n\nEsempio: se scrivo 2 e 3, stampa 5.",
+  "iniziale": "a = intero(leggi(\"\"))\n# leggi anche il secondo numero e stampa la somma\n",
+  "prove": [
+    {
+      "ingresso": "2\n3\n",
+      "uscita": "5"
+    },
+    {
+      "ingresso": "10\n-4\n",
+      "uscita": "6"
+    },
+    {
+      "ingresso": "0\n0\n",
+      "uscita": "0"
+    }
+  ],
+  "suggerimenti": [
+    "`leggi()` restituisce un testo: `intero(...)` lo trasforma in numero.",
+    "Leggi il secondo numero allo stesso modo e stampa `a + b`."
+  ],
+  "soluzione": "a = intero(leggi(\"\"))\nb = intero(leggi(\"\"))\nstampa(a + b)\n",
+  "confronto": "esatto",
+  "ordine": 2
+}

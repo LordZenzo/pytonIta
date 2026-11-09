@@ -1,0 +1,177 @@
+{
+  "versione": 1,
+  "nome": "Calcolatrice",
+  "titolo": "Calcolatrice",
+  "larghezza": 340,
+  "altezza": 230,
+  "sfondo": "",
+  "ridimensionabile": true,
+  "componenti": [
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_a",
+      "x": 16,
+      "y": 18,
+      "larghezza": 100,
+      "altezza": 24,
+      "valori": {
+        "testo": "Primo numero",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_a",
+      "x": 124,
+      "y": 16,
+      "larghezza": 190,
+      "altezza": 28,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "etichetta_b",
+      "x": 16,
+      "y": 56,
+      "larghezza": 100,
+      "altezza": 24,
+      "valori": {
+        "testo": "Secondo numero",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "CampoTesto",
+      "nome": "campo_b",
+      "x": 124,
+      "y": 54,
+      "larghezza": 190,
+      "altezza": 28,
+      "valori": {
+        "testo": "",
+        "nascondi": false,
+        "al_invio": "somma_clic",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": ""
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_somma",
+      "x": 16,
+      "y": 100,
+      "larghezza": 70,
+      "altezza": 36,
+      "valori": {
+        "testo": "+",
+        "al_clic": "somma_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": "Segoe UI 14 bold"
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_sottrai",
+      "x": 95,
+      "y": 100,
+      "larghezza": 70,
+      "altezza": 36,
+      "valori": {
+        "testo": "−",
+        "al_clic": "sottrai_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": "Segoe UI 14 bold"
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_per",
+      "x": 174,
+      "y": 100,
+      "larghezza": 70,
+      "altezza": 36,
+      "valori": {
+        "testo": "×",
+        "al_clic": "moltiplica_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": "Segoe UI 14 bold"
+      }
+    },
+    {
+      "tipo": "Pulsante",
+      "nome": "pulsante_diviso",
+      "x": 253,
+      "y": 100,
+      "larghezza": 70,
+      "altezza": 36,
+      "valori": {
+        "testo": "÷",
+        "al_clic": "dividi_clic",
+        "apre": "",
+        "apre_dialogo": false,
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": "Segoe UI 14 bold"
+      }
+    },
+    {
+      "tipo": "Etichetta",
+      "nome": "risultato",
+      "x": 16,
+      "y": 154,
+      "larghezza": 300,
+      "altezza": 40,
+      "valori": {
+        "testo": "Risultato:",
+        "allineamento": "sinistra",
+        "ancora": "w",
+        "ancoraggio": "sa",
+        "stato": "normale",
+        "sfondo": "",
+        "primo_piano": "",
+        "carattere": "Segoe UI 16 bold"
+      }
+    }
+  ]
+}

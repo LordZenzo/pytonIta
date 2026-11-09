@@ -1,0 +1,33 @@
+"""Finestra Temperature - generato da PitStudio. NON modificare: i cambi vanno nel progettista."""
+importa interfaccia come tk
+da interfaccia importa tema
+importa os
+
+
+classe TemperatureUI:
+    definisci costruisci_ui(se_stesso, radice, cartella=Nessuno):
+        """Crea tutti i componenti dentro 'radice'."""
+        se_stesso.radice = radice
+        radice._interfaccia_ui = se_stesso     # tiene vive le variabili delle caselle anche se nessuno conserva l'oggetto
+        se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))
+        radice.titolo('Convertitore di temperature')
+        radice.geometria("360x220")
+        radice.ridimensionabile(Vero, Vero)
+        se_stesso.immagini = []
+        se_stesso.etichetta_c = tk.Etichetta(radice, testo='Gradi Celsius:', justify='left', anchor='w')
+        se_stesso.etichetta_c.posiziona(x=16, y=20, width=110, height=24)
+        se_stesso.campo_celsius = tk.CampoTesto(radice)
+        se_stesso.campo_celsius.associa('<Return>', se_stesso.converti_clic)
+        se_stesso.campo_celsius.posiziona(x=132, y=18, width=120, height=28)
+        se_stesso.pulsante_converti = tk.Pulsante(radice, testo='Converti', comando=se_stesso.converti_clic)
+        se_stesso.pulsante_converti.posiziona(x=262, y=16, width=84, height=32)
+        se_stesso.fahrenheit = tk.Etichetta(radice, testo='Fahrenheit: —', justify='left', anchor='w', carattere=('Segoe UI', 14))
+        se_stesso.fahrenheit.posiziona(x=16, y=80, width=320, height=30)
+        se_stesso.kelvin = tk.Etichetta(radice, testo='Kelvin: —', justify='left', anchor='w', carattere=('Segoe UI', 14))
+        se_stesso.kelvin.posiziona(x=16, y=120, width=320, height=30)
+        se_stesso.messaggio = tk.Etichetta(radice, testo='', justify='left', anchor='w', primo_piano='#b00020')
+        se_stesso.messaggio.posiziona(x=16, y=168, width=320, height=24)
+        ritorna radice
+
+    definisci converti_clic(se_stesso, evento=Nessuno):
+        passa

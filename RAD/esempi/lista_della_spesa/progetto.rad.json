@@ -1,0 +1,8 @@
+{
+  "nome": "Lista della spesa",
+  "principale": "spesa.pit",
+  "descrizione": "Aggiungi e togli le cose da comprare: la lista resta salvata in un file di testo.",
+  "argomenti": "elenchi, leggere e scrivere file, ancoraggio ai bordi",
+  "creato": "",
+  "modello": "esempio"
+}

@@ -1,0 +1,30 @@
+{
+  "id": "conto_alla_rovescia",
+  "titolo": "Conto alla rovescia",
+  "argomento": "Cicli",
+  "livello": "Principiante",
+  "consegna": "Leggi un numero n. Stampa i numeri da n fino a 1, uno per riga, e alla fine la parola `Via!`.\n\nEsempio con n = 3:\n3\n2\n1\nVia!",
+  "iniziale": "n = intero(leggi(\"\"))\n",
+  "prove": [
+    {
+      "ingresso": "3\n",
+      "uscita": "3\n2\n1\nVia!"
+    },
+    {
+      "ingresso": "1\n",
+      "uscita": "1\nVia!"
+    },
+    {
+      "ingresso": "5\n",
+      "uscita": "5\n4\n3\n2\n1\nVia!"
+    }
+  ],
+  "suggerimenti": [
+    "Puoi usare un ciclo `mentre n > 0:` che a ogni giro stampa n e poi lo diminuisce (`n -= 1`).",
+    "Oppure `per i in intervallo(n, 0, -1):`.",
+    "Dopo il ciclo, `stampa(\"Via!\")`."
+  ],
+  "soluzione": "n = intero(leggi(\"\"))\nper i in intervallo(n, 0, -1):\n    stampa(i)\nstampa(\"Via!\")\n",
+  "confronto": "esatto",
+  "ordine": 5
+}

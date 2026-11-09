@@ -1,0 +1,8 @@
+{
+  "nome": "Calcolatrice",
+  "principale": "calcolatrice.pit",
+  "descrizione": "Due numeri e quattro pulsanti: somma, sottrazione, moltiplicazione e divisione.",
+  "argomenti": "campi di testo e pulsanti, gestori degli eventi, gestire gli errori",
+  "creato": "",
+  "modello": "esempio"
+}

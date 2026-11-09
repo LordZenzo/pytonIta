@@ -1,0 +1,8 @@
+{
+  "nome": "Indovina il numero",
+  "principale": "principale.pit",
+  "descrizione": "Il computer pensa a un numero da 1 a 100: hai 7 tentativi, ti dice se è troppo alto o basso.",
+  "argomenti": "numeri casuali, ciclo per, se / altrimenti, leggi e stampa",
+  "creato": "",
+  "modello": "esempio"
+}

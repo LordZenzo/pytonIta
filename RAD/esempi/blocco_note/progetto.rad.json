@@ -1,0 +1,8 @@
+{
+  "nome": "Blocco note",
+  "principale": "notepad.pit",
+  "descrizione": "Un piccolo editor di testo con la barra dei menu (File, Modifica, Aiuto), che si adatta alla finestra.",
+  "argomenti": "la barra dei menu, ancoraggio ai bordi, finestre di dialogo per aprire e salvare",
+  "creato": "",
+  "modello": "esempio"
+}
