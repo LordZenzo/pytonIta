@@ -1,0 +1,102 @@
+"""Ridimensionamento con le maniglie: la maniglia afferrata deve restare viva per tutto il trascinamento."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.form_modello importa Form
+da rad.progettista importa Progettista
+
+
+classe Az:
+    definisci __getattr__(se_stesso, n):
+        ritorna lambda *a, **k: Nessuno
+
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1300x700+0+0")
+configura_stile(radice, c)
+f = Form("Demo")
+f.aggiungi("Pulsante", 100, 100, testo="Prova")
+p = Progettista(radice, os.path.join(tempfile.mkdtemp(), "demo.form.json"), f, c, cfg, Az())
+p.pack(fill="both", expand=Vero)
+applica(radice, c)
+p.griglia_attiva.set(Falso)
+radice.update()
+p.seleziona(["pulsante1"])
+radice.update()
+comp = f.trova("pulsante1")
+stampa("partenza:", comp.x, comp.y, comp.larghezza, comp.altezza, "| maniglie:", lunghezza(p.maniglie))
+
+
+definisci trascina(chiave, passi):
+    """Premi sulla maniglia, muovi in più passi con lo stesso widget (come fa il mouse), rilascia."""
+    m = p._pomelli[chiave]
+    x0, y0 = m.winfo_rootx() + 4, m.winfo_rooty() + 4
+    m.event_generate("<ButtonPress-1>", x=4, y=4, rootx=x0, rooty=y0)
+    viva = Vero
+    per dx, dy in passi:
+        x0 += dx
+        y0 += dy
+        se non m.winfo_exists():
+            viva = Falso
+            interrompi
+        m.event_generate("<B1-Motion>", x=4, y=4, rootx=x0, rooty=y0, state=0x100)
+        radice.update()
+    se m.winfo_exists():
+        m.event_generate("<ButtonRelease-1>", x=4, y=4, rootx=x0, rooty=y0)
+    radice.update()
+    ritorna viva
+
+
+viva = trascina("se", [(10, 5)] * 6)
+stampa("maniglia sud-est viva per tutto il trascinamento:", viva, "| dimensioni:", comp.larghezza, comp.altezza)
+stampa("ingrandito di 60x30:", comp.larghezza == 160 e comp.altezza == 60)
+w0, h0, x0_, y0_ = comp.larghezza, comp.altezza, comp.x, comp.y
+viva = trascina("no", [(-8, -4)] * 3)
+stampa("maniglia nord-ovest:", viva, "| posizione:", comp.x, comp.y, "| dimensioni:", comp.larghezza, comp.altezza)
+stampa("nord-ovest sposta l'angolo e allarga:", comp.x < x0_ e comp.y < y0_ e comp.larghezza > w0 e comp.altezza > h0)
+w1 = comp.larghezza
+viva = trascina("e", [(-10, 0)] * 2)
+stampa("maniglia est (restringe):", viva, comp.larghezza == w1 - 20)
+stampa("le maniglie sono tutte al loro posto:", lunghezza(p.maniglie) == 9)
+m = p._pomelli["se"]
+w = p.widget["pulsante1"]
+stampa("maniglia sud-est sull'angolo del componente:",
+       abs((m.winfo_rootx() + 4) - (w.winfo_rootx() + w.winfo_width())) <= 1 e abs((m.winfo_rooty() + 4) - (w.winfo_rooty() + w.winfo_height())) <= 1)
+
+# ---- mouse vero (Windows): afferra la maniglia sud-est e trascina
+se os.name == "nt":
+    importa ctypes
+    u = ctypes.windll.user32
+    radice.lift()
+    radice.attributes("-topmost", Vero)
+    radice.update()
+    p.seleziona(["pulsante1"])
+    radice.update()
+    m = p._pomelli["se"]
+    px, py = m.winfo_rootx() + 4, m.winfo_rooty() + 4
+    prima = (comp.larghezza, comp.altezza)
+    passo = [0]
+
+    definisci muovi():
+        passo[0] += 1
+        n = passo[0]
+        se n == 1:
+            u.SetCursorPos(px, py)
+        altrimenti_se n == 2:
+            u.mouse_event(0x0002, 0, 0, 0, 0)          # tasto sinistro giù
+        altrimenti_se 3 <= n <= 10:
+            u.SetCursorPos(px + (n - 2) * 8, py + (n - 2) * 4)
+        altrimenti_se n == 11:
+            u.mouse_event(0x0004, 0, 0, 0, 0)          # tasto sinistro su
+        altrimenti:
+            radice.quit()
+            ritorna
+        radice.after(60, muovi)
+    radice.after(200, muovi)
+    radice.mainloop()
+    stampa("mouse vero: da", prima, "a", (comp.larghezza, comp.altezza), "| ridimensionato:", comp.larghezza >= prima[0] + 56 e comp.altezza >= prima[1] + 28)
+radice.destroy()

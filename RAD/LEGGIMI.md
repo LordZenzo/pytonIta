@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.19
+
+- **Ridimensionamento con le maniglie nel progettista**: con il mouse vero la maniglia afferrata veniva distrutta e ricreata a ogni movimento, e Windows smetteva di mandarle i movimenti: la dimensione cambiava di un solo passo e poi si fermava. Ora contorno e maniglie vengono solo spostati. Provato anche con il mouse reale (`tests/prova_maniglie.pit`).
+
 ## Novità della 1.18
 
 - **Anteprima del progettista fedele alla finestra vera**: prima i componenti ereditavano i colori scuri di PitStudio (pulsanti piatti, campi scuri, barra di avanzamento blu) e si discostavano molto dal programma in esecuzione. Ora l'anteprima ha l'aspetto predefinito di Windows, uguale alla finestra generata. Misurato confrontando le schermate: i pixel diversi sono scesi dal 58,8 % allo 0,3 % (restano piccole differenze nelle frecce della casella combinata, nella barra di avanzamento e nelle intestazioni dell'albero, che nel programma vero usano il tema nativo di Windows). Test: `tests/prova_anteprima.pit`.

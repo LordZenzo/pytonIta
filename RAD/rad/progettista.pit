@@ -360,10 +360,29 @@ classe Progettista(tk.Frame):
         se_stesso._riempi_ispettore()
         se_stesso._aggiorna_stato()
 
+    definisci _riposiziona_maniglie(se_stesso):
+        """Sposta contorno e maniglie senza ricrearli: durante il trascinamento la maniglia afferrata deve restare viva,
+        altrimenti il mouse non le manda più i movimenti e il ridimensionamento si ferma dopo il primo passo."""
+        bordi = getattr(se_stesso, "_bordi", {})
+        pomelli = getattr(se_stesso, "_pomelli", {})
+        se lista(bordi) != lista(se_stesso.selezione_) o (lunghezza(se_stesso.selezione_) == 1 e lunghezza(pomelli) != lunghezza(MANIGLIE)):
+            se_stesso._aggiorna_maniglie()
+            ritorna
+        per nome, bordo in bordi.items():
+            c = se_stesso.form.trova(nome)
+            se c:
+                bordo.place_configure(x=c.x - 1, y=c.y - 1, width=c.larghezza + 2, height=c.altezza + 2)
+        se pomelli e lunghezza(se_stesso.selezione_) == 1:
+            c = se_stesso.form.trova(se_stesso.selezione_[0])
+            per chiave, (cursore, ax, ay) in MANIGLIE.items():
+                pomelli[chiave].place_configure(x=c.x + int(c.larghezza * ax) - 4, y=c.y + int(c.altezza * ay) - 4)
+
     definisci _aggiorna_maniglie(se_stesso):
         per m in se_stesso.maniglie:
             m.destroy()
         se_stesso.maniglie = []
+        se_stesso._bordi = {}
+        se_stesso._pomelli = {}
         per nome in se_stesso.selezione_:
             c = se_stesso.form.trova(nome)
             w = se_stesso.widget.get(nome)
@@ -374,6 +393,7 @@ classe Progettista(tk.Frame):
             per lato in ("n", "s", "e", "o"):
                 passa
             se_stesso.maniglie.append(bordo)
+            se_stesso._bordi[nome] = bordo
             bordo.place(x=c.x - 1, y=c.y - 1, width=c.larghezza + 2, height=c.altezza + 2)
             bordo.tk.call("lower", bordo._w, w._w)
             w.tk.call("raise", w._w)
@@ -386,6 +406,7 @@ classe Progettista(tk.Frame):
                     m.bind("<B1-Motion>", se_stesso._ridimensiona)
                     m.bind("<ButtonRelease-1>", se_stesso._fine_ridimensiona)
                     se_stesso.maniglie.append(m)
+                    se_stesso._pomelli[chiave] = m
                     m.tk.call("raise", m._w)
 
     definisci _aggiorna_stato(se_stesso):
@@ -474,7 +495,7 @@ classe Progettista(tk.Frame):
             c.x = max(0, se_stesso._aggancia(x0 + dx))
             c.y = max(0, se_stesso._aggancia(y0 + dy))
             se_stesso.widget[n].place_configure(x=c.x, y=c.y)
-        se_stesso._aggiorna_maniglie()
+        se_stesso._riposiziona_maniglie()
         se_stesso._aggiorna_stato()
         ritorna "break"
 
@@ -522,7 +543,7 @@ classe Progettista(tk.Frame):
             y = y + (r["geom"][3] - h)
         c.x, c.y, c.larghezza, c.altezza = max(0, x), max(0, y), w, h
         se_stesso.widget[c.nome].place_configure(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
-        se_stesso._aggiorna_maniglie()
+        se_stesso._riposiziona_maniglie()
         se_stesso._aggiorna_stato()
         ritorna "break"
 
