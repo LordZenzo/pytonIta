@@ -122,6 +122,58 @@ stampa("tutti:", d.numero_record())
 c2.chiudi()
 radice.destroy()
 
+# --- salvataggio automatico: cambiando record e chiudendo la finestra
+radice = tk.Tk()
+a = m.Anagrafica(radice)
+radice.update()
+a.campo_citta.delete(0, "end")
+a.campo_citta.insert(0, "Genova")
+a.barra.pulsanti["successivo"].invoke()
+c3 = dbm.apri_sqlite(db, crea=Falso)
+stampa("cambiando record salva da solo:", c3.esegui_una("SELECT citta FROM clienti WHERE nome = 'Anna'").righe, "| ora su:", a.campo_nome.get(), "|", a.barra.etichetta.cget("text"))
+a.campo_nome.delete(0, "end")
+a.campo_nome.insert(0, "Bruno2")
+radice.tk.call(radice.protocol("WM_DELETE_WINDOW"))
+stampa("chiudendo salva da solo:", c3.esegui_una("SELECT nome FROM clienti WHERE nome IN ('Bruno', 'Bruno2')").righe)
+# un record nuovo scritto e lasciato: si aggiunge; un record nuovo vuoto no
+radice = tk.Tk()
+a = m.Anagrafica(radice)
+radice.update()
+n0 = c3.esegui_una("SELECT COUNT(*) FROM clienti").righe[0][0]
+a.barra.pulsanti["nuovo"].invoke()
+a.barra.pulsanti["primo"].invoke()
+n1 = c3.esegui_una("SELECT COUNT(*) FROM clienti").righe[0][0]
+a.barra.pulsanti["nuovo"].invoke()
+a.campo_nome.insert(0, "Fabio")
+a.barra.pulsanti["primo"].invoke()
+stampa("nuovo vuoto non si salva:", n0 == n1, "| nuovo scritto sì:", c3.esegui_una("SELECT COUNT(*) FROM clienti WHERE nome = 'Fabio'").righe[0][0])
+# un nuovo incompleto (nome mancante): avvisa e resta lì
+avvisi = []
+messagebox.showwarning = lambda titolo, testo_, **k: avvisi.append(testo_)
+a.barra.pulsanti["nuovo"].invoke()
+a.campo_citta.insert(0, "Aosta")
+a.barra.pulsanti["primo"].invoke()
+stampa("record incompleto: avviso e resta in «nuovo»:", lunghezza(avvisi), a.clienti_db.in_nuovo)
+radice.destroy()
+# spento
+f.trova("clienti_db").valori["salva_da_solo"] = Falso
+form_modello.salva_form(f, cartella)
+importlib.reload(importlib.import_module("anagrafica_ui"))
+importlib.reload(m)
+radice = tk.Tk()
+a = m.Anagrafica(radice)
+radice.update()
+a.campo_citta.delete(0, "end")
+a.campo_citta.insert(0, "Non salvare")
+a.barra.pulsanti["successivo"].invoke()
+radice.tk.call(radice.protocol("WM_DELETE_WINDOW")) se radice.protocol("WM_DELETE_WINDOW") altrimenti radice.destroy()
+stampa("con «Salva da solo» spento non salva:", c3.esegui_una("SELECT COUNT(*) FROM clienti WHERE citta = 'Non salvare'").righe[0][0])
+f.trova("clienti_db").valori["salva_da_solo"] = Vero
+form_modello.salva_form(f, cartella)
+importlib.reload(importlib.import_module("anagrafica_ui"))
+importlib.reload(m)
+c3.chiudi()
+
 # --- filtro, ordine decrescente e fonte senza tabella
 f.trova("clienti_db").valori.update({"filtro": "citta = 'Roma'", "decrescente": Vero})
 form_modello.salva_form(f, cartella)

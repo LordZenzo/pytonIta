@@ -9,8 +9,8 @@ BEGIN
   BEGIN
    VALUE "ProductName", "PitStudio"
    VALUE "FileDescription", "PitStudio - ambiente di sviluppo per pytonIta"
-   VALUE "FileVersion", "1.30.3.13.18"
-   VALUE "ProductVersion", "1.30.3.13.18"
+   VALUE "FileVersion", "1.31.3.13.18"
+   VALUE "ProductVersion", "1.31.3.13.18"
   END
  END
  BLOCK "VarFileInfo"

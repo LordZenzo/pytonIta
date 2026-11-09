@@ -90,6 +90,7 @@ TIPI["FonteDati"] = dict(classe_tk="", modulo="tk", larghezza=130, altezza=24, i
                                     "ordina_per": ("campo_fonte", "", "Ordina per"),
                                     "decrescente": ("si_no", Falso, "Ordine decrescente"),
                                     "apri_subito": ("si_no", Vero, "Legge i dati all'avvio"),
+                                    "salva_da_solo": ("si_no", Vero, "Salva da solo (cambiando record e chiudendo)"),
                                     "al_cambio": ("evento", "", "Evento: cambia il record")})
 TIPI["BarraNavigazione"] = dict(classe_tk="", modulo="", larghezza=620, altezza=34, icona="⏮",
                                 proprieta={"fonte": ("fonte", "", "Fonte dati"),
@@ -429,6 +430,8 @@ definisci _codice_dati(form):
         g = (v.get("al_cambio") o "").strip()
         se g e nome_valido(g):
             o.append(f"al_cambio=se_stesso.{g}")
+        se non v.get("salva_da_solo", Vero):
+            o.append("salva_da_solo=Falso")
         r.append(f"{ind}# --- dati: {f.nome} ({v.get('tabella') o 'tabella da scegliere'})")
         r.append(f"{ind}se_stesso.{f.nome} = dati.Collegamento.crea({', '.join(o)})")
         per c in form.componenti:

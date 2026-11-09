@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.31
+
+- **Salvataggio automatico** dei campi legati ai dati: prima si salvava solo con il pulsante «Salva» della barra, quindi un campo legato senza barra non scriveva nulla nel database. Ora la fonte dati salva da sola le modifiche cambiando record, cercando, aggiungendo un record nuovo e chiudendo la finestra (proprietà **Salva da solo** della fonte dati, accesa di default). Un record nuovo lasciato vuoto non viene aggiunto.
+
 ## Novità della 1.30
 
 - **Dati nelle finestre**: due nuovi componenti nel progettista, **FonteDati** (database SQLite o MySQL, tabella, filtro, ordine; le tabelle e le colonne si scelgono da elenchi presi dal database vero) e **BarraNavigazione** (primo, precedente, successivo, ultimo, nuovo, salva, elimina, annulla, ricerca e «3 / 25», con i pulsanti scelti uno per uno). Campi, caselle, aree di testo, cursori, caselle combinate, etichette, elenchi e alberi hanno le proprietà **Fonte dati** e **Campo**: mostrano il record corrente e lo salvano senza scrivere codice. Le maschere automatiche (*Database → Crea una maschera dalla tabella…*) ora sono costruite con questi componenti e si modificano nel progettista. Funziona con l'esportazione in Python e la creazione dell'eseguibile. Guida: «Dati nelle finestre». Test: `tests/prova_dati_form.pit`.

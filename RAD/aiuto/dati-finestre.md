@@ -18,6 +18,7 @@ Scegli **FonteDati** dalla palette: compare come una piccola etichetta gialla (n
 | **Tabella** | un elenco con le tabelle vere del database: si aprono quando clicchi la freccia |
 | **Filtro SQL** | una condizione fissa, per esempio `citta = 'Roma'` |
 | **Ordina per** / **Ordine decrescente** | scegli la colonna con cui ordinare i record |
+| **Salva da solo** | acceso: le modifiche ai campi si salvano da sole quando cambi record, cerchi, scrivi un record nuovo e chiudi la finestra (se il salvataggio non riesce, per esempio manca un campo obbligatorio, te lo dice e resti lì). Spento: si salva solo con «salva» della barra o con `fonte1.salva()` |
 | **Legge i dati all'avvio** | se spento, la finestra parte vuota e i dati si leggono con `fonte1.apri()` |
 | **Evento: cambia il record** | un gestore richiamato a ogni cambio di record |
 
