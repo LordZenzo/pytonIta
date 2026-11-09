@@ -2,6 +2,9 @@
 # Tutto il resto di C:\AppPython (altri progetti) resta fuori.
 /*
 !/.gitignore
+!/LICENSE
+!/README.md
+!/docs/
 !/RAD/
 !/installatore/
 !/pitonit/

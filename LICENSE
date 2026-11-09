@@ -1,0 +1,43 @@
+Licenza di pytonIta / PitStudio
+Copyright (c) 2026 Lorenzo Giannini. Tutti i diritti riservati.
+
+Questo software è "source-available": il codice è visibile, ma NON è software
+libero e NON può essere modificato né ridistribuito in versione modificata.
+
+1. COSA PUOI FARE
+   a) Scaricare, installare e usare pytonIta (pitonit), PitStudio e l'installatore,
+      gratuitamente, per qualsiasi scopo personale, didattico o professionale.
+   b) Scrivere e distribuire i tuoi programmi (.pit, .py, eseguibili) fatti con
+      pytonIta: i programmi che scrivi sono tuoi.
+   c) Leggere i sorgenti per studio e per segnalare problemi.
+   d) Ridistribuire l'installatore (Installa_pytonIta.exe) INALTERATO, così come
+      pubblicato dall'autore, senza chiedere denaro per il solo file.
+
+2. COSA NON PUOI FARE senza permesso scritto dell'autore
+   a) Modificare il software, o creare opere derivate (fork modificati, versioni
+      con altro nome, estratti riutilizzati in altri prodotti).
+   b) Ridistribuire il software o parti di esso in forma modificata, ricompilata
+      o reimpacchettata.
+   c) Rimuovere o alterare questa licenza, il nome dell'autore o le versioni.
+   d) Vendere il software o presentarlo come proprio.
+
+3. COMPONENTI DI TERZI
+   pitonit è basato su CPython, distribuito con la licenza della Python Software
+   Foundation (PSF License Version 2). La patch in "pitonit/patch" modifica CPython;
+   le parti di CPython restano soggette alla loro licenza, che non viene
+   ristretta da questo file. Il testo di quella licenza è incluso
+   nell'installazione (pitonit\LICENSE_CPython.txt). Le librerie incluse nel pacchetto
+   (per esempio numpy, pandas, scipy, matplotlib, pip e relative dipendenze)
+   mantengono le proprie licenze.
+
+4. NESSUNA GARANZIA
+   Il software è fornito "così com'è", senza garanzie di alcun tipo. L'autore non
+   risponde di danni derivanti dall'uso.
+
+5. GITHUB
+   Pubblicando il repository su GitHub si applicano anche le condizioni d'uso di
+   GitHub, che consentono ad altri utenti di visualizzare e creare fork nella
+   piattaforma. Questo non concede alcun diritto di modifica o ridistribuzione
+   oltre a quanto scritto sopra.
+
+Per richieste di permessi particolari: giannini.lorenzo.98@gmail.com

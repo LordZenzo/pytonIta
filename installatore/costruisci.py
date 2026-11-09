@@ -96,6 +96,8 @@ def costruisci_pacchetti():
                 n_core += 1
         for nome in ("py2pit.py", "tipi_ast.pit"):
             scrivi(zc, os.path.join(STRUMENTI, nome), "pitonit/tools/" + nome)
+        scrivi(zc, os.path.join(RADICE, "pitonit", "src", "LICENSE"), "pitonit/LICENSE_CPython.txt")
+        scrivi(zc, os.path.join(RADICE, "LICENSE"), "pitonit/LICENSE_pytonIta.txt")
         for nome in ("README.md", "ELENCO_LIBRERIE.md"):
             scrivi(zc, os.path.join(RADICE, "pitonit", nome), "pitonit/" + nome)
     n_rad = 0
