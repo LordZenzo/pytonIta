@@ -168,7 +168,7 @@ definisci _disegna_barra(w, v):
     """Anteprima della barra di navigazione: i pulsanti scelti, «1 / 25» e la casella di ricerca."""
     x = 2
     per k in form_modello.PULSANTI_BARRA:
-        se non v.get(k, Vero):
+        se non v.get(k, k non in form_modello.PULSANTI_FACOLTATIVI):
             continua
         testo_ = form_modello.TESTI_BARRA[k]
         larghezza = 30 se k in ("primo", "precedente", "successivo", "ultimo") altrimenti 12 + 7 * lunghezza(testo_)

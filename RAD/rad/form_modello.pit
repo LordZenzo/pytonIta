@@ -57,6 +57,7 @@ TIPI = {
                    proprieta={"colonne": ("colonne_albero", ["Nome", "Valore"], "Colonne"),
                               "larghezze": ("nascosta", [], "Larghezza delle colonne"),
                               "allineamenti": ("nascosta", [], "Allineamento delle colonne"),
+                              "modificabile": ("si_no", Falso, "Modificabile (con la fonte dati: doppio clic su una cella)"),
                               "al_selezione": ("evento", "", "Evento: selezione")}),
     "Tela": dict(classe_tk="Tela", modulo="tk", larghezza=200, altezza=140, icona="◩",
                  proprieta={"sfondo": ("colore", "#ffffff", "Sfondo")}),
@@ -91,6 +92,7 @@ TIPI["FonteDati"] = dict(classe_tk="", modulo="tk", larghezza=130, altezza=24, i
                                     "decrescente": ("si_no", Falso, "Ordine decrescente"),
                                     "apri_subito": ("si_no", Vero, "Legge i dati all'avvio"),
                                     "salva_da_solo": ("si_no", Vero, "Salva da solo (cambiando record e chiudendo)"),
+                                    "transazione": ("si_no", Falso, "Modifiche in sospeso fino a «Conferma» (commit / rollback)"),
                                     "al_cambio": ("evento", "", "Evento: cambia il record")})
 TIPI["BarraNavigazione"] = dict(classe_tk="", modulo="", larghezza=620, altezza=34, icona="⏮",
                                 proprieta={"fonte": ("fonte", "", "Fonte dati"),
@@ -102,10 +104,14 @@ TIPI["BarraNavigazione"] = dict(classe_tk="", modulo="", larghezza=620, altezza=
                                            "salva": ("si_no", Vero, "Pulsante «salva»"),
                                            "elimina": ("si_no", Vero, "Pulsante «elimina»"),
                                            "annulla": ("si_no", Vero, "Pulsante «annulla»"),
+                                           "conferma": ("si_no", Falso, "Pulsante «conferma» (commit, con la transazione)"),
+                                           "annulla_tutto": ("si_no", Falso, "Pulsante «annulla tutto» (rollback, con la transazione)"),
                                            "posizione": ("si_no", Vero, "Mostra «3 / 25»"),
                                            "cerca": ("si_no", Falso, "Casella di ricerca")})
-PULSANTI_BARRA = ("primo", "precedente", "successivo", "ultimo", "nuovo", "salva", "elimina", "annulla")
-TESTI_BARRA = {"primo": "|◀", "precedente": "◀", "successivo": "▶", "ultimo": "▶|", "nuovo": "Nuovo", "salva": "Salva", "elimina": "Elimina", "annulla": "Annulla"}
+PULSANTI_BARRA = ("primo", "precedente", "successivo", "ultimo", "nuovo", "salva", "elimina", "annulla", "conferma", "annulla_tutto")
+PULSANTI_FACOLTATIVI = ("conferma", "annulla_tutto")          # spenti finché non li scegli (servono solo con la transazione)
+TESTI_BARRA = {"primo": "|◀", "precedente": "◀", "successivo": "▶", "ultimo": "▶|", "nuovo": "Nuovo", "salva": "Salva", "elimina": "Elimina", "annulla": "Annulla",
+               "conferma": "Conferma", "annulla_tutto": "Annulla tutto"}
 # componenti che si possono legare a un campo della tabella: tipo -> True se serve anche il campo (l'Albero mostra più colonne)
 COLLEGABILI = {"Etichetta": Vero, "CampoTesto": Vero, "AreaTesto": Vero, "Elenco": Vero, "CasellaSelezione": Vero,
                "Cursore": Vero, "CasellaCombinata": Vero, "Albero": Falso}
@@ -432,6 +438,8 @@ definisci _codice_dati(form):
             o.append(f"al_cambio=se_stesso.{g}")
         se non v.get("salva_da_solo", Vero):
             o.append("salva_da_solo=Falso")
+        se v.get("transazione"):
+            o.append("transazione=Vero")
         r.append(f"{ind}# --- dati: {f.nome} ({v.get('tabella') o 'tabella da scegliere'})")
         r.append(f"{ind}se_stesso.{f.nome} = dati.Collegamento.crea({', '.join(o)})")
         per c in form.componenti:
@@ -441,7 +449,7 @@ definisci _codice_dati(form):
             se c.tipo == "BarraNavigazione":
                 r.append(f"{ind}se_stesso.{f.nome}.collega_barra(se_stesso.{c.nome})")
             altrimenti_se c.tipo == "Albero":
-                r.append(f"{ind}se_stesso.{f.nome}.collega_griglia(se_stesso.{c.nome})")
+                r.append(f"{ind}se_stesso.{f.nome}.collega_griglia(se_stesso.{c.nome}{', modificabile=Vero' se c.valori.get('modificabile') altrimenti ''})")
             altrimenti_se c.tipo == "Elenco" e campo:
                 r.append(f"{ind}se_stesso.{f.nome}.collega_griglia(se_stesso.{c.nome}, {_lit(campo)})")
             altrimenti_se campo:
@@ -753,7 +761,7 @@ definisci _codice_componente(c, form=Nessuno):
     altrimenti_se c.tipo == "FonteDati":
         ritorna r                     # si crea in fondo (_codice_dati), quando i componenti legati esistono
     altrimenti_se c.tipo == "BarraNavigazione":
-        pulsanti = tuple(k per k in PULSANTI_BARRA se v.get(k, Vero))
+        pulsanti = tuple(k per k in PULSANTI_BARRA se v.get(k, k non in PULSANTI_FACOLTATIVI))
         r.append(f"{ind}{nome_att} = dati.BarraDati(radice, pulsanti={_lit(pulsanti)}, posizione={_lit(bool(v.get('posizione', Vero)))}, cerca={_lit(bool(v.get('cerca')))})")
     r.append(f"{ind}{nome_att}.posiziona({_geometria(c, form)})")
     se c.genitore:

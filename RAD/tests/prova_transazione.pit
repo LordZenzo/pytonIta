@@ -1,0 +1,136 @@
+"""Transazione (commit / rollback) nelle finestre con i dati, e griglia modificabile: modifiche in sospeso, Conferma, Annulla tutto, chiusura."""
+importa sys, os, tempfile, importlib, sqlite3
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+avvisi = []
+messagebox.showwarning = lambda titolo, testo_, **k: avvisi.append(testo_)
+messagebox.showerror = lambda titolo, testo_, **k: avvisi.append(testo_)
+messagebox.askyesno = lambda *a, **k: Vero
+risposta_chiusura = [Nessuno]
+messagebox.askyesnocancel = lambda *a, **k: risposta_chiusura[0]
+da rad importa database_modello come dbm, form_modello
+da rad.form_modello importa Form
+
+cartella = tempfile.mkdtemp()
+db = os.path.join(cartella, "magazzino.db")
+c = dbm.apri_sqlite(db)
+c.esegui("CREATE TABLE articoli (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, qta INTEGER, prezzo REAL);"
+         "INSERT INTO articoli (nome, qta, prezzo) VALUES ('Bulloni', 100, 0.1), ('Dadi', 50, 0.05), ('Viti', 70, 0.2)")
+c.chiudi()
+
+
+definisci nel_db():
+    """Cosa c'è davvero nel file (un'altra connessione vede solo le modifiche confermate)."""
+    k = sqlite3.connect(db)
+    righe = k.execute("SELECT id, nome, qta, prezzo FROM articoli ORDER BY id").fetchall()
+    k.close()
+    ritorna righe
+
+
+f = Form("Magazzino", "Magazzino")
+f.larghezza, f.altezza = 640, 400
+f.aggiungi("FonteDati", 10, 10, nome="art", database="magazzino.db", tabella="articoli", ordina_per="id", transazione=Vero, salva_da_solo=Vero)
+f.aggiungi("BarraNavigazione", 10, 10, nome="barra", larghezza=620, altezza=34, fonte="art", conferma=Vero, annulla_tutto=Vero)
+f.aggiungi("Albero", 10, 60, nome="griglia", larghezza=600, altezza=140, fonte="art", colonne=["id", "nome", "qta", "prezzo"], modificabile=Vero)
+f.aggiungi("CampoTesto", 10, 220, nome="campo_nome", larghezza=200, fonte="art", campo="nome")
+form_modello.salva_form(f, cartella)
+ui = open(os.path.join(cartella, "magazzino_ui.pit"), encoding="utf-8").read()
+stampa("codice: transazione:", "transazione=Vero" in ui, "| griglia modificabile:", "collega_griglia(se_stesso.griglia, modificabile=Vero)" in ui,
+       "| pulsanti:", "'conferma'" in ui e "'annulla_tutto'" in ui)
+g = form_modello.carica_form(os.path.join(cartella, "magazzino.form.json"))
+stampa("riletto:", g.trova("art").valori["transazione"], g.trova("griglia").valori["modificabile"], g.trova("barra").valori["conferma"])
+stampa("vecchia barra senza i pulsanti nuovi:", "conferma" non in str(tuple(k per k in form_modello.PULSANTI_BARRA se Vero e k non in form_modello.PULSANTI_FACOLTATIVI)))
+
+sys.path.insert(0, cartella)
+m = importlib.import_module("magazzino")
+radice = tk.Tk()
+radice.geometry("660x420+20+20")
+a = m.Magazzino(radice)
+radice.update()
+d = a.art
+t = a.griglia
+b = a.barra
+stampa("aperta:", d.numero_record(), "record | transazione:", d.fonte.transazione, "| in sospeso:", d.modifiche_in_sospeso(), "|", b.etichetta.cget("text"))
+stampa("pulsanti conferma/annulla tutto:", b.pulsanti["conferma"].cget("state"), b.pulsanti["annulla_tutto"].cget("state"))
+
+# --- modifico due record dalla campi: restano in sospeso
+a.campo_nome.delete(0, "end")
+a.campo_nome.insert(0, "Bulloni XL")
+d.successivo()                       # salva da solo (nella transazione)
+radice.update()
+a.campo_nome.delete(0, "end")
+a.campo_nome.insert(0, "Dadi blu")
+d.successivo()
+radice.update()
+stampa("in sospeso:", d.modifiche_in_sospeso(), "|", b.etichetta.cget("text"), "| nel file:", nel_db()[:2], "| avvisi:", avvisi)
+stampa("righe evidenziate:", [i per i in t.get_children() se "sporca" in t.item(i, "tags")])
+
+# --- modifica diretta nella griglia (come dopo un doppio clic): cella qta della riga 3
+d._scrivi_cella(t, d.record[2][0], "2", "qta", "75")
+radice.update()
+stampa("griglia: qta Viti =", t.set("2", "qta"), "| in sospeso:", d.modifiche_in_sospeso(), "| nel file ancora:", nel_db()[2])
+
+# --- rollback
+d.annulla_tutto()
+radice.update()
+stampa("dopo Annulla tutto: in sospeso:", d.modifiche_in_sospeso(), "| nomi:", [r[1]["nome"] per r in d.record], "| qta:", [r[1]["qta"] per r in d.record], "| evidenziate:", [i per i in t.get_children() se "sporca" in t.item(i, "tags")], "|", b.etichetta.cget("text"))
+stampa("nel file:", nel_db() == [(1, "Bulloni", 100, 0.1), (2, "Dadi", 50, 0.05), (3, "Viti", 70, 0.2)])
+
+# --- di nuovo: modifiche, elimina, riga nuova, poi commit
+d._scrivi_cella(t, d.record[0][0], "0", "qta", "120")
+d._scrivi_cella(t, d.record[1][0], "1", "prezzo", "0,07") se Falso altrimenti d._scrivi_cella(t, d.record[1][0], "1", "prezzo", "0.07")
+d._riga_nuova_griglia(t)
+radice.update()
+stampa("riga nuova in griglia:", "nuova" in t.get_children(), "| editor aperto:", d._editor è non Nessuno)
+d._chiudi_editor()
+d._scrivi_cella(t, Nessuno, "nuova", "qta", "9")
+stampa("senza nome non si inserisce:", d.numero_record(), "| avvisi:", avvisi)
+d._scrivi_cella(t, Nessuno, "nuova", "nome", "Rondelle")
+radice.update()
+stampa("riga nuova inserita:", d.numero_record(), [r[1]["nome"] per r in d.record][-1], "| qta:", d.record[-1][1]["qta"], "| in sospeso:", d.modifiche_in_sospeso())
+d.vai(0)
+d.vai(2)
+d.elimina()                          # Viti
+radice.update()
+stampa("dopo elimina:", [r[1]["nome"] per r in d.record], "| in sospeso:", d.modifiche_in_sospeso(), "| nel file ancora:", lunghezza(nel_db()))
+stampa("nel file prima del commit: qta Bulloni =", nel_db()[0][2])
+stampa("commit riuscito:", d.conferma())
+radice.update()
+stampa("dopo Conferma: in sospeso:", d.modifiche_in_sospeso(), "| evidenziate:", [i per i in t.get_children() se "sporca" in t.item(i, "tags")], "| nel file:", nel_db())
+d.annulla_tutto()
+stampa("rollback dopo il commit non toglie nulla:", lunghezza(nel_db()), nel_db()[0][2])
+
+# --- chiusura con modifiche in sospeso
+d._scrivi_cella(t, d.record[0][0], "0", "qta", "1")
+risposta_chiusura[0] = Nessuno
+radice.tk.call(radice.protocol("WM_DELETE_WINDOW"))
+radice.update()
+stampa("chiusura «annulla»: finestra ancora aperta:", radice.winfo_exists(), "| in sospeso:", d.modifiche_in_sospeso())
+risposta_chiusura[0] = Falso
+radice.tk.call(radice.protocol("WM_DELETE_WINDOW"))
+stampa("chiusura «no» (rollback): nel file qta =", nel_db()[0][2])
+
+radice = tk.Tk()
+radice.geometry("660x420+20+20")
+a = m.Magazzino(radice)
+radice.update()
+a.art._scrivi_cella(a.griglia, a.art.record[0][0], "0", "qta", "5")
+risposta_chiusura[0] = Vero
+radice.tk.call(radice.protocol("WM_DELETE_WINDOW"))
+stampa("chiusura «sì» (commit): nel file qta =", nel_db()[0][2])
+
+# --- senza transazione tutto è subito definitivo
+f.trova("art").valori["transazione"] = Falso
+f.trova("griglia").valori["modificabile"] = Falso
+form_modello.salva_form(f, cartella)
+importlib.reload(sys.modules["magazzino_ui"])
+importlib.reload(m)
+radice = tk.Tk()
+radice.geometry("660x420+20+20")
+a = m.Magazzino(radice)
+radice.update()
+d = a.art
+d.fonte.salva({"qta": "77"}, d.record[1][0])
+stampa("senza transazione: nel file subito:", [r[2] per r in nel_db()], "| in sospeso:", d.modifiche_in_sospeso())
+radice.destroy()

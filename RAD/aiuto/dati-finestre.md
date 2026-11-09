@@ -19,6 +19,7 @@ Scegli **FonteDati** dalla palette: compare come una piccola etichetta gialla (n
 | **Filtro SQL** | una condizione fissa, per esempio `citta = 'Roma'` |
 | **Ordina per** / **Ordine decrescente** | scegli la colonna con cui ordinare i record |
 | **Salva da solo** | acceso: le modifiche ai campi si salvano da sole quando cambi record, cerchi, scrivi un record nuovo e chiudi la finestra (se il salvataggio non riesce, per esempio manca un campo obbligatorio, te lo dice e resti lì). Spento: si salva solo con «salva» della barra o con `fonte1.salva()` |
+| **Modifiche in sospeso** | acceso: salvataggi ed eliminazioni restano in una *transazione* e diventano definitivi solo con **Conferma** (commit); **Annulla tutto** (rollback) li cancella. Vedi «Commit e rollback» più sotto |
 | **Legge i dati all'avvio** | se spento, la finestra parte vuota e i dati si leggono con `fonte1.apri()` |
 | **Evento: cambia il record** | un gestore richiamato a ogni cambio di record |
 
@@ -39,7 +40,23 @@ Il componente mostra il valore del record corrente e, quando salvi, il suo conte
 
 ### 3. La barra di navigazione (componente «BarraNavigazione»)
 
-Una barra con i pulsanti che scegli tu, uno per uno, nell'ispettore: **primo**, **precedente**, **successivo**, **ultimo**, **nuovo**, **salva**, **elimina**, **annulla**, più la scritta «3 / 25» e, se vuoi, una **casella di ricerca** (cerca in tutte le colonne). Si collega con la proprietà *Fonte dati*. I pulsanti si spengono quando non servono (per esempio «successivo» sull'ultimo record); mentre scrivi un record nuovo, «primo», «precedente» e «ultimo» riportano ai record salvati.
+Una barra con i pulsanti che scegli tu, uno per uno, nell'ispettore: **primo**, **precedente**, **successivo**, **ultimo**, **nuovo**, **salva**, **elimina**, **annulla** (e, con la transazione, **conferma** e **annulla tutto**), più la scritta «3 / 25» e, se vuoi, una **casella di ricerca** (cerca in tutte le colonne). Si collega con la proprietà *Fonte dati*. I pulsanti si spengono quando non servono (per esempio «successivo» sull'ultimo record); mentre scrivi un record nuovo, «primo», «precedente» e «ultimo» riportano ai record salvati.
+
+## Griglia modificabile
+
+Sull'**Albero** legato a una fonte, la proprietà **Modificabile** permette di scrivere direttamente nelle celle: **doppio clic** (o **F2**) su una cella, scrivi, **Invio** conferma, **Tab** passa alla cella dopo, **Esc** rinuncia. **Insert** aggiunge una riga vuota in fondo: compila le celle (il record entra nel database appena ci sono i campi obbligatori), **Canc** elimina la riga scelta. Le colonne che il database riempie da solo (come `id`) non si scrivono.
+
+## Commit e rollback
+
+Con **Modifiche in sospeso** acceso sulla fonte, ogni modifica (anche di molti record in una griglia) va nel database ma resta provvisoria: le righe cambiate sono gialle e la barra scrive «3 / 25 · 2 non confermate». Aggiungi alla barra i pulsanti **conferma** e **annulla tutto**, oppure nel codice:
+
+```
+fonte1.conferma()                # commit: tutto diventa definitivo
+fonte1.annulla_tutto()           # rollback: torna a com'era dopo l'ultima conferma
+fonte1.modifiche_in_sospeso()    # quante modifiche aspettano
+```
+
+Chiudendo la finestra con modifiche in sospeso, il programma chiede se confermarle (Sì), annullarle (No) o restare (Annulla). Le altre connessioni al database vedono i cambiamenti solo dopo la conferma. Si può usare insieme a **Salva da solo**: i record si salvano da soli nella transazione, e la conferma è una sola.
 
 ## Cosa controlla da solo
 

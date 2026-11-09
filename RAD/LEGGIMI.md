@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.32
+
+- **Commit e rollback** per le finestre con i dati: la proprietà **Modifiche in sospeso** (`transazione`) della fonte dati lascia ogni salvataggio ed eliminazione in una transazione del database. Diventano definitivi solo con **Conferma** (`fonte1.conferma()`), si cancellano tutti con **Annulla tutto** (`fonte1.annulla_tutto()`); `fonte1.modifiche_in_sospeso()` dice quante ce ne sono. Nuovi pulsanti opzionali della barra (*Conferma*, *Annulla tutto*) e la scritta «3 / 25 · 2 non confermate»; chiudendo la finestra con modifiche in sospeso chiede se confermare, annullare o restare. SQLite e MySQL.
+- **Albero modificabile** (proprietà *Modificabile*): doppio clic (o F2) su una cella per scriverci, Invio/Tab confermano, Insert aggiunge una riga da compilare, Canc elimina. Le righe cambiate e non confermate sono evidenziate in giallo: si possono modificare molti record e poi confermarli o annullarli in blocco. Test: `tests/prova_transazione.pit`.
+
 ## Novità della 1.31
 
 - **Salvataggio automatico** dei campi legati ai dati: prima si salvava solo con il pulsante «Salva» della barra, quindi un campo legato senza barra non scriveva nulla nel database. Ora la fonte dati salva da sola le modifiche cambiando record, cercando, aggiungendo un record nuovo e chiudendo la finestra (proprietà **Salva da solo** della fonte dati, accesa di default). Un record nuovo lasciato vuoto non viene aggiunto.

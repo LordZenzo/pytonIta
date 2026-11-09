@@ -20,6 +20,10 @@ classe ErroreDati(Exception):
     """Un errore del database, con un messaggio leggibile."""
 
 
+classe ErroreObbligatorio(ErroreDati):
+    """Manca un campo obbligatorio: in una riga nuova della griglia si aspetta che sia compilato."""
+
+
 classe FonteDati:
     """Una tabella: ne conosce le colonne e legge, aggiunge, modifica ed elimina i record."""
 
@@ -34,6 +38,8 @@ classe FonteDati:
         se_stesso.chiave = []           # colonne della chiave primaria
         se_stesso.automatiche = []      # colonne che il database riempie da solo (auto-incremento)
         se_stesso.obbligatorie = []     # colonne NOT NULL senza valore predefinito: vanno compilate
+        se_stesso.transazione = Falso   # Vero: le modifiche restano in sospeso finché non si chiama conferma()
+        se_stesso.in_sospeso = 0        # quante modifiche aspettano la conferma
         se_stesso._leggi_struttura()
 
     @staticmethod
@@ -132,7 +138,7 @@ classe FonteDati:
         numerica = any(t in tipo_ per t in TIPI_INTERI + TIPI_DECIMALI)
         se valore_testo == "":
             se colonna in se_stesso.obbligatorie:
-                solleva ErroreDati(f"«{colonna}» è obbligatorio: compilalo.")
+                solleva ErroreObbligatorio(f"«{colonna}» è obbligatorio: compilalo.")
             ritorna Nessuno
         prova:
             se any(t in tipo_ per t in TIPI_INTERI):
@@ -163,7 +169,7 @@ classe FonteDati:
             altrimenti:
                 cur = se_stesso._esegui(f"INSERT INTO {t} DEFAULT VALUES" se non se_stesso.è_mysql altrimenti f"INSERT INTO {t} () VALUES ()")
             nuovo = cur.lastrowid
-            se_stesso.conn.commit()
+            se_stesso._fatto()
             se se_stesso.è_mysql:
                 ritorna tuple((valori_testo.get(c) se valori_testo.get(c) != "" altrimenti Nessuno) o nuovo per c in se_stesso.chiave) se se_stesso.chiave altrimenti Nessuno
             ritorna nuovo
@@ -173,13 +179,36 @@ classe FonteDati:
         dove, par = se_stesso._dove(id_)
         assegnazioni = ", ".join(se_stesso._n(c) + " = " + se_stesso.segnaposto per c in nomi)
         se_stesso._esegui(f"UPDATE {t} SET {assegnazioni} WHERE {dove}", [se_stesso._converti(c, valori_testo.get(c, "")) per c in nomi] + par)
-        se_stesso.conn.commit()
+        se_stesso._fatto()
         ritorna id_
 
     definisci elimina(se_stesso, id_):
         dove, par = se_stesso._dove(id_)
         se_stesso._esegui(f"DELETE FROM {se_stesso._n(se_stesso.tabella)} WHERE {dove}", par)
-        se_stesso.conn.commit()
+        se_stesso._fatto()
+
+    definisci _fatto(se_stesso):
+        """Una modifica è stata eseguita: la rende definitiva, oppure (in transazione) la lascia in sospeso."""
+        se se_stesso.transazione:
+            se_stesso.in_sospeso += 1
+        altrimenti:
+            se_stesso.conn.commit()
+
+    definisci conferma(se_stesso):
+        """Commit: rende definitive tutte le modifiche in sospeso."""
+        prova:
+            se_stesso.conn.commit()
+        eccetto Exception come problema:
+            solleva ErroreDati(testo(problema))
+        se_stesso.in_sospeso = 0
+
+    definisci annulla_tutto(se_stesso):
+        """Rollback: cancella tutte le modifiche in sospeso."""
+        prova:
+            se_stesso.conn.rollback()
+        eccetto Exception come problema:
+            solleva ErroreDati(testo(problema))
+        se_stesso.in_sospeso = 0
 
     definisci chiudi(se_stesso):
         prova:
@@ -290,9 +319,6 @@ classe MascheraDati:
             se_stesso.nuovo()
 
     definisci cerca(se_stesso, testo_cercato):
-        riuscito, id_ = se_stesso._conferma()
-        se non riuscito:
-            ritorna
         se_stesso.ricerca = testo_cercato.strip()
         se_stesso.ricarica()
 
@@ -300,7 +326,8 @@ classe MascheraDati:
 # ---------------------------------------------------------------------------------------------- componenti collegati ai dati
 classe BarraDati(tk.Frame):
     """Barra di navigazione di una tabella: primo, precedente, successivo, ultimo, nuovo, salva, elimina, annulla e ricerca. Si collega con Collegamento.collega_barra()."""
-    TESTI = {"primo": "|◀", "precedente": "◀", "successivo": "▶", "ultimo": "▶|", "nuovo": "Nuovo", "salva": "Salva", "elimina": "Elimina", "annulla": "Annulla"}
+    TESTI = {"primo": "|◀", "precedente": "◀", "successivo": "▶", "ultimo": "▶|", "nuovo": "Nuovo", "salva": "Salva", "elimina": "Elimina", "annulla": "Annulla",
+             "conferma": "Conferma", "annulla_tutto": "Annulla tutto"}
     AIUTI = {"primo": "Primo record", "precedente": "Record precedente", "successivo": "Record successivo", "ultimo": "Ultimo record"}
 
     definisci __inizializza__(se_stesso, genitore, pulsanti=("primo", "precedente", "successivo", "ultimo", "nuovo", "salva", "elimina", "annulla"), posizione=Vero, cerca=Falso, **opzioni):
@@ -347,18 +374,21 @@ classe BarraDati(tk.Frame):
         # scrivendo un record nuovo si può tornare ai record salvati con «primo», «precedente» e «ultimo»
         stato = {"primo": n > 0 e (in_nuovo o i > 0), "precedente": n > 0 e (in_nuovo o i > 0), "successivo": non in_nuovo e 0 <= i < n - 1,
                  "ultimo": n > 0 e (in_nuovo o i < n - 1),
-                 "nuovo": pronto, "salva": pronto, "elimina": pronto e non in_nuovo e i >= 0, "annulla": pronto}
+                 "nuovo": pronto, "salva": pronto, "elimina": pronto e non in_nuovo e i >= 0, "annulla": pronto,
+                 "conferma": pronto e c.fonte.transazione, "annulla_tutto": pronto e c.fonte.transazione}
         per nome, b in se_stesso.pulsanti.items():
             b.configure(state="normal" se stato.get(nome) altrimenti "disabled")
         se se_stesso.etichetta è non Nessuno:
+            sospese = c.modifiche_in_sospeso() se pronto altrimenti 0
+            coda = (f"  ·  {sospese} non confermata" se sospese == 1 altrimenti f"  ·  {sospese} non confermate") se sospese altrimenti ""
             se non pronto:
                 se_stesso.etichetta.configure(text="(nessun database)")
             altrimenti_se in_nuovo:
-                se_stesso.etichetta.configure(text=f"nuovo record  ·  {n} salvati")
+                se_stesso.etichetta.configure(text=f"nuovo record  ·  {n} salvati{coda}")
             altrimenti_se n == 0:
-                se_stesso.etichetta.configure(text="nessun record")
+                se_stesso.etichetta.configure(text=f"nessun record{coda}")
             altrimenti:
-                se_stesso.etichetta.configure(text=f"{i + 1} / {n}")
+                se_stesso.etichetta.configure(text=f"{i + 1} / {n}{coda}")
 
 
 classe Collegamento:
@@ -371,12 +401,18 @@ classe Collegamento:
         dati.apri()
     """
 
-    definisci __inizializza__(se_stesso, radice, fonte, filtro="", ordina_per="", decrescente=Falso, al_cambio=Nessuno, errore="", salva_da_solo=Vero):
+    definisci __inizializza__(se_stesso, radice, fonte, filtro="", ordina_per="", decrescente=Falso, al_cambio=Nessuno, errore="", salva_da_solo=Vero, transazione=Falso):
         se_stesso.radice = radice
+        se_stesso.transazione = transazione           # le modifiche restano in sospeso fino a conferma() (commit) o annulla_tutto() (rollback)
+        se_stesso._sporche = set()                    # i record modificati e non ancora confermati (evidenziati nella griglia)
+        se_stesso._editor = Nessuno
+        se_stesso._riga_nuova = {}                    # i valori della riga che si sta aggiungendo nella griglia
         se_stesso.salva_da_solo = salva_da_solo       # salva le modifiche cambiando record, cercando e chiudendo la finestra
         se_stesso._istantanea = Nessuno               # i valori dei campi appena mostrati: serve a sapere se l'utente ha scritto qualcosa
         se_stesso._agganciata = Falso
         se_stesso.fonte = fonte
+        se fonte:
+            fonte.transazione = transazione
         se_stesso.errore = errore
         se_stesso.filtro = filtro
         se_stesso.ordina_per = ordina_per
@@ -393,7 +429,7 @@ classe Collegamento:
 
     # ------------------------------------------------------------ creazione
     @staticmethod
-    definisci crea(radice, cartella, dialetto, database, tabella, server="localhost", porta=3306, utente="root", password=Nessuno, filtro="", ordina_per="", decrescente=Falso, al_cambio=Nessuno, salva_da_solo=Vero):
+    definisci crea(radice, cartella, dialetto, database, tabella, server="localhost", porta=3306, utente="root", password=Nessuno, filtro="", ordina_per="", decrescente=Falso, al_cambio=Nessuno, salva_da_solo=Vero, transazione=Falso):
         """Apre la tabella. Se non ci riesce mostra l'errore e ritorna un Collegamento spento (la finestra si apre lo stesso).
         Per MySQL la password, se manca, viene chiesta all'utente (non viene mai scritta nel programma)."""
         errore = ""
@@ -415,16 +451,23 @@ classe Collegamento:
         eccetto ErroreDati come problema:
             errore = testo(problema)
             messagebox.showwarning("Database", errore, parent=radice)
-        ritorna Collegamento(radice, fonte, filtro, ordina_per, decrescente, al_cambio, errore, salva_da_solo)
+        ritorna Collegamento(radice, fonte, filtro, ordina_per, decrescente, al_cambio, errore, salva_da_solo, transazione)
 
     definisci collega_campo(se_stesso, componente, colonna):
         se_stesso.campi.append((componente, colonna))
 
-    definisci collega_griglia(se_stesso, componente, colonna=Nessuno):
-        """Un Albero mostra le colonne che hanno lo stesso nome di quelle della tabella; un Elenco mostra la colonna indicata."""
+    definisci collega_griglia(se_stesso, componente, colonna=Nessuno, modificabile=Falso):
+        """Un Albero mostra le colonne che hanno lo stesso nome di quelle della tabella; un Elenco mostra la colonna indicata.
+        modificabile (solo Albero): doppio clic su una cella per scriverci, Tab per la cella dopo, Insert aggiunge una riga, Canc la elimina."""
         se_stesso.griglie.append((componente, colonna))
         se componente.winfo_class() == "Treeview":
             componente.bind("<<TreeviewSelect>>", se_stesso._scelta_griglia, add="+")
+            componente.tag_configure("sporca", background="#fff3b0", foreground="#000000")
+            se modificabile:
+                componente.bind("<Double-1>", se_stesso._doppio_clic_griglia, add="+")
+                componente.bind("<F2>", se_stesso._f2_griglia, add="+")
+                componente.bind("<Insert>", lambda ev: se_stesso._riga_nuova_griglia(componente), add="+")
+                componente.bind("<Delete>", lambda ev: se_stesso.elimina(), add="+")
         altrimenti:
             componente.bind("<<ListboxSelect>>", se_stesso._scelta_griglia, add="+")
 
@@ -536,7 +579,8 @@ classe Collegamento:
                     w.delete(*w.get_children())
                     nomi = lista(w["columns"])
                     per i, (id_, valori) in enumera(se_stesso.record):
-                        w.insert("", "end", iid=testo(i), values=["" se valori.get(n) è Nessuno altrimenti valori.get(n) per n in nomi])
+                        w.insert("", "end", iid=testo(i), values=["" se valori.get(n) è Nessuno altrimenti valori.get(n) per n in nomi],
+                                 tags=("sporca",) se id_ in se_stesso._sporche altrimenti ())
                 altrimenti:
                     w.delete(0, "end")
                     per id_, valori in se_stesso.record:
@@ -574,6 +618,145 @@ classe Collegamento:
         se sel e (int(sel[0]) != se_stesso.indice o se_stesso.in_nuovo):
             se_stesso.vai(int(sel[0]))
 
+    # ------------------------------------------------------------ modifica nella griglia
+    definisci _chiudi_editor(se_stesso):
+        se se_stesso._editor:
+            prova:
+                se_stesso._editor.destroy()
+            eccetto tk.TclError:
+                passa
+            se_stesso._editor = Nessuno
+
+    definisci _doppio_clic_griglia(se_stesso, evento):
+        w = evento.widget
+        se w.identify_region(evento.x, evento.y) != "cell":
+            ritorna
+        riga = w.identify_row(evento.y)
+        colonna = w.identify_column(evento.x)
+        se riga e colonna:
+            se_stesso._apri_editor(w, riga, int(colonna[1:]) - 1)
+
+    definisci _f2_griglia(se_stesso, evento):
+        w = evento.widget
+        sel = w.selection()
+        se sel:
+            se_stesso._apri_editor(w, sel[0], 0)
+
+    definisci _apri_editor(se_stesso, w, riga, numero_colonna):
+        """Una casella di testo sopra la cella: Invio/Tab confermano, Esc annulla. Le colonne che il database riempie da solo non si scrivono."""
+        se_stesso._chiudi_editor()
+        nomi = lista(w["columns"])
+        se numero_colonna < 0 o numero_colonna >= lunghezza(nomi):
+            ritorna
+        nome = nomi[numero_colonna]
+        nuova = riga == "nuova"
+        se nome in se_stesso.fonte.automatiche:               # salto alla prossima colonna scrivibile
+            per k in range(numero_colonna + 1, lunghezza(nomi)):
+                se nomi[k] non in se_stesso.fonte.automatiche:
+                    se_stesso._apri_editor(w, riga, k)
+                    ritorna
+            ritorna
+        w.see(riga)
+        w.update_idletasks()
+        riquadro = w.bbox(riga, f"#{numero_colonna + 1}")
+        se non riquadro:
+            ritorna
+        x, y, larghezza, altezza = riquadro
+        id_ = Nessuno se nuova altrimenti se_stesso.record[int(riga)][0]
+        attuale = testo(w.set(riga, nome))
+        casella = tk.Entry(w)
+        casella.insert(0, attuale)
+        casella.select_range(0, "end")
+        casella.place(x=x, y=y, width=larghezza, height=altezza)
+        casella.focus_set()
+        se_stesso._editor = casella
+        chiuso = [Falso]
+
+        definisci finisci(vai_avanti=Falso):
+            se chiuso[0]:
+                ritorna
+            chiuso[0] = Vero
+            nuovo_testo = casella.get()
+            se_stesso._chiudi_editor()
+            se nuovo_testo == attuale e non nuova:
+                se vai_avanti:
+                    se_stesso._cella_dopo(w, id_, riga, numero_colonna)
+                ritorna
+            se_stesso._scrivi_cella(w, id_, riga, nome, nuovo_testo)
+            se vai_avanti:
+                se_stesso._cella_dopo(w, id_, riga, numero_colonna)
+
+        casella.bind("<Return>", lambda ev: finisci())
+        casella.bind("<Tab>", lambda ev: (finisci(Vero), "break")[1])
+        casella.bind("<Escape>", lambda ev: (chiuso.__setitem__(0, Vero), se_stesso._chiudi_editor(), "break")[2])
+        casella.bind("<FocusOut>", lambda ev: finisci())
+
+    definisci _cella_dopo(se_stesso, w, id_, riga, numero_colonna):
+        """Apre l'editor della cella a destra (nella stessa riga) dopo aver scritto la precedente."""
+        nomi = lista(w["columns"])
+        se numero_colonna + 1 >= lunghezza(nomi):
+            ritorna
+        iid = riga
+        se riga != "nuova" e id_ è non Nessuno:
+            iid = Nessuno
+            per i, (rid, valori) in enumera(se_stesso.record):
+                se rid == id_:
+                    iid = testo(i)
+            se iid è Nessuno:
+                ritorna
+        altrimenti_se riga == "nuova" e "nuova" non in w.get_children():
+            ritorna            # la riga nuova è stata già salvata: finito
+        se_stesso._apri_editor(w, iid, numero_colonna + 1)
+
+    definisci _segna(se_stesso, id_):
+        se se_stesso.transazione e id_ è non Nessuno:
+            se_stesso._sporche.add(id_)
+
+    definisci _scrivi_cella(se_stesso, w, id_, riga, nome, nuovo_testo):
+        """Scrive una cella. In una riga nuova i valori si raccolgono e il record si inserisce appena sono sufficienti."""
+        se riga == "nuova":
+            se_stesso._riga_nuova[nome] = nuovo_testo
+            w.set("nuova", nome, nuovo_testo)
+            prova:
+                nuovo_id = se_stesso.fonte.salva(dict(se_stesso._riga_nuova), Nessuno)
+            eccetto ErroreObbligatorio:
+                ritorna           # mancano ancora dei campi: si aspetta
+            eccetto ErroreDati come problema:
+                messagebox.showwarning("Il record non è stato salvato", testo(problema), parent=se_stesso.radice)
+                ritorna
+            se_stesso._riga_nuova = {}
+            se_stesso._segna(nuovo_id)
+            se_stesso.ricarica(nuovo_id)
+            ritorna
+        riuscito, _ = se_stesso._conferma()
+        se non riuscito:
+            ritorna
+        prova:
+            se_stesso.fonte.salva({nome: nuovo_testo}, id_)
+        eccetto ErroreDati come problema:
+            messagebox.showwarning("Il valore non è stato salvato", testo(problema), parent=se_stesso.radice)
+            ritorna
+        se_stesso._segna(id_)
+        se_stesso.ricarica(id_)
+
+    definisci _riga_nuova_griglia(se_stesso, w):
+        """Insert: aggiunge in fondo una riga vuota da compilare cella per cella."""
+        se non se_stesso.fonte:
+            ritorna
+        riuscito, id_ = se_stesso._conferma()
+        se non riuscito:
+            ritorna
+        se "nuova" in w.get_children():
+            w.delete("nuova")
+        se_stesso._riga_nuova = {}
+        nomi = lista(w["columns"])
+        w.insert("", "end", iid="nuova", values=[""] * lunghezza(nomi), tags=("sporca",))
+        w.see("nuova")
+        per k, n in enumera(nomi):
+            se n non in se_stesso.fonte.automatiche:
+                se_stesso._apri_editor(w, "nuova", k)
+                interrompi
+
     definisci _foto(se_stesso):
         """I valori attuali dei campi (come testo)."""
         prova:
@@ -596,10 +779,12 @@ classe Collegamento:
         valori = se_stesso._foto()
         id_ = Nessuno se se_stesso.in_nuovo o se_stesso.indice < 0 altrimenti se_stesso.record[se_stesso.indice][0]
         prova:
-            ritorna Vero, se_stesso.fonte.salva(valori, id_)
+            nuovo_id = se_stesso.fonte.salva(valori, id_)
         eccetto ErroreDati come problema:
             messagebox.showwarning("Il record non è stato salvato", testo(problema), parent=se_stesso.radice)
             ritorna Falso, Nessuno
+        se_stesso._segna(nuovo_id)
+        ritorna Vero, nuovo_id
 
     definisci _conferma(se_stesso):
         """Prima di lasciare il record: se è stato modificato (e il salvataggio automatico è acceso) lo salva.
@@ -610,17 +795,32 @@ classe Collegamento:
         ritorna riuscito, id_
 
     definisci _aggancia_chiusura(se_stesso):
-        """Chiudendo la finestra salva le modifiche rimaste (se il salvataggio non riesce chiede cosa fare)."""
-        se se_stesso._agganciata o non se_stesso.salva_da_solo o non se_stesso.fonte:
+        """Chiudendo la finestra salva le modifiche rimaste (se il salvataggio non riesce chiede cosa fare);
+        in transazione chiede anche se confermare o annullare le modifiche in sospeso."""
+        se se_stesso._agganciata o non (se_stesso.salva_da_solo o se_stesso.transazione) o non se_stesso.fonte:
             ritorna
         se_stesso._agganciata = Vero
         finestra = se_stesso.radice.winfo_toplevel()
         precedente = finestra.protocol("WM_DELETE_WINDOW")
 
         definisci chiudi_finestra():
+            se_stesso._chiudi_editor()
             riuscito, _ = se_stesso._conferma()
             se non riuscito e non messagebox.askyesno("Chiudi", "Le modifiche non sono state salvate. Chiudo lo stesso?", parent=se_stesso.radice):
                 ritorna
+            se se_stesso.transazione e se_stesso.fonte.in_sospeso:
+                n = se_stesso.fonte.in_sospeso
+                risposta = messagebox.askyesnocancel("Chiudi", f"Ci sono {n} modifiche non confermate.\n\nSì = le confermo (commit)\nNo = le annullo (rollback)\nAnnulla = resto qui", parent=se_stesso.radice)
+                se risposta è Nessuno:
+                    ritorna
+                prova:
+                    se risposta:
+                        se_stesso.fonte.conferma()
+                    altrimenti:
+                        se_stesso.fonte.annulla_tutto()
+                eccetto ErroreDati come problema:
+                    messagebox.showwarning("Database", testo(problema), parent=se_stesso.radice)
+                    ritorna
             se precedente:
                 finestra.tk.call(precedente)
             altrimenti:
@@ -726,8 +926,62 @@ classe Collegamento:
             se_stesso._vai(se_stesso.indice)
 
     definisci cerca(se_stesso, testo_cercato):
+        riuscito, id_ = se_stesso._conferma()
+        se non riuscito:
+            ritorna
         se_stesso.ricerca = testo_cercato.strip()
         se_stesso.ricarica()
+
+    # ------------------------------------------------------------ transazione
+    definisci modifiche_in_sospeso(se_stesso):
+        """Quante modifiche (salvataggi ed eliminazioni) aspettano la conferma. Sempre 0 se la transazione è spenta."""
+        ritorna se_stesso.fonte.in_sospeso se se_stesso.fonte altrimenti 0
+
+    definisci conferma(se_stesso):
+        """Commit: salva il record attuale (se modificato) e rende definitive tutte le modifiche in sospeso."""
+        se non se_stesso.fonte:
+            ritorna Falso
+        se_stesso._chiudi_editor()
+        riuscito, id_ = se_stesso._conferma()
+        se non riuscito:
+            ritorna Falso
+        prova:
+            se_stesso.fonte.conferma()
+        eccetto ErroreDati come problema:
+            messagebox.showwarning("Le modifiche non sono state confermate", testo(problema), parent=se_stesso.radice)
+            ritorna Falso
+        se_stesso._sporche.clear()
+        se_stesso._ritrova(id_ se id_ è non Nessuno altrimenti se_stesso._id_corrente())
+        ritorna Vero
+
+    definisci annulla_tutto(se_stesso):
+        """Rollback: cancella tutte le modifiche in sospeso (anche quelle dei campi non ancora salvate) e rilegge i dati."""
+        se non se_stesso.fonte:
+            ritorna Falso
+        se_stesso._chiudi_editor()
+        id_ = se_stesso._id_corrente()
+        prova:
+            se_stesso.fonte.annulla_tutto()
+        eccetto ErroreDati come problema:
+            messagebox.showwarning("Le modifiche non sono state annullate", testo(problema), parent=se_stesso.radice)
+            ritorna Falso
+        se_stesso._sporche.clear()
+        se_stesso._ritrova(id_)
+        ritorna Vero
+
+    definisci _id_corrente(se_stesso):
+        se 0 <= se_stesso.indice < lunghezza(se_stesso.record) e non se_stesso.in_nuovo:
+            ritorna se_stesso.record[se_stesso.indice][0]
+        ritorna Nessuno
+
+    definisci _ritrova(se_stesso, id_):
+        """Rilegge i record e torna a quello con l'identificatore dato (se esiste ancora), altrimenti al primo."""
+        se_stesso.ricarica()
+        se id_ è non Nessuno:
+            per i, (rid, valori) in enumera(se_stesso.record):
+                se rid == id_:
+                    se_stesso._vai(i)
+                    ritorna
 
     definisci chiudi(se_stesso):
         se se_stesso.fonte:
