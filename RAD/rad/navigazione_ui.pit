@@ -1,0 +1,50 @@
+"""Finestra con un elenco di risultati (definizioni, usi di un nome): doppio clic o Invio per aprire il punto nel codice."""
+importa os
+importa tkinter come tk
+da tkinter importa ttk
+
+
+classe FinestraRisultati(tk.Toplevel):
+    """Elenco non modale di (percorso, riga, testo): resta aperto mentre si naviga."""
+    aperta = Nessuno
+
+    definisci __inizializza__(se_stesso, genitore, colori, titolo, risultati, apri, cartella=""):
+        se FinestraRisultati.aperta è non Nessuno:
+            prova:
+                FinestraRisultati.aperta.destroy()
+            eccetto tk.TclError:
+                passa
+        tk.Toplevel.__init__(se_stesso, genitore)
+        FinestraRisultati.aperta = se_stesso
+        se_stesso.title(titolo)
+        se_stesso.transient(genitore)
+        se_stesso.configure(background=colori["pannello"])
+        se_stesso.geometry("820x360")
+        se_stesso.apri = apri
+        se_stesso.cartella = cartella
+        se_stesso.risultati = lista(risultati)
+        se_stesso.albero = ttk.Treeview(se_stesso, columns=("file", "riga", "testo"), show="headings", selectmode="browse")
+        per nome, testo_, larghezza in (("file", "File", 200), ("riga", "Riga", 60), ("testo", "Codice", 520)):
+            se_stesso.albero.heading(nome, text=testo_)
+            se_stesso.albero.column(nome, width=larghezza, anchor="w" se nome != "riga" altrimenti "e", stretch=(nome == "testo"))
+        barra = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.albero.yview)
+        se_stesso.albero.configure(yscrollcommand=barra.set)
+        barra.pack(side="right", fill="y")
+        se_stesso.albero.pack(fill="both", expand=Vero)
+        per i, (percorso, riga, testo_) in enumera(se_stesso.risultati):
+            rel = os.path.relpath(percorso, cartella) se cartella e os.path.isabs(percorso) altrimenti percorso
+            se_stesso.albero.insert("", "end", iid=testo(i), values=(rel, riga, testo_))
+        se se_stesso.risultati:
+            se_stesso.albero.selection_set("0")
+        se_stesso.albero.bind("<Double-Button-1>", se_stesso._apri_scelto)
+        se_stesso.albero.bind("<Return>", se_stesso._apri_scelto)
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.albero.focus_set()
+
+    definisci _apri_scelto(se_stesso, e=Nessuno):
+        sel = se_stesso.albero.selection()
+        se non sel:
+            ritorna "break"
+        percorso, riga, _ = se_stesso.risultati[int(sel[0])]
+        se_stesso.apri(percorso, riga)
+        ritorna "break"

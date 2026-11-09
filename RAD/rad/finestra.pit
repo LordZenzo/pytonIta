@@ -15,6 +15,8 @@ da rad.storia importa Storia
 da rad importa claude_code
 da rad importa converti_progetto
 da rad importa esporta_python
+da rad importa navigazione
+da rad.navigazione_ui importa FinestraRisultati
 da rad.crea_exe importa DialogoEseguibile
 da rad importa database_modello
 da rad importa maschera_dati
@@ -252,6 +254,11 @@ classe Applicazione:
                 modifica.add_separator()
             altrimenti:
                 modifica.add_command(label=etichetta, command=funzione, accelerator=acc)
+        modifica.add_separator()
+        modifica.add_command(label="Vai alla definizione", command=lambda: se_stesso.vai_alla_definizione(), accelerator="F12")
+        modifica.add_command(label="Trova gli usi", command=lambda: se_stesso.trova_usi_simbolo(), accelerator="Maiusc+F12")
+        modifica.add_command(label="Rinomina in tutto il progetto…", command=lambda: se_stesso.rinomina_simbolo(), accelerator="F2")
+        modifica.add_command(label="Ripulisci il codice", command=lambda: se_stesso.ripulisci_codice(), accelerator="Ctrl+Maiusc+L")
         barra.add_cascade(label="Modifica", menu=modifica)
 
         prog = tk.Menu(barra, tearoff=0)
@@ -350,6 +357,10 @@ classe Applicazione:
                  "esci": lambda: se_stesso.debug.comando("esci"),
                  "trova": lambda: se_stesso._su_editor("mostra_ricerca"), "vai_a_riga": se_stesso.vai_a_riga,
                  "commenta": lambda: se_stesso._su_editor("commenta"),
+                 "vai_a_definizione": lambda: se_stesso.vai_alla_definizione(),
+                 "trova_usi": lambda: se_stesso.trova_usi_simbolo(),
+                 "rinomina": lambda: se_stesso.rinomina_simbolo(),
+                 "ripulisci": lambda: se_stesso.ripulisci_codice(),
                  "suggerisci": lambda: se_stesso._su_editor("suggerisci", Vero),
                  "chat": se_stesso.mostra_chat, "chiudi_scheda": se_stesso.chiudi_scheda_corrente}
         per nome, funzione in mappa.items():
@@ -699,6 +710,8 @@ classe Applicazione:
                                    sul_cambio=se_stesso.scheda_modificata, sul_cursore=se_stesso._cursore,
                                    cartelle_progetto=cartelle)
                         w.carica(percorso)
+                        w.app = se_stesso
+                        w.fornitore_doc = se_stesso.documentazione_di
                         w.punti_arresto = set(se_stesso.punti_arresto.get(os.path.abspath(percorso), ()))
                         w.sui_punti_arresto = se_stesso._cambio_punti_arresto
             eccetto (OSError, ValueError, KeyError) come errore:
@@ -1051,6 +1064,129 @@ classe Applicazione:
                             f"• Si modifica nel progettista (scheda «{nome}»).\n• Per provarla: nel file {nome.lower()}.pit scegli Esegui → Esegui il file corrente.\n"
                             "• Il collegamento ai dati sta in fonte_dati.pit, che puoi usare anche in altre finestre.", parent=se_stesso.radice)
         ritorna r
+
+    # ================================================================== navigazione nel codice
+    definisci _cartella_di_lavoro(se_stesso, ed):
+        se se_stesso.progetto:
+            ritorna se_stesso.progetto.cartella
+        ritorna os.path.dirname(os.path.abspath(ed.percorso)) se ed.percorso altrimenti os.getcwd()
+
+    definisci _testi_aperti(se_stesso):
+        """{percorso: testo} degli editor aperti (anche con modifiche non salvate)."""
+        ritorna {p: w.contenuto() per p, w in se_stesso.schede.items() se isinstance(w, Editor)}
+
+    definisci documentazione_di(se_stesso, editor, nome):
+        """Il testo che compare passando il mouse sopra un nome nell'editor."""
+        ritorna navigazione.documentazione(se_stesso._cartella_di_lavoro(editor), nome, editor.percorso, editor.contenuto())
+
+    definisci _nome_per_navigare(se_stesso, ed, indice="insert"):
+        nome = ed.parola_a_indice(indice)
+        se non nome:
+            se_stesso.info("Metti il cursore su un nome.")
+        ritorna nome
+
+    definisci vai_alla_definizione(se_stesso, ed=Nessuno, indice="insert"):
+        """F12: apre il punto in cui è definito il nome sotto il cursore (funzione, classe, costante o modulo del progetto)."""
+        ed = ed o se_stesso._editor_corrente()
+        se ed è Nessuno:
+            ritorna Nessuno
+        nome = se_stesso._nome_per_navigare(ed, indice)
+        se non nome:
+            ritorna Nessuno
+        se navigazione.parola_riservata(nome):
+            se_stesso.apri_aiuto(nome)
+            ritorna Nessuno
+        cartella = se_stesso._cartella_di_lavoro(ed)
+        trovate = navigazione.cerca_definizione(cartella, nome, ed.percorso, ed.contenuto())
+        se non trovate:
+            modulo = navigazione.modulo_del_progetto(cartella, nome)
+            se modulo:
+                ritorna se_stesso.apri_file(modulo)
+            se_stesso.info(f"Non trovo la definizione di «{nome}» nel progetto (può essere una funzione predefinita o di una libreria: F1 apre la guida).")
+            ritorna Nessuno
+        se lunghezza(trovate) == 1:
+            t = trovate[0]
+            ritorna se_stesso.apri_file_a_riga(t["percorso"], t["riga"]) se os.path.abspath(t["percorso"]) != os.path.abspath(ed.percorso o "") altrimenti ed.vai_a(t["riga"])
+        FinestraRisultati(se_stesso.radice, se_stesso.colori, f"Definizioni di «{nome}»", [(t["percorso"], t["riga"], t["firma"]) per t in trovate],
+                          se_stesso.apri_file_a_riga, cartella)
+        ritorna Nessuno
+
+    definisci trova_usi_simbolo(se_stesso, ed=Nessuno):
+        """Maiusc+F12: elenco di tutti i punti del progetto dove si usa il nome sotto il cursore."""
+        ed = ed o se_stesso._editor_corrente()
+        se ed è Nessuno:
+            ritorna Nessuno
+        nome = se_stesso._nome_per_navigare(ed)
+        se non nome:
+            ritorna Nessuno
+        cartella = se_stesso._cartella_di_lavoro(ed)
+        usi = navigazione.trova_usi(cartella, nome, se_stesso._testi_aperti())
+        se non usi:
+            se_stesso.info(f"«{nome}» non è usato altrove nel progetto.")
+            ritorna Nessuno
+        FinestraRisultati(se_stesso.radice, se_stesso.colori, f"Usi di «{nome}»  ·  {lunghezza(usi)} punti", [(u["percorso"], u["riga"], u["testo"]) per u in usi],
+                          se_stesso.apri_file_a_riga, cartella)
+        ritorna usi
+
+    definisci rinomina_simbolo(se_stesso, ed=Nessuno, nuovo_nome=Nessuno):
+        """F2: rinomina il nome sotto il cursore in tutto il progetto (codice, gestori dei form), con conferma."""
+        ed = ed o se_stesso._editor_corrente()
+        se ed è Nessuno:
+            ritorna Nessuno
+        vecchio = se_stesso._nome_per_navigare(ed)
+        se non vecchio:
+            ritorna Nessuno
+        se navigazione.parola_riservata(vecchio):
+            se_stesso.info("Una parola del linguaggio non si può rinominare.")
+            ritorna Nessuno
+        se nuovo_nome è Nessuno:
+            nuovo_nome = simpledialog.askstring("Rinomina", f"Nuovo nome per «{vecchio}» (in tutto il progetto):", initialvalue=vecchio, parent=se_stesso.radice)
+        se non nuovo_nome:
+            ritorna Nessuno
+        nuovo_nome = nuovo_nome.strip()
+        errore = navigazione.controlla_nuovo_nome(nuovo_nome, vecchio)
+        se errore:
+            messagebox.showwarning("Rinomina", errore, parent=se_stesso.radice)
+            ritorna Nessuno
+        cartella = se_stesso._cartella_di_lavoro(ed)
+        cambi = navigazione.rinomina_nel_progetto(cartella, vecchio, nuovo_nome, se_stesso._testi_aperti())
+        se non cambi:
+            se_stesso.info(f"«{vecchio}» non compare nel progetto.")
+            ritorna Nessuno
+        totale = sum(n per _, n in cambi.values())
+        elenco = "\n".join(f"  {os.path.relpath(p, cartella)}: {n}" per p, (_, n) in sorted(cambi.items())[:12])
+        se non messagebox.askyesno("Rinomina in tutto il progetto", f"Cambio «{vecchio}» in «{nuovo_nome}»: {totale} punti in {lunghezza(cambi)} file.\n\n{elenco}\n\n"
+                                   "Nei file aperti si può annullare con Ctrl+Z; negli altri il cambio viene scritto subito sul disco. Procedo?", parent=se_stesso.radice):
+            ritorna Nessuno
+        aperti = {os.path.abspath(p): w per p, w in se_stesso.schede.items() se isinstance(w, Editor)}
+        scritti = 0
+        per p, (testo_nuovo, n) in cambi.items():
+            w = aperti.get(os.path.abspath(p))
+            se w è non Nessuno:
+                w.sostituisci_testo(testo_nuovo)
+            altrimenti:
+                prova:
+                    con open(p, "w", encoding="utf-8", newline="") come f:
+                        f.write(testo_nuovo)
+                    scritti += 1
+                eccetto OSError come errore_file:
+                    messagebox.showerror("Rinomina", f"Non riesco a scrivere {p}:\n{errore_file}", parent=se_stesso.radice)
+        per w in lista(se_stesso.schede.values()):
+            se hasattr(w, "ricarica_se_cambiato_su_disco") e non isinstance(w, Editor):
+                prova:
+                    w.ricarica_se_cambiato_su_disco()
+                eccetto Exception:
+                    passa
+        se_stesso.info(f"«{vecchio}» rinominato in «{nuovo_nome}»: {totale} punti, {lunghezza(cambi)} file ({scritti} scritti sul disco).")
+        ritorna cambi
+
+    definisci ripulisci_codice(se_stesso):
+        ed = se_stesso._editor_corrente()
+        se ed è Nessuno:
+            ritorna 0
+        n = ed.ripulisci_codice()
+        se_stesso.info(f"Codice ripulito: {n} righe cambiate." se n altrimenti "Il codice era già in ordine.")
+        ritorna n
 
     definisci nuovo_database_sqlite(se_stesso):
         """Crea un file SQLite vuoto (di solito nella cartella del progetto) e lo apre."""

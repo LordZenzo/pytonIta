@@ -5,7 +5,7 @@ importa re
 importa tkinter come tk
 da tkinter importa ttk
 
-da rad importa parole, stile
+da rad importa parole, stile, navigazione
 
 _RE_TOKEN = re.compile(r"""
     (?P<stringa>[rRbBfFuU]{0,2}(?:\"\"\"[\s\S]*?(?:\"\"\"|\Z)|'''[\s\S]*?(?:'''|\Z)|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?))
@@ -67,7 +67,12 @@ classe Editor(tk.Frame):
         se_stesso.riga_debug = Nessuno           # riga in cui il programma è fermo
         se_stesso.sui_punti_arresto = Nessuno
         se_stesso.codifica = "utf-8"
+        se_stesso.app = Nessuno                  # l'applicazione (per i comandi che guardano tutto il progetto)
+        se_stesso.fornitore_doc = Nessuno        # funzione(editor, nome) -> testo da mostrare passando il mouse sopra un nome
+        se_stesso._lavoro_doc = Nessuno
+        se_stesso._fumetto = Nessuno
         se_stesso._costruisci()
+        se_stesso._collega_navigazione()
         se_stesso.applica_impostazioni()
         se_stesso.applica_colori(colori)
         se_stesso.t.edit_reset()
@@ -192,6 +197,109 @@ classe Editor(tk.Frame):
     # ------------------------------------------------------------ contenuto
     definisci contenuto(se_stesso):
         ritorna se_stesso.t.get("1.0", "end-1c")
+
+    # ------------------------------------------------------------ navigazione nel codice
+    definisci _collega_navigazione(se_stesso):
+        t = se_stesso.t
+        t.bind("<Button-3>", se_stesso._menu_contestuale)
+        t.bind("<Control-Button-1>", se_stesso._clic_con_ctrl)
+        t.bind("<Motion>", se_stesso._movimento_mouse, add="+")
+        t.bind("<Leave>", lambda e: se_stesso._nascondi_doc(), add="+")
+        t.bind("<KeyPress>", lambda e: se_stesso._nascondi_doc(), add="+")
+        t.bind("<Button-1>", lambda e: se_stesso._nascondi_doc(), add="+")
+
+    definisci parola_a_indice(se_stesso, indice="insert"):
+        """Il nome (identificatore) che si trova nel punto indicato, o stringa vuota."""
+        riga, colonna = [int(x) per x in se_stesso.t.index(indice).split(".")]
+        ritorna navigazione.parola_a(se_stesso.t.get(f"{riga}.0", f"{riga}.0 lineend"), colonna)
+
+    definisci _clic_con_ctrl(se_stesso, e):
+        """Ctrl+clic su un nome: va alla sua definizione."""
+        indice = se_stesso.t.index(f"@{e.x},{e.y}")
+        se se_stesso.app è non Nessuno e se_stesso.parola_a_indice(indice):
+            se_stesso.t.mark_set("insert", indice)
+            se_stesso.app.vai_alla_definizione(se_stesso, indice)
+            ritorna "break"
+
+    definisci _menu_contestuale(se_stesso, e):
+        t = se_stesso.t
+        se non t.tag_ranges("sel"):
+            t.mark_set("insert", f"@{e.x},{e.y}")
+        m = tk.Menu(se_stesso, tearoff=0)
+        c = se_stesso.colori
+        m.add_command(label="Taglia", accelerator="Ctrl+X", command=lambda: t.event_generate("<<Cut>>"))
+        m.add_command(label="Copia", accelerator="Ctrl+C", command=lambda: t.event_generate("<<Copy>>"))
+        m.add_command(label="Incolla", accelerator="Ctrl+V", command=lambda: t.event_generate("<<Paste>>"))
+        m.add_separator()
+        stato = "normal" se se_stesso.app è non Nessuno altrimenti "disabled"
+        m.add_command(label="Vai alla definizione", accelerator="F12", state=stato, command=lambda: se_stesso.app.vai_alla_definizione(se_stesso))
+        m.add_command(label="Trova gli usi", accelerator="Maiusc+F12", state=stato, command=lambda: se_stesso.app.trova_usi_simbolo(se_stesso))
+        m.add_command(label="Rinomina in tutto il progetto…", accelerator="F2", state=stato, command=lambda: se_stesso.app.rinomina_simbolo(se_stesso))
+        m.add_separator()
+        m.add_command(label="Commenta / decommenta", accelerator="Ctrl+/", command=se_stesso.commenta)
+        m.add_command(label="Ripulisci il codice", accelerator="Ctrl+Maiusc+L", command=se_stesso.ripulisci_codice)
+        prova:
+            m.configure(background=c["pannello"], foreground=c["primo_piano"], activebackground=c["accento"], activeforeground="#ffffff")
+        eccetto (tk.TclError, KeyError):
+            passa
+        m.tk_popup(e.x_root, e.y_root)
+        ritorna "break"
+
+    definisci _movimento_mouse(se_stesso, e):
+        se_stesso._nascondi_doc()
+        se se_stesso.fornitore_doc è Nessuno:
+            ritorna
+        se_stesso._lavoro_doc = se_stesso.after(650, lambda: se_stesso._mostra_doc(e.x, e.y))
+
+    definisci _mostra_doc(se_stesso, x, y):
+        se_stesso._lavoro_doc = Nessuno
+        prova:
+            nome = se_stesso.parola_a_indice(f"@{x},{y}")
+            testo_ = se_stesso.fornitore_doc(se_stesso, nome) se nome altrimenti Nessuno
+        eccetto (tk.TclError, ValueError):
+            ritorna
+        se testo_:
+            se_stesso._fumetto = stile.crea_fumetto(se_stesso.t, testo_, se_stesso.colori)
+
+    definisci _nascondi_doc(se_stesso):
+        se se_stesso._lavoro_doc:
+            prova:
+                se_stesso.after_cancel(se_stesso._lavoro_doc)
+            eccetto tk.TclError:
+                passa
+            se_stesso._lavoro_doc = Nessuno
+        se se_stesso._fumetto:
+            prova:
+                se_stesso._fumetto.destroy()
+            eccetto tk.TclError:
+                passa
+            se_stesso._fumetto = Nessuno
+
+    definisci sostituisci_testo(se_stesso, nuovo):
+        """Sostituisce tutto il testo tenendo cursore e scorrimento; l'operazione si può annullare con Ctrl+Z."""
+        t = se_stesso.t
+        pos = t.index("insert")
+        alto = t.yview()[0]
+        t.edit_separator()
+        t.configure(autoseparators=Falso)         # cancellare e riscrivere deve essere un solo passo per «Annulla»
+        t.delete("1.0", "end")
+        t.insert("1.0", nuovo)
+        t.configure(autoseparators=Vero)
+        t.edit_separator()
+        prova:
+            t.mark_set("insert", pos)
+        eccetto tk.TclError:
+            passa
+        t.yview_moveto(alto)
+        se_stesso._programma_evidenziazione()
+        se_stesso._ridisegna_numeri()
+
+    definisci ripulisci_codice(se_stesso):
+        """Toglie gli spazi a fine riga, trasforma le tabulazioni di rientro e riduce le righe vuote; ritorna quante righe ha cambiato."""
+        nuovo, n = navigazione.ripulisci(se_stesso.contenuto())
+        se n:
+            se_stesso.sostituisci_testo(nuovo)
+        ritorna n
 
     definisci imposta_contenuto(se_stesso, testo_):
         se_stesso.t.delete("1.0", "end")

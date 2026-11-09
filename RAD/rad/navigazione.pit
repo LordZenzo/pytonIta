@@ -1,0 +1,280 @@
+"""Navigazione nel codice di un progetto: dove è definito un nome, dove si usa, rinomina in tutto il progetto, documentazione e ripulitura.
+Solo logica (senza interfaccia). Lavora sui file .pit e .py leggendo i «token», così non confonde nomi con testi e commenti."""
+importa io
+importa json
+importa keyword
+importa os
+importa re
+importa tokenize
+
+ESTENSIONI = (".pit", ".py")
+CARTELLE_IGNORATE = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules", "dist", "build", "venv", ".venv"}
+RE_NOME = re.compile(r"^[^\W\d]\w*$")
+RE_PAROLA = re.compile(r"[^\W\d]\w*")
+
+
+# ---------------------------------------------------------------- file e token
+definisci file_del_progetto(cartella, estensioni=ESTENSIONI):
+    """I file di codice del progetto (percorsi assoluti), in ordine."""
+    trovati = []
+    per radice, cartelle, files in os.walk(cartella):
+        cartelle[:] = sorted(c per c in cartelle se c non in CARTELLE_IGNORATE)
+        per f in sorted(files):
+            se f.lower().endswith(estensioni):
+                trovati.append(os.path.join(radice, f))
+    ritorna trovati
+
+
+definisci leggi_file(percorso):
+    prova:
+        con open(percorso, encoding="utf-8") come f:
+            ritorna f.read()
+    eccetto (OSError, UnicodeDecodeError):
+        ritorna Nessuno
+
+
+definisci token_nomi(testo):
+    """[(riga, colonna, nome)] di tutti i nomi del codice (fuori da stringhe e commenti), con parole chiave comprese."""
+    risultato = []
+    prova:
+        per t in tokenize.generate_tokens(io.StringIO(testo).readline):
+            se t.type == tokenize.NAME:
+                risultato.append((t.start[0], t.start[1], t.string))
+    eccetto (tokenize.TokenError, IndentationError, SyntaxError):
+        # codice incompleto (si sta scrivendo): ripiego sulle espressioni regolari, riga per riga
+        risultato = []
+        per n, riga in enumera(testo.split("\n"), 1):
+            sen_commento = riga.split("#", 1)[0]
+            per m in RE_PAROLA.finditer(sen_commento):
+                risultato.append((n, m.start(), m.group(0)))
+    ritorna risultato
+
+
+definisci parola_riservata(nome):
+    """True se è una parola chiave (italiana o inglese) o un'altra parola che non si può usare come nome."""
+    se keyword.iskeyword(nome) o nome in ("Vero", "Falso", "Nessuno"):
+        ritorna Vero
+    prova:
+        da rad.aiuto importa KEYWORDS
+        ritorna nome in KEYWORDS
+    eccetto Exception:
+        ritorna Falso
+
+
+definisci parola_a(riga, colonna):
+    """Il nome che contiene la colonna indicata di una riga di testo (o stringa vuota)."""
+    per m in RE_PAROLA.finditer(riga):
+        se m.start() <= colonna <= m.end():
+            ritorna m.group(0)
+    ritorna ""
+
+
+# ---------------------------------------------------------------- definizioni
+definisci _docstring(righe, indice):
+    """La prima riga della docstring che segue la riga `indice` (0-based), se c'è."""
+    i = indice + 1
+    mentre i < lunghezza(righe) e not_testo(righe[i]) == "":
+        i += 1
+    se i < lunghezza(righe):
+        t = righe[i].strip()
+        per apice in ('"""', "'''", '"', "'"):
+            se t.startswith(apice):
+                resto = t[lunghezza(apice):]
+                se apice in resto:
+                    ritorna resto.split(apice)[0].strip()
+                ritorna resto.strip()
+    ritorna ""
+
+
+definisci not_testo(riga):
+    ritorna riga.strip()
+
+
+definisci definizioni_in(testo, nome):
+    """[{riga, tipo, firma, doc}] delle definizioni di `nome` in un file (funzioni, classi, costanti di primo livello)."""
+    righe = testo.split("\n")
+    trovate = []
+    schema = re.compile(r"^(\s*)(definisci|def|classe|class)\s+" + re.escape(nome) + r"\b")
+    for_nome = re.compile(r"^" + re.escape(nome) + r"\s*(:[^=]+)?=[^=]")
+    per i, riga in enumera(righe):
+        m = schema.match(riga)
+        se m:
+            trovate.append({"riga": i + 1, "tipo": "funzione" se m.group(2) in ("definisci", "def") altrimenti "classe",
+                            "firma": riga.strip().rstrip(":"), "doc": _docstring(righe, i)})
+        altrimenti_se for_nome.match(riga):
+            trovate.append({"riga": i + 1, "tipo": "variabile", "firma": riga.strip()[:100], "doc": ""})
+    ritorna trovate
+
+
+definisci cerca_definizione(cartella, nome, percorso_corrente=Nessuno, testo_corrente=Nessuno):
+    """Dove è definito `nome`: [{percorso, riga, tipo, firma, doc}]; prima nel file corrente, poi negli altri del progetto."""
+    se non RE_NOME.match(nome):
+        ritorna []
+    risultato = []
+    visti = set()
+    se percorso_corrente e testo_corrente è non Nessuno:
+        per d in definizioni_in(testo_corrente, nome):
+            risultato.append({"percorso": percorso_corrente, **d})
+        visti.add(os.path.abspath(percorso_corrente))
+    se risultato:
+        ritorna risultato
+    per p in file_del_progetto(cartella):
+        se os.path.abspath(p) in visti:
+            continua
+        testo = leggi_file(p)
+        se testo è Nessuno o nome non in testo:
+            continua
+        per d in definizioni_in(testo, nome):
+            risultato.append({"percorso": p, **d})
+    ritorna risultato
+
+
+definisci modulo_del_progetto(cartella, nome):
+    """Il file di un modulo del progetto con questo nome (nome.pit / nome.py / nome/__init__.pit), oppure Nessuno."""
+    per base in (nome, os.path.join(nome, "__init__")):
+        per est in ESTENSIONI:
+            p = os.path.join(cartella, base + est)
+            se os.path.exists(p):
+                ritorna p
+    ritorna Nessuno
+
+
+# ---------------------------------------------------------------- usi e rinomina
+definisci usi_in(testo, nome):
+    """[(riga, colonna, testo della riga)] dei punti dove `nome` compare come nome nel codice."""
+    righe = testo.split("\n")
+    ritorna [(r, c, righe[r - 1].strip()) per r, c, n in token_nomi(testo) se n == nome]
+
+
+definisci _usi_in_json(testo, nome):
+    """Righe di un .form.json dove il nome compare come valore intero (gestori degli eventi)."""
+    ritorna [(i, 0, riga.strip()) per i, riga in enumera(testo.split("\n"), 1) se f'"{nome}"' in riga e riga.strip().endswith(('"', '",')) e f': "{nome}"' in riga]
+
+
+definisci trova_usi(cartella, nome, testi_aperti=Nessuno):
+    """Tutti gli usi di `nome` nel progetto: [{percorso, riga, colonna, testo}]. `testi_aperti` = {percorso: testo} dei file con modifiche non salvate."""
+    testi_aperti = {os.path.abspath(k): v per k, v in (testi_aperti o {}).items()}
+    risultato = []
+    se non RE_NOME.match(nome):
+        ritorna risultato
+    per p in file_del_progetto(cartella) + file_del_progetto(cartella, (".form.json",)):
+        testo = testi_aperti.get(os.path.abspath(p))
+        se testo è Nessuno:
+            testo = leggi_file(p)
+        se testo è Nessuno o nome non in testo:
+            continua
+        elenco = _usi_in_json(testo, nome) se p.endswith(".form.json") altrimenti usi_in(testo, nome)
+        per r, c, t in elenco:
+            risultato.append({"percorso": p, "riga": r, "colonna": c, "testo": t})
+    ritorna risultato
+
+
+definisci rinomina_in(testo, vecchio, nuovo, json_=Falso):
+    """Il testo con `vecchio` sostituito da `nuovo` (solo dove è un nome, o un valore intero in un .form.json). Ritorna (nuovo testo, quanti)."""
+    se json_:
+        n = testo.count(f': "{vecchio}"')
+        ritorna testo.replace(f': "{vecchio}"', f': "{nuovo}"'), n
+    righe = testo.split("\n")
+    per r, c, n in sorted([t per t in token_nomi(testo) se t[2] == vecchio], reverse=Vero):
+        riga = righe[r - 1]
+        righe[r - 1] = riga[:c] + nuovo + riga[c + lunghezza(vecchio):]
+    ritorna "\n".join(righe), sum(1 per t in token_nomi(testo) se t[2] == vecchio)
+
+
+definisci controlla_nuovo_nome(nuovo, vecchio):
+    """Messaggio di errore (testo) se il nuovo nome non va bene, altrimenti stringa vuota."""
+    se non RE_NOME.match(nuovo):
+        ritorna "Usa lettere, cifre e _ (senza iniziare con una cifra)."
+    se parola_riservata(nuovo):
+        ritorna f"«{nuovo}» è una parola riservata del linguaggio."
+    se nuovo == vecchio:
+        ritorna "Il nome è lo stesso."
+    ritorna ""
+
+
+definisci rinomina_nel_progetto(cartella, vecchio, nuovo, testi_aperti=Nessuno):
+    """Calcola la rinomina in tutto il progetto, senza scrivere: {percorso: (nuovo testo, quanti)} (solo i file che cambiano)."""
+    testi_aperti = {os.path.abspath(k): v per k, v in (testi_aperti o {}).items()}
+    cambi = {}
+    per p in file_del_progetto(cartella) + file_del_progetto(cartella, (".form.json",)):
+        testo = testi_aperti.get(os.path.abspath(p))
+        se testo è Nessuno:
+            testo = leggi_file(p)
+        se testo è Nessuno o vecchio non in testo:
+            continua
+        nuovo_testo, n = rinomina_in(testo, vecchio, nuovo, json_=p.endswith(".form.json"))
+        se n:
+            cambi[p] = (nuovo_testo, n)
+    ritorna cambi
+
+
+# ---------------------------------------------------------------- documentazione al passaggio del mouse
+definisci documentazione(cartella, nome, percorso_corrente=Nessuno, testo_corrente=Nessuno):
+    """Testo breve da mostrare passando sopra un nome: firma e descrizione di una funzione del progetto, o spiegazione di una parola del linguaggio."""
+    se non RE_NOME.match(nome):
+        ritorna Nessuno
+    prova:
+        da rad.aiuto importa KEYWORDS, DESCRIZIONI
+    eccetto Exception:
+        KEYWORDS, DESCRIZIONI = {}, {}
+    se nome in KEYWORDS:
+        en, descrizione, esempio = KEYWORDS[nome]
+        ritorna f"{nome}  (in Python: {en})\n{descrizione}"
+    d = cerca_definizione(cartella, nome, percorso_corrente, testo_corrente) se cartella altrimenti []
+    se d:
+        primo = d[0]
+        riga = primo["firma"]
+        se primo["tipo"] == "variabile":
+            riga = f"{primo['firma']}"
+        testo_ = riga
+        se primo["doc"]:
+            testo_ += "\n" + primo["doc"]
+        testo_ += f"\n— {os.path.basename(primo['percorso'])}, riga {primo['riga']}" + ("  (e altre definizioni)" se lunghezza(d) > 1 altrimenti "")
+        ritorna testo_
+    se nome in DESCRIZIONI:
+        ritorna f"{nome}\n{DESCRIZIONI[nome]}"
+    ritorna Nessuno
+
+
+# ---------------------------------------------------------------- ripulire il codice
+definisci ripulisci(testo):
+    """Ripulisce un sorgente senza cambiarne il significato: toglie gli spazi a fine riga (fuori dai testi su più righe), trasforma le tabulazioni
+    di rientro in 4 spazi, riduce a due le righe vuote consecutive e termina il file con un a capo. Ritorna (nuovo testo, quante righe modificate)."""
+    righe = testo.replace("\r\n", "\n").split("\n")
+    protette = set()
+    prova:
+        per t in tokenize.generate_tokens(io.StringIO(testo).readline):
+            se t.type in (tokenize.STRING,) o tokenize.tok_name.get(t.type, "").startswith("FSTRING"):
+                se t.end[0] > t.start[0]:
+                    per r in intervallo(t.start[0], t.end[0] + 1):
+                        protette.add(r)
+    eccetto (tokenize.TokenError, IndentationError, SyntaxError):
+        ritorna testo, 0
+    nuove = []
+    modificate = 0
+    vuote = 0
+    per n, riga in enumera(righe, 1):
+        originale = riga
+        se n non in protette:
+            riga = riga.rstrip()
+            rientro = riga[:lunghezza(riga) - lunghezza(riga.lstrip())]
+            se "\t" in rientro:
+                riga = rientro.replace("\t", "    ") + riga.lstrip()
+        se non riga.strip() e n non in protette:
+            vuote += 1
+            se vuote > 2:
+                modificate += 1
+                continua
+        altrimenti:
+            vuote = 0
+        se riga != originale:
+            modificate += 1
+        nuove.append(riga)
+    mentre nuove e nuove[-1] == "" e lunghezza(nuove) > 1 e nuove[-2] == "":
+        nuove.pop()
+        modificate += 1
+    risultato = "\n".join(nuove)
+    se non risultato.endswith("\n"):
+        risultato += "\n"
+        modificate += 1
+    ritorna risultato, modificate

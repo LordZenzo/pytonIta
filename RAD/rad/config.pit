@@ -83,6 +83,10 @@ PREDEFINITI = {
         "suggerisci": "Control-space",
         "chat": "Control-j",
         "chiudi_scheda": "Control-w",
+        "vai_a_definizione": "F12",
+        "trova_usi": "Shift-F12",
+        "rinomina": "F2",
+        "ripulisci": "Control-Shift-L",
     },
     "recenti": [],
 }

@@ -61,3 +61,14 @@ Un clic sul margine dei numeri di riga (o **F9**) mette un **punto di arresto**,
 
 Con il cursore su una parola premi **F1**: si apre la sua scheda nel [riferimento del linguaggio](#linguaggio) (cosa significa, equivalente inglese, esempio).
 Per un'idea su un pezzo di codice: seleziona il testo e usa *Strumenti → Chiedi all'AI di spiegare il codice selezionato*.
+
+## Navigare nel codice
+
+- **Vai alla definizione** (**F12**, oppure **Ctrl+clic** su un nome): apre il punto in cui una funzione, una classe o una costante è definita, anche in un altro file del progetto. Su un `importa modulo` apre il file del modulo; su una parola chiave (`se`, `per`…) apre la guida.
+- **Trova gli usi** (**Maiusc+F12**): elenca tutti i punti del progetto dove si usa il nome sotto il cursore (non conta il testo tra virgolette né i commenti). Doppio clic su una riga per andarci; l'elenco resta aperto.
+- **Rinomina in tutto il progetto** (**F2**): cambia un nome ovunque, anche nei file chiusi e nei gestori degli eventi dei form (`.form.json`). Mostra quanti punti cambiano e chiede conferma. Nei file aperti si annulla con Ctrl+Z.
+- **Documentazione al passaggio del mouse**: fermando il mouse su un nome compare la firma e la descrizione di una tua funzione, oppure la spiegazione di una parola del linguaggio o di una funzione predefinita.
+- **Ripulisci il codice** (**Ctrl+Maiusc+L**): toglie gli spazi a fine riga, trasforma le tabulazioni di rientro in quattro spazi e riduce a due le righe vuote di fila, senza toccare il testo dentro le virgolette.
+- Il **clic destro** nell'editor apre un menu con tutti questi comandi.
+
+Le voci sono anche nel menu *Modifica*. Le scorciatoie si cambiano in *Strumenti → Impostazioni*.

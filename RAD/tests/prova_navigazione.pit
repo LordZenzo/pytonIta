@@ -1,0 +1,160 @@
+"""Navigazione nel codice: definizioni, usi, rinomina in tutto il progetto, documentazione e ripulitura."""
+importa sys, os, tempfile, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa navigazione come nav
+
+cartella = tempfile.mkdtemp()
+os.makedirs(os.path.join(cartella, "util"))
+open(os.path.join(cartella, "principale.pit"), "w", encoding="utf-8").write('''"""Programma."""
+da calcoli importa somma_doppia, Conto
+
+risultato = somma_doppia(2, 3)   # somma_doppia nel commento non conta
+testo = "somma_doppia in una stringa non conta"
+c = Conto("Anna")
+stampa(risultato, c.saldo(), f"{somma_doppia(1, 1)}")
+''')
+open(os.path.join(cartella, "calcoli.pit"), "w", encoding="utf-8").write('''"""Calcoli."""
+LIMITE = 10
+
+
+definisci somma_doppia(a, b):
+    """Somma e raddoppia."""
+    ritorna (a + b) * 2
+
+
+classe Conto:
+    """Un conto."""
+    definisci __inizializza__(se_stesso, nome):
+        se_stesso.nome = nome
+
+    definisci saldo(se_stesso):
+        ritorna somma_doppia(1, 2)
+''')
+open(os.path.join(cartella, "util", "altro.py"), "w", encoding="utf-8").write("def saldo():\n    return 1\n")
+json.dump({"componenti": [{"nome": "p", "valori": {"al_clic": "saldo", "testo": "saldo"}}]}, open(os.path.join(cartella, "finestra.form.json"), "w"), indent=2)
+
+stampa("file del progetto:", [os.path.relpath(p, cartella) per p in nav.file_del_progetto(cartella)])
+d = nav.cerca_definizione(cartella, "somma_doppia")
+stampa("definizione:", [(os.path.basename(x["percorso"]), x["riga"], x["tipo"], x["firma"], x["doc"]) per x in d])
+stampa("classe:", [(x["riga"], x["tipo"], x["doc"]) per x in nav.cerca_definizione(cartella, "Conto")])
+stampa("costante:", [(x["riga"], x["tipo"]) per x in nav.cerca_definizione(cartella, "LIMITE")])
+stampa("due definizioni dello stesso nome:", [(os.path.basename(x["percorso"]), x["riga"]) per x in nav.cerca_definizione(cartella, "saldo")])
+stampa("non esiste:", nav.cerca_definizione(cartella, "boh"), "| modulo:", os.path.basename(nav.modulo_del_progetto(cartella, "calcoli")), nav.modulo_del_progetto(cartella, "assente"))
+u = nav.trova_usi(cartella, "somma_doppia")
+stampa("usi di somma_doppia:", [(os.path.basename(x["percorso"]), x["riga"], x["colonna"]) per x in u])
+stampa("(commento e testo non contano)")
+u = nav.trova_usi(cartella, "saldo")
+stampa("usi di saldo (anche il gestore nel form):", sorted((os.path.basename(x["percorso"]), x["riga"]) per x in u))
+stampa("parola sotto il cursore:", nav.parola_a("ritorna somma_doppia(1, 2)", 12), repr(nav.parola_a("a  b", 2)))
+stampa("riservate:", nav.parola_riservata("se"), nav.parola_riservata("per"), nav.parola_riservata("def"), nav.parola_riservata("saldo"))
+stampa("controlli del nome nuovo:", repr(nav.controlla_nuovo_nome("2x", "a")), repr(nav.controlla_nuovo_nome("se", "a")), repr(nav.controlla_nuovo_nome("a", "a")), repr(nav.controlla_nuovo_nome("bene", "a")))
+
+# rinomina in tutto il progetto (con un file aperto non salvato)
+aperti = {os.path.join(cartella, "principale.pit"): open(os.path.join(cartella, "principale.pit"), encoding="utf-8").read() + "\nstampa(somma_doppia(9, 9))\n"}
+cambi = nav.rinomina_nel_progetto(cartella, "somma_doppia", "somma_raddoppiata", aperti)
+stampa("rinomina:", sorted((os.path.basename(p), n) per p, (_, n) in cambi.items()))
+testo_p = cambi[os.path.join(cartella, "principale.pit")][0]
+stampa("principale: cambiato dove è un nome:", testo_p.count("somma_raddoppiata"), "| il commento e il testo no:", "# somma_doppia nel commento" in testo_p, '"somma_doppia in una stringa' in testo_p)
+cambi2 = nav.rinomina_nel_progetto(cartella, "saldo", "importo")
+stampa("rinomina saldo (anche nel form, non nel .py di util che è un'altra funzione... ma stesso nome):", sorted((os.path.basename(p), n) per p, (_, n) in cambi2.items()))
+js = json.loads(cambi2[os.path.join(cartella, "finestra.form.json")][0])
+stampa("form: gestore rinominato, testo no:", js["componenti"][0]["valori"])
+
+# documentazione
+stampa("doc di una funzione:", repr(nav.documentazione(cartella, "somma_doppia")))
+stampa("doc di una parola:", nav.documentazione(cartella, "per").split("\n")[0])
+stampa("doc di una funzione predefinita:", (nav.documentazione(cartella, "stampa") o "").split("\n")[0])
+stampa("doc di niente:", nav.documentazione(cartella, "boh_sconosciuta"))
+
+# ripulitura
+sporco = "definisci f():"+chr(10)+chr(9)+"x = 1   "+chr(10)+chr(10)+chr(10)+chr(10)+chr(10)+chr(9)+"ritorna x"+chr(10)+chr(10)+"testo = '''riga con spazi   "+chr(10)+"   resta così'''   "+chr(10)
+pulito, n = nav.ripulisci(sporco)
+stampa("ripulito:", repr(pulito), "|", n, "righe")
+stampa("i testi su più righe restano intatti:", "riga con spazi   "+chr(10) in pulito, "| niente tabulazioni di rientro:", chr(9) non in pulito, "| due righe vuote al massimo:", chr(10)*4 non in pulito)
+stampa("già pulito: nessuna modifica:", nav.ripulisci("a = 1"+chr(10))[1])
+
+# ---------------------------------------------------------------- nell'applicazione
+importa tkinter come tk
+da tkinter importa messagebox, simpledialog
+messagebox.showwarning = lambda *a, **k: Nessuno
+messagebox.showerror = lambda *a, **k: Nessuno
+messagebox.askyesno = lambda *a, **k: Vero
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.navigazione_ui importa FinestraRisultati
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+prog = os.path.join(tempfile.mkdtemp(), "Nav")
+Progetto.nuovo(prog, "Nav", "vuoto")
+import_shutil = __import__("shutil")
+per f in ("calcoli.pit",):
+    import_shutil.copy(os.path.join(cartella, f), os.path.join(prog, f))
+open(os.path.join(prog, "principale.pit"), "w", encoding="utf-8").write(open(os.path.join(cartella, "principale.pit"), encoding="utf-8").read())
+app.apri_progetto(prog)
+ed = app.apri_file(os.path.join(prog, "principale.pit"))
+radice.update()
+stampa("l'editor conosce l'app e la documentazione:", ed.app == app, ed.fornitore_doc è non Nessuno)
+# cursore sul nome «somma_doppia» nella riga 4 (colonna 14)
+ed.t.mark_set("insert", "4.14")
+stampa("nome sotto il cursore:", ed.parola_a_indice("insert"))
+app.vai_alla_definizione()
+radice.update()
+corrente = app._editor_corrente()
+stampa("F12 apre la definizione:", os.path.basename(corrente.percorso), "| riga:", corrente.riga_cursore() se hasattr(corrente, "riga_cursore") altrimenti "?")
+ed = app.apri_file(os.path.join(prog, "principale.pit"))
+radice.update()
+ed.t.mark_set("insert", "4.14")
+usi = app.trova_usi_simbolo()
+radice.update()
+stampa("Maiusc+F12:", lunghezza(usi), "usi | finestra risultati:", FinestraRisultati.aperta è non Nessuno, "| righe:", lunghezza(FinestraRisultati.aperta.albero.get_children()))
+FinestraRisultati.aperta.albero.selection_set("1")
+FinestraRisultati.aperta._apri_scelto()
+radice.update()
+stampa("doppio clic su un uso apre il file:", os.path.basename(app._editor_corrente().percorso))
+FinestraRisultati.aperta.destroy()
+ed = app.apri_file(os.path.join(prog, "principale.pit"))
+ed.t.mark_set("insert", "4.14")
+# documentazione al passaggio del mouse
+testo_doc = app.documentazione_di(ed, "somma_doppia")
+stampa("documentazione:", repr(testo_doc))
+ed._mostra_doc  # esiste
+ed.fornitore_doc = lambda e, n: "doc di prova: " + n
+radice.update()
+ed.t.mark_set("insert", "4.14")
+x, y, _, _ = ed.t.bbox("4.14")
+ed._mostra_doc(x + 2, y + 2)
+radice.update()
+stampa("compare il fumetto:", ed._fumetto è non Nessuno)
+ed._nascondi_doc()
+stampa("e sparisce:", ed._fumetto è Nessuno)
+# ctrl+clic = definizione
+ed = app.apri_file(os.path.join(prog, "principale.pit"))
+radice.update()
+class_ev = type("Ev", (), {"x": x + 2, "y": y + 2})()
+ed._clic_con_ctrl(class_ev)
+radice.update()
+stampa("Ctrl+clic:", os.path.basename(app._editor_corrente().percorso))
+# rinomina in tutto il progetto, con file aperto modificato e file chiuso
+ed = app.apri_file(os.path.join(prog, "principale.pit"))
+ed.t.mark_set("insert", "4.14")
+app.chiudi_scheda(app.schede.get(os.path.abspath(os.path.join(prog, "calcoli.pit"))), chiedi=Falso)
+radice.update()
+cambi = app.rinomina_simbolo(ed, "somma_raddoppiata")
+radice.update()
+stampa("rinominati:", sorted((os.path.basename(p), n) per p, (_, n) in cambi.items()))
+stampa("editor aperto aggiornato (da annullare con Ctrl+Z):", "somma_raddoppiata(2, 3)" in ed.contenuto(), "| commento intatto:", "# somma_doppia nel commento" in ed.contenuto())
+stampa("file chiuso scritto sul disco:", "definisci somma_raddoppiata(a, b)" in open(os.path.join(prog, "calcoli.pit"), encoding="utf-8").read())
+ed.annulla()
+radice.update()
+stampa("annulla nell'editor:", "somma_doppia(2, 3)" in ed.contenuto())
+# nome non valido: rifiutato
+ed.t.mark_set("insert", "4.14")
+stampa("nome non valido:", app.rinomina_simbolo(ed, "2brutto"), "| parola riservata:", app.rinomina_simbolo(ed, "per"))
+# ripulire
+ed.sostituisci_testo("a = 1   " + chr(10) + chr(10) + chr(10) + chr(10) + chr(10) + "b = 2" + chr(10))
+n = app.ripulisci_codice()
+stampa("ripulito:", n, repr(ed.contenuto()))
+radice.destroy()

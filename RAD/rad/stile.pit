@@ -135,6 +135,20 @@ classe Suggerimento:
         se_stesso.testo = testo_
 
 
+definisci crea_fumetto(widget, testo_, colori=Nessuno):
+    """Un fumetto (finestrella) con il testo, vicino al puntatore; ritorna la finestra (da distruggere quando non serve)."""
+    c = colori o {"pulsante": "#2b303b", "primo_piano": "#f2f4f8"}
+    f = tk.Toplevel(widget)
+    f.wm_overrideredirect(Vero)
+    f.attributes("-topmost", Vero)
+    tk.Label(f, text=testo_, background=c["pulsante"], foreground=c["primo_piano"], padx=8, pady=4, relief="solid", borderwidth=1,
+             font=("Consolas", 9), justify="left", anchor="w", wraplength=520).pack()
+    f.update_idletasks()
+    x, y = posizione_fumetto(widget, f.winfo_reqwidth(), f.winfo_reqheight())
+    f.wm_geometry(f"+{x}+{y}")
+    ritorna f
+
+
 definisci suggerisci(widget, testo_, colori=Nessuno):
     """Aggiunge un suggerimento (fumetto) a un widget qualsiasi; ritorna il widget."""
     se testo_:
