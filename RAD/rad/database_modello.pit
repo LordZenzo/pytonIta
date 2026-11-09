@@ -421,6 +421,7 @@ classe ConnessioneMysql(Connessione):
     definisci __inizializza__(se_stesso, conn, descrizione):
         Connessione.__init__(se_stesso, conn)
         se_stesso.nome_visibile = descrizione
+        se_stesso.parametri = ("", 3306, "", "")
 
     definisci citato(se_stesso, nome):
         ritorna "`" + nome.replace("`", "``") + "`"
@@ -504,7 +505,9 @@ definisci apri_mysql(server, porta, utente, password, database="", carattere="ut
                           connect_timeout=8, autocommit=Falso)
     eccetto Exception come e:
         solleva ErroreDatabase(f"Collegamento a MySQL non riuscito: {e}") da e
-    ritorna ConnessioneMysql(conn, f"{utente}@{server}" + (f"/{database}" se database altrimenti ""))
+    c = ConnessioneMysql(conn, f"{utente}@{server}" + (f"/{database}" se database altrimenti ""))
+    c.parametri = (server, int(porta), utente, database)          # senza la password
+    ritorna c
 
 
 definisci installa_driver_mysql(interprete=Nessuno):

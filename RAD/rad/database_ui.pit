@@ -350,6 +350,10 @@ classe VisoreDatabase(VisoreBase):
         se_stesso._costruisci()
         se_stesso.aggiorna_elenco()
 
+    definisci crea_maschera(se_stesso):
+        se hasattr(se_stesso.azioni, "crea_maschera_da_tabella"):
+            se_stesso.azioni.crea_maschera_da_tabella(se_stesso.conn, se_stesso.tabella, se_stesso.percorso)
+
     # ------------------------------------------------------------------ struttura della scheda
     definisci _costruisci(se_stesso):
         c = se_stesso.colori
@@ -361,6 +365,7 @@ classe VisoreDatabase(VisoreBase):
         se_stesso.etichetta.pack(side="left")
         se_stesso.pulsanti_barra = []
         per testo_, comando, aiuto, lato in (("⟳ Aggiorna", se_stesso.aggiorna_elenco, "Rilegge l'elenco delle tabelle e i dati", "right"),
+                                             ("▤ Maschera…", se_stesso.crea_maschera, "Crea una finestra (nel progettista) per vedere e modificare la tabella scelta", "right"),
                                              ("⇪ Importa CSV…", se_stesso.importa_csv, "Inserisce nella tabella scelta le righe di un file CSV", "right"),
                                              ("＋ Nuova tabella…", se_stesso.nuova_tabella, "Crea una nuova tabella scegliendo le colonne", "right")):
             b = tk.Button(barra, text=testo_, command=comando, relief="flat", padx=8)

@@ -135,6 +135,11 @@
   "gruppo": "Programmare"
  },
  {
+  "id": "maschere",
+  "titolo": "Maschere collegate ai dati",
+  "gruppo": "Programmare"
+ },
+ {
   "id": "debugger",
   "titolo": "Il debugger",
   "gruppo": "Programmare"

@@ -17,6 +17,7 @@ da rad importa converti_progetto
 da rad importa esporta_python
 da rad.crea_exe importa DialogoEseguibile
 da rad importa database_modello
+da rad importa maschera_dati
 da rad.database_ui importa VisoreDatabase, DialogoMysql
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
@@ -268,6 +269,8 @@ classe Applicazione:
         database.add_command(label="Nuovo database SQLite…", command=lambda: se_stesso.nuovo_database_sqlite())
         database.add_command(label="Apri un database SQLite…", command=lambda: se_stesso.apri_database_sqlite())
         database.add_command(label="Collegati a MySQL…", command=lambda: se_stesso.collega_mysql())
+        database.add_separator()
+        database.add_command(label="Crea una maschera dalla tabella…", command=lambda: se_stesso.maschera_dalla_scheda())
         database.add_separator()
         database.add_command(label="Installa il driver MySQL (pymysql)", command=lambda: se_stesso.installa_driver_mysql())
         barra.add_cascade(label="Database", menu=database)
@@ -1003,6 +1006,52 @@ classe Applicazione:
         ritorna se_stesso.apri_file(mattonelle_modello.percorsi_programma(cartella, nome)["json"])
 
     # ================================================================== database
+    definisci maschera_dalla_scheda(se_stesso):
+        """Crea la maschera della tabella scelta nella scheda del database aperta."""
+        w = se_stesso._scheda_corrente()
+        se non isinstance(w, VisoreDatabase):
+            messagebox.showinfo("Maschera", "Apri un database e scegli a sinistra la tabella di cui vuoi la maschera.", parent=se_stesso.radice)
+            ritorna Nessuno
+        ritorna se_stesso.crea_maschera_da_tabella(w.conn, w.tabella, w.percorso)
+
+    definisci crea_maschera_da_tabella(se_stesso, conn, tabella, percorso_db=""):
+        """Crea nel progetto una finestra (progettista) collegata alla tabella: ricerca, elenco, campi e pulsanti Nuovo/Salva/Elimina/Annulla."""
+        se non se_stesso.progetto:
+            messagebox.showinfo("Maschera", "Apri o crea prima un progetto: la maschera diventa una sua finestra.", parent=se_stesso.radice)
+            ritorna Nessuno
+        se non tabella:
+            messagebox.showinfo("Maschera", "Scegli a sinistra la tabella di cui vuoi la maschera.", parent=se_stesso.radice)
+            ritorna Nessuno
+        esistenti = {os.path.basename(f)[:-len(".form.json")].lower() per f in se_stesso.progetto.tutti_i_file() se f.endswith(".form.json")}
+        base = "Maschera" + "".join(parte.capitalize() per parte in re.split(r"\W+", tabella) se parte)
+        proposta = base
+        n = 2
+        mentre proposta.lower() in esistenti:
+            proposta = f"{base}{n}"
+            n += 1
+        nome = simpledialog.askstring("Crea la maschera", f"Nome della nuova finestra per la tabella «{tabella}»:", initialvalue=proposta, parent=se_stesso.radice)
+        se non nome:
+            ritorna Nessuno
+        nome = nome.strip()
+        se non form_modello.nome_valido(nome) o nome.lower() in esistenti:
+            messagebox.showwarning("Nome non valido", "Usa lettere, cifre e _ (senza iniziare con una cifra) e un nome non ancora usato.", parent=se_stesso.radice)
+            ritorna Nessuno
+        prova:
+            nomi = [c.nome per c in conn.colonne(tabella)]
+            r = maschera_dati.crea_maschera(se_stesso.progetto.cartella, nome, tabella, nomi, conn.dialetto, percorso_db se conn.dialetto == "sqlite" altrimenti "",
+                                            getattr(conn, "parametri", Nessuno))
+        eccetto (OSError, ValueError, database_modello.ErroreDatabase) come errore:
+            messagebox.showerror("Maschera", f"Non sono riuscito a creare la maschera:\n{errore}", parent=se_stesso.radice)
+            ritorna Nessuno
+        se_stesso.pannello_progetto.aggiorna()
+        se_stesso.apri_file(r["form"])
+        se_stesso.apri_file(r["logica"])
+        se_stesso.info(f"Maschera «{nome}» creata: premi «Esegui il file corrente» per provarla.")
+        messagebox.showinfo("Maschera creata", f"La finestra «{nome}» è pronta e collegata alla tabella «{tabella}».\n\n"
+                            f"• Si modifica nel progettista (scheda «{nome}»).\n• Per provarla: nel file {nome.lower()}.pit scegli Esegui → Esegui il file corrente.\n"
+                            "• Il collegamento ai dati sta in fonte_dati.pit, che puoi usare anche in altre finestre.", parent=se_stesso.radice)
+        ritorna r
+
     definisci nuovo_database_sqlite(se_stesso):
         """Crea un file SQLite vuoto (di solito nella cartella del progetto) e lo apre."""
         iniziale = se_stesso.progetto.cartella se se_stesso.progetto altrimenti os.path.expanduser("~")

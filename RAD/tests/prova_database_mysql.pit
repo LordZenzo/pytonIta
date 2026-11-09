@@ -81,6 +81,26 @@ prova:
     c.elimina_tabella("righe_ordine")
     c.elimina_tabella("copia")
     stampa("dopo le eliminazioni:", [t per t, _ in c.tabelle()])
+    # la fonte dati delle maschere (fonte_dati.pit) su MySQL
+    importa importlib
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice"))
+    fd = importlib.import_module("fonte_dati")
+    c.crea_tabella("persone", [dbm.Colonna("id", "INT", chiave=Vero, autoincremento=Vero, non_nullo=Vero), dbm.Colonna("nome", "VARCHAR(100)", non_nullo=Vero),
+                               dbm.Colonna("eta", "INT"), dbm.Colonna("saldo", "DECIMAL(10,2)")])
+    fonte = fd.FonteDati.con_mysql(server, porta, utente, password, NOME, "persone")
+    stampa("fonte MySQL:", fonte.colonne, fonte.chiave, fonte.automatiche, fonte.obbligatorie)
+    id1 = fonte.salva({"id": "", "nome": "Anna", "eta": "30", "saldo": "12,5"})
+    id2 = fonte.salva({"id": "", "nome": "Luca", "eta": "", "saldo": ""})
+    stampa("inseriti:", id1, id2, [(i, v["nome"], v["eta"], v["saldo"]) per i, v in fonte.record()])
+    fonte.salva({"id": "1", "nome": "Anna Maria", "eta": "31", "saldo": "12.5"}, id1)
+    stampa("modificato:", [v["nome"] per _, v in fonte.record("anna")])
+    prova:
+        fonte.salva({"id": "", "nome": "", "eta": "", "saldo": ""})
+    eccetto fd.ErroreDati come e:
+        stampa("obbligatorio:", e)
+    fonte.elimina(id2)
+    stampa("dopo l'eliminazione:", lunghezza(fonte.record()))
+    fonte.chiudi()
     # l'interfaccia su MySQL: scheda, dati, modifica di una cella, SQL con «%» e dialogo di nuova tabella
     importa tkinter come tk
     da tkinter importa messagebox

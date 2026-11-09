@@ -1,0 +1,146 @@
+"""Crea una maschera (finestra del progettista) collegata a una tabella: ricerca, elenco dei record, campi di modifica e pulsanti Nuovo / Salva / Elimina / Annulla."""
+importa os
+importa re
+importa shutil
+
+da rad importa form_modello
+
+LARGHEZZA = 780
+MODELLO_FONTE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice", "fonte_dati.pit")
+
+
+definisci nome_campo(colonna):
+    """Nome valido (e senza parole riservate) per il componente di una colonna: campo_<colonna>."""
+    pulito = re.sub(r"\W", "_", colonna)
+    ritorna "campo_" + pulito
+
+
+definisci nome_etichetta(colonna):
+    ritorna "etichetta_" + re.sub(r"\W", "_", colonna)
+
+
+definisci disegna_form(nome_form, titolo, tabella, nomi_colonne):
+    """Il Form del progettista: ricerca in alto, elenco, campi (una o due colonne di campi) e pulsanti."""
+    f = form_modello.Form(nome_form, titolo)
+    n = lunghezza(nomi_colonne)
+    su_due = n > 6
+    righe_campi = (n + 1) // 2 se su_due altrimenti n
+    y_elenco = 56
+    h_elenco = 190
+    y_campi = y_elenco + h_elenco + 16
+    y_pulsanti = y_campi + righe_campi * 34 + 8
+    f.larghezza = LARGHEZZA
+    f.altezza = y_pulsanti + 58
+    f.aggiungi("Etichetta", 16, 16, nome="etichetta_cerca", testo="Cerca:", larghezza=52, altezza=24)
+    f.aggiungi("CampoTesto", 70, 14, nome="campo_cerca", larghezza=220, altezza=26, al_invio="cerca_clic")
+    f.aggiungi("Pulsante", 298, 12, nome="pulsante_cerca", testo="Cerca", larghezza=74, altezza=28, al_clic="cerca_clic")
+    f.aggiungi("Pulsante", 378, 12, nome="pulsante_tutti", testo="Tutti", larghezza=74, altezza=28, al_clic="tutti_clic")
+    f.aggiungi("Etichetta", 470, 16, nome="etichetta_stato", testo="", larghezza=294, altezza=24, allineamento="destra", ancora="e")
+    visibili = nomi_colonne[:8]
+    f.aggiungi("Albero", 16, y_elenco, nome="elenco_dati", larghezza=LARGHEZZA - 32, altezza=h_elenco, colonne=lista(visibili),
+               larghezze=[max(60, min(200, (LARGHEZZA - 60) // lunghezza(visibili))) per _ in visibili], allineamenti=["w"] * lunghezza(visibili),
+               al_selezione="scelta_riga")
+    per i, colonna in enumera(nomi_colonne):
+        blocco = i // righe_campi se su_due altrimenti 0
+        riga = i % righe_campi se su_due altrimenti i
+        x0 = 16 + blocco * 380
+        y = y_campi + riga * 34
+        f.aggiungi("Etichetta", x0, y + 2, nome=nome_etichetta(colonna), testo=colonna, larghezza=120, altezza=24)
+        f.aggiungi("CampoTesto", x0 + 124, y, nome=nome_campo(colonna), larghezza=226 se su_due altrimenti 300, altezza=26)
+    x = 16
+    per nome, testo_, gestore in (("pulsante_nuovo", "Nuovo", "nuovo_clic"), ("pulsante_salva", "Salva", "salva_clic"),
+                                   ("pulsante_elimina", "Elimina", "elimina_clic"), ("pulsante_annulla", "Annulla", "annulla_clic")):
+        f.aggiungi("Pulsante", x, y_pulsanti, nome=nome, testo=testo_, larghezza=96, altezza=32, al_clic=gestore)
+        x += 104
+    ritorna f
+
+
+definisci _espressione_fonte(tabella, dialetto, db_relativo, parametri):
+    """Il codice che apre la fonte di dati dentro la logica della maschera."""
+    se dialetto == "sqlite":
+        se os.path.isabs(db_relativo):
+            ritorna f"FonteDati.sqlite({db_relativo!r}, {tabella!r})"
+        ritorna f"FonteDati.sqlite(os.path.join(os.path.dirname(os.path.abspath(__file__)), {db_relativo!r}), {tabella!r})"
+    server, porta, utente, database = parametri
+    ritorna (f"FonteDati.con_mysql({server!r}, {porta}, {utente!r}, "
+             f"simpledialog.askstring('MySQL', 'Password di {utente}@{server}:', show='*', parent=radice) o '', {database!r}, {tabella!r})")
+
+
+definisci logica(form, tabella, nomi_colonne, dialetto, db_relativo, parametri=Nessuno):
+    """Il file di logica della maschera, già collegato ai dati."""
+    cl = form_modello._nome_classe(form.nome)
+    campi = ",\n            ".join(f"{colonna!r}: se_stesso.{nome_campo(colonna)}" per colonna in nomi_colonne)
+    r = []
+    r.append(f'"""Logica della maschera {form.nome}: i dati sono quelli della tabella «{tabella}». Puoi aggiungere il tuo codice."""')
+    r.append("importa os")
+    r.append("importa interfaccia come tk")
+    r.append("da tkinter importa messagebox, simpledialog")
+    r.append(f"da {form_modello.nome_file_ui(form.nome)} importa {cl}UI")
+    r.append("da fonte_dati importa FonteDati, MascheraDati, ErroreDati")
+    r.append("")
+    r.append("")
+    r.append(f"classe {cl}({cl}UI):")
+    r.append("    definisci __inizializza__(se_stesso, radice):")
+    r.append("        se_stesso.costruisci_ui(radice)")
+    r.append("        prova:")
+    r.append(f"            se_stesso.fonte = {_espressione_fonte(tabella, dialetto, db_relativo, parametri)}")
+    r.append("        eccetto ErroreDati come errore:")
+    r.append("            messagebox.showerror('Database', testo(errore), parent=radice)")
+    r.append("            radice.after(50, radice.destroy)")
+    r.append("            ritorna")
+    r.append("        se_stesso.maschera = MascheraDati(se_stesso.fonte, se_stesso.elenco_dati, {")
+    r.append(f"            {campi}}}, se_stesso.etichetta_stato)")
+    r.append("        se_stesso.maschera.ricarica()")
+    r.append("")
+    r.append("    definisci scelta_riga(se_stesso, evento=Nessuno):")
+    r.append("        se_stesso.maschera.scelta_riga()")
+    r.append("")
+    r.append("    definisci cerca_clic(se_stesso, evento=Nessuno):")
+    r.append("        se_stesso.maschera.cerca(se_stesso.campo_cerca.get())")
+    r.append("")
+    r.append("    definisci tutti_clic(se_stesso, evento=Nessuno):")
+    r.append("        se_stesso.campo_cerca.delete(0, 'end')")
+    r.append("        se_stesso.maschera.cerca('')")
+    r.append("")
+    r.append("    definisci nuovo_clic(se_stesso, evento=Nessuno):")
+    r.append("        se_stesso.maschera.nuovo()")
+    r.append("")
+    r.append("    definisci salva_clic(se_stesso, evento=Nessuno):")
+    r.append("        se_stesso.maschera.salva()")
+    r.append("")
+    r.append("    definisci elimina_clic(se_stesso, evento=Nessuno):")
+    r.append("        se_stesso.maschera.elimina()")
+    r.append("")
+    r.append("    definisci annulla_clic(se_stesso, evento=Nessuno):")
+    r.append("        se_stesso.maschera.annulla()")
+    r.append("")
+    r.append("")
+    r.append('se __nome__ == "__main__":')
+    r.append("    radice = tk.Finestra()")
+    r.append(f"    finestra = {cl}(radice)")
+    r.append("    radice.ciclo_principale()")
+    ritorna "\n".join(r) + "\n"
+
+
+definisci crea_maschera(cartella, nome_form, tabella, nomi_colonne, dialetto="sqlite", db_percorso="", parametri=Nessuno):
+    """Scrive nel progetto `cartella` la maschera (form.json, UI generata, logica) e fonte_dati.pit. Ritorna {"form": ..., "logica": ..., "fonte": ..., "scritti": [...]}."""
+    f = disegna_form(nome_form, "Maschera: " + tabella, tabella, nomi_colonne)
+    p = form_modello.percorsi_form(cartella, nome_form)
+    se os.path.exists(p["logica"]) o os.path.exists(p["json"]):
+        solleva FileExistsError(f"Esiste già una finestra chiamata «{nome_form}».")
+    db_relativo = db_percorso
+    se dialetto == "sqlite" e db_percorso:
+        prova:
+            relativo = os.path.relpath(db_percorso, cartella)
+        eccetto ValueError:
+            relativo = db_percorso
+        db_relativo = relativo se non relativo.startswith("..") e non os.path.isabs(relativo) altrimenti db_percorso
+    # nel progettista la logica viene creata da salva_form: la scrivo io prima, così salva_form aggiunge solo i gestori che mancano
+    con open(p["logica"], "w", encoding="utf-8", newline="\n") come file:
+        file.write(logica(f, tabella, nomi_colonne, dialetto, db_relativo, parametri))
+    scritti = form_modello.salva_form(f, cartella)
+    fonte = os.path.join(cartella, "fonte_dati.pit")
+    se non os.path.exists(fonte):
+        shutil.copyfile(MODELLO_FONTE, fonte)
+        scritti.append(fonte)
+    ritorna {"form": p["json"], "logica": p["logica"], "fonte": fonte, "scritti": scritti}

@@ -1,0 +1,27 @@
+"""Schermata della maschera generata dalla tabella (controllo a occhio)."""
+importa sys, os, tempfile, importlib
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad importa database_modello come dbm
+da rad importa maschera_dati
+
+uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+cartella = tempfile.mkdtemp()
+db = os.path.join(cartella, "negozio.db")
+c = dbm.apri_sqlite(db)
+c.esegui("CREATE TABLE clienti (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, cognome TEXT, citta TEXT, email TEXT, sconto REAL DEFAULT 0, note TEXT);"
+         "INSERT INTO clienti (nome, cognome, citta, email, sconto) VALUES ('Anna','Rossi','Roma','anna@esempio.it',5),('Luca','Bianchi','Milano','luca@esempio.it',0),"
+         "('Sara','Verdi','Roma','sara@esempio.it',10),('Marco','Neri','Torino','marco@esempio.it',2.5)")
+nomi = [k.nome per k in c.colonne("clienti")]
+r = maschera_dati.crea_maschera(cartella, "MascheraClienti", "clienti", nomi, "sqlite", db)
+c.chiudi()
+sys.path.insert(0, cartella)
+modulo = importlib.import_module("mascheraclienti")
+radice = tk.Tk()
+radice.geometry("+40+40")
+m = modulo.MascheraClienti(radice)
+radice.update()
+radice.after(800, lambda: (ImageGrab.grab(bbox=(40, 40, 40 + radice.winfo_width() + 10, 40 + radice.winfo_height() + 40)).save(os.path.join(uscita, "maschera.png")), radice.quit()))
+radice.mainloop()
+radice.destroy()

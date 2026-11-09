@@ -1,0 +1,149 @@
+"""Maschere collegate ai dati: il generatore crea finestra e logica; la maschera funziona davvero (SQLite) e il codice si esporta in Python."""
+importa sys, os, tempfile, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+messagebox.showwarning = lambda *a, **k: Nessuno
+messagebox.showerror = lambda *a, **k: Nessuno
+messagebox.askyesno = lambda *a, **k: Vero
+da rad importa database_modello come dbm
+da rad importa maschera_dati, form_modello
+
+cartella = tempfile.mkdtemp()
+db = os.path.join(cartella, "negozio.db")
+c = dbm.apri_sqlite(db)
+c.esegui("CREATE TABLE clienti (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, citta TEXT, sconto REAL DEFAULT 0);"
+         "INSERT INTO clienti (nome, citta, sconto) VALUES ('Anna', 'Roma', 5), ('Luca', 'Milano', 0), ('Sara', 'Roma', 10)")
+nomi = [k.nome per k in c.colonne("clienti")]
+r = maschera_dati.crea_maschera(cartella, "MascheraClienti", "clienti", nomi, "sqlite", db)
+stampa("file scritti:", sorted(os.path.basename(x) per x in r["scritti"]))
+f = form_modello.carica_form(r["form"])
+stampa("componenti:", lunghezza(f.componenti), "| problemi del form:", f.problemi())
+stampa("gestori richiesti:", sorted({n per _, _, n in f.eventi()}))
+logica = open(r["logica"], encoding="utf-8").read()
+stampa("la logica apre il database relativo al progetto:", 'os.path.join(os.path.dirname(os.path.abspath(__file__)), \'negozio.db\')' in logica)
+prova:
+    maschera_dati.crea_maschera(cartella, "MascheraClienti", "clienti", nomi, "sqlite", db)
+eccetto FileExistsError:
+    stampa("non sovrascrive una finestra esistente: Vero")
+# tabella con molte colonne: due colonne di campi
+c.esegui("CREATE TABLE larga (a INTEGER PRIMARY KEY, b TEXT, c TEXT, d TEXT, e TEXT, f TEXT, g TEXT, h TEXT, i TEXT, `nome strano` TEXT)")
+nl = [k.nome per k in c.colonne("larga")]
+r2 = maschera_dati.crea_maschera(cartella, "MascheraLarga", "larga", nl, "sqlite", db)
+f2 = form_modello.carica_form(r2["form"])
+stampa("tabella larga:", lunghezza(f2.componenti), "componenti | problemi:", f2.problemi(), "| campo con spazio:", f2.trova("campo_nome_strano") è non Nessuno)
+c.chiudi()
+
+# la maschera funziona (eseguendo la logica generata)
+sys.path.insert(0, cartella)
+importa importlib
+fd = importlib.import_module("fonte_dati")
+modulo = importlib.import_module("mascheraclienti")
+radice = tk.Tk()
+radice.geometry("820x700+20+20")
+m = modulo.MascheraClienti(radice)
+radice.update()
+stampa("elenco iniziale:", [m.elenco_dati.item(i, "values") per i in m.elenco_dati.get_children()], "|", m.etichetta_stato.cget("text"))
+stampa("campi del primo record:", m.campo_nome.get(), m.campo_citta.get(), m.campo_sconto.get(), m.campo_id.get())
+m.elenco_dati.selection_set("1")
+m.scelta_riga()
+stampa("scelto il secondo:", m.campo_nome.get(), m.campo_citta.get())
+# modifica
+m.campo_citta.delete(0, "end")
+m.campo_citta.insert(0, "Torino")
+m.salva_clic()
+stampa("modificato:", [m.elenco_dati.item(i, "values")[2] per i in m.elenco_dati.get_children()])
+# nuovo
+m.nuovo_clic()
+stampa("campi vuoti per il nuovo:", repr(m.campo_nome.get()), m.id_corrente_vuoto() se hasattr(m, "id_corrente_vuoto") altrimenti m.maschera.id_corrente)
+m.campo_nome.insert(0, "Marco")
+m.campo_sconto.insert(0, "2,5")
+m.salva_clic()
+stampa("inserito:", lunghezza(m.maschera.record), "record |", [m.elenco_dati.item(i, "values")[1:] per i in m.elenco_dati.get_children()][-1], "| scelto:", m.campo_nome.get())
+# nome obbligatorio: il database rifiuta
+m.nuovo_clic()
+m.campo_nome.insert(0, "")
+m.campo_citta.insert(0, "Padova")
+m.salva_clic()
+stampa("NOT NULL: il record non è stato aggiunto:", lunghezza(m.maschera.record) == 4)
+# numero non valido
+m.nuovo_clic()
+m.campo_nome.insert(0, "Zeno")
+m.campo_sconto.insert(0, "molto")
+m.salva_clic()
+stampa("numero non valido rifiutato:", lunghezza(m.maschera.record) == 4)
+# ricerca
+m.campo_cerca.delete(0, "end")
+m.campo_cerca.insert(0, "roma")
+m.cerca_clic()
+stampa("ricerca «roma»:", [m.elenco_dati.item(i, "values")[1] per i in m.elenco_dati.get_children()], "|", m.etichetta_stato.cget("text"))
+m.tutti_clic()
+stampa("tutti:", lunghezza(m.maschera.record))
+# eliminazione
+m.elenco_dati.selection_set("0")
+m.scelta_riga()
+m.elimina_clic()
+stampa("eliminato:", [m.elenco_dati.item(i, "values")[1] per i in m.elenco_dati.get_children()])
+m.annulla_clic()
+stampa("annulla rilegge il record scelto:", m.campo_nome.get())
+m.fonte.chiudi()
+radice.destroy()
+
+# esportazione in Python: la maschera gira senza pytonIta (il programma gira in un processo a parte, senza mostrare la finestra)
+da rad importa esporta_python
+destinazione = os.path.join(tempfile.mkdtemp(), "export")
+e = esporta_python.esporta(cartella, destinazione)
+stampa("esportato:", e["file_python"], "file Python | errori:", e["errori"])
+programma = os.path.join(destinazione, "prova_maschera.py")
+open(programma, "w", encoding="utf-8").write("""
+import os, sys, tkinter as tk
+from tkinter import messagebox
+messagebox.askyesno = lambda *a, **k: True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import mascheraclienti
+r = tk.Tk(); r.withdraw()
+m = mascheraclienti.MascheraClienti(r)
+r.update()
+print("record:", len(m.maschera.record), m.campo_nome.get())
+m.campo_nome.delete(0, 'end'); m.campo_nome.insert(0, 'Python')
+m.salva_clic()
+print("salvato:", [m.elenco_dati.item(i, 'values')[1] for i in m.elenco_dati.get_children()][0])
+m.fonte.chiudi()
+r.destroy()
+""")
+import_py = __import__("shutil").which("python") o __import__("shutil").which("py")
+se import_py:
+    u = subprocess.run([import_py, "-W", "ignore", programma], capture_output=Vero, text=Vero, encoding="utf-8", cwd=destinazione, timeout=120, env=dict(os.environ, PYTHONUTF8="1"))
+    stampa("con Python normale:", u.stdout.strip().replace("\n", " | "), u.returncode, u.stderr.strip()[-200:])
+
+# dal programma: scheda del database -> pulsante «Maschera…» -> finestra nel progetto, aperta nel progettista
+da tkinter importa simpledialog
+messagebox.showinfo = lambda *a, **k: Nessuno
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.database_ui importa VisoreDatabase
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice2 = tk.Tk()
+radice2.geometry("1300x800+20+20")
+app = Applicazione(radice2, cfg)
+cart2 = os.path.join(tempfile.mkdtemp(), "Gestione")
+Progetto.nuovo(cart2, "Gestione", "vuoto")
+app.apri_progetto(cart2)
+db2 = os.path.join(cart2, "dati.db")
+cc = dbm.apri_sqlite(db2)
+cc.esegui("CREATE TABLE ordini (id INTEGER PRIMARY KEY, cliente TEXT, totale REAL); INSERT INTO ordini (cliente, totale) VALUES ('Anna', 10)")
+cc.chiudi()
+w = app.apri_file(db2)
+radice2.update()
+stampa("scheda database:", tipo(w).__name__, "| pulsante Maschera:", any("Maschera" in b.cget("text") per b in w.pulsanti_barra))
+w.elenco.selection_set("ordini")
+radice2.update()
+richiesti = []
+simpledialog.askstring = lambda titolo, messaggio, **k: (richiesti.append(k.get("initialvalue")), k.get("initialvalue"))[1]
+w.crea_maschera()
+radice2.update()
+stampa("nome proposto:", richiesti, "| file nel progetto:", sorted(f per f in os.listdir(cart2) se "ordini" in f.lower() o f == "fonte_dati.pit"))
+stampa("la finestra è aperta nel progettista:", [tipo(x).__name__ per x in app.schede.values()])
+stampa("menu: «Crea una maschera dalla tabella…» presente:", any(k.endswith("Crea una maschera dalla tabella…") per k in app.comandi_menu))
+radice2.destroy()

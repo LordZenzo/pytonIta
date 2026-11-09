@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.25
+
+- **Maschere collegate ai dati**: dalla scheda di un database, **▤ Maschera…** (o *Database → Crea una maschera dalla tabella…*) crea nel progetto una finestra del progettista già collegata alla tabella: ricerca, elenco dei record, campi, **Nuovo / Salva / Elimina / Annulla** con controlli (campi obbligatori, numeri). Funziona con SQLite e MySQL (la password è chiesta all'avvio, mai salvata), si modifica nel progettista e si esporta in Python. Il collegamento sta in `fonte_dati.pit` (`FonteDati`, `MascheraDati`), usabile anche con finestre disegnate a mano.
+
 ## Novità della 1.24
 
 - **MySQL provato su un server vero** (MySQL 9.1 di WAMP): collegamento, tabelle, viste, chiavi esterne, modifica dei dati, CSV, SQL a più comandi, creazione guidata di tabelle e installazione del driver `pymysql` dal programma. Corretto un errore che impediva i comandi SQL con il segno `%` (per esempio `LIKE 'P%'`) su MySQL. Nuovo test `prova_database_mysql.pit` (si attiva con `RAD_PROVA_MYSQL=1`).
