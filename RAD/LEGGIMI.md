@@ -16,6 +16,16 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.20
+
+- **Campi numerici con freccette** nell'ispettore del progettista (su/giù, rotella, tasti freccia), con i limiti naturali di ogni valore: un componente resta dentro la finestra, il cursore tra il suo minimo e massimo, la barra tra 0 e il suo massimo.
+- **Albero: gestione delle colonne**: finestra «Modifica…» con nome, larghezza in pixel e allineamento di ogni colonna, aggiunta, rimozione, ordine. Anteprima e codice generato le rispettano.
+- **La finestra si ridimensiona trascinando** le maniglie fuori dal bordo destro, da quello inferiore e dall'angolo.
+- **Suggerimenti vicino al mouse anche con più monitor** (prima finivano su un altro schermo).
+- **Pannello Librerie**: le librerie già importate dal file aperto risultano spuntate; spuntarne una aggiunge `importa …` al codice, togliendo la spunta la riga sparisce.
+- **Programmi a mattonelle con una finestra**: nuovo modello di progetto «Programma a mattonelle con finestra» con un esempio pronto (etichetta, campo, pulsante) e la nuova categoria di mattonelle **Finestre** (16 mattonelle).
+- **Modello «Libreria» spiegato**: pacchetto completo con funzione, classe, prova e `LEGGIMI.md` che spiega come funziona e come si riusa.
+
 ## Novità della 1.19
 
 - **Ridimensionamento con le maniglie nel progettista**: con il mouse vero la maniglia afferrata veniva distrutta e ricreata a ogni movimento, e Windows smetteva di mandarle i movimenti: la dimensione cambiava di un solo passo e poi si fermava. Ora contorno e maniglie vengono solo spostati. Provato anche con il mouse reale (`tests/prova_maniglie.pit`).

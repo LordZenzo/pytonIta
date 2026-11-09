@@ -12,8 +12,9 @@ I progetti recenti compaiono nel menu *File → Progetti recenti* e nella scherm
 |---|---|
 | **Programma da console** | `principale.pit` con un programma che legge e scrive testo |
 | **Programma con finestra** | una finestra già disegnata (`principale.form.json`, il codice generato e la logica) |
-| **Programma a mattonelle** | un programma di esempio a mattonelle già collegato |
-| **Libreria** | un pacchetto con `__init__.pit` e un file di prova |
+| **Programma a mattonelle (console)** | un programma di esempio a mattonelle già collegato |
+| **Programma a mattonelle con finestra** | un programma a mattonelle che apre una finestra con un'etichetta, un campo di testo e un pulsante che saluta |
+| **Libreria** | un pacchetto completo da riempire: `__init__.pit` (la «porta» della libreria), due moduli di esempio (una funzione e una classe), `prova.pit` che li usa e un `LEGGIMI.md` che spiega come funziona e come riusarla in altri programmi |
 | **Progetto vuoto** | solo un `principale.pit` minimo |
 
 ## L'albero dei file
@@ -29,7 +30,7 @@ I progetti recenti compaiono nel menu *File → Progetti recenti* e nella scherm
 
 ![La scheda Librerie](immagini/librerie.png)
 
-A sinistra, accanto alla scheda **Progetto**, la scheda **Librerie** mostra tutte le librerie italiane divise per categoria, ognuna con una breve descrizione. Spunta la casella per **attivare** una libreria nel progetto (la scelta si salva con il progetto): le librerie attive compaiono sempre tra i suggerimenti dell'editor e i loro nomi si completano anche senza `importa`. Un **doppio clic** inserisce la riga `importa …` in testa al file aperto (in un `.py` inserisce l'`import` inglese). Il campo di ricerca filtra per nome o descrizione; «solo spuntate» mostra solo quelle attive. Le librerie segnate con ⚠ non sono installate (le scientifiche sono un componente facoltativo dell'installazione).
+A sinistra, accanto alla scheda **Progetto**, la scheda **Librerie** mostra tutte le librerie italiane divise per categoria, ognuna con una breve descrizione. Spunta la casella per **attivare** una libreria nel progetto (la scelta si salva con il progetto): le librerie attive compaiono sempre tra i suggerimenti dell'editor e i loro nomi si completano anche senza `importa`. Le librerie che il file aperto **già importa** risultano spuntate da sole. **Spuntare** una libreria la sceglie per il progetto e aggiunge la riga `importa …` in testa al file aperto; **togliendo la spunta** la riga viene tolta (Ctrl+Z la rimette). Un **doppio clic** inserisce la riga `importa …` in testa al file aperto (in un `.py` inserisce l'`import` inglese). Il campo di ricerca filtra per nome o descrizione; «solo spuntate» mostra solo quelle attive. Le librerie segnate con ⚠ non sono installate (le scientifiche sono un componente facoltativo dell'installazione).
 
 ## Cercare nel progetto
 

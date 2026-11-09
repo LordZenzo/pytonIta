@@ -1,0 +1,61 @@
+"""Progetto a mattonelle con finestra: esempio pronto che usa etichetta, campo e pulsante; si genera e funziona."""
+importa sys, os, tempfile, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.progetto importa Progetto, MODELLI
+da rad.dialoghi importa *      # (importa solo per controllare che il modulo si carichi con i nuovi modelli)
+da rad importa mattonelle_modello, mattonelle_ui
+
+PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
+stampa("modelli di progetto:", [k per k in MODELLI se "mattonelle" in k])
+
+cartella = os.path.join(tempfile.mkdtemp(), "Fin")
+p = Progetto.nuovo(cartella, "Fin", "mattonelle_finestra")
+stampa("file creati:", sorted(os.listdir(cartella)))
+codice = open(os.path.join(cartella, "principale.pit"), encoding="utf-8").read()
+stampa("il codice usa la finestra:", "interfaccia.Finestra()" in codice, "interfaccia.Pulsante(" in codice, "ciclo_principale()" in codice)
+
+# ricarica il programma e controlla le mattonelle usate
+prog = mattonelle_modello.carica_programma(os.path.join(cartella, "principale.mattonelle.json"))
+tipi = set()
+per area in prog.aree():
+    per m in area.tutte():
+        tipi.add(m.tipo)
+atteso = {"finestra_crea", "finestra_titolo", "finestra_misure", "etichetta_nuova", "campo_nuovo", "pulsante_nuovo", "componente_mostra",
+          "finestra_avvia", "etichetta_imposta", "campo_leggi", "funzione_anonima", "testo_f"}
+stampa("mattonelle della finestra usate:", atteso <= tipi, "| mancano:", sorted(atteso - tipi))
+nuovo, avvisi = mattonelle_modello.genera_codice(prog)
+stampa("rigenerato uguale, senza avvisi:", nuovo.split("\n", 1)[1] == codice.split("\n", 1)[1], avvisi)
+
+# eseguire davvero: premo il pulsante dopo un attimo e leggo l'etichetta
+prova = codice.replace("    finestra.ciclo_principale()", """    finestra.dopo(300, lambda: (campo.inserisci(0, "Anna"), pulsante.invoke(), stampa(etichetta.cget("text")), finestra.distruggi()))
+    finestra.ciclo_principale()""")
+f_prova = os.path.join(cartella, "prova_esegui.pit")
+open(f_prova, "w", encoding="utf-8").write(prova)
+r = subprocess.run([PITONIT, f_prova], capture_output=Vero, text=Vero, encoding="utf-8", timeout=60, cwd=cartella)
+stampa("esecuzione:", repr(r.stdout.strip()), "| codice di uscita:", r.returncode, r.stderr.strip()[-200:])
+
+# la tavolozza ha la categoria Finestre
+stampa("categoria Finestre:", "finestre" in mattonelle_modello.ORDINE_CATEGORIE, lunghezza(mattonelle_modello.PREFERITE_PER_CATEGORIA["finestre"]), "mattonelle")
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1300x760+10+10")
+configura_stile(radice, col)
+
+
+classe Az:
+    definisci __getattr__(se_stesso, n):
+        ritorna lambda *a, **k: Nessuno
+
+
+ed = mattonelle_ui.EditorMattonelle(radice, os.path.join(cartella, "principale.mattonelle.json"), prog, col, cfg, Az())
+ed.pack(fill="both", expand=Vero)
+applica(radice, col)
+radice.update()
+ed.tavolozza.scegli("finestre")
+radice.update()
+stampa("tavolozza Finestre mostrata senza errori")
+radice.destroy()

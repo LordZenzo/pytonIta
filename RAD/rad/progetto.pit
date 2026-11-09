@@ -22,7 +22,8 @@ ESTENSIONI_TESTO = {".txt", ".md", ".ini", ".cfg", ".toml", ".yaml", ".yml", ".x
 MODELLI = {
     "console": "Programma da console",
     "finestra": "Programma con finestra (progettista)",
-    "mattonelle": "Programma a mattonelle",
+    "mattonelle": "Programma a mattonelle (console)",
+    "mattonelle_finestra": "Programma a mattonelle con finestra",
     "vuoto": "Progetto vuoto",
     "libreria": "Libreria (pacchetto)",
     "python": "Programma Python classico (.py)",
@@ -56,6 +57,89 @@ def main():
 if __name__ == "__main__":
     main()
 '''
+
+
+PAROLE_RISERVATE_NOMI = {"classe", "definisci", "se", "per", "da", "con", "e", "o", "non", "in", "passa", "prova", "mentre",
+                         "ritorna", "importa", "lambda", "elimina", "attendi", "asincrono", "interrompi", "continua"}
+
+
+definisci file_libreria(nome, pacchetto):
+    """I file di un progetto «libreria»: un pacchetto piccolo ma completo (funzione, classe, prova e spiegazione) da riempire."""
+    ritorna {
+        f"{pacchetto}/__init__.pit": f'''"""{nome} - una libreria pytonIta.
+
+Questa cartella è la libreria: chi scrive «importa {pacchetto}» carica questo file.
+Qui si elencano le cose che la libreria offre agli altri, prendendole dai suoi moduli.
+"""
+VERSIONE = "0.1"
+
+da {pacchetto}.saluti importa saluta
+da {pacchetto}.contatore importa Contatore
+''',
+        f"{pacchetto}/saluti.pit": '''"""Un modulo della libreria: funzioni semplici. Aggiungi qui le tue."""
+
+
+definisci saluta(nome="mondo"):
+    """Restituisce un saluto. (La riga tra virgolette doppie, qui sotto la definizione, è la documentazione.)"""
+    ritorna f"Ciao, {nome}!"
+''',
+        f"{pacchetto}/contatore.pit": '''"""Un altro modulo: una classe. Ogni modulo può contenere funzioni, classi e costanti."""
+
+
+classe Contatore:
+    """Conta quante volte lo chiami."""
+
+    definisci __inizializza__(se_stesso, partenza=0):
+        se_stesso.valore = partenza
+
+    definisci incrementa(se_stesso, passo=1):
+        se_stesso.valore += passo
+        ritorna se_stesso.valore
+''',
+        "prova.pit": f'''"""Prova della libreria: usa la libreria come la userebbe un altro programma. Premi F5 per eseguirla."""
+importa {pacchetto}
+da {pacchetto} importa saluta, Contatore
+
+stampa("Libreria {nome}, versione", {pacchetto}.VERSIONE)
+stampa(saluta("pytonIta"))
+
+c = Contatore()
+c.incrementa()
+c.incrementa(5)
+se c.valore == 6:
+    stampa("Il contatore funziona: valore", c.valore)
+altrimenti:
+    stampa("Qualcosa non va: valore", c.valore)
+''',
+        "LEGGIMI.md": f"""# {nome}
+
+Una libreria pytonIta: un pacchetto di funzioni e classi da riutilizzare in altri programmi.
+
+## Come è fatta
+
+| File | A cosa serve |
+|---|---|
+| `{pacchetto}/__init__.pit` | È la «porta» della libreria: chi scrive `importa {pacchetto}` carica questo file. Qui si elenca ciò che la libreria offre. |
+| `{pacchetto}/saluti.pit` | Un modulo con una funzione (`saluta`). |
+| `{pacchetto}/contatore.pit` | Un modulo con una classe (`Contatore`). |
+| `prova.pit` | Un programma che usa la libreria come farebbe un altro programma (F5 per eseguirlo). |
+
+## Come si lavora
+
+1. Aggiungi funzioni e classi nei moduli (o crea nuovi file dentro `{pacchetto}/`).
+2. Per renderle disponibili scrivile in `__init__.pit`: `da {pacchetto}.mio_modulo importa mia_funzione`.
+3. Prova tutto in `prova.pit` ed eseguilo con F5.
+
+## Come si usa in un altro progetto
+
+Copia la cartella `{pacchetto}` accanto al programma che la vuole usare, poi:
+
+```
+importa {pacchetto}
+stampa({pacchetto}.saluta("mondo"))
+```
+""",
+    }
 
 
 definisci tipo_file(percorso):
@@ -166,23 +250,29 @@ classe Progetto:
             f.aggiungi("Pulsante", 20, 110, testo="Saluta", al_clic="al_clic_saluta", larghezza=120)
             form_modello.salva_form(f, cartella)
             p.manifesto["principale"] = "principale.pit"
-        altrimenti_se modello == "mattonelle":
+        altrimenti_se modello in ("mattonelle", "mattonelle_finestra"):
             da rad importa mattonelle_modello
-            prog = mattonelle_modello.programma_di_esempio("principale")
+            se modello == "mattonelle_finestra":
+                prog = mattonelle_modello.programma_di_esempio_finestra("principale")
+            altrimenti:
+                prog = mattonelle_modello.programma_di_esempio("principale")
             mattonelle_modello.salva_programma(prog, cartella)
             p.manifesto["principale"] = "principale.pit"
         altrimenti_se modello == "python":
             p.crea_file("principale.py", PROGRAMMA_PYTHON.format(nome=nome))
             p.manifesto["principale"] = "principale.py"
         altrimenti_se modello == "libreria":
-            nome_pacchetto = re.sub(r"\W+", "_", nome.lower()) o "pacchetto"
-            p.crea_file(f"{nome_pacchetto}/__init__.pit", f'"""Pacchetto {nome}."""\n\nVERSIONE = "0.1"\n')
-            p.crea_file("prova.pit", f"da {nome_pacchetto} importa VERSIONE\n\nstampa(\"versione\", VERSIONE)\n")
+            nome_pacchetto = re.sub(r"\W+", "_", nome.lower()).strip("_") o "pacchetto"
+            se nome_pacchetto[0].isdigit() o nome_pacchetto in PAROLE_RISERVATE_NOMI:
+                nome_pacchetto = "lib_" + nome_pacchetto
+            per relativo, contenuto in file_libreria(nome, nome_pacchetto).items():
+                p.crea_file(relativo, contenuto)
             p.manifesto["principale"] = "prova.pit"
         altrimenti:
             p.crea_file("principale.pit", f'"""{nome}."""\n\nstampa("Ciao!")\n')
             p.manifesto["principale"] = "principale.pit"
-        p.crea_file("LEGGIMI.md", f"# {nome}\n\nProgetto creato con PitStudio.\n")
+        se non os.path.exists(p.assoluto("LEGGIMI.md")):
+            p.crea_file("LEGGIMI.md", f"# {nome}\n\nProgetto creato con PitStudio.\n")
         p.salva_manifesto()
         ritorna p
 

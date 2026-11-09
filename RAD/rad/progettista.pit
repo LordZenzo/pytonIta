@@ -8,7 +8,7 @@ da tkinter importa ttk, messagebox, colorchooser, filedialog, simpledialog
 
 da rad importa form_modello
 da rad.stile importa suggerisci come stile_suggerisci
-da rad.form_modello importa Form, TIPI, ORDINE_PALETTE, proprieta_di, nome_valido
+da rad.form_modello importa Form, TIPI, ORDINE_PALETTE, proprieta_di, nome_valido, colonne_albero
 
 GRIGLIA = 8
 MANIGLIE = {  # nome: (cursore, ancora_x, ancora_y)
@@ -95,6 +95,10 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
             w = ttk.Treeview(genitore, columns=colonne, show="headings", style="Anteprima.Treeview")
             per col in colonne:
                 w.heading(col, text=col)
+            se v.get("larghezze") o v.get("allineamenti"):
+                per nome_col, larghezza_col, ancora_col in colonne_albero(v):
+                    w.column(nome_col, width=larghezza_col, anchor=ancora_col)
+                    w.heading(nome_col, anchor=ancora_col)
         altrimenti_se t == "Tela":
             w = tk.Canvas(genitore, background=v.get("sfondo") o "#ffffff", highlightthickness=0)
         altrimenti_se t == "Riquadro":
@@ -144,6 +148,164 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
     eccetto tk.TclError:
         w = tk.Label(genitore, text=f"{c.tipo}?", background="#ffdddd")
     ritorna w
+
+
+NOMI_ALLINEAMENTO = {"w": "sinistra", "center": "centro", "e": "destra"}
+ANCORE_DA_NOME = {v: k per k, v in NOMI_ALLINEAMENTO.items()}
+
+
+classe DialogoColonne(tk.Toplevel):
+    """Le colonne di un albero: nome, larghezza in pixel e allineamento, con aggiunta, rimozione e ordine."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, colonne):
+        tk.Toplevel.__init__(se_stesso, genitore)
+        c = colori
+        se_stesso.title("Colonne dell'albero")
+        se_stesso.transient(genitore.winfo_toplevel())
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.minsize(520, 300)
+        se_stesso.risultato = Nessuno
+        se_stesso.colori = c
+        se_stesso.righe = [lista(r) per r in colonne]           # [nome, larghezza, ancora]
+        se_stesso._corrente = Nessuno
+        se_stesso._aggiorna = Falso
+
+        sinistra = tk.Frame(se_stesso, background=c["pannello"])
+        sinistra.pack(side="left", fill="both", expand=Vero, padx=(10, 4), pady=10)
+        se_stesso.elenco = tk.Listbox(sinistra, activestyle="none", exportselection=Falso, background=c["campo"], foreground=c["primo_piano"],
+                                      selectbackground=c["accento"], selectforeground="#ffffff", relief="flat", highlightthickness=1,
+                                      highlightbackground=c["bordo"], font=("Segoe UI", 10), height=9)
+        se_stesso.elenco.pack(fill="both", expand=Vero)
+        se_stesso.elenco.bind("<<ListboxSelect>>", se_stesso._scelta)
+        sotto = tk.Frame(sinistra, background=c["pannello"])
+        sotto.pack(fill="x", pady=(6, 0))
+        per testo_, comando, aiuto in (("＋", se_stesso.aggiungi, "Aggiunge una colonna"), ("－", se_stesso.rimuovi, "Toglie la colonna scelta"),
+                                       ("▲", lambda: se_stesso.sposta(-1), "Sposta la colonna a sinistra"),
+                                       ("▼", lambda: se_stesso.sposta(1), "Sposta la colonna a destra")):
+            b = tk.Button(sotto, text=testo_, command=comando, width=3, relief="flat", background=c["pulsante"], foreground=c["primo_piano"])
+            b.pack(side="left", padx=(0, 4))
+            stile_suggerisci(b, aiuto, c)
+
+        destra = tk.Frame(se_stesso, background=c["pannello"])
+        destra.pack(side="right", fill="y", padx=(4, 10), pady=10)
+        se_stesso.var_nome = tk.StringVar()
+        se_stesso.var_larghezza = tk.StringVar()
+        se_stesso.var_allineamento = tk.StringVar()
+        per n, (etichetta, widget) in enumera((
+                ("Nome", tk.Entry(destra, textvariable=se_stesso.var_nome, width=22)),
+                ("Larghezza (pixel)", tk.Spinbox(destra, from_=20, to=2000, increment=10, textvariable=se_stesso.var_larghezza, width=8,
+                                                 command=se_stesso._applica)),
+                ("Allineamento", ttk.Combobox(destra, textvariable=se_stesso.var_allineamento, values=lista(NOMI_ALLINEAMENTO.values()),
+                                              state="readonly", width=10)))):
+            tk.Label(destra, text=etichetta, anchor="w", background=c["pannello"], foreground=c["tenue"]).grid(row=n * 2, column=0, sticky="w", pady=(0 se n == 0 altrimenti 10, 0))
+            widget.grid(row=n * 2 + 1, column=0, sticky="w")
+            se widget.winfo_class() in ("Entry", "Spinbox"):       # (il Combobox ttk è anch'esso un'Entry per isinstance)
+                widget.configure(background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"], relief="flat",
+                                 highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
+                widget.bind("<Return>", lambda e: se_stesso._applica())
+                widget.bind("<FocusOut>", lambda e: se_stesso._applica())
+            altrimenti:
+                widget.bind("<<ComboboxSelected>>", lambda e: se_stesso._applica())
+        se_stesso.campo_nome = destra.grid_slaves(row=1, column=0)[0]
+        se_stesso.campo_larghezza = destra.grid_slaves(row=3, column=0)[0]
+        se_stesso.campo_allineamento = destra.grid_slaves(row=5, column=0)[0]
+        riga = tk.Frame(destra, background=c["pannello"])
+        riga.grid(row=7, column=0, sticky="se", pady=(24, 0))
+        destra.grid_rowconfigure(6, weight=1)
+        tk.Button(riga, text="Annulla", width=9, relief="flat", background=c["pulsante"], foreground=c["primo_piano"],
+                  command=se_stesso.destroy).pack(side="left", padx=4)
+        tk.Button(riga, text="OK", width=9, relief="flat", background=c["accento"], foreground="#ffffff",
+                  command=se_stesso.conferma).pack(side="left")
+        se_stesso.riempi()
+        se se_stesso.righe:
+            se_stesso.seleziona(0)
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+
+    definisci riempi(se_stesso):
+        se_stesso.elenco.delete(0, "end")
+        per nome, larghezza, ancora in se_stesso.righe:
+            se_stesso.elenco.insert("end", f"{nome}   ·   {larghezza} px   ·   {NOMI_ALLINEAMENTO[ancora]}")
+
+    definisci seleziona(se_stesso, i):
+        se_stesso._applica()
+        se non se_stesso.righe:
+            se_stesso._corrente = Nessuno
+            ritorna
+        i = max(0, min(lunghezza(se_stesso.righe) - 1, i))
+        se_stesso._corrente = i
+        se_stesso.elenco.selection_clear(0, "end")
+        se_stesso.elenco.selection_set(i)
+        nome, larghezza, ancora = se_stesso.righe[i]
+        se_stesso.var_nome.set(nome)
+        se_stesso.var_larghezza.set(testo(larghezza))
+        se_stesso.var_allineamento.set(NOMI_ALLINEAMENTO[ancora])
+
+    definisci _scelta(se_stesso, e=Nessuno):
+        sel = se_stesso.elenco.curselection()
+        se sel e sel[0] != se_stesso._corrente:
+            se_stesso.seleziona(sel[0])
+
+    definisci _applica(se_stesso):
+        """Riporta nei dati della riga scelta quello che c'è nei campi."""
+        i = se_stesso._corrente
+        se i è Nessuno o i >= lunghezza(se_stesso.righe):
+            ritorna
+        nome = se_stesso.var_nome.get().strip() o se_stesso.righe[i][0]
+        prova:
+            larghezza = max(20, min(2000, int(float(se_stesso.var_larghezza.get()))))
+        eccetto ValueError:
+            larghezza = se_stesso.righe[i][1]
+        ancora = ANCORE_DA_NOME.get(se_stesso.var_allineamento.get(), "w")
+        se se_stesso.righe[i] != [nome, larghezza, ancora]:
+            se_stesso.righe[i] = [nome, larghezza, ancora]
+            se_stesso.elenco.delete(i)
+            se_stesso.elenco.insert(i, f"{nome}   ·   {larghezza} px   ·   {NOMI_ALLINEAMENTO[ancora]}")
+            se_stesso.elenco.selection_set(i)
+
+    definisci aggiungi(se_stesso):
+        se_stesso._applica()
+        usati = {r[0] per r in se_stesso.righe}
+        n = lunghezza(se_stesso.righe) + 1
+        mentre f"Colonna{n}" in usati:
+            n += 1
+        se_stesso.righe.append([f"Colonna{n}", 120, "w"])
+        se_stesso.riempi()
+        se_stesso.seleziona(lunghezza(se_stesso.righe) - 1)
+
+    definisci rimuovi(se_stesso):
+        i = se_stesso._corrente
+        se i è Nessuno:
+            ritorna
+        se_stesso._corrente = Nessuno
+        elimina se_stesso.righe[i]
+        se_stesso.riempi()
+        se se_stesso.righe:
+            se_stesso.seleziona(min(i, lunghezza(se_stesso.righe) - 1))
+
+    definisci sposta(se_stesso, passo):
+        se_stesso._applica()
+        i = se_stesso._corrente
+        se i è Nessuno o non (0 <= i + passo < lunghezza(se_stesso.righe)):
+            ritorna
+        se_stesso.righe[i], se_stesso.righe[i + passo] = se_stesso.righe[i + passo], se_stesso.righe[i]
+        se_stesso.riempi()
+        se_stesso._corrente = Nessuno
+        se_stesso.seleziona(i + passo)
+
+    definisci conferma(se_stesso):
+        se_stesso._applica()
+        nomi = [r[0] per r in se_stesso.righe]
+        se lunghezza(set(nomi)) != lunghezza(nomi):
+            messagebox.showwarning("Colonne", "I nomi delle colonne devono essere tutti diversi.", parent=se_stesso)
+            ritorna
+        se_stesso.risultato = [tuple(r) per r in se_stesso.righe]
+        se_stesso.destroy()
+
+    definisci mostra(se_stesso):
+        se_stesso.update_idletasks()
+        se_stesso.grab_set()
+        se_stesso.wait_window()
+        ritorna se_stesso.risultato
 
 
 classe Progettista(tk.Frame):
@@ -233,6 +395,14 @@ classe Progettista(tk.Frame):
         bx.pack(side="bottom", fill="x")
         by.pack(side="right", fill="y")
         se_stesso.area.pack(fill="both", expand=Vero)
+        # maniglie per ridimensionare la finestra stessa (destra, sotto, angolo): elementi della tela, quindi non vengono distrutti
+        se_stesso._ridim_finestra = Nessuno
+        per etichetta_, lato_, cursore_ in (("mf_e", "e", "size_we"), ("mf_s", "s", "size_ns"), ("mf_se", "se", "size_nw_se")):
+            se_stesso.area.tag_bind(etichetta_, "<ButtonPress-1>", lambda e, l=lato_: se_stesso._inizia_finestra(e, l))
+            se_stesso.area.tag_bind(etichetta_, "<Enter>", lambda e, k=cursore_: se_stesso.area.configure(cursor=k))
+            se_stesso.area.tag_bind(etichetta_, "<Leave>", lambda e: se_stesso.area.configure(cursor=""))
+        se_stesso.area.bind("<B1-Motion>", se_stesso._muovi_finestra, add="+")
+        se_stesso.area.bind("<ButtonRelease-1>", se_stesso._fine_finestra, add="+")
         se_stesso.superficie = tk.Canvas(se_stesso.area, highlightthickness=0, cursor="arrow")
         se_stesso.superficie._tema_proprio = Vero
         se_stesso.superficie._anteprima = Vero      # i colori del tema di PitStudio non la toccano
@@ -316,6 +486,11 @@ classe Progettista(tk.Frame):
         se_stesso.area.create_rectangle(29, 29, 31 + se_stesso.form.larghezza, 31 + se_stesso.form.altezza,
                                         outline=se_stesso.colori["bordo"], tags="bordo_finestra")
         se_stesso.area.tag_lower("bordo_finestra")
+        se_stesso.area.delete("mf")
+        L, A = se_stesso.form.larghezza, se_stesso.form.altezza
+        per etichetta_, cx, cy in (("mf_e", 35 + L, 30 + A // 2), ("mf_s", 30 + L // 2, 35 + A), ("mf_se", 35 + L, 35 + A)):
+            se_stesso.area.create_rectangle(cx - 4, cy - 4, cx + 4, cy + 4, fill=se_stesso.colori["accento"],
+                                            outline=se_stesso.colori["bordo"], tags=("mf", etichetta_))
         se se_stesso.griglia_attiva.get():
             colore = "#c8c8c8" se (se_stesso.form.sfondo o "#f0f0f0") >= "#808080" altrimenti "#555555"
             per x in intervallo(0, se_stesso.form.larghezza, GRIGLIA * 2):
@@ -323,6 +498,31 @@ classe Progettista(tk.Frame):
                     s.create_rectangle(x, y, x, y, outline=colore, tags="griglia")
         se_stesso.area.configure(scrollregion=(0, 0, se_stesso.form.larghezza + 80, se_stesso.form.altezza + 80))
         se_stesso.titolo.configure(text=f"{se_stesso.form.nome}  —  {se_stesso.form.larghezza}×{se_stesso.form.altezza}")
+
+    # ------------------------------------------------------------ dimensioni della finestra (maniglie fuori dalla superficie)
+    definisci _inizia_finestra(se_stesso, e, lato):
+        f = se_stesso.form
+        se_stesso._ridim_finestra = {"lato": lato, "x": e.x_root, "y": e.y_root, "w": f.larghezza, "h": f.altezza}
+        ritorna "break"
+
+    definisci _muovi_finestra(se_stesso, e):
+        r = se_stesso._ridim_finestra
+        se non r:
+            ritorna
+        f = se_stesso.form
+        se "e" in r["lato"]:
+            f.larghezza = max(60, min(4000, se_stesso._aggancia(r["w"] + e.x_root - r["x"])))
+        se "s" in r["lato"]:
+            f.altezza = max(60, min(4000, se_stesso._aggancia(r["h"] + e.y_root - r["y"])))
+        se_stesso._disegna_griglia()
+        ritorna "break"
+
+    definisci _fine_finestra(se_stesso, e=Nessuno):
+        se se_stesso._ridim_finestra:
+            se_stesso._ridim_finestra = Nessuno
+            se_stesso.area.configure(cursor="")
+            se_stesso._registra()
+            se_stesso._riempi_ispettore()
 
     definisci ricostruisci(se_stesso):
         """Ricrea tutti i widget di disegno a partire dal modello."""
@@ -746,8 +946,18 @@ classe Progettista(tk.Frame):
         per w in se_stesso.righe_ispettore.winfo_children():
             w.destroy()
 
+    definisci _aggiorna_limiti_geometria(se_stesso, c):
+        """Quando cambia una misura, i limiti delle altre (x dipende dalla larghezza...) si aggiornano senza ricreare i campi."""
+        per attributo, sp in getattr(se_stesso, "_spin_geometria", {}).items():
+            prova:
+                minimo, massimo = se_stesso.limiti_geometria(c, attributo)
+                sp.configure(from_=minimo, to=massimo)
+            eccetto tk.TclError:
+                passa
+
     definisci _riempi_ispettore(se_stesso):
         se_stesso._svuota_ispettore()
+        se_stesso._spin_geometria = {}
         c_ = se_stesso.colori
         riga = [0]
 
@@ -783,9 +993,12 @@ classe Progettista(tk.Frame):
         se_stesso.intestazione_ispettore.configure(text=f"{c.tipo}")
         e = aggiungi_riga("Nome", lambda p: se_stesso._entry(p, c.nome, lambda v: se_stesso._rinomina(c, v)))
         per etichetta, attributo in (("X", "x"), ("Y", "y"), ("Larghezza", "larghezza"), ("Altezza", "altezza")):
-            aggiungi_riga(etichetta, lambda p, a=attributo: se_stesso._entry(
-                p, testo(getattr(c, a)), lambda v, a=a: se_stesso._imposta_geometria(c, a, v)))
+            minimo, massimo = se_stesso.limiti_geometria(c, attributo)
+            se_stesso._spin_geometria[attributo] = aggiungi_riga(etichetta, lambda p, a=attributo, mn=minimo, mx=massimo: se_stesso._spin(
+                p, getattr(c, a), lambda v, a=a: se_stesso._imposta_geometria(c, a, v), mn, mx))
         per chiave, (tipo_, predefinito, descrizione) in proprieta_di(c.tipo).items():
+            se tipo_ == "nascosta":
+                continua
             aggiungi_riga(descrizione, lambda p, k=chiave, t=tipo_: se_stesso._editor_valore(p, c, k, t))
 
     definisci _entry(se_stesso, genitore, valore, alla_conferma, larghezza=8):
@@ -798,6 +1011,51 @@ classe Progettista(tk.Frame):
         e.bind("<FocusOut>", lambda ev: alla_conferma(e.get()))
         ritorna e
 
+    definisci _spin(se_stesso, genitore, valore, alla_conferma, minimo, massimo, larghezza=8):
+        """Campo numerico con le freccette su/giù (anche rotella e tasti freccia), dentro i limiti naturali del valore."""
+        c_ = se_stesso.colori
+        sp = tk.Spinbox(genitore, from_=minimo, to=massimo, increment=1, width=larghezza, background=c_["campo"],
+                        foreground=c_["primo_piano"], insertbackground=c_["cursore"], relief="flat", highlightthickness=1,
+                        highlightbackground=c_["bordo"], highlightcolor=c_["accento"], buttonbackground=c_["pulsante"],
+                        command=lambda: alla_conferma(sp.get()))
+        sp.delete(0, "end")
+        sp.insert(0, testo(valore))
+        sp.bind("<Return>", lambda ev: alla_conferma(sp.get()))
+        sp.bind("<FocusOut>", lambda ev: alla_conferma(sp.get()))
+        ritorna sp
+
+    definisci limiti_geometria(se_stesso, c, attributo):
+        """Minimo e massimo naturali per x, y, larghezza e altezza di un componente: restano dentro la finestra."""
+        f = se_stesso.form
+        se attributo == "x":
+            ritorna 0, max(f.larghezza - c.larghezza, c.x, 0)
+        se attributo == "y":
+            ritorna 0, max(f.altezza - c.altezza, c.y, 0)
+        se attributo == "larghezza":
+            ritorna 4, max(f.larghezza - c.x, c.larghezza, 4)
+        ritorna 4, max(f.altezza - c.y, c.altezza, 4)
+
+    @staticmethod
+    definisci limiti_proprieta(c, chiave):
+        """Minimo e massimo naturali di una proprietà numerica (il cursore sta tra «da» e «a», la barra tra 0 e il massimo...)."""
+        v = c.valori
+        grande = 1000000
+        se c.tipo == "Cursore":
+            se chiave == "da":
+                ritorna -grande, v.get("a", grande)
+            se chiave == "a":
+                ritorna v.get("da", -grande), grande
+            se chiave == "valore":
+                ritorna v.get("da", 0), v.get("a", 100)
+        se c.tipo == "BarraProgresso":
+            se chiave == "massimo":
+                ritorna 1, grande
+            se chiave == "valore":
+                ritorna 0, max(1, v.get("massimo", 100))
+        se c.tipo == "Riquadro" e chiave == "bordo":
+            ritorna 0, 20
+        ritorna -grande, grande
+
     definisci _campo_form(se_stesso, aggiungi_riga, etichetta, attributo, tipo_):
         f = se_stesso.form
 
@@ -807,7 +1065,7 @@ classe Progettista(tk.Frame):
             eccetto ValueError:
                 ritorna
             se tipo_ == "numero":
-                nuovo = max(60, nuovo)
+                nuovo = max(60, min(4000, nuovo))
             se getattr(f, attributo) != nuovo:
                 setattr(f, attributo, nuovo)
                 se_stesso._disegna_griglia()
@@ -820,6 +1078,8 @@ classe Progettista(tk.Frame):
                                                                activebackground=se_stesso.colori["pannello"]))
         altrimenti_se tipo_ == "colore":
             aggiungi_riga(etichetta, lambda p: se_stesso._campo_colore(p, getattr(f, attributo), cambia))
+        altrimenti_se tipo_ == "numero":
+            aggiungi_riga(etichetta, lambda p: se_stesso._spin(p, getattr(f, attributo), cambia, 60, 4000))
         altrimenti:
             aggiungi_riga(etichetta, lambda p: se_stesso._entry(p, testo(getattr(f, attributo)), cambia))
 
@@ -860,12 +1120,26 @@ classe Progettista(tk.Frame):
             ritorna cb
         se tipo_ == "colore":
             ritorna se_stesso._campo_colore(genitore, valore o "", lambda v: se_stesso._modifica(c, chiave, v))
+        se tipo_ == "colonne_albero":
+            cornice = tk.Frame(genitore, background=c_["pannello"])
+            riassunto = ", ".join(f"{n} ({l})" per n, l, a in colonne_albero(c.valori))
+            tk.Label(cornice, text=riassunto o "nessuna colonna", anchor="w", background=c_["pannello"], foreground=c_["primo_piano"],
+                     wraplength=130, justify="left").pack(side="left", fill="x", expand=Vero)
+            b = tk.Button(cornice, text="Modifica…", relief="flat", background=c_["pulsante"], foreground=c_["primo_piano"],
+                          command=lambda: se_stesso.modifica_colonne(c))
+            b.pack(side="right", padx=2)
+            stile_suggerisci(b, "Nomi, larghezza e allineamento delle colonne", c_)
+            ritorna cornice
         se tipo_ == "elenco":
             ritorna se_stesso._entry(genitore, ", ".join(testo(x) per x in (valore o [])),
                                      lambda v: se_stesso._modifica(c, chiave, [x.strip() per x in v.split(",") se x.strip()]))
         se tipo_ == "numero":
-            def_ = lambda v: se_stesso._modifica(c, chiave, se_stesso._numero(v, valore))
-            ritorna se_stesso._entry(genitore, testo(valore), def_)
+            minimo, massimo = se_stesso.limiti_proprieta(c, chiave)
+
+            definisci cambia(v):
+                n = se_stesso._numero(v, valore)
+                se_stesso._modifica(c, chiave, max(minimo, min(massimo, n)))
+            ritorna se_stesso._spin(genitore, valore, cambia, minimo, massimo)
         se tipo_ == "file":
             cornice = tk.Frame(genitore, background=c_["pannello"])
             e = se_stesso._entry(cornice, valore o "", lambda v: se_stesso._modifica(c, chiave, v), larghezza=6)
@@ -943,13 +1217,29 @@ classe Progettista(tk.Frame):
             n = int(float(valore))
         eccetto ValueError:
             ritorna
-        n = max(0 se attributo in ("x", "y") altrimenti 4, n)
+        n = max(0 se attributo in ("x", "y") altrimenti 4, min(4000, n))
         se getattr(c, attributo) != n:
             setattr(c, attributo, n)
             se_stesso.widget[c.nome].place_configure(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
             se_stesso._aggiorna_maniglie()
             se_stesso._aggiorna_stato()
             se_stesso._registra()
+            se_stesso._aggiorna_limiti_geometria(c)
+
+    definisci modifica_colonne(se_stesso, c):
+        """Apre la finestra delle colonne di un Albero e applica il risultato (nomi, larghezze e allineamenti insieme)."""
+        risultato = DialogoColonne(se_stesso, se_stesso.colori, colonne_albero(c.valori)).mostra()
+        se risultato è non Nessuno:
+            se_stesso.imposta_colonne(c, risultato)
+
+    definisci imposta_colonne(se_stesso, c, colonne):
+        """colonne: [(nome, larghezza, ancora)]. Usato dalla finestra e dall'assistente."""
+        c.valori["colonne"] = [r[0] per r in colonne]
+        c.valori["larghezze"] = [int(r[1]) per r in colonne]
+        c.valori["allineamenti"] = [r[2] per r in colonne]
+        se_stesso._aggiorna_widget(c)
+        se_stesso._registra()
+        se_stesso._riempi_ispettore()
 
     definisci _modifica(se_stesso, c, chiave, valore):
         se c.valori.get(chiave) == valore:

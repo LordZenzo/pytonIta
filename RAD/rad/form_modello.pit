@@ -54,7 +54,9 @@ TIPI = {
     "BarraProgresso": dict(classe_tk="BarraProgresso", modulo="tema", larghezza=200, altezza=20, icona="▰",
                            proprieta={"massimo": ("numero", 100, "Massimo"), "valore": ("numero", 30, "Valore")}),
     "Albero": dict(classe_tk="Albero", modulo="tema", larghezza=240, altezza=140, icona="⊞",
-                   proprieta={"colonne": ("elenco", ["Nome", "Valore"], "Colonne"),
+                   proprieta={"colonne": ("colonne_albero", ["Nome", "Valore"], "Colonne"),
+                              "larghezze": ("nascosta", [], "Larghezza delle colonne"),
+                              "allineamenti": ("nascosta", [], "Allineamento delle colonne"),
                               "al_selezione": ("evento", "", "Evento: selezione")}),
     "Tela": dict(classe_tk="Tela", modulo="tk", larghezza=200, altezza=140, icona="◩",
                  proprieta={"sfondo": ("colore", "#ffffff", "Sfondo")}),
@@ -78,6 +80,23 @@ PAROLE_RISERVATE = {"classe", "definisci", "se", "per", "da", "con", "e", "o", "
 
 definisci nome_valido(nome):
     ritorna bool(_RE_NOME.match(nome)) e nome non in PAROLE_RISERVATE
+
+
+ALLINEAMENTI_COLONNA = ("w", "center", "e")
+LARGHEZZA_COLONNA = 200       # predefinita di Tk
+
+
+definisci colonne_albero(valori):
+    """[(nome, larghezza, ancora)] delle colonne di un Albero; larghezze e allineamenti mancanti prendono i valori predefiniti di Tk."""
+    nomi = lista(valori.get("colonne", []))
+    larghezze = lista(valori.get("larghezze") o [])
+    ancore = lista(valori.get("allineamenti") o [])
+    risultato = []
+    per i, nome in enumera(nomi):
+        larghezza = larghezze[i] se i < lunghezza(larghezze) e larghezze[i] altrimenti LARGHEZZA_COLONNA
+        ancora = ancore[i] se i < lunghezza(ancore) e ancore[i] in ALLINEAMENTI_COLONNA altrimenti "w"
+        risultato.append((nome, int(larghezza), ancora))
+    ritorna risultato
 
 
 definisci proprieta_di(tipo_):
@@ -367,6 +386,10 @@ definisci _codice_componente(c):
         r.append(f"{ind}{nome_att} = {cl}(radice, columns={_lit(colonne)}, show='headings')")
         r.append(f"{ind}per colonna in {_lit(colonne)}:")
         r.append(f"{ind}    {nome_att}.heading(colonna, text=colonna)")
+        se v.get("larghezze") o v.get("allineamenti"):
+            per nome_col, larghezza_col, ancora_col in colonne_albero(v):
+                r.append(f"{ind}{nome_att}.column({_lit(nome_col)}, width={larghezza_col}, anchor={_lit(ancora_col)})")
+                r.append(f"{ind}{nome_att}.heading({_lit(nome_col)}, anchor={_lit(ancora_col)})")
         se gestore("al_selezione"):
             r.append(f"{ind}{nome_att}.associa('<<TreeviewSelect>>', {gestore('al_selezione')})")
     altrimenti_se c.tipo == "Tela":

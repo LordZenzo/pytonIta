@@ -590,6 +590,7 @@ classe Applicazione:
             passa
         se isinstance(widget, Editor) e widget.modificato:
             se_stesso._programma_sintassi(widget)
+            se_stesso.pannello_librerie.aggiorna_uso()
 
     definisci _aggiungi_scheda(se_stesso, percorso, widget):
         se_stesso._nascondi_benvenuto()
@@ -658,6 +659,7 @@ classe Applicazione:
     definisci _scheda_cambiata(se_stesso, e=Nessuno):
         w = se_stesso._scheda_corrente()
         p = se_stesso._percorso_di(w)
+        se_stesso.pannello_librerie.aggiorna_uso()
         se p:
             se_stesso.testo_stato.configure(text=p)
             se_stesso.testo_posizione.configure(text="")

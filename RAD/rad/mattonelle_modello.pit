@@ -22,9 +22,10 @@ CATEGORIE = {
     "liste": ("Liste", "#8e5fd1"),
     "funzioni": ("Funzioni", "#d6409f"),
     "oggetti": ("Oggetti", "#6c7ae0"),
+    "finestre": ("Finestre", "#2f8f9d"),
     "altro": ("Altro", "#7a8088"),
 }
-ORDINE_CATEGORIE = ["eventi", "flusso", "variabili", "io", "operatori", "testo", "liste", "funzioni", "oggetti", "altro"]
+ORDINE_CATEGORIE = ["eventi", "flusso", "variabili", "io", "operatori", "testo", "liste", "funzioni", "oggetti", "finestre", "altro"]
 FORME_ISTRUZIONE = ("cappello", "istruzione", "blocco", "fine")
 FORME_VALORE = ("valore", "booleano")
 
@@ -217,6 +218,50 @@ TIPI = {
     "generatore_da": _d("valore", "liste", ["generatore di", ("i", "espr", "valore", ""), "per", ("c", "var", "x", "testo"), "in",
                                             ("i", "elenco", "valore", ""), "se", ("i", "cond", "booleano", "")],
                         codice="@comprensione:(,)"),
+    # --- finestre (libreria «interfaccia»): una finestra con i suoi componenti, tutto a mattonelle
+    "finestra_crea": _d("istruzione", "finestre", ["crea la finestra", ("c", "var", "finestra", "variabile_nuova")],
+                        codice="{var} = interfaccia.Finestra()", moduli=["interfaccia"],
+                        descrizione="Crea una finestra vuota (poi dai il titolo, aggiungi i componenti e mostrala)"),
+    "finestra_titolo": _d("istruzione", "finestre", ["titolo della finestra", ("i", "fin", "valore", "finestra"), "=", ("i", "titolo", "testo", "La mia finestra")],
+                          codice="{fin}.titolo({titolo})"),
+    "finestra_misure": _d("istruzione", "finestre", ["misure della finestra", ("i", "fin", "valore", "finestra"), "larga",
+                                                     ("i", "larghezza", "numero", "400"), "alta", ("i", "altezza", "numero", "300")],
+                          codice='{fin}.geometria(testo({larghezza}) + "x" + testo({altezza}))'),
+    "etichetta_nuova": _d("istruzione", "finestre", ["crea etichetta", ("c", "var", "etichetta", "variabile_nuova"), "in", ("i", "dentro", "valore", "finestra"),
+                                                    "con testo", ("i", "testo", "testo", "Ciao")],
+                          codice="{var} = interfaccia.Etichetta({dentro}, testo={testo})", moduli=["interfaccia"],
+                          descrizione="Un testo da mostrare nella finestra"),
+    "pulsante_nuovo": _d("istruzione", "finestre", ["crea pulsante", ("c", "var", "pulsante", "variabile_nuova"), "in", ("i", "dentro", "valore", "finestra"),
+                                                   "con testo", ("i", "testo", "testo", "Premi"), "al clic", ("i", "clic", "valore", "Nessuno")],
+                         codice="{var} = interfaccia.Pulsante({dentro}, testo={testo}, comando={clic})", moduli=["interfaccia"],
+                         descrizione="Un pulsante; in «al clic» metti una funzione (mattonella «lambda» che chiama la tua funzione)"),
+    "campo_nuovo": _d("istruzione", "finestre", ["crea campo di testo", ("c", "var", "campo", "variabile_nuova"), "in", ("i", "dentro", "valore", "finestra")],
+                      codice="{var} = interfaccia.CampoTesto({dentro})", moduli=["interfaccia"],
+                      descrizione="Una riga in cui l'utente scrive"),
+    "area_testo_nuova": _d("istruzione", "finestre", ["crea area di testo", ("c", "var", "area", "variabile_nuova"), "in", ("i", "dentro", "valore", "finestra")],
+                           codice="{var} = interfaccia.AreaTesto({dentro}, height=6)", moduli=["interfaccia"],
+                           descrizione="Una zona di testo su più righe"),
+    "casella_nuova": _d("istruzione", "finestre", ["crea casella", ("c", "var", "casella", "variabile_nuova"), "in", ("i", "dentro", "valore", "finestra"),
+                                                  "con testo", ("i", "testo", "testo", "Scelta")],
+                        codice="{var} = interfaccia.CasellaSelezione({dentro}, testo={testo})", moduli=["interfaccia"]),
+    "elenco_nuovo": _d("istruzione", "finestre", ["crea elenco", ("c", "var", "elenco", "variabile_nuova"), "in", ("i", "dentro", "valore", "finestra")],
+                       codice="{var} = interfaccia.Elenco({dentro})", moduli=["interfaccia"]),
+    "riquadro_nuovo": _d("istruzione", "finestre", ["crea riquadro", ("c", "var", "riquadro", "variabile_nuova"), "in", ("i", "dentro", "valore", "finestra")],
+                         codice="{var} = interfaccia.Riquadro({dentro})", moduli=["interfaccia"],
+                         descrizione="Un contenitore per raggruppare altri componenti"),
+    "componente_mostra": _d("istruzione", "finestre", ["mostra", ("i", "comp", "valore", "etichetta"), "con margine", ("i", "margine", "numero", "6")],
+                            codice="{comp}.impacchetta(padx={margine}, pady={margine})",
+                            descrizione="Mette il componente nella finestra (uno sotto l'altro)"),
+    "componente_posiziona": _d("istruzione", "finestre", ["posiziona", ("i", "comp", "valore", "etichetta"), "in x", ("i", "x", "numero", "10"),
+                                                         "y", ("i", "y", "numero", "10")],
+                               codice="{comp}.posiziona(x={x}, y={y})", descrizione="Mette il componente in un punto preciso della finestra"),
+    "etichetta_imposta": _d("istruzione", "finestre", ["scrivi nell'etichetta", ("i", "comp", "valore", "etichetta"), ":", ("i", "testo", "valore", "")],
+                            codice="{comp}.configura(testo={testo})", descrizione="Cambia il testo mostrato da un'etichetta o da un pulsante"),
+    "campo_leggi": _d("valore", "finestre", ["testo scritto in", ("i", "comp", "valore", "campo")], codice="{comp}.ottieni()",
+                      descrizione="Quello che l'utente ha scritto in un campo di testo"),
+    "finestra_avvia": _d("istruzione", "finestre", ["mostra la finestra", ("i", "fin", "valore", "finestra"), "e aspetta"],
+                         codice="{fin}.ciclo_principale()", descrizione="Apre la finestra: il programma resta in attesa dell'utente"),
+    "finestra_chiudi": _d("istruzione", "finestre", ["chiudi la finestra", ("i", "fin", "valore", "finestra")], codice="{fin}.distruggi()"),
     # --- altro
     "chiama": _d("istruzione", "funzioni", ["chiama", ("c", "nome", "funzione", "testo"), "(", ("i", "a", "valore", ""),
                                            ("i", "b", "valore", ""), ("i", "c", "valore", ""), ("i", "d", "valore", ""),
@@ -1228,6 +1273,51 @@ definisci carica_programma(percorso_json):
 
 
 # --------------------------------------------------------------------------- esempio
+definisci _mattonella(p, tipo_, campi=Nessuno, **ingressi):
+    """Crea una mattonella; ogni ingresso è un testo (valore scritto a mano) oppure un'altra mattonella (collegata)."""
+    m = Mattonella(tipo_, p)
+    per k, v in (campi o {}).items():
+        m.campi[k] = v
+    per slot, v in ingressi.items():
+        se isinstance(v, Mattonella):
+            m.ingressi[slot] = v
+            v.padre, v.ruolo = m, f"ingresso:{slot}"
+        altrimenti:
+            m.letterali[slot] = v
+    ritorna m
+
+
+definisci programma_di_esempio_finestra(nome="principale"):
+    """Un programma con una finestra: un'etichetta, un campo di testo e un pulsante che saluta (tutto a mattonelle)."""
+    p = Programma(nome)
+    # funzione saluta(campo, etichetta): legge il campo e scrive nell'etichetta
+    f = p.aggiungi_funzione("saluta", "campo, etichetta")
+    cap = f.area.cappello
+    nome_letto = _mattonella(p, "campo_leggi", comp=_mattonella(p, "variabile", {"nome": "campo"}))
+    frase = _mattonella(p, "testo_f", {"modello": "Ciao, {a}!"}, a=nome_letto)
+    cap.lista.append(_mattonella(p, "etichetta_imposta", comp=_mattonella(p, "variabile", {"nome": "etichetta"}), testo=frase))
+    collega_pila(cap.lista, cap.padre, "radice")
+    # il flusso principale costruisce la finestra e la mostra
+    cp = p.principale.cappello
+    var = lambda nome_: _mattonella(p, "variabile", {"nome": nome_})
+    clic = _mattonella(p, "funzione_anonima", {"parametri": ""}, corpo=_mattonella(p, "fn:saluta", p0=var("campo"), p1=var("etichetta")))
+    passi = [
+        _mattonella(p, "finestra_crea", {"var": "finestra"}),
+        _mattonella(p, "finestra_titolo", fin="finestra", titolo="Saluta"),
+        _mattonella(p, "finestra_misure", fin="finestra", larghezza="360", altezza="200"),
+        _mattonella(p, "etichetta_nuova", {"var": "etichetta"}, dentro="finestra", testo="Come ti chiami?"),
+        _mattonella(p, "componente_mostra", comp="etichetta", margine="8"),
+        _mattonella(p, "campo_nuovo", {"var": "campo"}, dentro="finestra"),
+        _mattonella(p, "componente_mostra", comp="campo", margine="4"),
+        _mattonella(p, "pulsante_nuovo", {"var": "pulsante"}, dentro="finestra", testo="Saluta", clic=clic),
+        _mattonella(p, "componente_mostra", comp="pulsante", margine="8"),
+        _mattonella(p, "finestra_avvia", fin="finestra"),
+    ]
+    cp.lista.extend(passi)
+    collega_pila(cp.lista, cp.padre, "radice")
+    ritorna p
+
+
 definisci programma_di_esempio(nome="principale"):
     """Un piccolo programma completo: una funzione 'saluta' e un flusso che la usa."""
     p = Programma(nome)

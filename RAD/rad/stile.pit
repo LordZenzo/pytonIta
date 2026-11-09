@@ -46,6 +46,44 @@ definisci glifo(nome):
 
 
 # --------------------------------------------------------------------------- suggerimenti
+definisci area_monitor(widget, x, y):
+    """(sinistra, alto, destra, basso) dell'area di lavoro del monitor che contiene il punto (x, y).
+    Con più monitor winfo_screenwidth() descrive solo quello principale: i fumetti finivano su un altro schermo."""
+    se os.name == "nt":
+        prova:
+            importa ctypes
+            da ctypes importa wintypes
+
+            classe InfoMonitor(ctypes.Structure):
+                _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT), ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+            u = ctypes.windll.user32
+            u.MonitorFromPoint.restype = wintypes.HANDLE
+            u.MonitorFromPoint.argtypes = [wintypes.POINT, wintypes.DWORD]
+            u.GetMonitorInfoW.argtypes = [wintypes.HANDLE, ctypes.POINTER(InfoMonitor)]
+            monitor = u.MonitorFromPoint(wintypes.POINT(int(x), int(y)), 2)      # MONITOR_DEFAULTTONEAREST
+            info = InfoMonitor()
+            info.cbSize = ctypes.sizeof(InfoMonitor)
+            se monitor e u.GetMonitorInfoW(monitor, ctypes.byref(info)):
+                r = info.rcWork
+                ritorna (r.left, r.top, r.right, r.bottom)
+        eccetto Exception:
+            passa
+    ritorna (0, 0, widget.winfo_screenwidth(), widget.winfo_screenheight())
+
+
+definisci posizione_fumetto(widget, larghezza, altezza):
+    """Dove mettere un fumetto: accanto al puntatore, dentro il monitor in cui si trova il mouse."""
+    px, py = widget.winfo_pointerx(), widget.winfo_pointery()
+    sinistra, alto, destra, basso = area_monitor(widget, px, py)
+    x = px + 12
+    y = py + 20
+    se x + larghezza > destra - 4:
+        x = px - larghezza - 8
+    se y + altezza > basso - 4:
+        y = py - altezza - 10
+    ritorna max(sinistra, x), max(alto, y)
+
+
 classe Suggerimento:
     """Piccolo fumetto che compare quando si resta fermi su un widget."""
 
@@ -74,12 +112,7 @@ classe Suggerimento:
         tk.Label(f, text=se_stesso.testo, background=c["pulsante"], foreground=c["primo_piano"], padx=8, pady=3,
                  relief="solid", borderwidth=1, font=("Segoe UI", 9), justify="left").pack()
         f.update_idletasks()
-        x = se_stesso.widget.winfo_rootx()
-        y = se_stesso.widget.winfo_rooty() + se_stesso.widget.winfo_height() + 4
-        # il fumetto resta dentro lo schermo
-        x = max(0, min(x, f.winfo_screenwidth() - f.winfo_reqwidth() - 4))
-        se y + f.winfo_reqheight() > f.winfo_screenheight() - 40:
-            y = se_stesso.widget.winfo_rooty() - f.winfo_reqheight() - 4
+        x, y = posizione_fumetto(se_stesso.widget, f.winfo_reqwidth(), f.winfo_reqheight())
         f.wm_geometry(f"+{x}+{y}")
         se_stesso._finestra = f
 

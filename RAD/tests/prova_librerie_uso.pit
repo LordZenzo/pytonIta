@@ -1,0 +1,67 @@
+"""Pannello Librerie: le librerie già importate dal file aperto risultano spuntate; spuntarne una aggiunge «importa» al codice."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.librerie importa rileva_importazioni, SPUNTATO, VUOTO, elenco
+
+tutte = {v[0] per v in elenco()}
+sorgente = 'importa matematica\nimporta formato_json come j, tempo\nda casuale importa scelta\nimport os\nimport math\nx = 1  # importa sistema\n'
+stampa("riconosce le importazioni:", sorted(rileva_importazioni(sorgente, tutte)))
+
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(cartella_temp, "ProvaUso")
+Progetto.nuovo(cart, "ProvaUso", "console")
+app.apri_progetto(cart)
+radice.update()
+pl = app.pannello_librerie
+app.mostra_pannello_sinistro("librerie")
+ed = app.apri_file(os.path.join(cart, "principale.pit"))
+radice.update()
+ed.imposta_contenuto('"""Prova."""\nimporta matematica\nda casuale importa scelta\n\nstampa(1)\n')
+radice.update()
+pl.aggiorna_uso(subito=Vero)
+radice.update()
+
+
+definisci riga_di(nome):
+    pl.var_cerca.set(nome)
+    radice.update()
+    voci = [pl.albero.item(i, "text") per c in pl.albero.get_children() per i in pl.albero.get_children(c) se i == "lib:" + nome]
+    pl.var_cerca.set("")
+    radice.update()
+    ritorna voci[0] se voci altrimenti ""
+
+
+stampa("in uso nel file aperto:", sorted(pl.in_uso))
+stampa("«matematica» appare spuntata anche se non è nel progetto:", riga_di("matematica").startswith(SPUNTATO), "| manifesto:", Progetto(cart).manifesto.get("librerie"))
+stampa("«tempo» non usata: vuota:", riga_di("tempo").startswith(VUOTO))
+stampa("contatore:", pl.contatore.cget("text"))
+
+# spuntare aggiunge l'importazione al codice e la sceglie per il progetto
+pl.attiva("tempo")
+radice.update()
+stampa("spuntare «tempo» aggiunge «importa tempo»:", "importa tempo" in ed.contenuto().splitlines())
+stampa("e la salva nel progetto:", "tempo" in Progetto(cart).manifesto.get("librerie", []))
+stampa("e ora risulta spuntata:", riga_di("tempo").startswith(SPUNTATO))
+stampa("il file:", repr(ed.contenuto()))
+
+# togliere la spunta toglie la riga e la scelta
+pl.attiva("tempo")
+radice.update()
+stampa("togliere la spunta toglie «importa tempo»:", "importa tempo" non in ed.contenuto().splitlines(), "| dal progetto:", "tempo" non in Progetto(cart).manifesto.get("librerie", []))
+stampa("e la riga torna vuota:", riga_di("tempo").startswith(VUOTO))
+pl.attiva("matematica")
+radice.update()
+stampa("anche una libreria già usata si toglie:", "importa matematica" non in ed.contenuto().splitlines(), riga_di("matematica").startswith(VUOTO))
+stampa("«casuale» è rimasta:", "da casuale importa scelta" in ed.contenuto())
+
+# senza file aperto: la scelta vale per il progetto
+app.chiudi_tutte() se hasattr(app, "chiudi_tutte") altrimenti Nessuno
+radice.destroy()

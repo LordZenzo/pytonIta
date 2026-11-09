@@ -4,10 +4,12 @@ Le librerie spuntate vengono salvate nel progetto (progetto.rad.json, chiave «l
 dell'editor anche senza «importa» e si inseriscono nel file con un doppio clic.
 """
 importa importlib.util
+importa re
 importa tkinter come tk
 da tkinter importa ttk
 
 da rad importa parole
+da rad.stile importa posizione_fumetto
 
 # modulo italiano -> (categoria, descrizione)
 CATALOGO = {
@@ -154,6 +156,33 @@ definisci elenco():
     ritorna risultato
 
 
+_RE_IMPORTA = re.compile(r"^[ \t]*(?:importa|import)[ \t]+([^\n#]+)", re.M)
+_RE_DA = re.compile(r"^[ \t]*(?:da|from)[ \t]+([\w.]+)[ \t]+(?:importa|import)\b", re.M)
+
+
+definisci rileva_importazioni(sorgente, nomi_italiani):
+    """Le librerie (nomi italiani del catalogo) che un sorgente importa, con il nome italiano o con quello originale."""
+    originali = {}
+    per nome_it in nomi_italiani:
+        originali.setdefault(originale_di(nome_it).split(".")[0], nome_it)
+    trovati = set()
+    moduli = []
+    per m in _RE_IMPORTA.finditer(sorgente):
+        per pezzo in m.group(1).split(","):
+            parole_ = pezzo.split()
+            se parole_:
+                moduli.append(parole_[0])
+    per m in _RE_DA.finditer(sorgente):
+        moduli.append(m.group(1))
+    per modulo in moduli:
+        radice = modulo.split(".")[0]
+        se radice in nomi_italiani:
+            trovati.add(radice)
+        altrimenti_se radice in originali:
+            trovati.add(originali[radice])
+    ritorna trovati
+
+
 SPUNTATO = "☑"
 VUOTO = "☐"
 
@@ -166,6 +195,8 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso.app = app
         se_stesso.tutte = elenco()
         se_stesso.spuntate = set()
+        se_stesso.in_uso = set()          # librerie importate dal file aperto: risultano spuntate anche se non sono nel progetto
+        se_stesso._lavoro_uso = Nessuno
         se_stesso._nodi = {}
         se_stesso.barra = tk.Frame(se_stesso)
         se_stesso.barra.pack(fill="x")
@@ -229,39 +260,82 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso._nodi = {}
         q = se_stesso.var_cerca.get().strip().lower()
         solo = se_stesso.var_solo.get()
+        spuntate = se_stesso._attive()
         per categoria in ORDINE_CATEGORIE:
             voci = [v per v in se_stesso.tutte se v[1] == categoria
-                    e (non solo o v[0] in se_stesso.spuntate)
+                    e (non solo o v[0] in spuntate)
                     e (non q o q in v[0].lower() o q in v[2].lower() o q in v[3].lower())]
             se non voci:
                 continua
-            attive = sum(1 per v in voci se v[0] in se_stesso.spuntate)
+            attive = sum(1 per v in voci se v[0] in spuntate)
             nodo = se_stesso.albero.insert("", "end", iid="cat:" + categoria, text=f"{categoria}  ({attive}/{lunghezza(voci)})", tags=("categoria",),
                                            open=Vero se (q o solo o prima_volta o categoria in aperte) altrimenti Falso)
             se_stesso._nodi[categoria] = "cat:" + categoria
             per nome_it, cat, descr, orig in voci:
-                simbolo = SPUNTATO se nome_it in se_stesso.spuntate altrimenti VUOTO
+                simbolo = SPUNTATO se nome_it in spuntate altrimenti VUOTO
                 marca = "" se e_installata(nome_it) altrimenti "  ⚠"
                 tag = () se e_installata(nome_it) altrimenti ("assente",)
                 se_stesso.albero.insert(nodo, "end", iid="lib:" + nome_it, text=f"{simbolo}  {nome_it}  —  {descr}{marca}", tags=tag)
-        se_stesso.contatore.configure(text=f"{lunghezza(se_stesso.spuntate)} attive")
+        se_stesso.contatore.configure(text=f"{lunghezza(spuntate)} attive")
+
+    definisci _attive(se_stesso):
+        """Le librerie che risultano spuntate: quelle scelte per il progetto più quelle che il file aperto già importa."""
+        ritorna se_stesso.spuntate | se_stesso.in_uso
 
     definisci _aggiorna_riga(se_stesso, nome_it):
         iid = "lib:" + nome_it
         se se_stesso.albero.exists(iid):
             vecchio = se_stesso.albero.item(iid, "text")
-            se_stesso.albero.item(iid, text=(SPUNTATO se nome_it in se_stesso.spuntate altrimenti VUOTO) + vecchio[1:])
-        se_stesso.contatore.configure(text=f"{lunghezza(se_stesso.spuntate)} attive")
+            se_stesso.albero.item(iid, text=(SPUNTATO se nome_it in se_stesso._attive() altrimenti VUOTO) + vecchio[1:])
+        se_stesso.contatore.configure(text=f"{lunghezza(se_stesso._attive())} attive")
+
+    # ------------------------------------------------------------ librerie già in uso nel file aperto
+    definisci aggiorna_uso(se_stesso, subito=Falso):
+        """Rilegge le importazioni del file aperto (con un piccolo ritardo, per non farlo a ogni tasto) e aggiorna le spunte."""
+        se se_stesso._lavoro_uso:
+            prova:
+                se_stesso.after_cancel(se_stesso._lavoro_uso)
+            eccetto tk.TclError:
+                passa
+            se_stesso._lavoro_uso = Nessuno
+        se subito:
+            se_stesso._calcola_uso()
+        altrimenti:
+            se_stesso._lavoro_uso = se_stesso.after(350, se_stesso._calcola_uso)
+
+    definisci _calcola_uso(se_stesso):
+        se_stesso._lavoro_uso = Nessuno
+        ed = se_stesso.app._editor_corrente() se hasattr(se_stesso.app, "_editor_corrente") altrimenti Nessuno
+        nuovo = set()
+        se ed è non Nessuno:
+            prova:
+                nuovo = rileva_importazioni(ed.contenuto(), {v[0] per v in se_stesso.tutte})
+            eccetto Exception:
+                nuovo = set()
+        se nuovo == se_stesso.in_uso:
+            ritorna
+        cambiate = nuovo ^ se_stesso.in_uso
+        se_stesso.in_uso = nuovo
+        se se_stesso.var_solo.get():
+            se_stesso.riempi()
+        altrimenti:
+            per nome_it in cambiate:
+                se_stesso._aggiorna_riga(nome_it)
 
     definisci attiva(se_stesso, nome_it, valore=Nessuno):
-        """Spunta (o toglie la spunta a) una libreria e salva nel progetto."""
+        """Spunta una libreria: la sceglie per il progetto E aggiunge «importa» al file aperto.
+        Togliere la spunta la toglie dal progetto e cancella la riga «importa» semplice dal file aperto."""
         se valore è Nessuno:
-            valore = nome_it non in se_stesso.spuntate
+            valore = nome_it non in se_stesso._attive()
         se valore:
             se_stesso.spuntate.add(nome_it)
+            se_stesso._salva()
+            se_stesso.inserisci_importazione(nome_it)
         altrimenti:
             se_stesso.spuntate.discard(nome_it)
-        se_stesso._salva()
+            se_stesso._salva()
+            se_stesso.rimuovi_importazione(nome_it)
+        se_stesso.aggiorna_uso(subito=Vero)
         se_stesso._aggiorna_riga(nome_it)
 
     definisci _nome_di(se_stesso, iid):
@@ -318,12 +392,14 @@ classe PannelloLibrerie(tk.Frame):
         _, cat, descr, orig = voce[0]
         w = tk.Toplevel(se_stesso)
         w.wm_overrideredirect(Vero)
-        w.geometry(f"+{x + 14}+{y + 18}")
         c = getattr(se_stesso, "_colori", Nessuno)
         sfondo = c["chat_strumento"] se c altrimenti "#ffffe0"
         primo = c["primo_piano"] se c altrimenti "#000000"
         tk.Label(w, text=f"{iid[4:]}  (= {orig})\n{descr}", justify="left", background=sfondo, foreground=primo, borderwidth=1,
                  relief="solid", padx=8, pady=5, font=("Segoe UI", 9)).pack()
+        w.update_idletasks()
+        px, py = posizione_fumetto(se_stesso, w.winfo_reqwidth(), w.winfo_reqheight())
+        w.geometry(f"+{px}+{py}")
         se_stesso._suggerimento = w
 
     definisci _nascondi_suggerimento(se_stesso):
@@ -355,6 +431,23 @@ classe PannelloLibrerie(tk.Frame):
             se_stesso.app.info(f"«{riga}» è già nel file.")
             ritorna Falso
         ritorna ed.inserisci_importazione(riga)
+
+    definisci rimuovi_importazione(se_stesso, nome_it):
+        """Cancella dal file aperto le righe «importa nome» (o «import originale») semplici; ritorna quante ne ha tolte."""
+        ed = se_stesso.app._editor_corrente() se hasattr(se_stesso.app, "_editor_corrente") altrimenti Nessuno
+        se ed è Nessuno:
+            ritorna 0
+        righe_ = {f"importa {nome_it}", f"import {originale_di(nome_it)}", f"import {nome_it}", f"importa {originale_di(nome_it)}"}
+        tolte = 0
+        per numero in lista(intervallo(1, lunghezza(ed.contenuto().split("\n")) + 1))[::-1]:
+            riga = ed.t.get(f"{numero}.0", f"{numero}.0 lineend")
+            se riga.strip() in righe_ e non riga.startswith((" ", "\t")):
+                ed.t.delete(f"{numero}.0", f"{numero + 1}.0")
+                tolte += 1
+        se tolte:
+            ed.evidenzia()
+            se_stesso.app.info(f"Tolta l'importazione di «{nome_it}» dal file aperto (Ctrl+Z per annullare).")
+        ritorna tolte
 
     # ------------------------------------------------------------ colori
     definisci applica_colori(se_stesso, c):

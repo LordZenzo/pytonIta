@@ -1,0 +1,144 @@
+"""Progettista: campi numerici con freccette e limiti, colonne dell'albero, ridimensionamento della finestra con il mouse."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.form_modello importa Form, genera_ui_completa
+da rad importa progettista
+da rad.progettista importa Progettista
+
+
+classe Az:
+    definisci __getattr__(se_stesso, n):
+        ritorna lambda *a, **k: Nessuno
+
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1300x800+0+0")
+configura_stile(radice, c)
+f = Form("Demo")
+f.larghezza, f.altezza = 480, 320
+f.aggiungi("Cursore", 20, 20, da=0, a=10, valore=9)
+f.aggiungi("BarraProgresso", 20, 80, massimo=50, valore=50)
+f.aggiungi("Albero", 20, 120)
+p = Progettista(radice, os.path.join(tempfile.mkdtemp(), "demo.form.json"), f, c, cfg, Az())
+p.pack(fill="both", expand=Vero)
+applica(radice, c)
+p.griglia_attiva.set(Falso)
+radice.update()
+
+
+definisci spinbox(w):
+    r = []
+    per x in w.winfo_children():
+        se isinstance(x, tk.Spinbox):
+            r.append(x)
+        r.extend(spinbox(x))
+    ritorna r
+
+
+# ---------------------------------------------------------------- campi numerici con freccette
+p.seleziona(["cursore1"])
+radice.update()
+sp = spinbox(p.righe_ispettore)
+stampa("campi numerici con freccette nell'ispettore del cursore:", lunghezza(sp), "(x, y, larghezza, altezza, minimo, massimo, valore)")
+cur = f.trova("cursore1")
+valore = [s per s in sp se s.get() == "9"]
+valore[-1].invoke("buttonup")
+radice.update()
+stampa("freccetta su: 9 -> 10 (il massimo è «a»):", cur.valori["valore"] == 10)
+valore[-1].invoke("buttonup")
+radice.update()
+stampa("oltre il massimo non va:", cur.valori["valore"] == 10)
+valore[-1].invoke("buttondown")
+radice.update()
+stampa("freccetta giù:", cur.valori["valore"] == 9)
+da_, a_ = progettista.Progettista.limiti_proprieta(cur, "valore")
+stampa("limiti del valore del cursore:", (da_, a_), "| della barra:", progettista.Progettista.limiti_proprieta(f.trova("barraProgresso1"), "valore"))
+stampa("limiti di x dentro la finestra:", p.limiti_geometria(cur, "x"), "| larghezza:", p.limiti_geometria(cur, "larghezza"))
+# scrivere un valore fuori limite viene riportato dentro
+p.seleziona(["barraProgresso1"])
+radice.update()
+sp = spinbox(p.righe_ispettore)
+v = [s per s in sp se s.get() == "50"]
+stampa("campi della barra (massimo e valore):", lunghezza(v))
+v[-1].delete(0, "end")
+v[-1].insert(0, "999")
+v[-1].event_generate("<Return>")
+radice.update()
+stampa("valore oltre il massimo riportato a 50:", f.trova("barraProgresso1").valori["valore"] == 50)
+
+# ---------------------------------------------------------------- colonne dell'albero
+albero = f.trova("albero1")
+d = progettista.DialogoColonne(radice, c, [("Nome", 200, "w"), ("Valore", 200, "w")])
+d.withdraw()
+d.seleziona(1)
+d.var_larghezza.set("90")
+d.var_allineamento.set("destra")
+d._applica()
+d.aggiungi()
+d.var_nome.set("Note")
+d.var_larghezza.set("300")
+d._applica()
+d.conferma()
+stampa("finestra delle colonne:", d.risultato)
+p.imposta_colonne(albero, d.risultato)
+radice.update()
+w = p.widget["albero1"]
+stampa("anteprima: larghezza e allineamento delle colonne:", [(n, int(w.column(n, "width")), w.column(n, "anchor")) per n in ("Nome", "Valore", "Note")])
+codice = genera_ui_completa(f)
+stampa("il codice generato imposta le colonne:", ".column('Valore', width=90, anchor='e')" in codice, ".column('Note', width=300, anchor='w')" in codice)
+compile(codice, "x", "exec", 0x10000)          # il codice generato è pytonIta valido (flag italiano)
+stampa("il codice generato si compila")
+f2 = Form.da_json(f.a_json())
+stampa("salva e ricarica:", f2.trova("albero1").valori["larghezze"], f2.trova("albero1").valori["allineamenti"])
+# nomi doppi
+d2 = progettista.DialogoColonne(radice, c, [("A", 100, "w"), ("A", 100, "w")])
+d2.withdraw()
+progettista.messagebox.showwarning = lambda *a, **k: Nessuno
+d2.conferma()
+stampa("nomi doppi rifiutati:", d2.risultato è Nessuno)
+d2.destroy()
+d.destroy()
+
+# ---------------------------------------------------------------- ridimensionare la finestra con le maniglie
+p.seleziona([])
+radice.update()
+prima = (f.larghezza, f.altezza)
+a = p.area
+maniglie = a.find_withtag("mf_se")
+stampa("maniglie della finestra:", lunghezza(a.find_withtag("mf")), "(destra, sotto, angolo)")
+se os.name == "nt":
+    importa ctypes
+    u = ctypes.windll.user32
+    radice.lift()
+    radice.attributes("-topmost", Vero)
+    radice.update()
+    x1, y1, x2, y2 = a.coords(maniglie[0])
+    px = a.winfo_rootx() + int((x1 + x2) / 2 - a.canvasx(0))
+    py = a.winfo_rooty() + int((y1 + y2) / 2 - a.canvasy(0))
+    passo = [0]
+
+    definisci muovi():
+        passo[0] += 1
+        n = passo[0]
+        se n == 1:
+            u.SetCursorPos(px, py)
+        altrimenti_se n == 2:
+            u.mouse_event(0x0002, 0, 0, 0, 0)
+        altrimenti_se 3 <= n <= 10:
+            u.SetCursorPos(px + (n - 2) * 10, py + (n - 2) * 5)
+        altrimenti_se n == 11:
+            u.mouse_event(0x0004, 0, 0, 0, 0)
+        altrimenti:
+            radice.quit()
+            ritorna
+        radice.after(60, muovi)
+    radice.after(300, muovi)
+    radice.mainloop()
+    stampa("mouse vero: finestra da", prima, "a", (f.larghezza, f.altezza), "| ingrandita:", f.larghezza >= prima[0] + 70 e f.altezza >= prima[1] + 35)
+    stampa("la superficie segue:", p.superficie.winfo_reqwidth() == f.larghezza, p.superficie.winfo_reqheight() == f.altezza)
+radice.destroy()

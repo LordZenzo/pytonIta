@@ -15,7 +15,7 @@ Il progettista ti fa costruire una finestra con il mouse. Non devi scrivere il c
 ## Inserire e muovere i componenti
 
 - Scegli un componente nella palette e **clicca sulla finestra** per inserirlo (o fai doppio clic nella palette).
-- **Trascina** un componente per spostarlo; usa le **otto maniglie** blu per ridimensionarlo. Con la griglia attiva si allinea a passi di 8 punti.
+- **Trascina** un componente per spostarlo; usa le **otto maniglie** blu per ridimensionarlo. Anche la **finestra stessa** si ridimensiona: trascina le maniglie fuori dal suo bordo destro, dal bordo inferiore o dall'angolo. Con la griglia attiva si allinea a passi di 8 punti.
 - **Maiusc+clic** aggiunge alla selezione; **Ctrl+A** seleziona tutto. Le **frecce** spostano di un punto (con Maiusc di dieci).
 - **Ctrl+C / Ctrl+V**, **Ctrl+D** copiano e duplicano; **Canc** elimina; **Ctrl+Z / Ctrl+Y** annullano e ripetono.
 - Il menu **Allinea** dispone più componenti: a sinistra, a destra, in alto, in basso, centrati, stessa larghezza o altezza, distribuiti in modo uniforme.
@@ -41,6 +41,10 @@ Il progettista ti fa costruire una finestra con il mouse. Non devi scrivere il c
 | **Separatore** | una linea |
 
 ## Le proprietà e gli eventi
+
+I campi numerici (posizione, dimensioni, minimo, massimo, valore…) hanno le **freccette su/giù** (e rotella e tasti freccia) e restano dentro i **limiti naturali**: un componente non esce dalla finestra, il valore di un cursore sta tra il suo minimo e il suo massimo, la barra di avanzamento tra 0 e il suo massimo.
+
+Per l'**albero** il pulsante **Modifica…** accanto a «Colonne» apre la finestra delle colonne: nome, **larghezza in pixel** e **allineamento** di ognuna, con aggiunta, rimozione e riordino.
 
 Cambiando una proprietà (testo, colori, carattere, stato normale/disabilitato…) il componente si aggiorna subito. Il campo **Nome** è il nome con cui lo userai nel codice
 (`se_stesso.pulsante1`).
