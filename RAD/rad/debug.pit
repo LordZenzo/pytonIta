@@ -7,6 +7,7 @@ importa json
 importa os
 importa tempfile
 importa tkinter come tk
+da rad importa stile
 da tkinter importa ttk
 
 RUNNER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug_runner.py")
@@ -34,6 +35,7 @@ classe PannelloDebug(tk.Frame):
                           command=lambda n=nome: sessione.comando(n))
             b.pack(side="left", padx=1, pady=2)
             se_stesso.pulsanti[nome] = b
+            stile.suggerisci(b, f"{etichetta} ({tasto})")
         se_stesso.stato = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
         se_stesso.stato.pack(side="right", padx=8)
         se_stesso.corpo = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=4, borderwidth=0)

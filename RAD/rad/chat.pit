@@ -9,6 +9,7 @@ importa tkinter come tk
 da tkinter importa ttk, messagebox
 
 da rad importa ai
+da rad.stile importa suggerisci
 da rad.registro_ai importa RegistroAI
 da rad importa registro_ai
 
@@ -46,11 +47,15 @@ classe PannelloChat(tk.Frame):
         se_stesso.testata = testata
         se_stesso.titolo = tk.Label(testata, text="ASSISTENTE", anchor="w")
         se_stesso.titolo.pack(side="left", padx=8, pady=4)
-        tk.Button(testata, text="Nuova chat", command=se_stesso.nuova_chat).pack(side="right", padx=3, pady=3)
+        b = tk.Button(testata, text="Nuova chat", command=se_stesso.nuova_chat)
+        b.pack(side="right", padx=3, pady=3)
+        suggerisci(b, "Inizia una nuova conversazione con l'assistente")
         se_stesso.pulsante_annulla = tk.Button(testata, text="↶ Annulla", command=lambda: se_stesso.ambiente.annulla_ultima_ai(), state="disabled")
         se_stesso.pulsante_annulla.pack(side="right", padx=3, pady=3)
+        suggerisci(se_stesso.pulsante_annulla, "Annulla l'ultima modifica fatta ai file dall'assistente")
         se_stesso.pulsante_claude = tk.Button(testata, text="⌨ Claude Code", command=lambda: se_stesso.ambiente.apri_claude_code())
         se_stesso.pulsante_claude.pack(side="right", padx=3, pady=3)
+        suggerisci(se_stesso.pulsante_claude, "Apre Claude Code in un terminale nella cartella del progetto")
         se_stesso.var_modello = tk.StringVar(value=se_stesso.config_.ottieni("ai.modello"))
         se_stesso.selettore = ttk.Combobox(testata, textvariable=se_stesso.var_modello, width=15,
                                            values=se_stesso.config_.ottieni("ai.modelli", []))
@@ -91,6 +96,10 @@ classe PannelloChat(tk.Frame):
         se_stesso.pulsante_invia.pack(fill="x")
         se_stesso.pulsante_ferma = tk.Button(colonna, text="■ Ferma", command=se_stesso.ferma, width=9, state="disabled")
         se_stesso.pulsante_ferma.pack(fill="x", pady=(4, 0))
+        suggerisci(se_stesso.pulsante_invia, "Invia il messaggio (Ctrl+Invio)")
+        suggerisci(se_stesso.pulsante_ferma, "Interrompe la risposta dell'assistente")
+        suggerisci(se_stesso.casella_contesto, "Allega all'assistente il file aperto e il testo selezionato")
+        suggerisci(se_stesso.casella_economico, "Risposte più brevi e meno costose")
 
         # cronologia
         se_stesso.t = tk.Text(se_stesso, wrap="word", borderwidth=0, highlightthickness=0, padx=10, pady=8,
@@ -185,12 +194,14 @@ classe PannelloChat(tk.Frame):
         barra = tk.Frame(t, background=c["campo"])
         tk.Label(barra, text=linguaggio o "codice", background=c["campo"], foreground=c["tenue"],
                  font=("Segoe UI", 8)).pack(side="left", padx=4)
-        per etichetta, comando in (("Copia", lambda: se_stesso._copia(codice)),
-                                    ("Inserisci nell'editor", lambda: se_stesso.ambiente.inserisci_nell_editor(codice)),
-                                    ("Nuovo file", lambda: se_stesso.ambiente.codice_in_nuovo_file(codice))):
-            tk.Button(barra, text=etichetta, command=comando, relief="flat", font=("Segoe UI", 8),
-                      background=c["pulsante"], foreground=c["primo_piano"],
-                      activebackground=c["pulsante_attivo"], padx=6).pack(side="right", padx=2, pady=1)
+        per etichetta, comando, aiuto in (("Copia", lambda: se_stesso._copia(codice), "Copia il codice negli appunti"),
+                                           ("Inserisci nell'editor", lambda: se_stesso.ambiente.inserisci_nell_editor(codice), "Inserisce il codice nel file aperto, dove sta il cursore"),
+                                           ("Nuovo file", lambda: se_stesso.ambiente.codice_in_nuovo_file(codice), "Crea un nuovo file con questo codice")):
+            b = tk.Button(barra, text=etichetta, command=comando, relief="flat", font=("Segoe UI", 8),
+                          background=c["pulsante"], foreground=c["primo_piano"],
+                          activebackground=c["pulsante_attivo"], padx=6)
+            b.pack(side="right", padx=2, pady=1)
+            suggerisci(b, aiuto, c)
         t.window_create("end", window=barra)
         t.insert("end", "\n")
         t.insert("end", codice + "\n", "codice")

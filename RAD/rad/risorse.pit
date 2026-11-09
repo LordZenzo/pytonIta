@@ -7,6 +7,7 @@ importa tkinter come tk
 da tkinter importa ttk, messagebox, simpledialog
 
 da rad.progetto importa tipo_file
+da rad.stile importa suggerisci
 
 
 classe VisoreBase(tk.Frame):
@@ -49,11 +50,14 @@ classe VisoreImmagine(VisoreBase):
         se_stesso.barra = barra
         se_stesso.info = tk.Label(barra, anchor="w")
         se_stesso.info.pack(side="left", padx=8, pady=4)
-        per testo_, f in (("Adatta", se_stesso.adatta), ("100%", lambda: se_stesso.imposta_zoom(1.0)),
-                          ("＋", lambda: se_stesso.imposta_zoom(se_stesso.zoom * 1.25)),
-                          ("－", lambda: se_stesso.imposta_zoom(se_stesso.zoom / 1.25)),
-                          ("Copia percorso", se_stesso.copia_percorso)):
-            tk.Button(barra, text=testo_, command=f).pack(side="right", padx=2, pady=3)
+        per testo_, f, aiuto in (("Adatta", se_stesso.adatta, "Adatta l'immagine alla finestra"),
+                                 ("100%", lambda: se_stesso.imposta_zoom(1.0), "Dimensione reale"),
+                                 ("＋", lambda: se_stesso.imposta_zoom(se_stesso.zoom * 1.25), "Ingrandisci"),
+                                 ("－", lambda: se_stesso.imposta_zoom(se_stesso.zoom / 1.25), "Riduci"),
+                                 ("Copia percorso", se_stesso.copia_percorso, "Copia il percorso del file negli appunti")):
+            b = tk.Button(barra, text=testo_, command=f)
+            b.pack(side="right", padx=2, pady=3)
+            suggerisci(b, aiuto)
         se_stesso.tela = tk.Canvas(se_stesso, highlightthickness=0)
         se_stesso.tela._tema_proprio = Vero
         bx = ttk.Scrollbar(se_stesso, orient="horizontal", command=se_stesso.tela.xview)
@@ -144,9 +148,12 @@ classe VisoreJson(VisoreBase):
         se_stesso.barra = barra
         se_stesso.stato = tk.Label(barra, anchor="w")
         se_stesso.stato.pack(side="left", padx=8, pady=4)
-        per testo_, f in (("Formatta", se_stesso.formatta), ("Comprimi", se_stesso.comprimi),
-                          ("Copia percorso", se_stesso.copia_percorso_nodo)):
-            tk.Button(barra, text=testo_, command=f).pack(side="right", padx=2, pady=3)
+        per testo_, f, aiuto in (("Formatta", se_stesso.formatta, "Riscrive il JSON con rientri ordinati"),
+                                 ("Comprimi", se_stesso.comprimi, "Riscrive il JSON su una sola riga"),
+                                 ("Copia percorso", se_stesso.copia_percorso_nodo, "Copia il percorso dell'elemento selezionato")):
+            b = tk.Button(barra, text=testo_, command=f)
+            b.pack(side="right", padx=2, pady=3)
+            suggerisci(b, aiuto)
         divisore = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=5)
         divisore.pack(fill="both", expand=Vero)
         se_stesso.divisore = divisore

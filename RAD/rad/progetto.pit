@@ -9,7 +9,7 @@ importa time
 importa tkinter come tk
 da tkinter importa ttk, messagebox, simpledialog, filedialog
 
-da rad importa form_modello
+da rad importa form_modello, stile
 
 NOME_MANIFESTO = "progetto.rad.json"
 IGNORA = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules"}
@@ -315,6 +315,7 @@ classe PannelloProgetto(tk.Frame):
                                                ("📁", "Nuova cartella", lambda: se_stesso.nuova_cartella())):
             b = tk.Button(barra, text=simbolo, command=comando, width=3)
             b.pack(side="right", padx=1, pady=2)
+            stile.suggerisci(b, suggerimento)
         se_stesso.albero = ttk.Treeview(se_stesso, show="tree", selectmode="browse")
         barra_y = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.albero.yview)
         se_stesso.albero.configure(yscrollcommand=barra_y.set)

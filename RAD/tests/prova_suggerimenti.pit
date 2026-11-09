@@ -1,0 +1,67 @@
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.mattonelle_modello importa Programma
+da rad importa mattonelle_ui, stile
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x700+10+10")
+configura_stile(radice, col)
+
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci esegui_file(se_stesso, p): passa
+
+
+def_ = Programma("p")
+ed = mattonelle_ui.EditorMattonelle(radice, os.path.join(tempfile.mkdtemp(), "p.mattonelle.json"), def_, col, cfg, Az())
+ed.pack(fill="both", expand=Vero)
+applica(radice, col)
+radice.update()
+
+
+definisci pulsanti(w):
+    r = []
+    per f in w.winfo_children():
+        se isinstance(f, tk.Button):
+            r.append(f)
+        r.extend(pulsanti(f))
+    ritorna r
+
+
+barra = pulsanti(ed.barra)
+con_aiuto = [x per x in barra se getattr(x, "_suggerimento", Nessuno)]
+stampa("barra delle mattonelle: pulsanti", lunghezza(barra), "| con suggerimento", lunghezza(con_aiuto))
+stampa("tutti hanno il suggerimento:", lunghezza(barra) == lunghezza(con_aiuto) e lunghezza(barra) >= 11)
+
+# il fumetto compare dopo il ritardo e sparisce all'uscita
+b = con_aiuto[0]
+s = b._suggerimento
+s.ritardo = 10
+b.event_generate("<Enter>")
+radice.update()
+radice.after(80, radice.quit)
+radice.mainloop()
+stampa("fumetto mostrato:", s._finestra è non Nessuno, "|", s.testo)
+b.event_generate("<Leave>")
+radice.update()
+stampa("fumetto nascosto all'uscita:", s._finestra è Nessuno)
+
+# nuova funzione stile.suggerisci su un widget qualunque (anche senza colori del tema)
+e = stile.suggerisci(tk.Button(radice, text="x"), "prova")
+stampa("suggerisci ritorna il widget:", isinstance(e, tk.Button), e._suggerimento.testo == "prova")
+e._suggerimento.ritardo = 10
+e.pack()
+radice.update()
+e.event_generate("<Enter>")
+radice.after(80, radice.quit)
+radice.mainloop()
+stampa("senza colori del tema:", e._suggerimento._finestra è non Nessuno)
+radice.destroy()

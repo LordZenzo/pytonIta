@@ -5,7 +5,7 @@ importa re
 importa tkinter come tk
 da tkinter importa ttk
 
-da rad importa parole
+da rad importa parole, stile
 
 _RE_TOKEN = re.compile(r"""
     (?P<stringa>[rRbBfFuU]{0,2}(?:\"\"\"[\s\S]*?(?:\"\"\"|\Z)|'''[\s\S]*?(?:'''|\Z)|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?))
@@ -100,12 +100,14 @@ classe Editor(tk.Frame):
         se_stesso.campo_cerca.pack(side="left", padx=2)
         tk.Label(se_stesso.barra_cerca, text="Sostituisci").pack(side="left", padx=(8, 2))
         se_stesso.campo_sostituisci.pack(side="left", padx=2)
-        per etichetta, comando in (("Successivo", se_stesso.trova_successivo),
-                                    ("Precedente", se_stesso.trova_precedente),
-                                    ("Sostituisci", se_stesso.sostituisci_corrente),
-                                    ("Tutti", se_stesso.sostituisci_tutti),
-                                    ("✕", se_stesso.chiudi_ricerca)):
-            tk.Button(se_stesso.barra_cerca, text=etichetta, command=comando).pack(side="left", padx=2, pady=3)
+        per etichetta, comando, aiuto in (("Successivo", se_stesso.trova_successivo, "Va alla prossima occorrenza (Invio)"),
+                                           ("Precedente", se_stesso.trova_precedente, "Va all'occorrenza precedente"),
+                                           ("Sostituisci", se_stesso.sostituisci_corrente, "Sostituisce l'occorrenza selezionata"),
+                                           ("Tutti", se_stesso.sostituisci_tutti, "Sostituisce tutte le occorrenze nel file"),
+                                           ("✕", se_stesso.chiudi_ricerca, "Chiude la ricerca (Esc)")):
+            b = tk.Button(se_stesso.barra_cerca, text=etichetta, command=comando)
+            b.pack(side="left", padx=2, pady=3)
+            stile.suggerisci(b, aiuto)
         se_stesso.etichetta_trovati = tk.Label(se_stesso.barra_cerca, text="")
         se_stesso.etichetta_trovati.pack(side="left", padx=6)
         se_stesso.campo_cerca.bind("<Return>", lambda e: se_stesso.trova_successivo())

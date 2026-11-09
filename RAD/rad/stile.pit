@@ -67,14 +67,19 @@ classe Suggerimento:
     definisci _mostra(se_stesso):
         se non se_stesso.testo:
             ritorna
-        c = se_stesso.colori
+        c = se_stesso.colori o {"pulsante": "#2b303b", "primo_piano": "#f2f4f8"}
         f = tk.Toplevel(se_stesso.widget)
         f.wm_overrideredirect(Vero)
         f.attributes("-topmost", Vero)
         tk.Label(f, text=se_stesso.testo, background=c["pulsante"], foreground=c["primo_piano"], padx=8, pady=3,
                  relief="solid", borderwidth=1, font=("Segoe UI", 9), justify="left").pack()
+        f.update_idletasks()
         x = se_stesso.widget.winfo_rootx()
         y = se_stesso.widget.winfo_rooty() + se_stesso.widget.winfo_height() + 4
+        # il fumetto resta dentro lo schermo
+        x = max(0, min(x, f.winfo_screenwidth() - f.winfo_reqwidth() - 4))
+        se y + f.winfo_reqheight() > f.winfo_screenheight() - 40:
+            y = se_stesso.widget.winfo_rooty() - f.winfo_reqheight() - 4
         f.wm_geometry(f"+{x}+{y}")
         se_stesso._finestra = f
 
@@ -94,6 +99,13 @@ classe Suggerimento:
 
     definisci imposta_testo(se_stesso, testo_):
         se_stesso.testo = testo_
+
+
+definisci suggerisci(widget, testo_, colori=Nessuno):
+    """Aggiunge un suggerimento (fumetto) a un widget qualsiasi; ritorna il widget."""
+    se testo_:
+        widget._suggerimento = Suggerimento(widget, testo_, colori)
+    ritorna widget
 
 
 # --------------------------------------------------------------------------- pulsanti

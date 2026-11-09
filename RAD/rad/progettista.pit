@@ -7,6 +7,7 @@ importa tkinter come tk
 da tkinter importa ttk, messagebox, colorchooser, filedialog, simpledialog
 
 da rad importa form_modello
+da rad.stile importa suggerisci come stile_suggerisci
 da rad.form_modello importa Form, TIPI, ORDINE_PALETTE, proprieta_di, nome_valido
 
 GRIGLIA = 8
@@ -140,13 +141,21 @@ classe Progettista(tk.Frame):
         se_stesso.barra = barra
         se_stesso.titolo = tk.Label(barra, text="", anchor="w")
         se_stesso.titolo.pack(side="left", padx=8)
-        per testo_, comando in (("💾 Salva", se_stesso.salva), ("▶ Prova", se_stesso.esegui),
-                                ("‹/› Codice", se_stesso.vai_al_codice), ("↶", se_stesso.annulla), ("↷", se_stesso.ripeti),
-                                ("⧉", se_stesso.duplica), ("🗑", se_stesso.elimina_selezionati)):
-            tk.Button(barra, text=testo_, command=comando).pack(side="left", padx=2, pady=3)
-        tk.Checkbutton(barra, text="Griglia", variable=se_stesso.griglia_attiva,
-                       command=se_stesso._disegna_griglia).pack(side="left", padx=8)
+        per testo_, comando, aiuto in (("💾 Salva", se_stesso.salva, "Salva la finestra e rigenera il codice"),
+                                       ("▶ Prova", se_stesso.esegui, "Prova la finestra così com'è"),
+                                       ("‹/› Codice", se_stesso.vai_al_codice, "Apre il file con la tua logica"),
+                                       ("↶", se_stesso.annulla, "Annulla (Ctrl+Z)"), ("↷", se_stesso.ripeti, "Ripeti (Ctrl+Y)"),
+                                       ("⧉", se_stesso.duplica, "Duplica i componenti selezionati (Ctrl+D)"),
+                                       ("🗑", se_stesso.elimina_selezionati, "Elimina i componenti selezionati (Canc)")):
+            b = tk.Button(barra, text=testo_, command=comando)
+            b.pack(side="left", padx=2, pady=3)
+            stile_suggerisci(b, aiuto)
+        casella = tk.Checkbutton(barra, text="Griglia", variable=se_stesso.griglia_attiva,
+                                 command=se_stesso._disegna_griglia)
+        casella.pack(side="left", padx=8)
+        stile_suggerisci(casella, "Mostra la griglia e fa agganciare i componenti")
         se_stesso.menu_allinea = tk.Menubutton(barra, text="Allinea ▾", relief="flat")
+        stile_suggerisci(se_stesso.menu_allinea, "Allinea o distribuisce i componenti selezionati")
         m = tk.Menu(se_stesso.menu_allinea, tearoff=0)
         per etichetta, modo in (("A sinistra", "sinistra"), ("A destra", "destra"), ("In alto", "alto"),
                                 ("In basso", "basso"), ("Centra in orizzontale", "centro_x"),
@@ -761,10 +770,14 @@ classe Progettista(tk.Frame):
                 e.delete(0, "end")
                 e.insert(0, scelto[1])
                 alla_conferma(scelto[1])
-        tk.Button(cornice, text="…", command=scegli, width=3, relief="flat",
-                  background=se_stesso.colori["pulsante"], foreground=se_stesso.colori["primo_piano"]).pack(side="left", padx=2)
-        tk.Button(cornice, text="✕", command=lambda: (e.delete(0, "end"), alla_conferma("")), width=2, relief="flat",
-                  background=se_stesso.colori["pulsante"], foreground=se_stesso.colori["primo_piano"]).pack(side="left")
+        b1 = tk.Button(cornice, text="…", command=scegli, width=3, relief="flat",
+                       background=se_stesso.colori["pulsante"], foreground=se_stesso.colori["primo_piano"])
+        b1.pack(side="left", padx=2)
+        stile_suggerisci(b1, "Sceglie il colore", se_stesso.colori)
+        b2 = tk.Button(cornice, text="✕", command=lambda: (e.delete(0, "end"), alla_conferma("")), width=2, relief="flat",
+                       background=se_stesso.colori["pulsante"], foreground=se_stesso.colori["primo_piano"])
+        b2.pack(side="left")
+        stile_suggerisci(b2, "Toglie il colore (usa quello predefinito)", se_stesso.colori)
         ritorna cornice
 
     definisci _editor_valore(se_stesso, genitore, c, chiave, tipo_):
@@ -811,8 +824,10 @@ classe Progettista(tk.Frame):
                 e.delete(0, "end")
                 e.insert(0, rel)
                 se_stesso._modifica(c, chiave, rel)
-            tk.Button(cornice, text="…", command=scegli, width=3, relief="flat",
-                      background=c_["pulsante"], foreground=c_["primo_piano"]).pack(side="left", padx=2)
+            b = tk.Button(cornice, text="…", command=scegli, width=3, relief="flat",
+                          background=c_["pulsante"], foreground=c_["primo_piano"])
+            b.pack(side="left", padx=2)
+            stile_suggerisci(b, "Sceglie il file dell'immagine", c_)
             ritorna cornice
         se tipo_ == "evento":
             cornice = tk.Frame(genitore, background=c_["pannello"])
@@ -824,8 +839,10 @@ classe Progettista(tk.Frame):
                     e.insert(0, f"{chiave}_{c.nome}")
                 se_stesso._modifica(c, chiave, e.get().strip())
                 se_stesso.vai_al_gestore(c, chiave)
-            tk.Button(cornice, text="⏎", command=crea_gestore, width=3, relief="flat",
-                      background=c_["pulsante"], foreground=c_["primo_piano"]).pack(side="left", padx=2)
+            b = tk.Button(cornice, text="⏎", command=crea_gestore, width=3, relief="flat",
+                          background=c_["pulsante"], foreground=c_["primo_piano"])
+            b.pack(side="left", padx=2)
+            stile_suggerisci(b, "Crea il gestore nel file della logica e ci va", c_)
             ritorna cornice
         ritorna se_stesso._entry(genitore, testo(valore se valore è non Nessuno altrimenti ""),
                                  lambda v: se_stesso._modifica(c, chiave, v))

@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.17
+
+- **Suggerimenti (tooltip) su tutti i pulsanti**: oltre alla barra principale, ora li hanno anche la barra delle mattonelle, il progettista (compresi «Griglia» e «Allinea»), la console, il debug (con i tasti rapidi), la ricerca nell'editor, l'albero del progetto, le barre di immagini e JSON e la chat con l'assistente. Il fumetto compare dopo mezzo secondo e resta sempre dentro lo schermo. Per i programmatori: `rad.stile.suggerisci(widget, testo)`.
+
 ## Novità della 1.16
 
 - **Quasi tutto il linguaggio a mattonelle**: frasi (f-string), `con … come …`, `solleva`, generatori (`produci`), `elimina`, `cambia … op= …`, dizionari con coppie, insiemi, `*args`/`**kwargs`, operatori `| & ^ << >>`, `per … altrimenti`, `mentre … altrimenti`, `da … importa …`, comprensioni di dizionario, tuple/liste fino a 12 elementi. Gli ingressi facoltativi vuoti non occupano più spazio.

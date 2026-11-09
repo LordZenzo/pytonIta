@@ -10,7 +10,7 @@ importa threading
 importa time
 importa tkinter come tk
 
-da rad importa diagnosi
+da rad importa diagnosi, stile
 da rad importa limiti come limiti_mod
 da tkinter importa ttk
 
@@ -190,8 +190,11 @@ classe Console(tk.Frame):
         se_stesso.titolo.pack(side="left", padx=8, pady=3)
         se_stesso.stato = tk.Label(barra, text="", anchor="w")
         se_stesso.stato.pack(side="left", padx=8)
-        per testo_, comando in (("Pulisci", se_stesso.pulisci), ("■ Ferma", se_stesso.ferma),):
-            tk.Button(barra, text=testo_, command=comando).pack(side="right", padx=3, pady=2)
+        per testo_, comando, aiuto in (("Pulisci", se_stesso.pulisci, "Svuota la console"),
+                                        ("■ Ferma", se_stesso.ferma, "Ferma il programma in esecuzione (Maiusc+F5)")):
+            b = tk.Button(barra, text=testo_, command=comando)
+            b.pack(side="right", padx=3, pady=2)
+            stile.suggerisci(b, aiuto)
         se_stesso.t = tk.Text(se_stesso, wrap="word", height=8, borderwidth=0, highlightthickness=0,
                               padx=8, pady=4, state="disabled")
         se_stesso.t._tema_proprio = Vero

@@ -9,6 +9,7 @@ da rad.mattonelle_modello importa (CATEGORIE, ORDINE_CATEGORIE, PREFERITE_PER_CA
                                    SUFFISSO, nome_variabile_valido, collega_pila, FORME_VALORE)
 da rad.mattonelle_disegno importa Disegnatore, scurisci, schiarisci
 da rad.editor importa Editor
+da rad.stile importa suggerisci
 
 CAPPELLI = ("avvio", "definisci_funzione")
 
@@ -789,13 +790,19 @@ classe EditorMattonelle(tk.Frame):
         se_stesso.barra = barra
         se_stesso.titolo = tk.Label(barra, text="", anchor="w")
         se_stesso.titolo.pack(side="left", padx=8)
-        per testo_, comando in (("💾 Salva e genera", se_stesso.salva), ("▶ Esegui", se_stesso.esegui),
-                                ("＋ Funzione", se_stesso.nuova_funzione), ("＋ Classe", se_stesso.nuova_classe),
-                                ("＋ Metodo", se_stesso.nuovo_metodo), ("⚙ Modulo", se_stesso.modulo),
-                                ("‹/› Codice", se_stesso.vedi_codice),
-                                ("↶", se_stesso.annulla), ("↷", se_stesso.ripeti),
-                                ("🔍＋", lambda: se_stesso.cambia_zoom(1.15)), ("🔍－", lambda: se_stesso.cambia_zoom(1 / 1.15))):
-            tk.Button(barra, text=testo_, command=comando, relief="flat", padx=8).pack(side="left", padx=2, pady=3)
+        per testo_, comando, aiuto in (("💾 Salva e genera", se_stesso.salva, "Salva il programma e genera il file .pit"),
+                                       ("▶ Esegui", se_stesso.esegui, "Genera ed esegue il programma"),
+                                       ("＋ Funzione", se_stesso.nuova_funzione, "Aggiunge una nuova funzione (una nuova pagina)"),
+                                       ("＋ Classe", se_stesso.nuova_classe, "Aggiunge una nuova classe con il suo __inizializza__"),
+                                       ("＋ Metodo", se_stesso.nuovo_metodo, "Aggiunge un metodo alla classe della pagina corrente"),
+                                       ("⚙ Modulo", se_stesso.modulo, "Codice di modulo: importazioni, costanti e variabili globali"),
+                                       ("‹/› Codice", se_stesso.vedi_codice, "Mostra o nasconde il codice generato"),
+                                       ("↶", se_stesso.annulla, "Annulla (Ctrl+Z)"), ("↷", se_stesso.ripeti, "Ripeti (Ctrl+Y)"),
+                                       ("🔍＋", lambda: se_stesso.cambia_zoom(1.15), "Ingrandisci"),
+                                       ("🔍－", lambda: se_stesso.cambia_zoom(1 / 1.15), "Riduci")):
+            b = tk.Button(barra, text=testo_, command=comando, relief="flat", padx=8)
+            b.pack(side="left", padx=2, pady=3)
+            suggerisci(b, aiuto)
         se_stesso.stato = tk.Label(barra, anchor="e", text="")
         se_stesso.stato.pack(side="right", padx=8)
         se_stesso.selettore = ttk.Combobox(barra, state="readonly", width=26)
