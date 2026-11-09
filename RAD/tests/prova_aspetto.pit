@@ -1,0 +1,118 @@
+"""Aspetto moderno delle finestre: temi, colori scritti a mano che restano, codice generato, anteprima fedele nel progettista, esportazione in Python."""
+importa sys, os, tempfile, importlib, subprocess, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa ttk, messagebox
+messagebox.showwarning = lambda *a, **k: Nessuno
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad importa form_modello, progettista, esporta_python
+da rad.form_modello importa Form, CARTELLA_MODELLI
+
+sys.path.append(CARTELLA_MODELLI)
+importa aspetto
+
+stampa("temi:", aspetto.NOMI_TEMI, "| tutti completi:", all({"sfondo", "scheda", "testo", "accento", "bordo"} <= set(aspetto.TEMI[t]) per t in aspetto.NOMI_TEMI))
+stampa("tema sconosciuto: ripiega su chiaro:", aspetto.colori_del_tema("boh") == aspetto.TEMI["chiaro"])
+
+# --- ogni tema applicato a una finestra vera
+per nome in aspetto.NOMI_TEMI:
+    r = tk.Tk()
+    c = aspetto.applica_aspetto(r, nome)
+    b = tk.Button(r, text="Ok")
+    e = tk.Entry(r)
+    l = tk.Label(r, text="x")
+    lb = tk.Listbox(r)
+    t = tk.Text(r)
+    cb = tk.Checkbutton(r, text="c")
+    rosso = tk.Button(r, text="rosso", background="#ff0000")
+    r.update()
+    ok = (b.cget("background") == c["accento"], b.cget("relief") == "flat", e.cget("highlightcolor") == c["accento"], e.cget("background") == c["scheda"],
+          l.cget("background") == c["sfondo"], lb.cget("selectbackground") == c["selezione"], t.cget("background") == c["scheda"], cb.cget("selectcolor") == c["scheda"],
+          rosso.cget("background") == "#ff0000", r.cget("background") == c["sfondo"])
+    st = ttk.Style(r)
+    ok_ttk = (st.lookup("TButton", "background") == c["accento"], st.lookup("Treeview", "fieldbackground") == c["scheda"], st.lookup("TProgressbar", "background") == c["accento"])
+    ttk.Combobox(r, values=["a"]).pack()
+    ttk.Treeview(r).pack()
+    ttk.Notebook(r).pack()
+    r.update()
+    stampa(nome, "| classici:", all(ok), "| ttk:", all(ok_ttk), "| colore a mano resta:", ok[8])
+    r.destroy()
+
+# --- rivesti: un disegno già costruito
+r = tk.Tk()
+cornice = tk.Frame(r)
+cornice.pack()
+b = tk.Button(cornice, text="x")
+b.pack()
+en = tk.Entry(cornice)
+en.pack()
+aspetto.rivesti(cornice, "scuro")
+stampa("rivesti:", b.cget("background") == aspetto.TEMI["scuro"]["accento"], en.cget("background") == aspetto.TEMI["scuro"]["scheda"], cornice.cget("background") == aspetto.TEMI["scuro"]["sfondo"])
+r.destroy()
+
+# --- un form con aspetto
+cartella = tempfile.mkdtemp()
+f = Form("Moderna", "Finestra moderna")
+f.larghezza, f.altezza = 400, 240
+f.aspetto = "scuro"
+f.aggiungi("Etichetta", 16, 16, nome="titolo", testo="Tema scuro", larghezza=200, carattere="Segoe UI 16 bold")
+f.aggiungi("CampoTesto", 16, 56, nome="campo", larghezza=200, altezza=28)
+f.aggiungi("Pulsante", 16, 100, nome="pulsante_ok", testo="Conferma", larghezza=120, altezza=34, al_clic="ok_clic")
+f.aggiungi("Pulsante", 150, 100, nome="pulsante_rosso", testo="Rosso", larghezza=100, altezza=34, sfondo="#c62828", primo_piano="#ffffff")
+f.aggiungi("Elenco", 16, 148, nome="elenco", larghezza=200, altezza=70, elementi=["uno", "due"])
+ui = form_modello.genera_ui_completa(f)
+stampa("codice:", "da aspetto importa applica_aspetto" in ui, "applica_aspetto(radice, 'scuro')" in ui)
+stampa("l'aspetto viene applicato prima dei componenti:", ui.index("applica_aspetto(radice") < ui.index("se_stesso.titolo = "))
+scritti = form_modello.salva_form(f, cartella)
+stampa("file nel progetto:", sorted(os.listdir(cartella)))
+logica = open(os.path.join(cartella, "moderna.pit"), encoding="utf-8").read()
+stampa("la logica abilita il DPI nitido:", "da aspetto importa abilita_dpi" in logica, "abilita_dpi()" in logica)
+stampa("copia identica del modello:", open(os.path.join(cartella, "aspetto.pit"), encoding="utf-8").read() == open(form_modello.MODELLO_ASPETTO, encoding="utf-8").read())
+d = json.loads(f.a_json())
+stampa("salvato nel json:", d["aspetto"], "| form vecchio senza «aspetto»:", Form.da_dizionario({"nome": "Vecchio", "componenti": []}).aspetto, "| riletto:", Form.da_json(f.a_json()).aspetto)
+classico = Form("Classica", "x")
+stampa("un form classico non importa nulla:", "aspetto" non in form_modello.genera_ui_completa(classico), "| né copia il modulo:", "aspetto.pit" non in [os.path.basename(x) per x in form_modello.salva_form(classico, tempfile.mkdtemp())])
+
+# --- si esegue davvero
+sys.path.insert(0, cartella)
+m = importlib.import_module("moderna")
+radice = tk.Tk()
+radice.geometry("+20+20")
+a = m.Moderna(radice)
+radice.update()
+sc = aspetto.TEMI["scuro"]
+stampa("in esecuzione:", radice.cget("background") == sc["sfondo"], a.pulsante_ok.cget("background") == sc["accento"], a.campo.cget("background") == sc["scheda"],
+       "| il pulsante rosso resta rosso:", a.pulsante_rosso.cget("background") == "#c62828", "| il carattere a mano resta:", "16" in str(a.titolo.cget("font")))
+radice.destroy()
+
+# --- esportato in Python
+dest = os.path.join(tempfile.mkdtemp(), "e")
+e = esporta_python.esporta(cartella, dest)
+open(os.path.join(dest, "p.py"), "w", encoding="utf-8").write("import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport moderna\nr = tk.Tk(); a = moderna.Moderna(r); r.update()\nprint('python:', a.pulsante_ok.cget('background'), a.pulsante_rosso.cget('background'))\nr.destroy()\n")
+python_ = __import__("shutil").which("python") o __import__("shutil").which("py")
+se python_:
+    u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "p.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
+    stampa("con Python normale:", e["errori"], u.stdout.strip(), u.returncode, u.stderr.strip()[-120:])
+
+# --- il progettista: anteprima fedele e scelta dell'aspetto
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+r2 = tk.Tk()
+r2.geometry("1300x760+10+10")
+configura_stile(r2, col)
+p = progettista.Progettista(r2, os.path.join(cartella, "moderna.form.json"), form_modello.carica_form(os.path.join(cartella, "moderna.form.json")), col, cfg,
+                            type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella)})())
+p.pack(fill="both", expand=Vero)
+applica(r2, col)
+r2.update()
+stampa("anteprima: sfondo del tema:", p.superficie.cget("background") == sc["sfondo"], "| pulsante:", p.widget["pulsante_ok"].cget("background") == sc["accento"], "| rosso resta:", p.widget["pulsante_rosso"].cget("background") == "#c62828")
+p.seleziona([])
+r2.update()
+combo = [w per w in p.righe_ispettore.winfo_children() se isinstance(w, ttk.Combobox) e "scuro" in w.cget("values")]
+stampa("l'ispettore ha la scelta «Aspetto»:", lunghezza(combo), "valore:", combo[0].get() se combo altrimenti "")
+p.form.aspetto = "classico"
+p.ricostruisci()
+r2.update()
+stampa("tornando a classico:", p.superficie.cget("background") == "#f0f0f0", p.widget["pulsante_ok"].cget("background") != sc["accento"])
+r2.destroy()

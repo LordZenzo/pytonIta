@@ -1,0 +1,144 @@
+"""Aspetto moderno per le finestre di tkinter: colori, caratteri, bordi sottili e pulsanti piatti (che si scuriscono al passaggio del mouse), senza librerie esterne.
+
+    da aspetto importa applica_aspetto, abilita_dpi
+    abilita_dpi()                       # prima di creare la finestra: testi nitidi sugli schermi ad alta risoluzione (Windows)
+    radice = tk.Finestra()
+    applica_aspetto(radice, "chiaro")   # prima di creare i componenti; temi: chiaro, scuro, verde, viola
+
+I colori scritti a mano su un componente (sfondo=..., primo_piano=...) hanno la precedenza sull'aspetto.
+Questo file è stato creato da PitStudio (proprietà «Aspetto» della finestra) e si può usare anche con finestre scritte a mano.
+"""
+importa tkinter come tk
+da tkinter importa ttk
+
+TEMI = {
+    "chiaro": {"sfondo": "#f4f6f9", "scheda": "#ffffff", "testo": "#1f2933", "tenue": "#66727f", "bordo": "#cfd6df", "accento": "#2563eb", "accento_scuro": "#1d4fc4",
+               "su_accento": "#ffffff", "selezione": "#dbe7ff", "disattivo": "#9aa5b1"},
+    "scuro": {"sfondo": "#1d2027", "scheda": "#292d36", "testo": "#e8ecf1", "tenue": "#98a2b0", "bordo": "#3b414d", "accento": "#4c9aff", "accento_scuro": "#2f80e8",
+              "su_accento": "#0b1220", "selezione": "#33507a", "disattivo": "#667080"},
+    "verde": {"sfondo": "#f3f7f4", "scheda": "#ffffff", "testo": "#1d2b22", "tenue": "#5f7266", "bordo": "#c8d6cc", "accento": "#16803c", "accento_scuro": "#0f6a30",
+              "su_accento": "#ffffff", "selezione": "#d4efdc", "disattivo": "#93a597"},
+    "viola": {"sfondo": "#f6f4fa", "scheda": "#ffffff", "testo": "#25203a", "tenue": "#6c6485", "bordo": "#d6d0e6", "accento": "#7c3aed", "accento_scuro": "#6527c9",
+              "su_accento": "#ffffff", "selezione": "#e6dcfc", "disattivo": "#a39cba"},
+}
+NOMI_TEMI = ["chiaro", "scuro", "verde", "viola"]
+CARATTERE = ("Segoe UI", 10)
+_corrente = {}
+# nomi delle opzioni nel database di Tk (hanno le maiuscole interne: «highlightColor», non «highlightcolor»)
+NOMI_OPZIONI = {"highlightthickness": "highlightThickness", "highlightbackground": "highlightBackground", "highlightcolor": "highlightColor", "insertbackground": "insertBackground",
+                "selectbackground": "selectBackground", "selectforeground": "selectForeground", "activebackground": "activeBackground", "activeforeground": "activeForeground",
+                "selectcolor": "selectColor", "borderwidth": "borderWidth", "disabledforeground": "disabledForeground", "troughcolor": "troughColor", "sliderrelief": "sliderRelief",
+                "activestyle": "activeStyle", "padx": "padX", "pady": "padY"}
+
+
+definisci abilita_dpi():
+    """Su Windows dichiara che il programma gestisce i monitor ad alta risoluzione: i testi non risultano sfocati. Da chiamare prima di creare la finestra."""
+    prova:
+        importa ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    eccetto Exception:
+        passa
+
+
+definisci colori_del_tema(nome):
+    ritorna TEMI.get(nome, TEMI["chiaro"])
+
+
+definisci _scuro(colore, fattore=0.85):
+    colore = colore.lstrip("#")
+    ritorna "#%02x%02x%02x" % tuple(int(int(colore[i:i + 2], 16) * fattore) per i in (0, 2, 4))
+
+
+definisci applica_aspetto(radice, nome="chiaro", font_base=Nessuno):
+    """Imposta l'aspetto di tutta la finestra: va chiamata PRIMA di creare i componenti (che lo ereditano), così i colori scelti a mano restano."""
+    c = colori_del_tema(nome)
+    _corrente.clear()
+    _corrente.update(c)
+    font_base = font_base o CARATTERE
+    radice.configure(background=c["sfondo"])
+    o = radice.option_add
+    per classe, opzioni in _opzioni_tk(c, font_base).items():
+        per chiave, valore in opzioni.items():
+            o(f"*{classe}.{NOMI_OPZIONI.get(chiave, chiave)}", valore, 60)
+    _stili_ttk(radice, c, font_base)
+    ritorna c
+
+
+definisci _opzioni_tk(c, f):
+    campo = {"background": c["scheda"], "foreground": c["testo"], "relief": "flat", "borderwidth": 0, "highlightthickness": 1, "highlightbackground": c["bordo"],
+             "highlightcolor": c["accento"], "insertbackground": c["testo"], "selectbackground": c["accento"], "selectforeground": c["su_accento"], "font": f}
+    pulsante_scelta = {"background": c["sfondo"], "foreground": c["testo"], "activebackground": c["sfondo"], "activeforeground": c["testo"], "selectcolor": c["scheda"],
+                       "font": f, "highlightthickness": 0, "borderwidth": 0}
+    ritorna {
+        "Frame": {"background": c["sfondo"]},
+        "Toplevel": {"background": c["sfondo"]},
+        "Label": {"background": c["sfondo"], "foreground": c["testo"], "font": f},
+        "Button": {"background": c["accento"], "foreground": c["su_accento"], "activebackground": c["accento_scuro"], "activeforeground": c["su_accento"], "relief": "flat",
+                   "borderwidth": 0, "padx": 14, "pady": 6, "cursor": "hand2", "font": f, "highlightthickness": 0, "disabledforeground": c["disattivo"]},
+        "Entry": campo,
+        "Text": dict(campo, padx=6, pady=4),
+        "Listbox": dict(campo, activestyle="none", selectbackground=c["selezione"], selectforeground=c["testo"]),
+        "Spinbox": campo,
+        "Checkbutton": pulsante_scelta,
+        "Radiobutton": pulsante_scelta,
+        "Scale": {"background": c["sfondo"], "foreground": c["testo"], "troughcolor": c["bordo"], "activebackground": c["accento"], "highlightthickness": 0, "borderwidth": 0,
+                  "sliderrelief": "flat", "font": f},
+        "Scrollbar": {"background": c["bordo"], "troughcolor": c["sfondo"], "borderwidth": 0, "highlightthickness": 0, "relief": "flat"},
+        "Labelframe": {"background": c["sfondo"], "foreground": c["tenue"], "font": f},
+        "Menu": {"background": c["scheda"], "foreground": c["testo"], "activebackground": c["accento"], "activeforeground": c["su_accento"], "borderwidth": 0, "font": f},
+        "Canvas": {"background": c["scheda"], "highlightthickness": 0},
+    }
+
+
+definisci _stili_ttk(radice, c, f):
+    s = ttk.Style(radice)
+    prova:
+        s.theme_use("clam")
+    eccetto tk.TclError:
+        passa
+    s.configure(".", background=c["sfondo"], foreground=c["testo"], font=f, bordercolor=c["bordo"], lightcolor=c["sfondo"], darkcolor=c["sfondo"], troughcolor=c["bordo"],
+                focuscolor=c["accento"])
+    s.configure("TLabel", background=c["sfondo"], foreground=c["testo"])
+    s.configure("TFrame", background=c["sfondo"])
+    s.configure("TButton", background=c["accento"], foreground=c["su_accento"], padding=(14, 6), borderwidth=0, relief="flat")
+    s.map("TButton", background=[("active", c["accento_scuro"]), ("disabled", c["bordo"])], foreground=[("disabled", c["disattivo"])])
+    s.configure("TEntry", fieldbackground=c["scheda"], foreground=c["testo"], bordercolor=c["bordo"], padding=4)
+    s.map("TEntry", bordercolor=[("focus", c["accento"])])
+    s.configure("TCombobox", fieldbackground=c["scheda"], background=c["scheda"], foreground=c["testo"], arrowcolor=c["tenue"], bordercolor=c["bordo"], padding=4)
+    s.map("TCombobox", fieldbackground=[("readonly", c["scheda"])], bordercolor=[("focus", c["accento"])], arrowcolor=[("active", c["accento"])])
+    s.configure("Treeview", background=c["scheda"], fieldbackground=c["scheda"], foreground=c["testo"], bordercolor=c["bordo"], rowheight=26, borderwidth=1)
+    s.map("Treeview", background=[("selected", c["accento"])], foreground=[("selected", c["su_accento"])])
+    s.configure("Treeview.Heading", background=c["sfondo"], foreground=c["tenue"], relief="flat", padding=(8, 5), font=(f[0], f[1], "bold"))
+    s.map("Treeview.Heading", background=[("active", c["bordo"])])
+    s.configure("TNotebook", background=c["sfondo"], borderwidth=0, tabmargins=(0, 4, 0, 0))
+    s.configure("TNotebook.Tab", background=c["sfondo"], foreground=c["tenue"], padding=(16, 7), borderwidth=0)
+    s.map("TNotebook.Tab", background=[("selected", c["scheda"])], foreground=[("selected", c["accento"])])
+    s.configure("TProgressbar", background=c["accento"], troughcolor=c["bordo"], borderwidth=0, thickness=10)
+    s.configure("TSeparator", background=c["bordo"])
+    s.configure("TCheckbutton", background=c["sfondo"], foreground=c["testo"])
+    s.configure("TRadiobutton", background=c["sfondo"], foreground=c["testo"])
+    s.configure("Horizontal.TScale", background=c["sfondo"], troughcolor=c["bordo"])
+    s.configure("TScrollbar", background=c["bordo"], troughcolor=c["sfondo"], borderwidth=0, arrowcolor=c["tenue"])
+
+
+# ---------------------------------------------------------------- per un disegno già costruito (anteprima del progettista)
+definisci rivesti(widget, nome="chiaro", font_base=Nessuno):
+    """Dà l'aspetto a una finestra GIÀ costruita (scorrendo i componenti). Serve all'anteprima del progettista."""
+    c = colori_del_tema(nome)
+    f = font_base o CARATTERE
+    opzioni = _opzioni_tk(c, f)
+    classe = widget.winfo_class()
+    se classe in opzioni e classe != "Canvas":
+        valide = {}
+        per chiave, valore in opzioni[classe].items():
+            prova:
+                widget.cget(chiave)
+                valide[chiave] = valore
+            eccetto tk.TclError:
+                passa
+        prova:
+            widget.configure(**valide)
+        eccetto tk.TclError:
+            passa
+    per figlio in widget.winfo_children():
+        rivesti(figlio, nome, font_base)

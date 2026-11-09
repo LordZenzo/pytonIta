@@ -2,6 +2,7 @@
 importa interfaccia come tk
 da interfaccia importa tema
 importa os
+da aspetto importa applica_aspetto
 
 
 classe MascheraContattiUI:
@@ -10,6 +11,7 @@ classe MascheraContattiUI:
         se_stesso.radice = radice
         radice._interfaccia_ui = se_stesso     # tiene vive le variabili delle caselle anche se nessuno conserva l'oggetto
         se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))
+        applica_aspetto(radice, 'chiaro')      # prima dei componenti: i colori scritti a mano restano
         radice.titolo('Maschera: contatti')
         radice.geometria("780x532")
         radice.ridimensionabile(Vero, Vero)

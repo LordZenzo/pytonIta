@@ -105,3 +105,26 @@ Aiuto
 
 **Ordine di tabulazione.** **⇅ Ordine…** nella barra del progettista cambia l'ordine dei componenti: è l'ordine in cui il tasto Tab passa da uno all'altro.
 
+
+## Aspetto moderno
+
+![La stessa finestra con l'aspetto classico e con i temi chiaro, scuro e verde](immagini/aspetto.png)
+
+Le finestre di tkinter hanno un aspetto un po' datato. La proprietà **Aspetto** della finestra (clic su uno spazio vuoto per vederla) lo rinnova con un solo clic:
+
+- **classico**: tkinter com'è;
+- **chiaro**, **scuro**, **verde**, **viola**: colori coordinati, caratteri Segoe UI, campi con bordo sottile che si accende quando ci scrivi, pulsanti piatti che si scuriscono al passaggio del mouse, liste, tabelle, schede e barre di avanzamento dello stesso stile.
+
+L'anteprima del progettista mostra subito il risultato. Nel programma vero i **colori e i caratteri che scegli a mano** su un componente hanno la precedenza sul tema (per esempio un pulsante rosso resta rosso).
+
+PitStudio mette nel progetto il file `aspetto.pit` (se non c'è) e le finestre lo usano da sole; il programma chiede anche a Windows di non sfocare i testi sugli schermi ad alta risoluzione. Anche le maschere collegate ai dati e quasi tutti gli esempi della galleria usano l'aspetto moderno. L'aspetto resta quando esporti il progetto come Python o crei l'eseguibile.
+
+Per una finestra scritta a mano basta:
+
+```
+da aspetto importa applica_aspetto, abilita_dpi
+
+abilita_dpi()                       # prima di creare la finestra
+radice = tk.Finestra()
+applica_aspetto(radice, "scuro")    # prima di creare i componenti
+```

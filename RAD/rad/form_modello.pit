@@ -178,6 +178,7 @@ classe Form:
         se_stesso.sfondo = ""
         se_stesso.componenti = []
         se_stesso.ridimensionabile = Vero
+        se_stesso.aspetto = "classico"      # "classico" (tkinter com'è) oppure un tema moderno: chiaro, scuro, verde, viola
 
     # --- modifica
     definisci nome_libero(se_stesso, tipo_):
@@ -235,7 +236,7 @@ classe Form:
     definisci a_dizionario(se_stesso):
         ritorna {"versione": 1, "nome": se_stesso.nome, "titolo": se_stesso.titolo,
                  "larghezza": se_stesso.larghezza, "altezza": se_stesso.altezza,
-                 "sfondo": se_stesso.sfondo, "ridimensionabile": se_stesso.ridimensionabile,
+                 "sfondo": se_stesso.sfondo, "ridimensionabile": se_stesso.ridimensionabile, "aspetto": se_stesso.aspetto,
                  "componenti": [c.a_dizionario() per c in se_stesso.componenti]}
 
     @staticmethod
@@ -245,6 +246,7 @@ classe Form:
         f.altezza = d.get("altezza", 320)
         f.sfondo = d.get("sfondo", "")
         f.ridimensionabile = d.get("ridimensionabile", Vero)
+        f.aspetto = d.get("aspetto", "classico")
         per cd in d.get("componenti", []):
             se cd.get("tipo") in TIPI:
                 f.componenti.append(Componente.da_dizionario(cd))
@@ -361,6 +363,8 @@ definisci genera_ui(form):
     r.append("importa interfaccia come tk")
     r.append("da interfaccia importa tema")
     r.append("importa os")
+    se form.aspetto != "classico":
+        r.append("da aspetto importa applica_aspetto")
     r.append("")
     r.append("")
     r.append(f"classe {cl}UI:")
@@ -369,6 +373,8 @@ definisci genera_ui(form):
     r.append("        se_stesso.radice = radice")
     r.append("        radice._interfaccia_ui = se_stesso     # tiene vive le variabili delle caselle anche se nessuno conserva l'oggetto")
     r.append("        se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))")
+    se form.aspetto != "classico":
+        r.append(f"        applica_aspetto(radice, {_lit(form.aspetto)})      # prima dei componenti: i colori scritti a mano restano")
     r.append(f"        radice.titolo({_lit(form.titolo)})")
     r.append(f'        radice.geometria("{form.larghezza}x{form.altezza}")')
     r.append(f"        radice.ridimensionabile({_lit(form.ridimensionabile)}, {_lit(form.ridimensionabile)})")
@@ -676,6 +682,8 @@ definisci genera_logica(form):
     r.append(f'"""Logica della finestra {form.nome}. Qui scrivi il codice: PitStudio aggiunge solo i gestori mancanti."""')
     r.append("importa interfaccia come tk")
     r.append(f"da {nome_file_ui(form.nome)} importa {cl}UI")
+    se form.aspetto != "classico":
+        r.append("da aspetto importa abilita_dpi")
     r.append("")
     r.append("")
     r.append(f"classe {cl}({cl}UI):")
@@ -692,6 +700,8 @@ definisci genera_logica(form):
             r.append("")
     r.append("")
     r.append('se __nome__ == "__main__":')
+    se form.aspetto != "classico":
+        r.append("    abilita_dpi()                        # testi nitidi sugli schermi ad alta risoluzione")
     r.append("    radice = tk.Finestra()")
     r.append(f"    finestra = {cl}(radice)")
     r.append("    radice.ciclo_principale()")
@@ -727,6 +737,20 @@ definisci percorsi_form(cartella, nome_form):
              "logica": os.path.join(cartella, base + ".pit")}
 
 
+CARTELLA_MODELLI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice")
+MODELLO_ASPETTO = os.path.join(CARTELLA_MODELLI, "aspetto.pit")
+
+
+definisci copia_aspetto(cartella, scritti=Nessuno):
+    """Mette nel progetto aspetto.pit (se non c'è): lo usano le finestre con un aspetto moderno."""
+    destinazione = os.path.join(cartella, "aspetto.pit")
+    se non os.path.exists(destinazione) e os.path.exists(MODELLO_ASPETTO):
+        con open(MODELLO_ASPETTO, encoding="utf-8") come sorgente, open(destinazione, "w", encoding="utf-8", newline="\n") come f:
+            f.write(sorgente.read())
+        se scritti è non Nessuno:
+            scritti.append(destinazione)
+
+
 definisci salva_form(form, cartella):
     """Scrive form.json, la UI generata e (se manca) la logica. Ritorna i percorsi scritti."""
     p = percorsi_form(cartella, form.nome)
@@ -737,6 +761,8 @@ definisci salva_form(form, cartella):
     con open(p["ui"], "w", encoding="utf-8", newline="\n") come f:
         f.write(genera_ui_completa(form))
     scritti.append(p["ui"])
+    se form.aspetto != "classico":
+        copia_aspetto(cartella, scritti)
     se os.path.exists(p["logica"]):
         con open(p["logica"], encoding="utf-8") come f:
             attuale = f.read()

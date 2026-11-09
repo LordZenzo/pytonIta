@@ -29,6 +29,7 @@ definisci disegna_form(nome_form, titolo, tabella, nomi_colonne):
     h_elenco = 190
     y_campi = y_elenco + h_elenco + 16
     y_pulsanti = y_campi + righe_campi * 34 + 8
+    f.aspetto = "chiaro"
     f.larghezza = LARGHEZZA
     f.altezza = y_pulsanti + 58
     f.aggiungi("Etichetta", 16, 16, nome="etichetta_cerca", testo="Cerca:", larghezza=52, altezza=24)

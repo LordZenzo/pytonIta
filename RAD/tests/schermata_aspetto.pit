@@ -1,0 +1,53 @@
+"""Schermata di confronto: la stessa finestra in aspetto classico e nei temi moderni (controllo a occhio)."""
+importa sys, os, tempfile, importlib
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab, Image
+da rad importa form_modello
+da rad.form_modello importa Form
+
+uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+cartella = tempfile.mkdtemp()
+sys.path.insert(0, cartella)
+immagini = []
+radice = tk.Tk()
+radice.withdraw()
+n = 0
+per aspetto_ in ("classico", "chiaro", "scuro", "verde"):
+    n += 1
+    f = Form(f"Prova{n}", "Aspetto " + aspetto_)
+    f.larghezza, f.altezza = 380, 330
+    f.aspetto = aspetto_
+    f.aggiungi("Etichetta", 16, 14, nome="titolo", testo="Nuovo cliente", larghezza=300, carattere="Segoe UI 14 bold")
+    f.aggiungi("Etichetta", 16, 56, nome="e1", testo="Nome", larghezza=70)
+    f.aggiungi("CampoTesto", 96, 54, nome="nome", larghezza=260, altezza=28, testo="Anna Rossi")
+    f.aggiungi("Etichetta", 16, 94, nome="e2", testo="Città", larghezza=70)
+    f.aggiungi("CasellaCombinata", 96, 92, nome="citta", larghezza=260, altezza=28, valori=["Roma", "Milano", "Torino"], valore="Roma")
+    f.aggiungi("CasellaSelezione", 96, 130, nome="c1", testo="Iscritto alla newsletter", larghezza=240, selezionata=Vero)
+    f.aggiungi("Elenco", 16, 166, nome="el", larghezza=200, altezza=70, elementi=["Penna", "Quaderno", "Zaino"])
+    f.aggiungi("BarraProgresso", 16, 250, nome="bp", larghezza=340, altezza=14, valore=60)
+    f.aggiungi("Pulsante", 16, 280, nome="p1", testo="Salva", larghezza=100, altezza=32)
+    f.aggiungi("Pulsante", 126, 280, nome="p2", testo="Annulla", larghezza=100, altezza=32)
+    form_modello.salva_form(f, cartella)
+    m = importlib.import_module(f"prova{n}")
+    w = tk.Toplevel(radice)
+    w.geometry(f"+{20 + (n - 1) * 400}+40")
+    getattr(m, f"Prova{n}")(w)
+    w.update()
+    immagini.append(w)
+radice.update()
+
+
+definisci scatta():
+    radice.update()
+    x0 = min(w.winfo_rootx() per w in immagini)
+    y0 = min(w.winfo_rooty() per w in immagini) - 32
+    x1 = max(w.winfo_rootx() + w.winfo_width() per w in immagini) + 8
+    y1 = max(w.winfo_rooty() + w.winfo_height() per w in immagini) + 8
+    ImageGrab.grab(bbox=(x0, y0, x1, y1)).save(os.path.join(uscita, "aspetto.png"))
+    radice.quit()
+
+
+radice.after(900, scatta)
+radice.mainloop()
+radice.destroy()

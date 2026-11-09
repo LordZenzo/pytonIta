@@ -3,6 +3,7 @@ importa copy
 importa json
 importa os
 importa shutil
+importa sys
 importa tkinter come tk
 da tkinter importa ttk, messagebox, colorchooser, filedialog, simpledialog
 
@@ -588,7 +589,7 @@ classe Progettista(tk.Frame):
     definisci _disegna_griglia(se_stesso):
         s = se_stesso.superficie
         s.delete("griglia")
-        s.configure(background=se_stesso.form.sfondo o "#f0f0f0", width=se_stesso.form.larghezza, height=se_stesso.form.altezza)
+        s.configure(background=se_stesso.form.sfondo o se_stesso._sfondo_aspetto(), width=se_stesso.form.larghezza, height=se_stesso.form.altezza)
         # bordo della finestra, disegnato fuori dalla superficie così i componenti restano alle posizioni vere
         se_stesso.area.delete("bordo_finestra")
         se_stesso.area.create_rectangle(29, 29, 31 + se_stesso.form.larghezza, 31 + se_stesso.form.altezza,
@@ -600,12 +601,49 @@ classe Progettista(tk.Frame):
             se_stesso.area.create_rectangle(cx - 4, cy - 4, cx + 4, cy + 4, fill=se_stesso.colori["accento"],
                                             outline=se_stesso.colori["bordo"], tags=("mf", etichetta_))
         se se_stesso.griglia_attiva.get():
-            colore = "#c8c8c8" se (se_stesso.form.sfondo o "#f0f0f0") >= "#808080" altrimenti "#555555"
+            colore = "#c8c8c8" se (se_stesso.form.sfondo o se_stesso._sfondo_aspetto()) >= "#808080" altrimenti "#555555"
             per x in intervallo(0, se_stesso.form.larghezza, GRIGLIA * 2):
                 per y in intervallo(0, se_stesso.form.altezza, GRIGLIA * 2):
                     s.create_rectangle(x, y, x, y, outline=colore, tags="griglia")
         se_stesso.area.configure(scrollregion=(0, 0, se_stesso.form.larghezza + 80, se_stesso.form.altezza + 80))
         se_stesso.titolo.configure(text=f"{se_stesso.form.nome}  —  {se_stesso.form.larghezza}×{se_stesso.form.altezza}")
+
+    definisci _modulo_aspetto(se_stesso):
+        """Il modulo aspetto (modelli_codice/aspetto.pit), o Nessuno se non si trova."""
+        prova:
+            se form_modello.CARTELLA_MODELLI non in sys.path:
+                sys.path.append(form_modello.CARTELLA_MODELLI)
+            importa aspetto
+            ritorna aspetto
+        eccetto ImportError:
+            ritorna Nessuno
+
+    definisci _sfondo_aspetto(se_stesso):
+        """Colore di fondo della finestra: quello del tema scelto (o il grigio classico)."""
+        se se_stesso.form.aspetto != "classico":
+            m = se_stesso._modulo_aspetto()
+            se m:
+                ritorna m.colori_del_tema(se_stesso.form.aspetto)["sfondo"]
+        ritorna "#f0f0f0"
+
+    definisci _rivesti(se_stesso, w, c):
+        """Anteprima fedele: dà al componente l'aspetto del tema, poi rimette i colori e il carattere scelti a mano."""
+        m = se_stesso._modulo_aspetto()
+        se non m o se_stesso.form.aspetto == "classico":
+            ritorna
+        m.rivesti(w, se_stesso.form.aspetto)
+        v = c.valori
+        per chiave, opzione in (("sfondo", "background"), ("primo_piano", "foreground")):
+            se v.get(chiave):
+                prova:
+                    w.configure(**{opzione: v[chiave]})
+                eccetto tk.TclError:
+                    passa
+        se v.get("carattere"):
+            prova:
+                w.configure(font=form_modello.font_tk(v["carattere"]))
+            eccetto tk.TclError:
+                passa
 
     # ------------------------------------------------------------ dimensioni della finestra (maniglie fuori dalla superficie)
     definisci _inizia_finestra(se_stesso, e, lato):
@@ -657,6 +695,7 @@ classe Progettista(tk.Frame):
     definisci _crea(se_stesso, c):
         w = crea_widget_di_progetto(c, se_stesso._padre_widget(c), se_stesso.cartella)
         w.place(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
+        se_stesso._rivesti(w, c)
         per sequenza, funzione in (("<ButtonPress-1>", se_stesso._premi), ("<B1-Motion>", se_stesso._trascina),
                                    ("<ButtonRelease-1>", se_stesso._rilascia), ("<Double-Button-1>", se_stesso._doppio),
                                    ("<Button-3>", se_stesso._menu_widget)):
@@ -1141,6 +1180,7 @@ classe Progettista(tk.Frame):
             se_stesso._campo_form(aggiungi_riga, "Altezza", "altezza", "numero")
             se_stesso._campo_form(aggiungi_riga, "Sfondo", "sfondo", "colore")
             se_stesso._campo_form(aggiungi_riga, "Ridimensionabile", "ridimensionabile", "si_no")
+            se_stesso._campo_form(aggiungi_riga, "Aspetto", "aspetto", "scelta:classico,chiaro,scuro,verde,viola")
             problemi = se_stesso.form.problemi()
             se problemi:
                 aggiungi_riga("Attenzione", lambda p: tk.Label(p, text="\n".join(problemi[:6]), justify="left",
@@ -1259,6 +1299,19 @@ classe Progettista(tk.Frame):
                                                                background=se_stesso.colori["pannello"],
                                                                selectcolor=se_stesso.colori["campo"],
                                                                activebackground=se_stesso.colori["pannello"]))
+        altrimenti_se tipo_.startswith("scelta:"):
+            def_ = tipo_.split(":", 1)[1].split(",")
+
+            definisci scelto(ev=Nessuno, cb=Nessuno):
+                cambia(cb.get())
+                se attributo == "aspetto":
+                    se_stesso.ricostruisci()          # l'anteprima prende i colori del tema
+            definisci crea_cb(p):
+                cb = ttk.Combobox(p, values=def_, state="readonly", width=10)
+                cb.set(getattr(f, attributo))
+                cb.bind("<<ComboboxSelected>>", lambda ev: scelto(cb=cb))
+                ritorna cb
+            aggiungi_riga(etichetta, crea_cb)
         altrimenti_se tipo_ == "colore":
             aggiungi_riga(etichetta, lambda p: se_stesso._campo_colore(p, getattr(f, attributo), cambia))
         altrimenti_se tipo_ == "numero":

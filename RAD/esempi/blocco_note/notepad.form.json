@@ -6,6 +6,7 @@
   "altezza": 400,
   "sfondo": "",
   "ridimensionabile": true,
+  "aspetto": "chiaro",
   "componenti": [
     {
       "tipo": "BarraMenu",

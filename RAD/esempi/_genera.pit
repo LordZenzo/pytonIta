@@ -198,6 +198,7 @@ definisci logica(cartella, nome_form, testo_):
 c = nuovo_esempio("calcolatrice", "Calcolatrice", "Due numeri e quattro pulsanti: somma, sottrazione, moltiplicazione e divisione.",
                   "Principiante", "Finestre", ["campi di testo e pulsanti", "gestori degli eventi", "gestire gli errori"], "calcolatrice.pit")
 f = Form("Calcolatrice", "Calcolatrice")
+f.aspetto = "chiaro"
 f.larghezza, f.altezza = 340, 230
 f.aggiungi("Etichetta", 16, 18, nome="etichetta_a", testo="Primo numero", larghezza=100)
 f.aggiungi("CampoTesto", 124, 16, nome="campo_a", larghezza=190, altezza=28)
@@ -262,6 +263,7 @@ se __nome__ == "__main__":
 c = nuovo_esempio("convertitore_temperature", "Convertitore di temperature", "Scrivi i gradi Celsius e vedi subito Fahrenheit e Kelvin.",
                   "Principiante", "Finestre", ["calcoli con i decimali", "formattare i numeri", "tasto Invio"], "temperature.pit")
 f = Form("Temperature", "Convertitore di temperature")
+f.aspetto = "verde"
 f.larghezza, f.altezza = 360, 220
 f.aggiungi("Etichetta", 16, 20, nome="etichetta_c", testo="Gradi Celsius:", larghezza=110)
 f.aggiungi("CampoTesto", 132, 18, nome="campo_celsius", larghezza=120, altezza=28, al_invio="converti_clic")
@@ -312,6 +314,7 @@ se __nome__ == "__main__":
 c = nuovo_esempio("lista_della_spesa", "Lista della spesa", "Aggiungi e togli le cose da comprare: la lista resta salvata in un file di testo.",
                   "Intermedio", "Finestre", ["elenchi", "leggere e scrivere file", "ancoraggio ai bordi"], "spesa.pit")
 f = Form("Spesa", "Lista della spesa")
+f.aspetto = "chiaro"
 f.larghezza, f.altezza = 380, 400
 f.aggiungi("CampoTesto", 16, 16, nome="campo_voce", larghezza=250, altezza=28, al_invio="aggiungi_clic", ancoraggio="sd")
 f.aggiungi("Pulsante", 276, 14, nome="pulsante_aggiungi", testo="Aggiungi", larghezza=88, altezza=32, al_clic="aggiungi_clic", ancoraggio="ds")
@@ -380,6 +383,7 @@ se __nome__ == "__main__":
 c = nuovo_esempio("orologio_digitale", "Orologio digitale", "L'ora che scorre ogni secondo, con un Timer che aggiorna la scritta.",
                   "Principiante", "Finestre", ["il componente Timer", "data e ora", "cambiare il testo di un'etichetta"], "orologio.pit")
 f = Form("Orologio", "Orologio")
+f.aspetto = "scuro"
 f.larghezza, f.altezza = 360, 170
 f.sfondo = "#101820"
 f.aggiungi("Etichetta", 10, 24, nome="etichetta_ora", testo="00:00:00", larghezza=340, altezza=70, allineamento="centro", ancora="center",
@@ -418,6 +422,7 @@ se __nome__ == "__main__":
 c = nuovo_esempio("disegno_libero", "Disegno libero", "Disegna con il mouse su una tela, scegli colore e spessore.",
                   "Intermedio", "Finestre", ["la tela (Canvas)", "eventi del mouse", "menu a tendina e cursore"], "disegno.pit")
 f = Form("Disegno", "Disegno libero")
+f.aspetto = "chiaro"
 f.larghezza, f.altezza = 560, 420
 f.aggiungi("Etichetta", 10, 12, nome="etichetta_colore", testo="Colore", larghezza=50)
 f.aggiungi("CasellaCombinata", 62, 10, nome="colore_scelto", larghezza=110, altezza=26, valori=["nero", "rosso", "blu", "verde", "arancione"], valore="nero", al_selezione="cambia_colore")
@@ -478,6 +483,7 @@ se __nome__ == "__main__":
 c = nuovo_esempio("blocco_note", "Blocco note", "Un piccolo editor di testo con la barra dei menu (File, Modifica, Aiuto), che si adatta alla finestra.",
                   "Intermedio", "Finestre", ["la barra dei menu", "ancoraggio ai bordi", "finestre di dialogo per aprire e salvare"], "notepad.pit")
 f = Form("Notepad", "Blocco note")
+f.aspetto = "chiaro"
 f.larghezza, f.altezza = 560, 400
 f.aggiungi("BarraMenu", 10, 370, nome="barraMenu1", voci="File\n  Nuovo = nuovo_clic\n  Apri… = apri_clic\n  Salva… = salva_clic\n  -\n  Esci = esci_clic\nModifica\n  Seleziona tutto = seleziona_clic\n  Cancella tutto = cancella_clic\nAiuto\n  Informazioni = info_clic")
 f.aggiungi("AreaTesto", 8, 8, nome="area", larghezza=544, altezza=358, ancoraggio="sadb", carattere="Consolas 11")

@@ -6,6 +6,7 @@
   "altezza": 420,
   "sfondo": "",
   "ridimensionabile": true,
+  "aspetto": "chiaro",
   "componenti": [
     {
       "tipo": "Etichetta",
