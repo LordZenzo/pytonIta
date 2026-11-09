@@ -1,0 +1,110 @@
+"""Confronta l'anteprima del progettista con la finestra vera generata dal codice (schermate affiancate)."""
+importa sys, os, tempfile, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab, Image, ImageChops
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.form_modello importa Form, genera_ui_completa, TIPI
+da rad.progettista importa Progettista
+
+PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
+USCITA = os.environ.get("ANTEPRIMA_USCITA") o tempfile.mkdtemp()
+
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci apri_file(se_stesso, p): passa
+    definisci esegui_file(se_stesso, p): passa
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+
+
+f = Form("Demo", "Demo")
+f.larghezza, f.altezza = 560, 470
+f.aggiungi("Pulsante", 10, 10, testo="Invia")
+f.aggiungi("Etichetta", 130, 14, testo="Un'etichetta")
+f.aggiungi("CampoTesto", 250, 10, testo="scrivi qui")
+f.aggiungi("Pulsante", 430, 10, testo="Disattivo", stato="disabilitato")
+f.aggiungi("CasellaSelezione", 10, 50, testo="Casella", selezionata=Vero)
+f.aggiungi("PulsanteOpzione", 160, 50, testo="Opzione", selezionata=Vero)
+f.aggiungi("Cursore", 310, 44, valore=40)
+f.aggiungi("CasellaCombinata", 10, 90, valore="uno")
+f.aggiungi("BarraProgresso", 190, 94, valore=60)
+f.aggiungi("Separatore", 10, 130)
+f.aggiungi("Elenco", 10, 144, elementi=["uno", "due", "tre", "quattro"])
+f.aggiungi("AreaTesto", 160, 144, testo="Testo\ndi prova")
+f.aggiungi("Albero", 10, 280, colonne=["Nome", "Valore"])
+f.aggiungi("Tela", 270, 280)
+f.aggiungi("Riquadro", 10, 430, larghezza=120, altezza=30, rilievo="rialzato", bordo=2)
+f.aggiungi("Etichetta", 150, 436, testo="Fine", allineamento="centro", ancora="center")
+
+# ---- anteprima del progettista
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1300x700+0+0")
+configura_stile(radice, c)
+p = Progettista(radice, os.path.join(tempfile.mkdtemp(), "demo.form.json"), f, c, cfg, Az())
+p.pack(fill="both", expand=Vero)
+applica(radice, c)
+p.griglia_attiva.set(Falso)
+p._disegna_griglia()
+radice.update()
+radice.lift()
+radice.after(700, radice.quit)       # lascia finire le animazioni di Windows prima della schermata
+radice.mainloop()
+radice.update()
+s = p.superficie
+x0, y0 = s.winfo_rootx(), s.winfo_rooty()
+a = ImageGrab.grab((x0, y0, x0 + f.larghezza, y0 + f.altezza)).convert("RGB")
+a.save(os.path.join(USCITA, "anteprima.png"))
+radice.destroy()
+
+# ---- finestra vera
+cartella = tempfile.mkdtemp()
+con open(os.path.join(cartella, "demo_ui.pit"), "w", encoding="utf-8") come fl:
+    fl.write(genera_ui_completa(f))
+con open(os.path.join(cartella, "reale.pit"), "w", encoding="utf-8") come fl:
+    fl.write('''importa sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+importa interfaccia come tk
+da PIL importa ImageGrab
+da demo_ui importa DemoUI
+
+radice = tk.Finestra()
+DemoUI().costruisci_ui(radice)      # nessuno conserva l'oggetto: deve bastare quello che fa il codice generato
+radice.geometria("+0+0")
+radice.aggiorna()
+radice.lift()
+
+
+definisci scatta():
+    radice.aggiorna()
+    x, y = radice.winfo_rootx(), radice.winfo_rooty()
+    ImageGrab.grab((x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(sys.argv[1])
+    radice.distruggi()
+
+
+radice.dopo(1500, scatta)
+radice.ciclo_principale()
+''')
+reale = os.path.join(USCITA, "reale.png")
+r = subprocess.run([PITONIT, os.path.join(cartella, "reale.pit"), reale], capture_output=Vero, text=Vero, encoding="utf-8", timeout=60)
+se r.returncode:
+    stampa(r.stderr[-800:])
+b = Image.open(reale).convert("RGB")
+stampa("dimensioni anteprima / reale:", a.size, b.size)
+w, h = min(a.size[0], b.size[0]), min(a.size[1], b.size[1])
+diff = ImageChops.difference(a.crop((0, 0, w, h)), b.crop((0, 0, w, h))).convert("L")
+px = lista(diff.getdata())
+diversi = sum(1 per v in px se v > 24)
+percento = 100.0 * diversi / lunghezza(px)
+stampa("pixel diversi: %.1f%%" % percento, "| anteprima fedele (sotto il 2%):", percento < 2.0)
+# per componente
+per comp in f.componenti:
+    ritaglio = (comp.x, comp.y, min(w, comp.x + comp.larghezza), min(h, comp.y + comp.altezza))
+    d = lista(diff.crop(ritaglio).getdata())
+    stampa("  %-18s %-16s %5.1f%%" % (comp.nome, comp.tipo, 100.0 * sum(1 per v in d se v > 24) / max(1, lunghezza(d))))
+stampa("immagini in:", USCITA)

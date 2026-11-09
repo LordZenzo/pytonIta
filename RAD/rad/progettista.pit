@@ -18,8 +18,35 @@ MANIGLIE = {  # nome: (cursore, ancora_x, ancora_y)
 }
 
 
+_stili_pronti = set()
+
+
+definisci _stili_anteprima(genitore):
+    """Stili ttk chiari (aspetto di Windows) per l'anteprima: il tema scuro di PitStudio non deve cambiarla.
+    Il programma vero usa i colori predefiniti di Tk, quindi l'anteprima deve imitarli."""
+    s = ttk.Style(genitore)
+    chiave = id(s.master)
+    se chiave in _stili_pronti:
+        ritorna s
+    _stili_pronti.add(chiave)
+    carattere = ("Segoe UI", 9)
+    s.configure("Anteprima.TCombobox", fieldbackground="#ffffff", background="#ffffff", foreground="#000000",
+                arrowcolor="#555555", bordercolor="#7a7a7a", lightcolor="#ffffff", darkcolor="#ffffff", padding=2,
+                font=carattere)
+    s.map("Anteprima.TCombobox", fieldbackground=[("readonly", "#ffffff")], foreground=[("readonly", "#000000")])
+    s.configure("Anteprima.Horizontal.TProgressbar", background="#06b025", troughcolor="#e6e6e6", bordercolor="#bcbcbc",
+                lightcolor="#06b025", darkcolor="#06b025")
+    s.configure("Anteprima.Treeview", background="#ffffff", fieldbackground="#ffffff", foreground="#000000",
+                bordercolor="#828790", lightcolor="#ffffff", darkcolor="#ffffff", rowheight=20, font=carattere)
+    s.map("Anteprima.Treeview", background=[("selected", "#0078d7")], foreground=[("selected", "#ffffff")])
+    s.configure("Anteprima.Treeview.Heading", background="#ffffff", foreground="#000000", relief="flat",
+                bordercolor="#e5e5e5", lightcolor="#ffffff", darkcolor="#ffffff", font=carattere)
+    ritorna s
+
+
 definisci crea_widget_di_progetto(c, genitore, cartella):
     """Un widget vero (ma inerte) che rappresenta il componente durante il disegno."""
+    _stili_anteprima(genitore)
     v = c.valori
     t = c.tipo
     stato = "disabled" se v.get("stato") == "disabilitato" altrimenti "normal"
@@ -48,7 +75,7 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
             per voce in v.get("elementi", []):
                 w.insert("end", voce)
         altrimenti_se t == "CasellaSelezione":
-            w = tk.Checkbutton(genitore, text=v["testo"], anchor="w")
+            w = tk.Checkbutton(genitore, text=v["testo"], anchor="w")      # (il codice generato usa lo stesso anchor)
             se v.get("selezionata"):
                 w.select()
         altrimenti_se t == "PulsanteOpzione":
@@ -59,18 +86,17 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
             w = tk.Scale(genitore, from_=v["da"], to=v["a"], orient="horizontal" se v["orientamento"] == "orizzontale" altrimenti "vertical")
             w.set(v["valore"])
         altrimenti_se t == "CasellaCombinata":
-            w = ttk.Combobox(genitore, values=list(v.get("valori", [])))
+            w = ttk.Combobox(genitore, values=list(v.get("valori", [])), style="Anteprima.TCombobox")
             w.set(v.get("valore", ""))
         altrimenti_se t == "BarraProgresso":
-            w = ttk.Progressbar(genitore, maximum=max(1, v["massimo"]), value=v["valore"])
+            w = ttk.Progressbar(genitore, maximum=max(1, v["massimo"]), value=v["valore"], style="Anteprima.Horizontal.TProgressbar")
         altrimenti_se t == "Albero":
             colonne = list(v.get("colonne", []))
-            w = ttk.Treeview(genitore, columns=colonne, show="headings")
+            w = ttk.Treeview(genitore, columns=colonne, show="headings", style="Anteprima.Treeview")
             per col in colonne:
                 w.heading(col, text=col)
         altrimenti_se t == "Tela":
-            w = tk.Canvas(genitore, background=v.get("sfondo") o "#ffffff", highlightthickness=1,
-                          highlightbackground="#999999")
+            w = tk.Canvas(genitore, background=v.get("sfondo") o "#ffffff", highlightthickness=0)
         altrimenti_se t == "Riquadro":
             rilievo = {"piatto": "flat", "rialzato": "raised", "incavato": "sunken", "solido": "solid"}[v["rilievo"]]
             w = tk.Frame(genitore, relief=rilievo, borderwidth=v["bordo"], **({"background": v["sfondo"]} se v.get("sfondo") altrimenti {}))
@@ -90,7 +116,19 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
                     eccetto Eccezione:
                         passa
         altrimenti_se t == "Separatore":
-            w = ttk.Separator(genitore, orient="horizontal" se v["orientamento"] == "orizzontale" altrimenti "vertical")
+            # come il separatore di Windows: una linea grigia e una bianca affiancate, in alto (o a sinistra)
+            w = tk.Canvas(genitore, background="#f0f0f0", highlightthickness=0)
+            orizzontale = v["orientamento"] == "orizzontale"
+
+            definisci _linee(e, w=w, orizzontale=orizzontale):
+                w.delete("riga")
+                se orizzontale:
+                    w.create_line(0, 0, e.width, 0, fill="#a0a0a0", tags="riga")
+                    w.create_line(0, 1, e.width, 1, fill="#ffffff", tags="riga")
+                altrimenti:
+                    w.create_line(0, 0, 0, e.height, fill="#a0a0a0", tags="riga")
+                    w.create_line(1, 0, 1, e.height, fill="#ffffff", tags="riga")
+            w.bind("<Configure>", _linee)
         altrimenti:
             w = tk.Label(genitore, text=t)
         se carattere e t in ("Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione", "PulsanteOpzione"):
@@ -195,8 +233,9 @@ classe Progettista(tk.Frame):
         bx.pack(side="bottom", fill="x")
         by.pack(side="right", fill="y")
         se_stesso.area.pack(fill="both", expand=Vero)
-        se_stesso.superficie = tk.Canvas(se_stesso.area, highlightthickness=1, cursor="arrow")
+        se_stesso.superficie = tk.Canvas(se_stesso.area, highlightthickness=0, cursor="arrow")
         se_stesso.superficie._tema_proprio = Vero
+        se_stesso.superficie._anteprima = Vero      # i colori del tema di PitStudio non la toccano
         se_stesso.finestra_superficie = se_stesso.area.create_window(30, 30, anchor="nw", window=se_stesso.superficie)
         se_stesso.superficie.bind("<ButtonPress-1>", se_stesso._clic_superficie)
         se_stesso.superficie.bind("<Button-3>", lambda e: se_stesso._menu(e, Nessuno))
@@ -271,8 +310,12 @@ classe Progettista(tk.Frame):
     definisci _disegna_griglia(se_stesso):
         s = se_stesso.superficie
         s.delete("griglia")
-        s.configure(background=se_stesso.form.sfondo o "#f0f0f0", highlightbackground=se_stesso.colori["bordo"],
-                    width=se_stesso.form.larghezza, height=se_stesso.form.altezza)
+        s.configure(background=se_stesso.form.sfondo o "#f0f0f0", width=se_stesso.form.larghezza, height=se_stesso.form.altezza)
+        # bordo della finestra, disegnato fuori dalla superficie così i componenti restano alle posizioni vere
+        se_stesso.area.delete("bordo_finestra")
+        se_stesso.area.create_rectangle(29, 29, 31 + se_stesso.form.larghezza, 31 + se_stesso.form.altezza,
+                                        outline=se_stesso.colori["bordo"], tags="bordo_finestra")
+        se_stesso.area.tag_lower("bordo_finestra")
         se se_stesso.griglia_attiva.get():
             colore = "#c8c8c8" se (se_stesso.form.sfondo o "#f0f0f0") >= "#808080" altrimenti "#555555"
             per x in intervallo(0, se_stesso.form.larghezza, GRIGLIA * 2):

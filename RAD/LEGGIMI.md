@@ -16,6 +16,12 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.18
+
+- **Anteprima del progettista fedele alla finestra vera**: prima i componenti ereditavano i colori scuri di PitStudio (pulsanti piatti, campi scuri, barra di avanzamento blu) e si discostavano molto dal programma in esecuzione. Ora l'anteprima ha l'aspetto predefinito di Windows, uguale alla finestra generata. Misurato confrontando le schermate: i pixel diversi sono scesi dal 58,8 % allo 0,3 % (restano piccole differenze nelle frecce della casella combinata, nella barra di avanzamento e nelle intestazioni dell'albero, che nel programma vero usano il tema nativo di Windows). Test: `tests/prova_anteprima.pit`.
+- **Caselle e opzioni**: nella finestra vera ora sono allineate a sinistra come nell'anteprima (prima erano centrate). Le caselle già spuntate all'avvio restano spuntate anche se nessuno conserva l'oggetto della finestra (errore dell'avvio generato).
+- Il bordo della finestra in anteprima non sposta più i componenti di un pixel.
+
 ## Novità della 1.17
 
 - **Suggerimenti (tooltip) su tutti i pulsanti**: oltre alla barra principale, ora li hanno anche la barra delle mattonelle, il progettista (compresi «Griglia» e «Allinea»), la console, il debug (con i tasti rapidi), la ricerca nell'editor, l'albero del progetto, le barre di immagini e JSON e la chat con l'assistente. Il fumetto compare dopo mezzo secondo e resta sempre dentro lo schermo. Per i programmatori: `rad.stile.suggerisci(widget, testo)`.

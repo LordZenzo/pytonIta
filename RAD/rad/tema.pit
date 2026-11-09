@@ -93,6 +93,8 @@ definisci configura_stile(radice, c, carattere_ui=("Segoe UI", 10)):
 
 definisci applica(widget, c):
     """Colora ricorsivamente i widget tk classici (i ttk usano gli stili)."""
+    se getattr(widget, "_anteprima", Falso):
+        ritorna      # l'anteprima di una finestra mantiene l'aspetto che avrà la finestra vera
     cl = widget.winfo_class()
     prova:
         se cl in ("Frame", "Toplevel", "Tk", "Labelframe"):

@@ -253,6 +253,7 @@ definisci genera_ui(form):
     r.append(f"    definisci costruisci_ui(se_stesso, radice, cartella=Nessuno):")
     r.append('        """Crea tutti i componenti dentro \'radice\'."""')
     r.append("        se_stesso.radice = radice")
+    r.append("        radice._interfaccia_ui = se_stesso     # tiene vive le variabili delle caselle anche se nessuno conserva l'oggetto")
     r.append("        se_stesso.cartella = cartella o os.path.dirname(os.path.abspath(__file__))")
     r.append(f"        radice.titolo({_lit(form.titolo)})")
     r.append(f'        radice.geometria("{form.larghezza}x{form.altezza}")')
@@ -332,7 +333,7 @@ definisci _codice_componente(c):
             r.append(f"{ind}{nome_att}.associa('<<ListboxSelect>>', {gestore('al_selezione')})")
     altrimenti_se c.tipo == "CasellaSelezione":
         r.append(f"{ind}se_stesso.var_{n} = tk.VariabileBooleana(value={_lit(bool(v.get('selezionata')))})")
-        o = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{n}"] + opz
+        o = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{n}", "anchor='w'"] + opz
         se gestore("al_clic"):
             o.append(f"comando={gestore('al_clic')}")
         r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
@@ -340,7 +341,7 @@ definisci _codice_componente(c):
         g = v.get("gruppo") o "gruppo1"
         r.append(f"{ind}se non hasattr(se_stesso, 'var_{g}'):")
         r.append(f"{ind}    se_stesso.var_{g} = tk.VariabileTesto(value='')")
-        o = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{g}", f"value={_lit(v['valore'])}"] + opz
+        o = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{g}", f"value={_lit(v['valore'])}", "anchor='w'"] + opz
         se gestore("al_clic"):
             o.append(f"comando={gestore('al_clic')}")
         r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
@@ -435,7 +436,7 @@ definisci genera_logica(form):
     r.append("")
     r.append('se __nome__ == "__main__":')
     r.append("    radice = tk.Finestra()")
-    r.append(f"    {cl}(radice)")
+    r.append(f"    finestra = {cl}(radice)")
     r.append("    radice.ciclo_principale()")
     ritorna "\n".join(r).rstrip() + "\n"
 
