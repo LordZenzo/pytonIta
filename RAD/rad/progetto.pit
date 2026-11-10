@@ -578,21 +578,51 @@ classe PannelloProgetto(tk.Frame):
                 se_stesso.albero.item(n, open=Vero)
                 se_stesso._carica_figli(n)
 
+    definisci _inserisci_voce(se_stesso, nodo, relativo, nome_, e_cartella):
+        rel = f"{relativo}/{nome_}" se relativo altrimenti nome_
+        p = se_stesso.progetto.assoluto(rel)
+        se e_cartella:
+            icona = ICONE["cartella"]
+        altrimenti:
+            icona = ICONE.get(tipo_file(p), "📄")
+        testo_ = f"{icona}  {nome_}"
+        se rel == se_stesso.progetto.principale:
+            testo_ += "   ★"
+        n = se_stesso.albero.insert(nodo, "end", text=testo_, values=(rel, "d" se e_cartella altrimenti "f"))
+        se_stesso._nodi[rel] = n
+        se e_cartella:
+            se_stesso.albero.insert(n, "end", text="…", values=("", "ph"))
+        ritorna n
+
     definisci _riempi(se_stesso, nodo, relativo):
-        per nome_, e_cartella in se_stesso.progetto.elenca(relativo):
-            rel = f"{relativo}/{nome_}" se relativo altrimenti nome_
-            p = se_stesso.progetto.assoluto(rel)
-            se e_cartella:
-                icona = ICONE["cartella"]
-            altrimenti:
-                icona = ICONE.get(tipo_file(p), "📄")
-            testo_ = f"{icona}  {nome_}"
-            se rel == se_stesso.progetto.principale:
-                testo_ += "   ★"
-            n = se_stesso.albero.insert(nodo, "end", text=testo_, values=(rel, "d" se e_cartella altrimenti "f"))
-            se_stesso._nodi[rel] = n
-            se e_cartella:
-                se_stesso.albero.insert(n, "end", text="…", values=("", "ph"))
+        elenco = se_stesso.progetto.elenca(relativo)
+        file_ = {n per n, c in elenco se non c}
+        # una finestra disegnata (disegno + almeno un file di codice) è un solo nodo che si apre sui suoi file
+        gruppi = {}
+        per n in sorted(file_):
+            se n.endswith(".form.json"):
+                base = n[:-len(".form.json")]
+                membri = [x per x in (base + ".form.json", base + "_ui.pit", base + ".pit") se x in file_]
+                se base e lunghezza(membri) >= 2:
+                    per x in membri:
+                        gruppi[x] = (base, membri)
+        fatti = set()
+        per nome_, e_cartella in elenco:
+            se nome_ in gruppi:
+                base, membri = gruppi[nome_]
+                se base in fatti:
+                    continua
+                fatti.add(base)
+                rel_json = f"{relativo}/{base}.form.json" se relativo altrimenti base + ".form.json"
+                testo_ = f"{ICONE['form']}  {base}"
+                se se_stesso.progetto.principale in [f"{relativo}/{x}" se relativo altrimenti x per x in membri]:
+                    testo_ += "   ★"
+                g = se_stesso.albero.insert(nodo, "end", text=testo_, values=(rel_json, "g"))
+                se_stesso._nodi["@" + rel_json] = g
+                per x in membri:
+                    se_stesso._inserisci_voce(g, relativo, x, Falso)
+                continua
+            se_stesso._inserisci_voce(nodo, relativo, nome_, e_cartella)
 
     definisci _carica_figli(se_stesso, nodo):
         figli = se_stesso.albero.get_children(nodo)
@@ -614,6 +644,11 @@ classe PannelloProgetto(tk.Frame):
         rel, tipo_ = se_stesso.albero.item(nodo, "values")[:2]
         ritorna rel, tipo_ == "d"
 
+    definisci _e_gruppo(se_stesso):
+        """Vero se il nodo scelto è una finestra disegnata (il nodo che contiene i suoi tre file)."""
+        nodo = se_stesso.albero.focus()
+        ritorna bool(nodo) e se_stesso.albero.item(nodo, "values")[1:2] == ("g",)
+
     definisci _cartella_di_destinazione(se_stesso):
         rel, e_cartella = se_stesso._selezionato()
         se e_cartella:
@@ -624,6 +659,8 @@ classe PannelloProgetto(tk.Frame):
         rel, e_cartella = se_stesso._selezionato()
         se rel e non e_cartella:
             se_stesso.azioni.apri_file(se_stesso.progetto.assoluto(rel))
+            se se_stesso._e_gruppo():
+                ritorna "break"            # sul nodo della finestra il doppio clic apre il progettista, non apre né chiude il nodo
 
     # --- menu contestuale
     definisci _menu_contestuale(se_stesso, e):
@@ -634,9 +671,13 @@ classe PannelloProgetto(tk.Frame):
         se non se_stesso.progetto:
             ritorna
         rel, e_cartella = se_stesso._selezionato()
+        gruppo = se_stesso._e_gruppo()
         m = se_stesso.menu
         m.delete(0, "end")
-        se rel e non e_cartella:
+        se gruppo:
+            m.add_command(label="Apri nel progettista", command=se_stesso._doppio_clic)
+            m.add_separator()
+        altrimenti_se rel e non e_cartella:
             m.add_command(label="Apri", command=se_stesso._doppio_clic)
             m.add_command(label="Imposta come file principale ★", command=se_stesso.imposta_principale)
             se rel.lower().endswith(".pit"):
@@ -651,8 +692,8 @@ classe PannelloProgetto(tk.Frame):
         m.add_command(label="Aggiungi risorse (immagini, json, …)…", command=se_stesso.aggiungi_risorse)
         se rel:
             m.add_separator()
-            m.add_command(label="Rinomina…   F2", command=se_stesso.rinomina)
-            m.add_command(label="Elimina   Canc", command=se_stesso.cancella)
+            m.add_command(label="Rinomina la finestra…   F2" se gruppo altrimenti "Rinomina…   F2", command=se_stesso.rinomina)
+            m.add_command(label="Elimina la finestra…   Canc" se gruppo altrimenti "Elimina   Canc", command=se_stesso.cancella)
             m.add_command(label="Mostra in Esplora risorse", command=se_stesso.mostra_in_esplora)
         m.add_separator()
         m.add_command(label="Aggiorna", command=se_stesso.aggiorna)
@@ -718,7 +759,8 @@ classe PannelloProgetto(tk.Frame):
         rel, e_cartella = se_stesso._selezionato()
         se non rel:
             ritorna
-        gruppo = [] se e_cartella altrimenti se_stesso.progetto.gruppo_finestra(rel)
+        # sul nodo della finestra si rinominano insieme i tre file; su un file singolo (anche dentro la finestra) solo quello
+        gruppo = se_stesso.progetto.gruppo_finestra(rel) se se_stesso._e_gruppo() altrimenti []
         se gruppo:
             se_stesso._rinomina_finestra(rel, gruppo)
             ritorna
@@ -762,7 +804,7 @@ classe PannelloProgetto(tk.Frame):
         rel, e_cartella = se_stesso._selezionato()
         se non rel:
             ritorna
-        gruppo = [] se e_cartella altrimenti se_stesso.progetto.gruppo_finestra(rel)
+        gruppo = se_stesso.progetto.gruppo_finestra(rel) se se_stesso._e_gruppo() altrimenti []
         se gruppo:
             nome = se_stesso.progetto._base_finestra(rel)[1]
             da_eliminare = DialogoGruppoFinestra(se_stesso, nome, gruppo).mostra()

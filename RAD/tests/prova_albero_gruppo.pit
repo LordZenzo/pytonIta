@@ -1,0 +1,156 @@
+"""Pannello Progetto: una finestra disegnata è un solo nodo che si apre sui suoi tre file; Elimina e Rinomina agiscono sul gruppo solo dal nodo."""
+importa sys, os, tempfile, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox, simpledialog
+errori_mostrati = []
+messagebox.showwarning = lambda *a, **k: errori_mostrati.append(a)
+messagebox.showerror = lambda *a, **k: errori_mostrati.append(a)
+risposta_si = [Vero]
+messagebox.askyesno = lambda *a, **k: risposta_si[0]
+nomi_dati = []
+simpledialog.askstring = lambda *a, **k: nomi_dati.pop(0) se nomi_dati altrimenti Nessuno
+da rad importa progetto
+da rad.config importa Configurazione
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+classe Azioni:
+    definisci __inizializza__(se_stesso):
+        se_stesso.aperti = []
+        se_stesso.eliminati = []
+        se_stesso.rinominati = []
+        se_stesso.schede = {}
+
+    definisci apri_file(se_stesso, p): se_stesso.aperti.append(p)
+    definisci file_eliminato(se_stesso, p): se_stesso.eliminati.append(p)
+    definisci file_rinominato(se_stesso, v, n): se_stesso.rinominati.append((v, n))
+    definisci salva_tutto(se_stesso): passa
+    definisci info(se_stesso, m): passa
+
+
+cart = tempfile.mkdtemp()
+p = progetto.Progetto(cart)
+per nome in ("scheda.form.json", "scheda_ui.pit", "scheda.pit", "sola.form.json", "altro.pit", "sotto/ok.form.json", "sotto/ok.pit", "b.pit"):
+    p.crea_file(nome, '{"nome": "x", "componenti": []}' se nome.endswith(".json") altrimenti "x = 1\n")
+p.imposta_principale("scheda.pit")
+
+radice = tk.Tk()
+azioni = Azioni()
+pannello = progetto.PannelloProgetto(radice, azioni, Configurazione(os.path.join(tempfile.mkdtemp(), "c.json")))
+pannello.pack(fill="both", expand=Vero)
+pannello.imposta_progetto(p)
+radice.update()
+albero = pannello.albero
+
+
+definisci voci(nodo=""):
+    ritorna [(albero.item(n, "text"), albero.item(n, "values")[:2]) per n in albero.get_children(nodo)]
+
+
+radice_ = voci()
+testi = [t per t, _ in radice_]
+stampa(testi)
+verifica(lunghezza(radice_) == 6, "voci in radice: " + str(testi))     # sotto/, altro, b, progetto.rad.json, scheda (gruppo), sola.form.json
+gruppo = [n per n in albero.get_children("") se albero.item(n, "values")[1] == "g"]
+verifica(lunghezza(gruppo) == 1 e "scheda" in albero.item(gruppo[0], "text") e "★" in albero.item(gruppo[0], "text"), "un solo nodo finestra, con la stella del principale")
+g = gruppo[0]
+figli = [albero.item(n, "text") per n in albero.get_children(g)]
+verifica([t.split("  ", 1)[1].split(" ")[0] per t in figli] == ["scheda.form.json", "scheda_ui.pit", "scheda.pit"], "i tre file sotto il nodo: " + str(figli))
+verifica(non any("scheda" in t per t in testi se t.endswith(".pit") o t.endswith(".json")), "i file della finestra non compaiono anche in radice")
+verifica(any("sola.form.json" in t per t in testi), "un disegno senza codice resta una riga singola")
+verifica(albero.item(g, "values")[0] == "scheda.form.json", "il nodo vale come il suo disegno")
+verifica(pannello._nodi.get("@scheda.form.json") == g, "il nodo è tra i nodi ricordati")
+
+# la cartella contiene a sua volta una finestra
+cartella_ = [n per n in albero.get_children("") se albero.item(n, "values")[1] == "d"][0]
+albero.item(cartella_, open=Vero)
+pannello._carica_figli(cartella_)
+radice.update()
+sotto = voci(cartella_)
+verifica(lunghezza(sotto) == 1 e sotto[0][1][1] == "g", "anche dentro una cartella: " + str(sotto))
+
+# doppio clic sul nodo: apre il progettista (il disegno) e non apre né chiude il nodo
+albero.focus(g)
+albero.selection_set(g)
+verifica(pannello._e_gruppo(), "il nodo è riconosciuto come finestra")
+esito = pannello._doppio_clic()
+verifica(esito == "break" e azioni.aperti[-1] == p.assoluto("scheda.form.json"), "doppio clic sul nodo apre il disegno: " + str(azioni.aperti))
+# doppio clic su un figlio: apre quel file
+figlio_ui = albero.get_children(g)[1]
+albero.focus(figlio_ui)
+albero.selection_set(figlio_ui)
+verifica(non pannello._e_gruppo(), "un figlio non è il nodo finestra")
+pannello._doppio_clic()
+verifica(azioni.aperti[-1] == p.assoluto("scheda_ui.pit"), "doppio clic su un figlio apre il file")
+
+# Aggiorna ricorda il nodo aperto
+albero.item(g, open=Vero)
+pannello.aggiorna()
+radice.update()
+g2 = pannello._nodi["@scheda.form.json"]
+verifica(albero.item(g2, "open"), "dopo Aggiorna il nodo resta aperto")
+albero.item(g2, open=Falso)
+
+# Elimina su un figlio: solo quel file, con la conferma di sempre
+figlio_ui = albero.get_children(g2)[1]
+albero.focus(figlio_ui)
+risposta_si[0] = Vero
+pannello.cancella()
+verifica(non os.path.exists(p.assoluto("scheda_ui.pit")), "il figlio è stato eliminato")
+verifica(os.path.exists(p.assoluto("scheda.pit")) e os.path.exists(p.assoluto("scheda.form.json")), "gli altri due file restano")
+verifica(azioni.eliminati == [p.assoluto("scheda_ui.pit")], "solo uno segnalato: " + str(azioni.eliminati))
+
+# Rinomina su un figlio: solo quel file
+nomi_dati.append("logica.pit")
+g2 = pannello._nodi["@scheda.form.json"]
+albero.focus(albero.get_children(g2)[1])
+pannello.rinomina()
+verifica(os.path.exists(p.assoluto("logica.pit")) e non os.path.exists(p.assoluto("scheda.pit")) e os.path.exists(p.assoluto("scheda.form.json")), "rinominato il solo file")
+os.rename(p.assoluto("logica.pit"), p.assoluto("scheda.pit"))
+p.crea_file("scheda_ui.pit", "y = 2\n")
+pannello.aggiorna()
+
+# Elimina sul nodo: il dialogo con le spunte; qui si lascia il codice (due file su tre)
+classe_dialogo = progetto.DialogoGruppoFinestra
+viste = []
+
+
+definisci finto(se_stesso):
+    viste.append(se_stesso._voci)
+    se_stesso.destroy()
+    ritorna ["scheda.form.json", "scheda_ui.pit"]
+
+
+classe_dialogo.mostra = finto
+g2 = pannello._nodi["@scheda.form.json"]
+albero.focus(g2)
+albero.selection_set(g2)
+pannello.cancella()
+verifica(lunghezza(viste) == 1 e [r per r, _ in viste[0]] == ["scheda.form.json", "scheda_ui.pit", "scheda.pit"], "il dialogo mostra i tre file: " + str(viste))
+verifica(non os.path.exists(p.assoluto("scheda.form.json")) e non os.path.exists(p.assoluto("scheda_ui.pit")) e os.path.exists(p.assoluto("scheda.pit")), "eliminati i due scelti, il terzo resta")
+verifica("@scheda.form.json" non in pannello._nodi, "senza il disegno il nodo non c'è più")
+
+# Rinomina sul nodo: i tre file insieme
+p.crea_file("scheda.form.json", '{"nome": "Scheda", "componenti": []}')
+p.crea_file("scheda_ui.pit", "classe SchedaUI:\n    passa\n")
+p.crea_file("scheda.pit", "da scheda_ui importa SchedaUI\nclasse Scheda(SchedaUI):\n    passa\n")
+pannello.aggiorna()
+g3 = pannello._nodi["@scheda.form.json"]
+albero.focus(g3)
+albero.selection_set(g3)
+nomi_dati.append("Nuova")
+pannello.rinomina()
+verifica(all(os.path.exists(p.assoluto(n)) per n in ("nuova.form.json", "nuova_ui.pit", "nuova.pit")), "i tre file rinominati")
+verifica("@nuova.form.json" in pannello._nodi, "il nodo ha il nome nuovo")
+
+radice.destroy()
+shutil.rmtree(cart, ignore_errors=Vero)
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")
