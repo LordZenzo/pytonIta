@@ -145,6 +145,7 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
         altrimenti_se t == "BarraNavigazione":
             w = tk.Canvas(genitore, background="#f0f0f0", highlightthickness=0)
             _disegna_barra(w, v)
+            w.bind("<Configure>", lambda e, w=w, v=v: _disegna_barra(w, v))
         altrimenti_se non e_visivo(t):
             w = tk.Label(genitore, text=f"{TIPI[t]['icona']} {c.nome}", relief="raised", borderwidth=1, background="#fff3bf", foreground="#4a3b00",
                          anchor="w", font=(FONT_UI, 8))
@@ -166,21 +167,41 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
 
 
 definisci _disegna_barra(w, v):
-    """Anteprima della barra di navigazione: i pulsanti scelti, «1 / 25» e la casella di ricerca."""
-    x = 2
+    """Anteprima della barra di navigazione uguale a quella in esecuzione: le misure si prendono da pulsanti veri (stesso font, stessi margini).
+    Pulsanti e «1 / 25» a sinistra, la ricerca (casella, Cerca, Tutti) a destra."""
+    w.delete("all")
+    altezza = max(w.winfo_height(), 34)
+
+    definisci misura(widget):
+        widget.update_idletasks()
+        misure = (widget.winfo_reqwidth(), widget.winfo_reqheight(), widget.cget("font") se widget.winfo_class() != "Entry" altrimenti "")
+        widget.destroy()
+        ritorna misure
+
+    definisci pulsante(x, testo_, larghezza, h, font):
+        y = (altezza - h) / 2
+        w.create_rectangle(x, y, x + larghezza - 1, y + h - 1, fill="#e1e1e1", outline="#adadad")
+        w.create_text(x + larghezza / 2, altezza / 2, text=testo_, font=font, fill="#000000")
+
+    x = 0
     per k in form_modello.PULSANTI_BARRA:
         se non v.get(k, k non in form_modello.PULSANTI_FACOLTATIVI):
             continua
         testo_ = form_modello.TESTI_BARRA[k]
-        larghezza = 30 se k in ("primo", "precedente", "successivo", "ultimo") altrimenti 12 + 7 * lunghezza(testo_)
-        w.create_rectangle(x, 3, x + larghezza, 29, fill="#e1e1e1", outline="#adadad")
-        w.create_text(x + larghezza / 2, 16, text=testo_, font=(FONT_UI, 9), fill="#000000")
-        x += larghezza + 4
+        lw, h, font = misura(tk.Button(w, text=testo_, width=3 se k in ("primo", "precedente", "successivo", "ultimo") altrimenti 0, padx=8, pady=3))
+        pulsante(x, testo_, lw, h, font)
+        x += lw + 4
     se v.get("posizione", Vero):
-        w.create_text(x + 6, 16, text="1 / 25", anchor="w", font=(FONT_UI, 9), fill="#000000")
+        lw, h, font = misura(tk.Label(w, text="1 / 25", anchor="w"))
+        w.create_text(x + 6, altezza / 2, text="1 / 25", anchor="w", font=font, fill="#000000")
     se v.get("cerca"):
-        w.create_rectangle(x + 70, 4, x + 160, 28, fill="#ffffff", outline="#7a7a7a")
-        w.create_text(x + 168, 16, text="Cerca", anchor="w", font=(FONT_UI, 9), fill="#000000")
+        fine = max(w.winfo_width(), x + 200)
+        per testo_ in ("Tutti", "Cerca"):
+            lw, h, font = misura(tk.Button(w, text=testo_, padx=8, pady=3))
+            pulsante(fine - lw, testo_, lw, h, font)
+            fine -= lw + 4
+        lw, h, _f = misura(tk.Entry(w, width=14))
+        w.create_rectangle(fine - lw, (altezza - h) / 2, fine - 1, (altezza + h) / 2 - 1, fill="#ffffff", outline="#7a7a7a")
 
 
 NOMI_ALLINEAMENTO = {"w": "sinistra", "center": "centro", "e": "destra"}
@@ -1016,6 +1037,24 @@ classe Progettista(tk.Frame):
             se_stesso.cronologia.pop(0)
         se_stesso.indice_cronologia = lunghezza(se_stesso.cronologia) - 1
         se_stesso._segna_modificato(Vero)
+        se_stesso._anteprima_dal_vivo()
+
+    definisci _anteprima_dal_vivo(se_stesso):
+        """Se la finestra è in prova (▶ Prova) la riavvia poco dopo l'ultima modifica, così l'anteprima segue il progettista."""
+        se non getattr(se_stesso.azioni, "prova_in_corso", Nessuno) o non se_stesso.azioni.prova_in_corso(se_stesso.percorso_logica()):
+            ritorna
+        se getattr(se_stesso, "_lavoro_prova", Nessuno):
+            se_stesso.after_cancel(se_stesso._lavoro_prova)
+        se_stesso._lavoro_prova = se_stesso.after(800, se_stesso._riavvia_prova)
+
+    definisci _riavvia_prova(se_stesso):
+        se_stesso._lavoro_prova = Nessuno
+        prova:
+            se se_stesso.azioni.prova_in_corso(se_stesso.percorso_logica()):
+                se_stesso.salva()
+                se_stesso.azioni.riavvia_prova(se_stesso.percorso_logica())
+        eccetto (tk.TclError, OSError):
+            passa
 
     definisci _segna_modificato(se_stesso, valore):
         se se_stesso.modificato != valore:
@@ -1038,6 +1077,7 @@ classe Progettista(tk.Frame):
         se_stesso.ricostruisci()
         se_stesso.seleziona([n per n in nomi se se_stesso.form.trova(n)])
         se_stesso._segna_modificato(Vero)
+        se_stesso._anteprima_dal_vivo()
 
     definisci elimina_selezionati(se_stesso):
         se non se_stesso.selezione_:

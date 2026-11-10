@@ -1,0 +1,45 @@
+"""Anteprima dal vivo: se la finestra è in prova, ogni modifica nel progettista la riavvia (salvando prima); se non è in prova non fa niente."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.form_modello importa Form
+da rad.progettista importa Progettista
+
+classe Az:
+    in_prova = Falso
+    riavvii = []
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+    definisci prova_in_corso(se_stesso, percorso): ritorna se_stesso.in_prova
+    definisci riavvia_prova(se_stesso, percorso): se_stesso.riavvii.append(os.path.basename(percorso))
+
+cfg = Configurazione(os.path.join(os.environ.get("TEMP", "/tmp"), "rad_prova_config.json"))
+c = colori(cfg)
+radice = tk.Tk()
+configura_stile(radice, c)
+d = tempfile.mkdtemp()
+f = Form("Demo", "Demo")
+az = Az()
+p = Progettista(radice, os.path.join(d, "demo.form.json"), f, c, cfg, az)
+p.pack(fill="both", expand=Vero)
+applica(radice, c)
+radice.update()
+
+definisci attendi(ms):
+    radice.after(ms, radice.quit)
+    radice.mainloop()
+
+p.aggiungi_componente("Pulsante", 10, 10)
+attendi(1200)
+stampa("non in prova -> riavvii:", az.riavvii)
+az.in_prova = Vero
+p.imposta_proprieta("pulsante1", "testo", "A")
+p.imposta_proprieta("pulsante1", "testo", "B")
+p.sposta_selezione(5, 0)
+attendi(1500)
+stampa("in prova, tre modifiche ravvicinate -> riavvii:", az.riavvii, "| file salvato:", os.path.exists(os.path.join(d, "demo.form.json")))
+radice.destroy()

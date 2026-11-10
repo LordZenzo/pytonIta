@@ -3,6 +3,7 @@ importa copy
 importa json
 importa os
 importa re
+importa shutil
 
 # Tipi di componenti: classe tkinter (in italiano), modulo, proprietà con valori predefiniti
 # proprietà: nome -> (tipo, predefinito, descrizione). tipo: testo | numero | si_no | scelta:a,b | colore |
@@ -491,6 +492,20 @@ definisci genera_ui(form):
         r.append(f"        applica_aspetto(radice, {_lit(form.aspetto)})      # prima dei componenti: i colori scritti a mano restano")
     r.append(f"        radice.titolo({_lit(form.titolo)})")
     r.append(f'        radice.geometria("{form.larghezza}x{form.altezza}")')
+    r.append('        _pos = os.environ.get("PITSTUDIO_ANTEPRIMA")      # solo con ▶ Prova di PitStudio: la finestra riappare dove l\'avevi lasciata')
+    r.append("        se _pos:")
+    r.append("            prova:")
+    r.append(f'                radice.geometry("{form.larghezza}x{form.altezza}" + open(_pos).read().strip())')
+    r.append("            eccetto (OSError, tk.TclError):")
+    r.append("                passa")
+    r.append("            definisci _ricorda(e, _pos=_pos):")
+    r.append("                se e.widget è radice e radice.winfo_x() > -10000:")
+    r.append("                    prova:")
+    r.append('                        con open(_pos, "w") come f:')
+    r.append('                            f.write(f"+{radice.winfo_x()}+{radice.winfo_y()}")')
+    r.append("                    eccetto OSError:")
+    r.append("                        passa")
+    r.append('            radice.bind("<Configure>", _ricorda, add="+")')
     r.append(f"        radice.ridimensionabile({_lit(form.ridimensionabile)}, {_lit(form.ridimensionabile)})")
     se form.sfondo:
         r.append(f"        radice.configura(sfondo={_lit(form.sfondo)})")
@@ -875,14 +890,19 @@ MODELLO_FONTE_DATI = os.path.join(CARTELLA_MODELLI, "fonte_dati.pit")
 
 
 definisci copia_fonte_dati(cartella, scritti=Nessuno):
-    """Mette nel progetto fonte_dati.pit; sostituisce una copia vecchia (senza i componenti collegati) con quella nuova."""
+    """Mette nel progetto fonte_dati.pit; se la copia è diversa da quella di PitStudio (più vecchia: per esempio senza i pulsanti Conferma e Annulla tutto)
+    la sostituisce, tenendo la vecchia come fonte_dati.pit.bak."""
     destinazione = os.path.join(cartella, "fonte_dati.pit")
     se non os.path.exists(MODELLO_FONTE_DATI):
         ritorna
     se os.path.exists(destinazione):
-        con open(destinazione, encoding="utf-8") come f:
-            se "classe Collegamento" in f.read():
-                ritorna
+        con open(MODELLO_FONTE_DATI, encoding="utf-8", newline="") come f:
+            nuova = "".join(f.read().splitlines())
+        con open(destinazione, encoding="utf-8", newline="") come f:
+            vecchia = "".join(f.read().splitlines())
+        se vecchia == nuova:
+            ritorna
+        shutil.copyfile(destinazione, destinazione + ".bak")
     con open(MODELLO_FONTE_DATI, encoding="utf-8") come sorgente, open(destinazione, "w", encoding="utf-8", newline="\n") come f:
         f.write(sorgente.read())
     se scritti è non Nessuno:

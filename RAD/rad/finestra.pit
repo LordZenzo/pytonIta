@@ -1,5 +1,6 @@
 """Finestra principale di PitStudio: unisce progetti, editor, progettista, console e chat."""
 importa json
+importa hashlib
 importa os
 importa re
 importa shlex
@@ -1021,7 +1022,32 @@ classe Applicazione:
             se isinstance(w, Editor):
                 w.cancella_errori()
         nome = os.path.basename(percorso)
-        se_stesso.console.esegui(argomenti, cartella, f"{nome}")
+        se_stesso._ultimo_eseguito = os.path.abspath(percorso)
+        # la finestra provata ricorda dove l'hai messa (anche quando la prova si riavvia da sola): il file lo scrive lei, vedi form_modello.genera_ui
+        se percorso.endswith(".pit") e os.path.exists(percorso[:-4] + ".form.json"):
+            cartella_pos = os.path.join(os.path.expanduser("~"), ".rad", "anteprima")
+            os.makedirs(cartella_pos, exist_ok=Vero)
+            os.environ["PITSTUDIO_ANTEPRIMA"] = os.path.join(cartella_pos, hashlib.sha1(os.path.abspath(percorso).lower().encode("utf-8")).hexdigest()[:16] + ".txt")
+        prova:
+            se_stesso.console.esegui(argomenti, cartella, f"{nome}")
+        infine:
+            os.environ.pop("PITSTUDIO_ANTEPRIMA", Nessuno)
+
+    definisci prova_in_corso(se_stesso, percorso):
+        """True se questo file è il programma che sta girando adesso (la prova di una finestra)."""
+        ritorna getattr(se_stesso, "_ultimo_eseguito", Nessuno) == os.path.abspath(percorso) e se_stesso.console.esecutore.in_esecuzione
+
+    definisci riavvia_prova(se_stesso, percorso):
+        """Ferma la prova e la rilancia con la finestra appena modificata."""
+        se_stesso.console.esecutore.ferma()
+        se_stesso._riavvia_quando_fermo(percorso, 40)
+
+    definisci _riavvia_quando_fermo(se_stesso, percorso, tentativi):
+        se se_stesso.console.esecutore.in_esecuzione e tentativi > 0:
+            se_stesso.radice.after(100, lambda: se_stesso._riavvia_quando_fermo(percorso, tentativi - 1))
+            ritorna
+        se non se_stesso.console.esecutore.in_esecuzione:
+            se_stesso.esegui_file(percorso)
 
     definisci ferma(se_stesso):
         se_stesso.console.ferma()

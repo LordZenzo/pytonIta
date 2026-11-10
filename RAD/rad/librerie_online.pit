@@ -33,7 +33,8 @@ definisci origine():
 
 definisci cartella_runtime():
     """La Lib di pitonit (dove stanno le librerie incluse)."""
-    ritorna os.path.dirname(os.__file__)
+    importa sysconfig
+    ritorna sysconfig.get_path("stdlib") o os.path.dirname(os.path.abspath(sysconfig.__file__))
 
 
 definisci _leggi_url(url, tempo_massimo=20):

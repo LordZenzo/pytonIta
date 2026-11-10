@@ -1,0 +1,21 @@
+"""La copia di fonte_dati.pit nel progetto si aggiorna quando è più vecchia di quella di PitStudio (e la vecchia resta come .bak)."""
+importa os
+importa sys
+importa tempfile
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+da rad importa form_modello
+
+cart = tempfile.mkdtemp()
+dest = os.path.join(cart, "fonte_dati.pit")
+con open(dest, "w", encoding="utf-8") come f:
+    f.write('classe Collegamento:\n    passa\n')
+scritti = []
+form_modello.copia_fonte_dati(cart, scritti)
+con open(dest, encoding="utf-8") come f:
+    contenuto = f.read()
+con open(form_modello.MODELLO_FONTE_DATI, encoding="utf-8") come f:
+    modello = f.read()
+stampa("aggiornata:", contenuto.splitlines() == modello.splitlines(), "| bak:", os.path.exists(dest + ".bak"), "| scritti:", lunghezza(scritti))
+scritti = []
+form_modello.copia_fonte_dati(cart, scritti)
+stampa("seconda volta (uguale, non riscrive):", scritti)

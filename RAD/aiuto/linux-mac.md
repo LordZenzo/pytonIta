@@ -26,6 +26,7 @@ La compilazione richiede da 5 a 15 minuti. Opzioni:
 - `--prefisso=/percorso` installa altrove;
 - `--scientifiche` aggiunge numpy, pandas, scipy, matplotlib, requests, reportlab, tksheet (da PyPI);
 - `--solo-pitstudio` riscrive solo PitStudio e le librerie, senza ricompilare: è quello che usa l'aggiornamento automatico.
+- `--disinstalla` toglie pytonIta: la cartella di installazione e la voce nel menu (chiede conferma, non serve il repository). Con `--tutto` toglie anche le impostazioni in `~/.rad`; i tuoi progetti non si toccano mai.
 
 Poi:
 

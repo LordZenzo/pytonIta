@@ -16,6 +16,15 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.36
+
+- **Correzione all'avvio**: l'elenco delle librerie online cercava `os.__file__`, che nell'interprete incorporato in `PitStudio.exe` non esiste: PitStudio si apriva e si chiudeva subito. Ora usa `sysconfig`.
+- **Finestre con i dati**: la copia di `fonte_dati.pit` nel progetto si aggiorna da sola al salvataggio quando è più vecchia di quella di PitStudio (la vecchia resta come `fonte_dati.pit.bak`): prima «Prova» non mostrava Conferma, Annulla tutto e il contatore. L'anteprima della barra di navigazione nel progettista ora è uguale a quella in esecuzione (ricerca a destra con «Tutti»).
+- **Anteprima dal vivo**: se una finestra è in prova (▶ Prova) e cambi qualcosa nel progettista (o annulli/ripeti), la prova si riavvia da sola dopo 0,8 secondi, con le modifiche salvate, e la finestra riappare nello stesso punto dello schermo (la finestra provata ricorda dove l'hai messa, anche tra una prova e l'altra).
+- La barra di navigazione nel progettista ha le stesse larghezze di quella in esecuzione (misurate sui pulsanti veri).
+- **Linux (Debian/Ubuntu)**: `installa.sh` controlla le dipendenze di compilazione e, se mancano, le installa da solo con `sudo apt` (chiede conferma e la password); prima si limitava a stamparti il comando.
+- **Linux e macOS**: `sh installa.sh --disinstalla` toglie pytonIta (cartella di installazione e voce nel menu, con conferma; non serve il repository); con `--tutto` anche le impostazioni in `~/.rad`. I progetti non si toccano mai.
+
 ## Novità della 1.35
 
 - **Linux (e, da provare, macOS)**: l'interprete pitonit compila con `./configure && make` (la patch aveva una sola chiamata solo Windows, `_wcsicmp`, ora corretta) e **PitStudio gira su Linux**: provato su Ubuntu 24.10 con tutti i 62 test. Nuovo `installatore/linux/installa.sh`: scarica CPython, applica la patch, compila, installa PitStudio e le librerie italiane, crea il comando `pitstudio` e la voce nel menu (opzioni `--prefisso`, `--scientifiche`, `--solo-pitstudio`). Istruzioni in `installatore/linux/LEGGIMI.md` e nella pagina della guida «pytonIta su Linux e macOS».

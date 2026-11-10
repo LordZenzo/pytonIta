@@ -41,8 +41,8 @@ altrimenti:
             trovato.append(os.path.join(radice, "chiamato.txt"))
     verifica(trovato, "lo script doveva essere eseguito")
     se trovato:
-        testo_ = open(trovato[0], encoding="utf-8").read()
-        verifica("--solo-pitstudio" in testo_ e prefisso in testo_, "argomenti passati: " + testo_)
+        testi = [open(t, encoding="utf-8").read() per t in trovato]          # (possono restarne di prove vecchie nella cartella temporanea)
+        verifica(any("--solo-pitstudio" in t e prefisso in t per t in testi), "argomenti passati: " + " | ".join(testi))
 
     # archivio senza lo script: errore chiaro
     vuoto = crea_tar("vuoto.tar.gz", [("x/leggimi.txt", "niente")])

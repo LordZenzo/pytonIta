@@ -5,6 +5,8 @@
 #   sh installa.sh --prefisso=/opt/pit  installa in un'altra cartella
 #   sh installa.sh --scientifiche       aggiunge numpy, pandas, scipy, matplotlib, requests, reportlab, tksheet
 #   sh installa.sh --solo-pitstudio     riscrive solo PitStudio e le librerie italiane (senza ricompilare: è l'aggiornamento)
+#   sh installa.sh --disinstalla        toglie pytonIta (la cartella di installazione e la voce nel menu); non serve il repository
+#   sh installa.sh --disinstalla --tutto  toglie anche le impostazioni (~/.rad); i tuoi progetti non si toccano mai
 #
 # Va lanciato dalla cartella del repository (scaricato con git clone o con «Source code» della Release).
 set -eu
@@ -15,10 +17,12 @@ RADICE="$(cd "$QUI/../.." && pwd)"
 PREFISSO="${PREFISSO:-$HOME/.local/pytonita}"
 SOLO_PITSTUDIO=0
 SCIENTIFICHE=0
+DISINSTALLA=0
+TUTTO=0
 SISTEMA="$(uname -s)"
 
 uso() {
-    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 for a in "$@"; do
@@ -26,6 +30,8 @@ for a in "$@"; do
         --prefisso=*) PREFISSO="${a#*=}" ;;
         --solo-pitstudio) SOLO_PITSTUDIO=1 ;;
         --scientifiche) SCIENTIFICHE=1 ;;
+        --disinstalla) DISINSTALLA=1 ;;
+        --tutto) TUTTO=1 ;;
         -h|--aiuto|--help) uso; exit 0 ;;
         *) echo "Opzione sconosciuta: $a"; uso; exit 2 ;;
     esac
@@ -33,6 +39,31 @@ done
 
 dica() { printf '\n==> %s\n' "$*"; }
 errore() { printf '\nERRORE: %s\n' "$*" >&2; exit 1; }
+
+# --------------------------------------------------------------------------- disinstallazione
+disinstalla() {
+    # sicurezza: si cancella solo una cartella che è davvero un'installazione di pytonIta
+    [ -x "$PREFISSO/bin/pitstudio" ] || [ -d "$PREFISSO/PitStudio" ] || errore "in $PREFISSO non c'è un'installazione di pytonIta (usa --prefisso=CARTELLA se l'hai messa altrove)."
+    case "$PREFISSO" in ""|"/"|"$HOME"|"$HOME/") errore "rifiuto di cancellare $PREFISSO." ;; esac
+    voce="${XDG_DATA_HOME:-$HOME/.local/share}/applications/pitstudio.desktop"
+    echo "Verrà tolto:"
+    echo "  $PREFISSO"
+    [ -f "$voce" ] && grep -q "^Exec=$PREFISSO/" "$voce" 2>/dev/null && echo "  $voce"
+    [ "$TUTTO" = "1" ] && echo "  $HOME/.rad (impostazioni e librerie scaricate)"
+    echo "I tuoi progetti non vengono toccati."
+    if [ -t 0 ]; then
+        printf 'Procedo? [s/N] '
+        read risposta
+        case "$risposta" in s|S|si|SI|sì|Sì) ;; *) echo "Annullato."; exit 0 ;; esac
+    fi
+    rm -rf "$PREFISSO"
+    if [ -f "$voce" ] && grep -q "^Exec=$PREFISSO/" "$voce" 2>/dev/null; then rm -f "$voce"; fi
+    [ "$TUTTO" = "1" ] && rm -rf "$HOME/.rad"
+    dica "pytonIta è stato tolto"
+    echo "Se avevi aggiunto $PREFISSO/bin al PATH in ~/.profile (o ~/.zshrc), puoi togliere quella riga."
+    exit 0
+}
+[ "$DISINSTALLA" = "1" ] && disinstalla
 
 # --------------------------------------------------------------------------- controlli
 for f in "$RADICE/RAD/rad.pit" "$RADICE/pitonit/patch/pitonit.patch" "$RADICE/librerie/moduli"; do
@@ -59,6 +90,28 @@ consiglia_pacchetti() {
         echo "  sudo pacman -S base-devel git curl tk openssl libffi zlib bzip2 sqlite xz readline"
     fi
 }
+
+# Su Debian/Ubuntu le dipendenze si installano da sole (chiede conferma e la password di amministratore)
+PACCHETTI_APT="build-essential git curl python3-tk tk-dev libssl-dev libffi-dev zlib1g-dev libbz2-dev libsqlite3-dev liblzma-dev libreadline-dev uuid-dev"
+if [ "$SOLO_PITSTUDIO" = "0" ] && [ "$SISTEMA" = "Linux" ] && command -v apt-get >/dev/null 2>&1 && command -v dpkg >/dev/null 2>&1; then
+    da_installare=""
+    for pacchetto in $PACCHETTI_APT; do
+        dpkg -s "$pacchetto" >/dev/null 2>&1 || da_installare="$da_installare $pacchetto"
+    done
+    if [ -n "$da_installare" ]; then
+        echo "Per compilare l'interprete mancano questi pacchetti:$da_installare"
+        risposta=s
+        if [ -t 0 ]; then
+            printf 'Li installo adesso con sudo apt? Ti chiederà la password. [S/n] '
+            read risposta
+        fi
+        case "$risposta" in
+            n|N|no|NO) echo "Allora installali tu con:"; echo "  sudo apt install$da_installare"; exit 1 ;;
+        esac
+        command -v sudo >/dev/null 2>&1 || errore "manca sudo: installa a mano con (da amministratore) apt install$da_installare"
+        sudo apt-get update && sudo apt-get install -y $da_installare || errore "l'installazione dei pacchetti non è riuscita."
+    fi
+fi
 
 mancano=""
 if [ "$SOLO_PITSTUDIO" = "0" ]; then
