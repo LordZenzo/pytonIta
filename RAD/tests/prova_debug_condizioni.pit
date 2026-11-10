@@ -1,0 +1,98 @@
+"""Debug: punti di arresto con condizione, dal passaggio N, punti di registrazione (messaggio); scelta del frame nella pila. Senza finestra: dialoga col runner."""
+importa sys, os, tempfile, json, subprocess, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa config
+da rad.debug importa RUNNER, INIZIO_EVENTO, FINE_EVENTO, PREFISSO_COMANDO
+
+cartella = tempfile.mkdtemp()
+programma = os.path.join(cartella, "giri.pit")
+open(programma, "w", encoding="utf-8").write('''definisci doppio(x):
+    y = x * 2
+    ritorna y
+
+
+totale = 0
+per i in intervallo(10):
+    totale = totale + doppio(i)
+    stampa("giro", i)
+stampa("fine", totale)
+''')
+PITONIT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "pitonit", "installazione", "pitonit.exe")
+
+
+definisci esegui_prova(punti, comandi, descrizione):
+    """Avvia il runner con i punti e risponde con 'comandi' (una lista di comandi per ogni sosta). Ritorna (soste, testo stampato)."""
+    f_punti = os.path.join(cartella, "punti.json")
+    json.dump(punti, open(f_punti, "w"))
+    p = subprocess.Popen([PITONIT, "-u", RUNNER, programma, "--punti", f_punti], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    soste = []
+    uscita = ""
+    buffer = ""
+    inviati = 0
+    t0 = time.time()
+    mentre time.time() - t0 < 30:
+        blocco = p.stdout.read1(4096).decode("utf-8", "replace")
+        se non blocco:
+            interrompi
+        buffer += blocco
+        mentre INIZIO_EVENTO in buffer e FINE_EVENTO in buffer:
+            i = buffer.index(INIZIO_EVENTO)
+            j = buffer.index(FINE_EVENTO, i)
+            uscita += buffer[:i]
+            ev = json.loads(buffer[i + len(INIZIO_EVENTO):j])
+            buffer = buffer[j + 1:]
+            se ev["evento"] == "fermo":
+                soste.append(ev)
+                per cmd in (comandi[inviati] se inviati < lunghezza(comandi) altrimenti ["continua"]):
+                    p.stdin.write((PREFISSO_COMANDO + cmd + "\n").encode("utf-8"))
+                p.stdin.flush()
+                inviati += 1
+            altrimenti_se ev["evento"] == "frame":
+                soste.append(ev)
+                p.stdin.write((PREFISSO_COMANDO + "continua\n").encode("utf-8"))
+                p.stdin.flush()
+        se p.poll() è non Nessuno e non blocco:
+            interrompi
+    uscita += buffer
+    prova:
+        p.wait(10)
+    eccetto Exception:
+        p.kill()
+    ritorna soste, uscita
+
+
+definisci valore(sosta, nome):
+    per v in sosta["variabili"]:
+        se v["nome"] == nome:
+            ritorna v["valore"]
+    ritorna Nessuno
+
+
+# riga 8: totale = totale + doppio(i)   (i da 0 a 9)
+soste, _ = esegui_prova({programma: [8]}, [], "semplice")
+stampa("semplice: soste =", lunghezza(soste), "| i:", [valore(s, "i") per s in soste][:4])
+
+soste, _ = esegui_prova({programma: [[8, "i == 4", 0, ""]]}, [], "condizione")
+stampa("condizione i == 4: soste =", lunghezza(soste), "| i:", [valore(s, "i") per s in soste])
+
+soste, _ = esegui_prova({programma: [[8, "i > 6", 0, ""]]}, [], "condizione maggiore")
+stampa("condizione i > 6: i:", [valore(s, "i") per s in soste])
+
+soste, _ = esegui_prova({programma: [[8, "", 3, ""]]}, [], "dal terzo passaggio")
+stampa("dal passaggio 3: prima sosta con i =", valore(soste[0], "i"), "| soste:", lunghezza(soste))
+
+soste, uscita = esegui_prova({programma: [[8, "i % 5 == 0", 0, "giro {i}, totale {totale}"]]}, [], "messaggio")
+stampa("messaggio: soste =", lunghezza(soste), "| scritto:", [r per r in uscita.splitlines() se "🔶" in r])
+
+soste, _ = esegui_prova({programma: [[8, "i ==== 3", 0, ""]]}, [], "condizione sbagliata")
+stampa("condizione non valida: ci si ferma comunque:", lunghezza(soste) > 0, "| avviso:", bool(soste[0]["avviso"]) se soste altrimenti Nessuno)
+
+soste, _ = esegui_prova({programma: [[8, "i == 2 e totale == 2", 0, ""]]}, [], "parole italiane")
+stampa("condizione con «e»: soste =", lunghezza(soste), "| i:", [valore(s, "i") per s in soste])
+
+# riga 2 (y = x * 2) dentro doppio, con la pila: scelgo il frame 1 (il modulo)
+soste, _ = esegui_prova({programma: [[2, "x == 3", 0, ""]]}, [["frame 1", "osserva [\"totale\", \"x\"]"]], "frame")
+stampa("dentro doppio: pila:", [(f["funzione"], f["riga"]) per f in soste[0]["pila"]], "| x =", valore(soste[0], "x"))
+altri = [s per s in soste se s["evento"] == "frame"]
+stampa("frame 1 (modulo): variabili ha totale:", valore(altri[0], "totale") se altri altrimenti "(nessun evento frame)", "| funzione:", altri[0]["funzione"] se altri altrimenti "")
+stampa("osservate nel frame scelto:", altri[-1]["osservate"] se altri altrimenti "")

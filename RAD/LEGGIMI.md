@@ -16,6 +16,14 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.33
+
+- **Debugger più completo**: punti di arresto **con condizione** (`i > 10`), **dal passaggio N** e **punti di registrazione** (scrivono un messaggio con `{variabili}` senza fermarsi), da un clic destro sul margine; scegliendo una riga della **pila delle chiamate** si vedono le variabili e le espressioni osservate di quella funzione; le espressioni osservate e i punti con condizione restano salvati con il progetto. Test: `tests/prova_debug_condizioni.pit`.
+- **Pannello Test**: trova da solo `test_*`, `prova_*`, `*_test` e i file in `tests/`, li esegue (tutti, i selezionati o solo i falliti) con limite di tempo e mostra ✔/✘/⏱ e l'output, con link alle righe degli errori. Test: `tests/prova_pannelli.pit`.
+- **Pannello Git**: stato, prepara/togli/annulla, commit (con differenze colorate), storia, rami, pull e push; `git init` con `.gitignore`. Logica in `rad/git_uso.pit` (test: `tests/prova_git.pit`).
+- **Pannello Pacchetti (pip)**: installa, aggiorna e toglie i pacchetti di PyPI nell'**ambiente del progetto** (`.pacchetti`, visto da tutti i programmi lanciati da PitStudio tramite `PITONIT_PERCORSI` e il nuovo `sitecustomize.py` del runtime) o nel runtime di pitonit; cerca gli aggiornamenti; scrive e installa `requirements.txt`. Test: `tests/prova_pacchetti.pit`.
+- Quattro nuove pagine della guida (debugger aggiornato, «I test del progetto», «Git», «I pacchetti Python»).
+
 ## Novità della 1.32
 
 - **Commit e rollback** per le finestre con i dati: la proprietà **Modifiche in sospeso** (`transazione`) della fonte dati lascia ogni salvataggio ed eliminazione in una transazione del database. Diventano definitivi solo con **Conferma** (`fonte1.conferma()`), si cancellano tutti con **Annulla tutto** (`fonte1.annulla_tutto()`); `fonte1.modifiche_in_sospeso()` dice quante ce ne sono. Nuovi pulsanti opzionali della barra (*Conferma*, *Annulla tutto*) e la scritta «3 / 25 · 2 non confermate»; chiudendo la finestra con modifiche in sospeso chiede se confermare, annullare o restare. SQLite e MySQL.

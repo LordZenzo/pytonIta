@@ -1,0 +1,76 @@
+"""Schermate dei pannelli Test, Git e Pacchetti (per la guida e il controllo a occhio). Uso: pitonit schermata_pannelli.pit [cartella di uscita]"""
+importa sys, os, tempfile, time, zipfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa git_uso
+
+uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(temp, "config.json"))
+radice = tk.Tk()
+radice.geometry("1400x820+10+10")
+app = Applicazione(radice, cfg)
+cart = os.path.join(temp, "Contabilita")
+Progetto.nuovo(cart, "Contabilita", "vuoto")
+p = Progetto(cart)
+p.crea_file("principale.pit", "importa calcoli\nstampa(calcoli.somma(2, 3))\n")
+p.crea_file("calcoli.pit", "definisci somma(a, b):\n    ritorna a + b\n")
+p.crea_file("tests/prova_calcoli.pit", "importa calcoli\nassert calcoli.somma(1, 2) == 3\nstampa('somma ok')\n")
+p.crea_file("tests/prova_errore.pit", "importa calcoli\nstampa(calcoli.sottrai(1, 2))\n")
+p.manifesto["principale"] = "principale.pit"
+p.salva_manifesto()
+app.apri_progetto(cart)
+app.apri_file(os.path.join(cart, "principale.pit"))
+
+
+definisci aspetta(secondi=1.2, condizione=Nessuno):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione e condizione():
+            interrompi
+        time.sleep(0.03)
+
+
+definisci foto(nome):
+    aspetta(0.4)
+    ImageGrab.grab(bbox=(10, 10, 10 + radice.winfo_width() + 10, 10 + radice.winfo_height() + 40)).save(os.path.join(uscita, nome))
+
+
+git_uso.inizializza(cart)
+git_uso._esegui(cart, ["config", "user.name", "Giulia"])
+git_uso._esegui(cart, ["config", "user.email", "giulia@example.com"])
+git_uso._esegui(cart, ["config", "commit.gpgsign", "false"])
+git_uso.prepara_tutto(cart)
+git_uso.commit(cart, "Prima versione del progetto")
+open(os.path.join(cart, "calcoli.pit"), "w", encoding="utf-8").write("definisci somma(a, b):\n    \"\"\"Somma due numeri.\"\"\"\n    ritorna a + b\n\n\ndefinisci prodotto(a, b):\n    ritorna a * b\n")
+open(os.path.join(cart, "note.txt"), "w", encoding="utf-8").write("da fare\n")
+git_uso.prepara(cart, ["calcoli.pit"])
+open(os.path.join(cart, "principale.pit"), "w", encoding="utf-8").write("importa calcoli\nstampa(calcoli.somma(2, 3), calcoli.prodotto(2, 3))\n")
+git_uso.nuovo_ramo(cart, "nuova-funzione")
+app.mostra_pannello_sinistro("git")
+aspetta(2.5, lambda: app.pannello_git.repo e app.pannello_git.voci)
+g = app.pannello_git
+g.albero.selection_set("m:principale.pit")
+aspetta(1.5)
+foto("pannello_git.png")
+
+app.mostra_pannello_sinistro("test")
+t = app.pannello_test
+t.esegui_tutti()
+aspetta(40, lambda: non t.in_corso)
+t.albero.selection_set("tests/prova_errore.pit")
+aspetta(0.8)
+foto("pannello_test.png")
+
+app.mostra_pannello_sinistro("pacchetti")
+k = app.pannello_pacchetti
+k.var_ambiente.set("Tutti i progetti (runtime di pitonit)")
+k.aggiorna()
+aspetta(25, lambda: lunghezza(k.pacchetti) > 3)
+foto("pannello_pacchetti.png")
+radice.destroy()

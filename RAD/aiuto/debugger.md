@@ -10,6 +10,18 @@ Il debugger esegue il programma sotto il tuo controllo: lo **fermi** dove vuoi, 
 - *Esegui → Togli tutti i punti di arresto* li cancella tutti.
 - I punti di arresto sono salvati con il progetto e restano alla prossima apertura.
 
+### Punti di arresto con condizione
+
+Un **clic destro** sul margine (o *Esegui → Punto di arresto con condizione…*) apre una finestra con tre campi facoltativi:
+
+| Campo | Effetto |
+|---|---|
+| **Fermati solo se** | un'espressione, anche con le parole italiane (`i > 10`, `nome == "Anna" e totale < 0`): il programma si ferma solo quando è vera. Se l'espressione dà errore, ti ferma comunque e te lo dice |
+| **Dal passaggio numero** | ignora i primi passaggi: con `100` si ferma solo dal centesimo giro di un ciclo |
+| **Scrivi il messaggio** | trasforma il punto in un **punto di registrazione**: NON si ferma, scrive il messaggio nella console e continua. Dentro il messaggio, `{i}` o `{totale}` vengono sostituiti dal valore |
+
+Il pallino è **rosso** (semplice), **arancione** (con condizione o passaggi) o **blu** (punto di registrazione). Condizioni, messaggi e le espressioni osservate restano salvati con il progetto.
+
 ## Avviare
 
 | Comando | Cosa fa |
@@ -27,7 +39,7 @@ Appare sotto l'editor quando parte il debugger.
 |---|---|
 | **Barra dei comandi** | Continua, Passo, Entra, Esci, Ferma |
 | **Variabili** | le variabili visibili nel punto in cui il programma è fermo: nome, valore, tipo |
-| **Pila delle chiamate** | l'elenco delle funzioni attive; un clic su una riga mostra quel punto nell'editor |
+| **Pila delle chiamate** | l'elenco delle funzioni attive; un clic su una riga mostra quel punto nell'editor **e le variabili e le espressioni osservate di quella funzione** (per capire con quali valori è stata chiamata) |
 | **Espressioni osservate** | scrivi un'espressione (per esempio `totale / lunghezza(voti)`) e premi Invio: il suo valore si aggiorna a ogni sosta. Per toglierla: seleziona e premi Canc |
 
 La riga in cui il programma è fermo è evidenziata di giallo e segnata con ▶ nel margine.

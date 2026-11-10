@@ -1,0 +1,165 @@
+"""Pacchetti Python (pip) per PitStudio. Due posti dove installarli:
+
+  • l'ambiente del progetto: la cartella «.pacchetti» dentro il progetto (pip install --target). I programmi lanciati da PitStudio la
+    vedono grazie a PITONIT_PERCORSI (letta da sitecustomize.py nel runtime di pitonit). Ogni progetto ha i suoi pacchetti;
+  • il runtime di pitonit: valgono per tutti i progetti.
+
+Nessuna grafica qui: la usa il pannello Pacchetti.
+"""
+importa csv
+importa json
+importa os
+importa re
+importa shutil
+importa subprocess
+
+da rad importa esecuzione
+
+CARTELLA_PROGETTO = ".pacchetti"
+FILE_REQUISITI = "requirements.txt"
+_NASCONDI = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+_RE_NOME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-\[\],<>=!~ ]*$")
+
+
+classe ErrorePacchetti(Exception):
+    """pip ha risposto con un errore (il testo è quello di pip)."""
+
+
+definisci interprete_pip(interprete):
+    """pip si lancia con la versione «console» dell'interprete (pitonitw.exe non scrive su stdout)."""
+    base = os.path.basename(interprete).lower()
+    se base.startswith("pitonitw"):
+        candidato = os.path.join(os.path.dirname(interprete), base.replace("pitonitw", "pitonit"))
+        se os.path.exists(candidato):
+            ritorna candidato
+    ritorna interprete
+
+
+definisci cartella_pacchetti(progetto_cartella):
+    ritorna os.path.join(progetto_cartella, CARTELLA_PROGETTO)
+
+
+definisci pip(interprete, argomenti, tempo=300, cartella=Nessuno):
+    """Esegue `pip <argomenti>`. Ritorna (codice, uscita, errori)."""
+    ambiente = dict(os.environ, PYTHONIOENCODING="utf-8", PIP_DISABLE_PIP_VERSION_CHECK="1", PIP_NO_INPUT="1")
+    ambiente.pop("PITONIT_PERCORSI", Nessuno)
+    prova:
+        r = subprocess.run([interprete_pip(interprete), "-m", "pip"] + lista(argomenti), capture_output=Vero, timeout=tempo, env=ambiente,
+                           cwd=cartella, creationflags=_NASCONDI)
+    eccetto OSError come errore:
+        ritorna -1, "", testo(errore)
+    eccetto subprocess.TimeoutExpired:
+        ritorna -1, "", f"pip non ha finito entro {tempo} secondi (connessione assente o lenta?)."
+    ritorna r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
+
+
+definisci _esegui(interprete, argomenti, tempo=300, cartella=Nessuno):
+    codice, uscita, errori = pip(interprete, argomenti, tempo, cartella)
+    se codice != 0:
+        solleva ErrorePacchetti(ultime_righe(errori o uscita))
+    ritorna uscita
+
+
+definisci ultime_righe(testo_, quante=12):
+    righe = [r per r in testo_.strip().splitlines() se r.strip()]
+    ritorna "\n".join(righe[-quante:]) o "(nessun messaggio)"
+
+
+definisci nome_valido(nome):
+    """Un nome di pacchetto (con eventuale versione: requests==2.31, rich>=13) senza caratteri pericolosi."""
+    nome = nome.strip()
+    se nome.lower().endswith((".whl", ".tar.gz", ".zip")) e os.path.isfile(nome):
+        ritorna Vero                         # un file di pacchetto scaricato
+    ritorna bool(nome) e bool(_RE_NOME.match(nome)) e ".." non in nome
+
+
+definisci elenca(interprete, bersaglio=Nessuno):
+    """I pacchetti installati: lista di {"nome", "versione"} in ordine alfabetico. bersaglio: cartella (.pacchetti) o Nessuno = runtime."""
+    se bersaglio e non os.path.isdir(bersaglio):
+        ritorna []
+    argomenti = ["list", "--format", "json"] + (["--path", bersaglio] se bersaglio altrimenti [])
+    prova:
+        elenco = json.loads(_esegui(interprete, argomenti, 90))
+    eccetto ValueError:
+        ritorna []
+    ritorna sorted(({"nome": x["name"], "versione": x["version"]} per x in elenco), key=lambda x: x["nome"].lower())
+
+
+definisci obsoleti(interprete, bersaglio=Nessuno):
+    """{nome minuscolo: ultima versione} dei pacchetti che hanno un aggiornamento (richiede la rete)."""
+    argomenti = ["list", "--outdated", "--format", "json"] + (["--path", bersaglio] se bersaglio altrimenti [])
+    prova:
+        elenco = json.loads(_esegui(interprete, argomenti, 180))
+    eccetto ValueError:
+        ritorna {}
+    ritorna {x["name"].lower(): x["latest_version"] per x in elenco}
+
+
+definisci installa(interprete, nome, bersaglio=Nessuno, aggiorna=Falso):
+    """Installa un pacchetto (anche «nome==versione»). Ritorna l'ultima parte dell'output di pip."""
+    se non nome_valido(nome):
+        solleva ErrorePacchetti(f"Nome non valido: «{nome}».")
+    argomenti = ["install"] + (["--upgrade"] se aggiorna altrimenti []) + (["--target", bersaglio] se bersaglio altrimenti []) + [nome.strip()]
+    se bersaglio:
+        os.makedirs(bersaglio, exist_ok=Vero)
+    ritorna ultime_righe(_esegui(interprete, argomenti, 600), 4)
+
+
+definisci installa_requisiti(interprete, file_requisiti, bersaglio=Nessuno):
+    argomenti = ["install", "-r", file_requisiti] + (["--target", bersaglio] se bersaglio altrimenti [])
+    se bersaglio:
+        os.makedirs(bersaglio, exist_ok=Vero)
+    ritorna ultime_righe(_esegui(interprete, argomenti, 900), 4)
+
+
+definisci _normalizza(nome):
+    ritorna re.sub(r"[-_.]+", "-", nome).lower()
+
+
+definisci disinstalla(interprete, nome, bersaglio=Nessuno):
+    """Toglie un pacchetto. Nel runtime usa pip; in .pacchetti cancella i file elencati nel suo RECORD."""
+    se non bersaglio:
+        _esegui(interprete, ["uninstall", "-y", nome], 120)
+        ritorna
+    voce = Nessuno
+    per n in os.listdir(bersaglio):
+        se n.endswith(".dist-info") e _normalizza(n[:-len(".dist-info")].rpartition("-")[0]) == _normalizza(nome):
+            voce = os.path.join(bersaglio, n)
+    se voce è Nessuno:
+        solleva ErrorePacchetti(f"«{nome}» non è tra i pacchetti del progetto.")
+    cartelle = set()
+    prova:
+        con open(os.path.join(voce, "RECORD"), encoding="utf-8", newline="") come f:
+            percorsi = [riga[0] per riga in csv.reader(f) se riga]           # (prima leggo tutto: su Windows un file aperto non si cancella)
+        per relativo in percorsi:
+            percorso = os.path.normpath(os.path.join(bersaglio, relativo))
+            se percorso.startswith(os.path.normpath(bersaglio) + os.sep) e os.path.isfile(percorso):
+                os.remove(percorso)
+                cartelle.add(os.path.dirname(percorso))
+    eccetto OSError come errore:
+        solleva ErrorePacchetti(testo(errore))
+    shutil.rmtree(voce, ignore_errors=Vero)
+    # toglie le cartelle rimaste vuote (dal basso)
+    per c in sorted(cartelle, key=lunghezza, reverse=Vero):
+        corrente = c
+        mentre corrente.startswith(os.path.normpath(bersaglio) + os.sep):
+            prova:
+                os.rmdir(corrente)
+            eccetto OSError:
+                interrompi
+            corrente = os.path.dirname(corrente)
+
+
+definisci scrivi_requisiti(interprete, percorso, bersaglio=Nessuno):
+    """Salva nel file l'elenco «nome==versione» dei pacchetti installati. Ritorna quanti."""
+    elenco = elenca(interprete, bersaglio)
+    con open(percorso, "w", encoding="utf-8", newline="\n") come f:
+        per x in elenco:
+            f.write(f"{x['nome']}=={x['versione']}\n")
+    ritorna lunghezza(elenco)
+
+
+definisci imposta_percorsi_progetto(progetto_cartella):
+    """Fa vedere ai programmi lanciati da PitStudio i pacchetti di .pacchetti (se la cartella c'è e non è vuota)."""
+    percorso = cartella_pacchetti(progetto_cartella) se progetto_cartella altrimenti ""
+    esecuzione.PERCORSI_PROGETTO[:] = [percorso] se percorso e os.path.isdir(percorso) altrimenti []

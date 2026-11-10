@@ -155,6 +155,21 @@
   "gruppo": "Programmare"
  },
  {
+  "id": "test-progetto",
+  "titolo": "I test del progetto",
+  "gruppo": "Programmare"
+ },
+ {
+  "id": "git",
+  "titolo": "Git: la storia del progetto",
+  "gruppo": "Programmare"
+ },
+ {
+  "id": "pacchetti",
+  "titolo": "I pacchetti Python (pip)",
+  "gruppo": "Programmare"
+ },
+ {
   "id": "progettista",
   "titolo": "Il progettista di finestre",
   "gruppo": "Costruire senza scrivere codice"

@@ -1,0 +1,361 @@
+"""Pannello «Git»: ramo, modifiche (prepara / togli / annulla), commit, storia, pull e push. La logica è in rad/git_uso.pit."""
+importa os
+importa tkinter come tk
+da tkinter importa messagebox, simpledialog, ttk
+
+da rad importa esecuzione, git_uso, stile, tema
+
+
+classe PannelloGit(tk.Frame):
+    """Il repository Git del progetto aperto."""
+
+    definisci __inizializza__(se_stesso, genitore, app):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.app = app
+        se_stesso.cartella = Nessuno
+        se_stesso.disponibile = Nessuno          # git installato? (si controlla la prima volta)
+        se_stesso.repo = Falso
+        se_stesso.voci = []
+        se_stesso.occupato = Falso
+        se_stesso.rami = []
+        se_stesso._ramo = ""
+        se_stesso.barra = tk.Frame(se_stesso)
+        se_stesso.barra.pack(fill="x")
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="Git", anchor="w", font=("Segoe UI Semibold", 10))
+        se_stesso.titolo.pack(side="left", padx=8, pady=5)
+        se_stesso.stato = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.stato.pack(side="right", padx=8)
+        # messaggio (nessun repository / git mancante / errori)
+        se_stesso.avviso_ = tk.Label(se_stesso, text="", anchor="w", justify="left", wraplength=360, font=("Segoe UI", 9))
+        se_stesso.crea = tk.Button(se_stesso, text="Crea il repository Git qui (git init)", command=se_stesso.crea_repository, relief="flat", padx=10, pady=4)
+        # ramo e sincronizzazione
+        se_stesso.riga_ramo = tk.Frame(se_stesso)
+        se_stesso.var_ramo = tk.StringVar()
+        se_stesso.scelta_ramo = ttk.Combobox(se_stesso.riga_ramo, textvariable=se_stesso.var_ramo, state="readonly", width=16)
+        se_stesso.scelta_ramo.pack(side="left", padx=(0, 4))
+        se_stesso.scelta_ramo.bind("<<ComboboxSelected>>", se_stesso._cambia_ramo)
+        se_stesso.pulsanti = {}
+        per nome, simbolo, aiuto, azione in (("nuovo_ramo", "＋", "Crea un nuovo ramo e passa a lui", se_stesso.nuovo_ramo),
+                                             ("scarica", "⬇ Pull", "Scarica le novità dal repository remoto (git pull)", se_stesso.scarica),
+                                             ("invia", "⬆ Push", "Invia i tuoi commit al repository remoto (git push)", se_stesso.invia),
+                                             ("aggiorna", "⟳", "Rilegge lo stato del repository", se_stesso.aggiorna)):
+            b = tk.Button(se_stesso.riga_ramo, text=simbolo, command=azione, relief="flat", padx=6, pady=1, font=("Segoe UI", 9))
+            b.pack(side="left", padx=(0, 3))
+            stile.suggerisci(b, aiuto)
+            se_stesso.pulsanti[nome] = b
+        # corpo: schede Modifiche / Storia sopra, differenze sotto
+        se_stesso.corpo = tk.PanedWindow(se_stesso, orient="vertical", sashwidth=4, borderwidth=0)
+        se_stesso.schede = ttk.Notebook(se_stesso.corpo)
+        se_stesso.corpo.add(se_stesso.schede, minsize=160, stretch="always", height=300)
+        # --- modifiche
+        mod = tk.Frame(se_stesso.schede)
+        se_stesso.schede.add(mod, text="Modifiche")
+        se_stesso.albero = ttk.Treeview(mod, columns=("stato",), show="tree", selectmode="extended", height=7)
+        se_stesso.albero.column("#0", width=230, stretch=Vero)
+        se_stesso.albero.column("stato", width=90, stretch=Falso, anchor="e")
+        se_stesso.albero.pack(fill="both", expand=Vero)
+        se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._scelta_voce)
+        se_stesso.albero.bind("<Double-1>", se_stesso._apri_voce)
+        riga_op = tk.Frame(mod)
+        riga_op.pack(fill="x", pady=3)
+        se_stesso.ops = {}
+        per nome, simbolo, aiuto, azione in (("prepara", "＋ Prepara", "Prepara i file scelti per il commit (git add); senza scelta, tutti", se_stesso.prepara),
+                                             ("togli", "－ Togli", "Toglie i file scelti dall'area dei file preparati", se_stesso.togli),
+                                             ("annulla", "↶ Annulla", "Butta via le modifiche dei file scelti (non si può tornare indietro)", se_stesso.annulla)):
+            b = tk.Button(riga_op, text=simbolo, command=azione, relief="flat", padx=7, pady=1, font=("Segoe UI", 9))
+            b.pack(side="left", padx=(0, 3))
+            stile.suggerisci(b, aiuto)
+            se_stesso.ops[nome] = b
+        se_stesso.messaggio_commit = tk.Text(mod, height=3, wrap="word", relief="flat", font=("Segoe UI", 9))
+        se_stesso.messaggio_commit.pack(fill="x", pady=(2, 0))
+        se_stesso.pulsante_commit = tk.Button(mod, text="✔ Commit", command=se_stesso.fai_commit, relief="flat", padx=10, pady=3, font=("Segoe UI Semibold", 9))
+        se_stesso.pulsante_commit.pack(fill="x", pady=3)
+        stile.suggerisci(se_stesso.pulsante_commit, "Registra i file preparati con il messaggio scritto sopra")
+        # --- storia
+        sto = tk.Frame(se_stesso.schede)
+        se_stesso.schede.add(sto, text="Storia")
+        se_stesso.storia = ttk.Treeview(sto, columns=("messaggio", "autore", "quando"), show="headings", selectmode="browse", height=8)
+        per col, testo_, larghezza in (("messaggio", "Messaggio", 170), ("autore", "Autore", 70), ("quando", "Quando", 90)):
+            se_stesso.storia.heading(col, text=testo_)
+            se_stesso.storia.column(col, width=larghezza, stretch=(col == "messaggio"))
+        se_stesso.storia.pack(fill="both", expand=Vero)
+        se_stesso.storia.bind("<<TreeviewSelect>>", se_stesso._scelta_commit)
+        se_stesso._commit = []
+        # --- differenze
+        se_stesso.diff = tk.Text(se_stesso.corpo, height=9, wrap="none", relief="flat", font=("Consolas", 9), state="disabled")
+        se_stesso.corpo.add(se_stesso.diff, minsize=60, stretch="always")
+        se_stesso.diff.tag_configure("piu", foreground="#3fb950")
+        se_stesso.diff.tag_configure("meno", foreground="#e5484d")
+        se_stesso.diff.tag_configure("zona", foreground="#4aa3ff")
+        se_stesso.diff.tag_configure("testata", foreground="#d99a00")
+        se_stesso._mostra_parti()
+
+    # ------------------------------------------------------------ progetto e stato
+    definisci imposta_progetto(se_stesso, progetto):
+        se_stesso.cartella = progetto.cartella se progetto altrimenti Nessuno
+        se_stesso.repo = Falso
+        se_stesso.voci = []
+        se_stesso._mostra_parti()
+
+    definisci quando_mostrato(se_stesso):
+        se_stesso.aggiorna()
+
+    definisci _mostra_parti(se_stesso, messaggio=""):
+        """Sceglie cosa far vedere: avviso + (pulsante per creare il repository) oppure il pannello completo."""
+        per w in (se_stesso.avviso_, se_stesso.crea, se_stesso.riga_ramo, se_stesso.corpo):
+            w.pack_forget()
+        se non se_stesso.cartella:
+            se_stesso.avviso_.configure(text="Apri un progetto per usare Git.")
+            se_stesso.avviso_.pack(fill="x", padx=10, pady=10)
+        altrimenti_se se_stesso.disponibile è Falso:
+            se_stesso.avviso_.configure(text="Git non è installato (o non è nel percorso di sistema).\nSi scarica da https://git-scm.com — poi riapri questo pannello.")
+            se_stesso.avviso_.pack(fill="x", padx=10, pady=10)
+        altrimenti_se non se_stesso.repo e se_stesso.disponibile:
+            se_stesso.avviso_.configure(text=messaggio o "Questa cartella non è ancora un repository Git: con Git puoi salvare la storia delle versioni del progetto.")
+            se_stesso.avviso_.pack(fill="x", padx=10, pady=(10, 4))
+            se_stesso.crea.pack(padx=10, pady=4, anchor="w")
+        altrimenti:
+            se_stesso.riga_ramo.pack(fill="x", padx=6, pady=(2, 4))
+            se_stesso.corpo.pack(fill="both", expand=Vero, padx=6)
+            se messaggio:
+                se_stesso.avviso_.configure(text=messaggio)
+                se_stesso.avviso_.pack(fill="x", padx=8, pady=(0, 4), before=se_stesso.riga_ramo)
+
+    definisci avviso(se_stesso, messaggio):
+        se_stesso._mostra_parti(messaggio)
+
+    definisci aggiorna(se_stesso):
+        se non se_stesso.cartella o se_stesso.occupato:
+            ritorna
+        cartella = se_stesso.cartella
+        se_stesso.occupato = Vero
+
+        definisci lavoro():
+            se se_stesso.disponibile è Nessuno:
+                se_stesso.disponibile = git_uso.disponibile()
+            se non se_stesso.disponibile:
+                ritorna Nessuno
+            se non git_uso.e_repository(cartella):
+                ritorna {"repo": Falso}
+            elenco, attuale = git_uso.rami(cartella)
+            ritorna {"repo": Vero, "stato": git_uso.stato(cartella), "rami": elenco, "attuale": attuale, "registro": git_uso.registro(cartella)}
+
+        definisci finito(riuscito, risultato):
+            se_stesso.occupato = Falso
+            se cartella != se_stesso.cartella:
+                ritorna
+            se non riuscito:
+                se_stesso.repo = Falso
+                se_stesso._mostra_parti(testo(risultato))
+                ritorna
+            se risultato è Nessuno:
+                se_stesso.repo = Falso
+                se_stesso._mostra_parti()
+                ritorna
+            se_stesso.repo = risultato["repo"]
+            se se_stesso.repo:
+                se_stesso._riempi(risultato)
+            se_stesso._mostra_parti()
+
+        esecuzione.in_secondo_piano(se_stesso, lavoro, finito)
+
+    definisci _riempi(se_stesso, r):
+        s = r["stato"]
+        se_stesso.voci = s["voci"]
+        se_stesso.rami = r["rami"]
+        se_stesso._ramo = r["attuale"] o s["ramo"]
+        se_stesso.scelta_ramo.configure(values=r["rami"] o [se_stesso._ramo])
+        se_stesso.var_ramo.set(se_stesso._ramo)
+        sync = ""
+        se s["avanti"]:
+            sync += f"↑{s['avanti']} "
+        se s["indietro"]:
+            sync += f"↓{s['indietro']}"
+        se_stesso.stato.configure(text=(f"{se_stesso._ramo}  {sync}").strip())
+        selezionate = set(se_stesso.albero.selection())
+        se_stesso.albero.delete(*se_stesso.albero.get_children())
+        pronte = git_uso.pronte(s["voci"])
+        altre = git_uso.da_preparare(s["voci"])
+        se pronte:
+            se_stesso.albero.insert("", "end", iid="g:pronte", text=f"Pronte per il commit ({lunghezza(pronte)})", open=Vero, tags=("gruppo",))
+            per v in pronte:
+                se_stesso.albero.insert("g:pronte", "end", iid="p:" + v["percorso"], text=v["percorso"], values=(git_uso.descrizione(v["x"], " "),))
+        se altre:
+            se_stesso.albero.insert("", "end", iid="g:mod", text=f"Modifiche ({lunghezza(altre)})", open=Vero, tags=("gruppo",))
+            per v in altre:
+                se_stesso.albero.insert("g:mod", "end", iid="m:" + v["percorso"], text=v["percorso"], values=(git_uso.descrizione(v["x"] se v["x"] == "?" altrimenti " ", v["y"]),))
+        se non pronte e non altre:
+            se_stesso.albero.insert("", "end", iid="g:niente", text="Nessuna modifica: tutto è già registrato.", tags=("gruppo",))
+        se_stesso.albero.tag_configure("gruppo", font=("Segoe UI Semibold", 9))
+        per s_ in selezionate:
+            se se_stesso.albero.exists(s_):
+                se_stesso.albero.selection_add(s_)
+        se_stesso.pulsante_commit.configure(text=f"✔ Commit ({lunghezza(pronte)})" se pronte altrimenti "✔ Commit")
+        se_stesso._commit = r["registro"]
+        se_stesso.storia.delete(*se_stesso.storia.get_children())
+        per i, c in enumera(r["registro"]):
+            se_stesso.storia.insert("", "end", iid=testo(i), values=(c["messaggio"], c["autore"], c["quando"]))
+
+    # ------------------------------------------------------------ azioni
+    definisci _lavora(se_stesso, funzione, dopo=Nessuno):
+        """Esegue un'operazione di git in secondo piano; poi rilegge lo stato. Gli errori di git appaiono nel pannello."""
+        cartella = se_stesso.cartella
+        se non cartella o se_stesso.occupato:
+            ritorna
+        se_stesso.occupato = Vero
+        se_stesso.stato.configure(text="…")
+
+        definisci finito(riuscito, risultato):
+            se_stesso.occupato = Falso
+            se cartella != se_stesso.cartella:
+                ritorna
+            messaggio = ""
+            se non riuscito:
+                messaggio = testo(risultato)
+            altrimenti_se dopo:
+                dopo(risultato)
+            se_stesso.aggiorna()
+            se messaggio:
+                se_stesso.after(300, lambda: se_stesso.avviso(messaggio))
+
+        esecuzione.in_secondo_piano(se_stesso, lambda: funzione(cartella), finito)
+
+    definisci crea_repository(se_stesso):
+        se_stesso._lavora(lambda c: git_uso.inizializza(c))
+
+    definisci _percorsi_scelti(se_stesso, prefisso):
+        ritorna [i[2:] per i in se_stesso.albero.selection() se i.startswith(prefisso)]
+
+    definisci prepara(se_stesso):
+        scelti = se_stesso._percorsi_scelti("m:")
+        se scelti:
+            se_stesso._lavora(lambda c: git_uso.prepara(c, scelti))
+        altrimenti_se "g:mod" in se_stesso.albero.selection() o non se_stesso.albero.selection():
+            se_stesso._lavora(lambda c: git_uso.prepara_tutto(c))
+
+    definisci togli(se_stesso):
+        scelti = se_stesso._percorsi_scelti("p:")
+        se non scelti e ("g:pronte" in se_stesso.albero.selection()):
+            scelti = [v["percorso"] per v in git_uso.pronte(se_stesso.voci)]
+        se scelti:
+            se_stesso._lavora(lambda c: git_uso.togli(c, scelti))
+
+    definisci annulla(se_stesso):
+        scelti = set(se_stesso._percorsi_scelti("m:"))
+        se non scelti:
+            ritorna
+        voci = [v per v in se_stesso.voci se v["percorso"] in scelti e (v["y"] != " " o v["x"] == "?")]
+        se non messagebox.askyesno("Annulla le modifiche", f"Butto via le modifiche di {lunghezza(voci)} file?\n(I file nuovi vengono eliminati. Non si può tornare indietro.)", parent=se_stesso.app.radice):
+            ritorna
+        se_stesso._lavora(lambda c: git_uso.annulla_modifiche(c, voci), dopo=lambda r: se_stesso.app.ricarica_file_cambiati())
+
+    definisci fai_commit(se_stesso):
+        messaggio = se_stesso.messaggio_commit.get("1.0", "end").strip()
+        se non git_uso.pronte(se_stesso.voci):
+            se_stesso.avviso("Prima prepara i file da registrare (＋ Prepara).")
+            ritorna
+        se non messaggio:
+            se_stesso.avviso("Scrivi il messaggio del commit.")
+            se_stesso.messaggio_commit.focus_set()
+            ritorna
+        nome, email = git_uso.identita(se_stesso.cartella)
+        se non nome o non email:
+            nome = simpledialog.askstring("Git", "Il tuo nome (apparirà nei commit):", parent=se_stesso.app.radice, initialvalue=nome)
+            se non nome:
+                ritorna
+            email = simpledialog.askstring("Git", "La tua email:", parent=se_stesso.app.radice, initialvalue=email)
+            se non email:
+                ritorna
+            prova:
+                git_uso.imposta_identita(se_stesso.cartella, nome, email)
+            eccetto git_uso.ErroreGit come errore:
+                se_stesso.avviso(testo(errore))
+                ritorna
+        se_stesso.app.salva_tutto()
+        se_stesso._lavora(lambda c: git_uso.commit(c, messaggio), dopo=lambda r: se_stesso.messaggio_commit.delete("1.0", "end"))
+
+    definisci _cambia_ramo(se_stesso, ev=Nessuno):
+        nuovo = se_stesso.var_ramo.get()
+        se nuovo e nuovo != se_stesso._ramo:
+            se_stesso.app.salva_tutto()
+            se_stesso._lavora(lambda c: git_uso.cambia_ramo(c, nuovo), dopo=lambda r: (se_stesso.app.ricarica_file_cambiati(), se_stesso.app.info(f"Ramo: {nuovo}")))
+            se_stesso.var_ramo.set(se_stesso._ramo)
+
+    definisci nuovo_ramo(se_stesso):
+        nome = simpledialog.askstring("Nuovo ramo", "Nome del nuovo ramo:", parent=se_stesso.app.radice)
+        se nome e nome.strip():
+            se_stesso._lavora(lambda c: git_uso.nuovo_ramo(c, nome.strip().replace(" ", "-")))
+
+    definisci scarica(se_stesso):
+        se_stesso.app.salva_tutto()
+        se_stesso._lavora(lambda c: git_uso.scarica(c), dopo=lambda r: (se_stesso.app.ricarica_file_cambiati(), se_stesso.app.info("Git: " + (testo(r).splitlines() o ["fatto"])[0])))
+
+    definisci invia(se_stesso):
+        ramo = se_stesso._ramo
+        se_stesso._lavora(lambda c: git_uso.invia(c, ramo), dopo=lambda r: se_stesso.app.info("Git: inviato"))
+
+    # ------------------------------------------------------------ differenze
+    definisci _scrivi_diff(se_stesso, testo_):
+        d = se_stesso.diff
+        d.configure(state="normal")
+        d.delete("1.0", "end")
+        per riga in testo_.splitlines()[:1500]:
+            etichetta = ()
+            se riga.startswith(("+++", "---", "diff ", "index ")):
+                etichetta = ("testata",)
+            altrimenti_se riga.startswith("@@"):
+                etichetta = ("zona",)
+            altrimenti_se riga.startswith("+"):
+                etichetta = ("piu",)
+            altrimenti_se riga.startswith("-"):
+                etichetta = ("meno",)
+            d.insert("end", riga + "\n", etichetta)
+        d.configure(state="disabled")
+
+    definisci _scelta_voce(se_stesso, ev=Nessuno):
+        sel = se_stesso.albero.selection()
+        se non sel o sel[0].startswith("g:"):
+            ritorna
+        iid = sel[0]
+        percorso = iid[2:]
+        preparato = iid.startswith("p:")
+        voce = Nessuno
+        per v in se_stesso.voci:
+            se v["percorso"] == percorso:
+                voce = v
+        se voce è Nessuno:
+            ritorna
+        cartella = se_stesso.cartella
+
+        definisci finito(riuscito, risultato):
+            se riuscito e se_stesso.albero.selection() == (iid,):
+                se_stesso._scrivi_diff(risultato)
+        esecuzione.in_secondo_piano(se_stesso, lambda: git_uso.differenze(cartella, voce, preparato), finito)
+
+    definisci _scelta_commit(se_stesso, ev=Nessuno):
+        sel = se_stesso.storia.selection()
+        se non sel:
+            ritorna
+        c = se_stesso._commit[int(sel[0])]
+        cartella = se_stesso.cartella
+
+        definisci finito(riuscito, risultato):
+            se riuscito:
+                se_stesso._scrivi_diff(risultato)
+        esecuzione.in_secondo_piano(se_stesso, lambda: git_uso.dettaglio_commit(cartella, c["hash"]), finito)
+
+    definisci _apri_voce(se_stesso, ev=Nessuno):
+        sel = se_stesso.albero.selection()
+        se sel e non sel[0].startswith("g:") e se_stesso.cartella:
+            percorso = os.path.join(se_stesso.cartella, sel[0][2:])
+            se os.path.isfile(percorso):
+                se_stesso.app.apri_file(percorso)
+
+    definisci applica_colori(se_stesso, c):
+        tema.applica(se_stesso, c)
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.stato.configure(foreground=c["tenue"])
+        se_stesso.avviso_.configure(foreground=c["avviso"])
+        se_stesso.diff.configure(background=c["sfondo"], foreground=c["primo_piano"])
+        se_stesso.pulsante_commit.configure(background=c["accento"], foreground="#ffffff", activebackground=c["accento"])
+        se_stesso.crea.configure(background=c["accento"], foreground="#ffffff", activebackground=c["accento"])

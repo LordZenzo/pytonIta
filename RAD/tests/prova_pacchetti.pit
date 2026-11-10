@@ -1,0 +1,61 @@
+"""Pacchetti (pip): installa da un wheel locale (senza rete) in .pacchetti del progetto, elenca, usa dal programma, disinstalla, requirements."""
+importa sys, os, tempfile, zipfile, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa pacchetti_uso come pk, esecuzione
+da rad.config importa Configurazione
+
+cartella = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella, "config.json"))
+interprete = cfg.interprete()
+stampa("interprete per pip:", os.path.basename(pk.interprete_pip(interprete)))
+
+
+definisci crea_wheel(cartella, nome, versione, codice):
+    """Un wheel minimo scritto a mano (così la prova non ha bisogno della rete)."""
+    file_wheel = os.path.join(cartella, f"{nome}-{versione}-py3-none-any.whl")
+    info = f"{nome}-{versione}.dist-info"
+    con zipfile.ZipFile(file_wheel, "w") come z:
+        z.writestr(f"{nome}/__init__.py", codice)
+        z.writestr(f"{info}/METADATA", f"Metadata-Version: 2.1\nName: {nome}\nVersion: {versione}\n")
+        z.writestr(f"{info}/WHEEL", "Wheel-Version: 1.0\nGenerator: prova\nRoot-Is-Purelib: true\nTag: py3-none-any\n")
+        z.writestr(f"{info}/RECORD", f"{nome}/__init__.py,,\n{info}/METADATA,,\n{info}/WHEEL,,\n{info}/RECORD,,\n")
+    ritorna file_wheel
+
+
+w = crea_wheel(cartella, "saluto_prova", "1.0", "def ciao():\n    return 'ciao dal pacchetto'\n")
+progetto = os.path.join(cartella, "progetto")
+os.makedirs(progetto)
+bersaglio = pk.cartella_pacchetti(progetto)
+stampa("nomi validi:", pk.nome_valido("requests"), pk.nome_valido("rich>=13"), pk.nome_valido("x; rm -rf"), pk.nome_valido("--index-url=http://x"), pk.nome_valido(""))
+stampa("elenco prima (cartella assente):", pk.elenca(interprete, bersaglio))
+stampa("installa:", pk.installa(interprete, w, bersaglio) != "" o Vero)
+stampa("elenco dopo:", pk.elenca(interprete, bersaglio))
+
+# il programma lo usa grazie a PITONIT_PERCORSI
+open(os.path.join(progetto, "usa.pit"), "w", encoding="utf-8").write("importa saluto_prova\nstampa(saluto_prova.ciao())\n")
+pk.imposta_percorsi_progetto(progetto)
+stampa("percorsi del progetto:", [os.path.basename(x) per x in esecuzione.PERCORSI_PROGETTO])
+r = esecuzione.esegui_sincrono([interprete, "-u", os.path.join(progetto, "usa.pit")], progetto, 60)
+stampa("il programma vede il pacchetto:", r["uscita"].strip(), "| codice:", r["codice"])
+pk.imposta_percorsi_progetto(Nessuno)
+r = esecuzione.esegui_sincrono([interprete, "-u", os.path.join(progetto, "usa.pit")], progetto, 60)
+stampa("senza i percorsi non lo vede:", r["codice"] != 0)
+
+# requirements
+f_req = os.path.join(progetto, "requirements.txt")
+stampa("requirements scritto:", pk.scrivi_requisiti(interprete, f_req, bersaglio), open(f_req).read().strip())
+# disinstalla
+pk.disinstalla(interprete, "saluto_prova", bersaglio)
+stampa("dopo disinstalla: elenco:", pk.elenca(interprete, bersaglio), "| resta il pacchetto sul disco:", os.path.exists(os.path.join(bersaglio, "saluto_prova")))
+# reinstalla da requirements.txt locale (con il wheel come riferimento)
+open(f_req, "w").write(w + "\n")
+pk.installa_requisiti(interprete, f_req, bersaglio)
+stampa("da requirements:", pk.elenca(interprete, bersaglio))
+prova:
+    pk.disinstalla(interprete, "non_esiste", bersaglio)
+eccetto pk.ErrorePacchetti come errore:
+    stampa("pacchetto assente:", errore)
+prova:
+    pk.installa(interprete, "pacchetto_inesistente_zzz_9", bersaglio)
+eccetto pk.ErrorePacchetti come errore:
+    stampa("errore di pip riportato:", lunghezza(testo(errore)) > 0)

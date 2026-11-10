@@ -27,6 +27,10 @@ da rad importa maschera_dati
 da rad.database_ui importa VisoreDatabase, DialogoMysql
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
+da rad.pannello_test importa PannelloTest
+da rad.pannello_git importa PannelloGit
+da rad.pannello_pacchetti importa PannelloPacchetti
+da rad importa pacchetti_uso
 da rad importa barra come barra_mod
 da rad.progetto importa Progetto, PannelloProgetto, tipo_file
 da rad.risorse importa crea_visore
@@ -53,6 +57,7 @@ classe Applicazione:
         se_stesso.schede = {}            # percorso assoluto -> widget della scheda
         se_stesso.storia = Nessuno       # Storia delle modifiche dell'assistente del progetto aperto
         se_stesso.punti_arresto = {}     # percorso assoluto -> insieme di righe con punto di arresto (debugger)
+        se_stesso.dettagli_punti = {}    # percorso assoluto -> {riga: {"se", "dopo", "messaggio"}} (punti con condizione)
         se_stesso.debug = SessioneDebug(se_stesso)
         se_stesso._sintassi = {}         # widget -> id del lavoro programmato
         se_stesso.ponte = PonteUI(radice)
@@ -118,13 +123,20 @@ classe Applicazione:
         se_stesso.corpo_sinistra.pack(fill="both", expand=Vero)
         se_stesso.pannello_progetto = PannelloProgetto(se_stesso.corpo_sinistra, se_stesso, se_stesso.config_)
         se_stesso.pannello_librerie = PannelloLibrerie(se_stesso.corpo_sinistra, se_stesso)
+        se_stesso.pannello_test = PannelloTest(se_stesso.corpo_sinistra, se_stesso)
+        se_stesso.pannello_git = PannelloGit(se_stesso.corpo_sinistra, se_stesso)
+        se_stesso.pannello_pacchetti = PannelloPacchetti(se_stesso.corpo_sinistra, se_stesso)
         se_stesso.pulsanti_sinistra = {}
-        per chiave, testo_ in (("progetto", "📁  Progetto"), ("librerie", "📚  Librerie")):
-            b = tk.Label(se_stesso.schede_sinistra, text=testo_, padx=12, pady=6, cursor="hand2", font=("Segoe UI", 9))
+        AIUTI_SCHEDE = {"progetto": "Mostra i file e le cartelle del progetto",
+                        "librerie": "Mostra le librerie: spunta per aggiungere l'importazione al file aperto",
+                        "test": "Test: trova ed esegue le prove del progetto e ne mostra l'esito",
+                        "git": "Git: modifiche, commit, rami, storia, pull e push",
+                        "pacchetti": "Pacchetti Python (pip): installa e aggiorna le librerie del progetto"}
+        per chiave, testo_ in (("progetto", "📁  Progetto"), ("librerie", "📚  Librerie"), ("test", "Test"), ("git", "Git"), ("pacchetti", "Pip")):
+            b = tk.Label(se_stesso.schede_sinistra, text=testo_, padx=10 se chiave in ("progetto", "librerie") altrimenti 8, pady=6, cursor="hand2", font=("Segoe UI", 9))
             b.pack(side="left")
             b.bind("<Button-1>", lambda e, k=chiave: se_stesso.mostra_pannello_sinistro(k))
-            stile.suggerisci(b, "Mostra i file e le cartelle del progetto" se chiave == "progetto" altrimenti
-                             "Mostra le librerie: spunta per aggiungere l'importazione al file aperto", c)
+            stile.suggerisci(b, AIUTI_SCHEDE[chiave], c)
             se_stesso.pulsanti_sinistra[chiave] = b
         se_stesso.pannello_sinistro = "progetto"
         se_stesso.mostra_pannello_sinistro("progetto")
@@ -139,7 +151,7 @@ classe Applicazione:
         centro.add(se_stesso.schede_nb, minsize=200, stretch="always")
         centro.add(se_stesso.console, minsize=90, height=se_stesso.config_.ottieni("finestra.console_altezza", 190))
         se_stesso.chat = PannelloChat(se_stesso.corpo, se_stesso.config_, se_stesso.colori, se_stesso, se_stesso.ponte)
-        se_stesso.corpo.add(sinistra, minsize=160, width=se_stesso.config_.ottieni("finestra.pannello_sinistro", 270))
+        se_stesso.corpo.add(sinistra, minsize=160, width=se_stesso.config_.ottieni("finestra.pannello_sinistro", 320))
         se_stesso.corpo.add(centro, minsize=400, stretch="always")
         se_stesso.corpo.add(se_stesso.chat, minsize=280, width=se_stesso.config_.ottieni("finestra.pannello_destro", 430))
         se_stesso._benvenuto = Nessuno
@@ -294,6 +306,7 @@ classe Applicazione:
         esegui.add_command(label="Debug: avvia il file principale", command=se_stesso.debug_avvia, accelerator="F6")
         esegui.add_command(label="Debug: avvia passo passo dalla prima riga", command=lambda: se_stesso.debug_avvia(Vero))
         esegui.add_command(label="Punto di arresto sulla riga corrente", command=se_stesso.alterna_punto_arresto, accelerator="F9")
+        esegui.add_command(label="Punto di arresto con condizione…", command=se_stesso.punto_arresto_condizionale)
         esegui.add_command(label="Passo (sopra le chiamate)", command=lambda: se_stesso.debug.comando("passo"), accelerator="F10")
         esegui.add_command(label="Entra nella funzione", command=lambda: se_stesso.debug.comando("entra"), accelerator="F11")
         esegui.add_command(label="Esci dalla funzione", command=lambda: se_stesso.debug.comando("esci"), accelerator="Maiusc+F11")
@@ -408,6 +421,9 @@ classe Applicazione:
         se_stesso.schede_sinistra.configure(background=c["pannello"])
         se_stesso.corpo_sinistra.configure(background=c["pannello"])
         se_stesso.pannello_librerie.applica_colori(c)
+        se_stesso.pannello_test.applica_colori(c)
+        se_stesso.pannello_git.applica_colori(c)
+        se_stesso.pannello_pacchetti.applica_colori(c)
         se_stesso.mostra_pannello_sinistro(se_stesso.pannello_sinistro)
         se_stesso.pannello_progetto.configure(background=c["pannello"])
         se_stesso.pannello_progetto.barra.configure(background=c["pannello"])
@@ -446,21 +462,26 @@ classe Applicazione:
     definisci mostra_pannello_sinistro(se_stesso, chiave):
         """Passa dai file del progetto all'elenco delle librerie (e viceversa)."""
         se_stesso.pannello_sinistro = chiave
-        pannelli = {"progetto": se_stesso.pannello_progetto, "librerie": se_stesso.pannello_librerie}
+        pannelli = {"progetto": se_stesso.pannello_progetto, "librerie": se_stesso.pannello_librerie, "test": se_stesso.pannello_test,
+                    "git": se_stesso.pannello_git, "pacchetti": se_stesso.pannello_pacchetti}
         per k, w in pannelli.items():
             w.pack_forget()
         pannelli[chiave].pack(fill="both", expand=Vero)
-        # l'elenco delle librerie ha bisogno di più spazio per le descrizioni
+        # librerie, test, git e pacchetti hanno bisogno di più spazio (descrizioni, differenze, colonne)
+        necessaria = {"librerie": 430, "test": 380, "git": 400, "pacchetti": 400}.get(chiave)
         prova:
             larghezza = se_stesso.corpo.sash_coord(0)[0]
-            se chiave == "librerie" e larghezza < 420:
-                se_stesso._larghezza_precedente = larghezza
-                se_stesso.corpo.sash_place(0, 430, 1)
+            se necessaria e larghezza < necessaria - 10:
+                se non getattr(se_stesso, "_larghezza_precedente", Nessuno):
+                    se_stesso._larghezza_precedente = larghezza
+                se_stesso.corpo.sash_place(0, necessaria, 1)
             altrimenti_se chiave == "progetto" e getattr(se_stesso, "_larghezza_precedente", Nessuno):
                 se_stesso.corpo.sash_place(0, se_stesso._larghezza_precedente, 1)
                 se_stesso._larghezza_precedente = Nessuno
         eccetto (tk.TclError, IndexError):
             passa
+        se chiave in ("git", "pacchetti") e hasattr(pannelli[chiave], "quando_mostrato"):
+            pannelli[chiave].quando_mostrato()
         c = se_stesso.colori
         per k, b in se_stesso.pulsanti_sinistra.items():
             attivo = k == chiave
@@ -582,6 +603,9 @@ classe Applicazione:
         se_stesso.config_.aggiungi_recente(cartella)
         se_stesso.pannello_progetto.imposta_progetto(se_stesso.progetto)
         se_stesso.pannello_librerie.imposta_progetto(se_stesso.progetto)
+        se_stesso.pannello_test.imposta_progetto(se_stesso.progetto)
+        se_stesso.pannello_git.imposta_progetto(se_stesso.progetto)
+        se_stesso.pannello_pacchetti.imposta_progetto(se_stesso.progetto)
         se_stesso.radice.title(f"{se_stesso.progetto.nome} — {NOME}")
         se_stesso.testo_progetto.configure(text=f"📦 {se_stesso.progetto.nome}")
         se_stesso._aggiorna_recenti()
@@ -626,12 +650,16 @@ classe Applicazione:
             os.makedirs(os.path.dirname(f), exist_ok=Vero)
             con open(f, "w", encoding="utf-8") come fl:
                 json.dump({"aperti": aperti, "attivo": se_stesso.progetto.relativo(attivo) se attivo e se_stesso.progetto.contiene(attivo) altrimenti "",
-                           "punti_arresto": {se_stesso.progetto.relativo(p): sorted(r) per p, r in se_stesso.punti_arresto.items() se se_stesso.progetto.contiene(p) e r}}, fl)
+                           "punti_arresto": {se_stesso.progetto.relativo(p): sorted(r) per p, r in se_stesso.punti_arresto.items() se se_stesso.progetto.contiene(p) e r},
+                           "punti_dettagli": {se_stesso.progetto.relativo(p): {testo(r): d per r, d in dd.items() se r in se_stesso.punti_arresto.get(p, ())}
+                                              per p, dd in se_stesso.dettagli_punti.items() se se_stesso.progetto.contiene(p) e dd},
+                           "osservate": lista(se_stesso.debug.osservate)}, fl)
         eccetto OSError:
             passa
 
     definisci ripristina_sessione(se_stesso):
         se_stesso.punti_arresto = {}
+        se_stesso.dettagli_punti = {}
         f = se_stesso._file_sessione()
         prova:
             con open(f, encoding="utf-8") come fl:
@@ -640,6 +668,9 @@ classe Applicazione:
             ritorna
         se_stesso.punti_arresto = {os.path.abspath(os.path.join(se_stesso.progetto.cartella, rel)): set(righe)
                                    per rel, righe in d.get("punti_arresto", {}).items()}
+        per rel, dd in d.get("punti_dettagli", {}).items():
+            se_stesso.dettagli_punti[os.path.abspath(os.path.join(se_stesso.progetto.cartella, rel))] = {int(r): x per r, x in dd.items()}
+        se_stesso.debug.osservate = [x per x in d.get("osservate", []) se isinstance(x, str)]
         per rel in d.get("aperti", []):
             p = os.path.join(se_stesso.progetto.cartella, rel)
             se os.path.exists(p):
@@ -719,6 +750,7 @@ classe Applicazione:
                         w.app = se_stesso
                         w.fornitore_doc = se_stesso.documentazione_di
                         w.punti_arresto = set(se_stesso.punti_arresto.get(os.path.abspath(percorso), ()))
+                        w.dettagli_punti = dict(se_stesso.dettagli_punti.get(os.path.abspath(percorso), {}))
                         w.sui_punti_arresto = se_stesso._cambio_punti_arresto
             eccetto (OSError, ValueError, KeyError) come errore:
                 messagebox.showerror("Errore", f"Impossibile aprire {os.path.basename(percorso)}:\n{errore}", parent=se_stesso.radice)
@@ -919,6 +951,11 @@ classe Applicazione:
         se w:
             w.alterna_punto_arresto()
 
+    definisci punto_arresto_condizionale(se_stesso):
+        w = se_stesso._editor_corrente()
+        se w:
+            w.modifica_punto_arresto()
+
     definisci _cambio_punti_arresto(se_stesso, editor):
         se editor.percorso:
             percorso = os.path.abspath(editor.percorso)
@@ -926,13 +963,19 @@ classe Applicazione:
                 se_stesso.punti_arresto[percorso] = set(editor.punti_arresto)
             altrimenti:
                 se_stesso.punti_arresto.pop(percorso, Nessuno)
+            se editor.dettagli_punti:
+                se_stesso.dettagli_punti[percorso] = dict(editor.dettagli_punti)
+            altrimenti:
+                se_stesso.dettagli_punti.pop(percorso, Nessuno)
         se_stesso.salva_sessione()
 
     definisci togli_punti_arresto(se_stesso):
         se_stesso.punti_arresto.clear()
+        se_stesso.dettagli_punti.clear()
         per w in se_stesso.schede.values():
             se isinstance(w, Editor):
                 w.punti_arresto = set()
+                w.dettagli_punti = {}
                 w._ridisegna_numeri()
         se_stesso.salva_sessione()
 
@@ -1650,6 +1693,16 @@ classe Applicazione:
         se non getattr(se_stesso, "_claude_code_attivo", Falso):
             se_stesso._claude_code_attivo = Vero
             se_stesso._sincronizza_file_aperti()
+
+    definisci ricarica_file_cambiati(se_stesso):
+        """Rilegge i file aperti cambiati sul disco (dopo un cambio di ramo, un pull o un annulla di Git) e aggiorna l'elenco dei file."""
+        per w in lista(se_stesso.schede.values()):
+            se isinstance(w, Editor):
+                prova:
+                    w.ricarica_se_cambiato_su_disco()
+                eccetto Exception:
+                    passa
+        se_stesso.pannello_progetto.aggiorna()
 
     definisci _sincronizza_file_aperti(se_stesso):
         """Rilegge i file aperti cambiati su disco da un programma esterno (Claude Code) e tiene aggiornato «Annulla»."""

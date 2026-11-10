@@ -18,6 +18,19 @@ _RE_LINK = re.compile(r'File "([^"]+)", (?:riga|line) (\d+)')
 _FLAG_NASCONDI = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
+PERCORSI_PROGETTO = []        # cartelle dei pacchetti del progetto (.pacchetti): i programmi lanciati da PitStudio le vedono (via sitecustomize di pitonit)
+
+
+definisci ambiente_base():
+    """L'ambiente dei programmi lanciati: UTF-8, output subito, e i pacchetti del progetto in PITONIT_PERCORSI."""
+    ambiente = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
+    se PERCORSI_PROGETTO:
+        ambiente["PITONIT_PERCORSI"] = os.pathsep.join(PERCORSI_PROGETTO)
+    altrimenti:
+        ambiente.pop("PITONIT_PERCORSI", Nessuno)
+    ritorna ambiente
+
+
 definisci controlla_sintassi(sorgente, nome_file="<editor>", linguaggio=Nessuno):
     """None se il codice è valido, altrimenti (riga, colonna, messaggio).
 
@@ -50,7 +63,7 @@ definisci esegui_sincrono(argomenti, cartella=Nessuno, tempo_massimo=60, ingress
     """Esegue un comando e ne cattura l'output. Ritorna un dizionario.
 
     limiti: (memoria_mb, processi) oppure Nessuno (vedi rad.limiti)."""
-    ambiente = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
+    ambiente = ambiente_base()
     inizio = time.time()
     prova:
         p = subprocess.Popen(argomenti, cwd=cartella, stdin=subprocess.PIPE se ingresso è non Nessuno altrimenti subprocess.DEVNULL,
@@ -73,6 +86,34 @@ definisci esegui_sincrono(argomenti, cartella=Nessuno, tempo_massimo=60, ingress
     infine:
         se limite:
             limite.chiudi()
+
+
+definisci in_secondo_piano(widget, funzione, quando_finito):
+    """Esegue funzione() in un thread senza bloccare la grafica; poi chiama quando_finito(riuscito, risultato_o_errore) nel thread della grafica."""
+    coda = queue.Queue()
+
+    definisci lavora():
+        prova:
+            coda.put((Vero, funzione()))
+        eccetto Exception come errore:
+            coda.put((Falso, errore))
+
+    definisci controlla():
+        prova:
+            riuscito, risultato = coda.get_nowait()
+        eccetto queue.Empty:
+            prova:
+                widget.after(80, controlla)
+            eccetto tk.TclError:
+                passa
+            ritorna
+        prova:
+            quando_finito(riuscito, risultato)
+        eccetto tk.TclError:
+            passa           # il pannello è stato chiuso nel frattempo
+
+    threading.Thread(target=lavora, daemon=Vero).start()
+    widget.after(80, controlla)
 
 
 definisci termina_albero(p):
@@ -102,7 +143,7 @@ classe Esecutore:
     definisci avvia(se_stesso, argomenti, cartella=Nessuno, limiti=Nessuno):
         se se_stesso.in_esecuzione:
             solleva ErroreDiEsecuzione("un programma è già in esecuzione")
-        ambiente = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUNBUFFERED="1")
+        ambiente = ambiente_base()
         se_stesso.processo = subprocess.Popen(argomenti, cwd=cartella, stdin=subprocess.PIPE,
                                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                               env=ambiente, creationflags=_FLAG_NASCONDI)

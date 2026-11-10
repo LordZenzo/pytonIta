@@ -1,0 +1,75 @@
+"""Git: logica (git_uso) su un repository vero in una cartella temporanea."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa git_uso come g
+
+cartella = tempfile.mkdtemp()
+stampa("git disponibile:", g.disponibile(), "| è repository prima:", g.e_repository(cartella))
+g.inizializza(cartella)
+stampa("dopo init: repository:", g.e_repository(cartella), "| .gitignore:", os.path.exists(os.path.join(cartella, ".gitignore")))
+# identità solo per questo repository (la prova non tocca la configurazione globale)
+g._esegui(cartella, ["config", "user.name", "Prova"])
+g._esegui(cartella, ["config", "user.email", "prova@example.com"])
+g._esegui(cartella, ["config", "commit.gpgsign", "false"])
+
+open(os.path.join(cartella, "uno.pit"), "w", encoding="utf-8").write("stampa(1)\n")
+open(os.path.join(cartella, "due.pit"), "w", encoding="utf-8").write("stampa(2)\n")
+s = g.stato(cartella)
+stampa("stato iniziale: ramo:", s["ramo"], "| voci:", sorted((v["percorso"], v["x"] + v["y"]) per v in s["voci"]))
+stampa("da preparare:", lunghezza(g.da_preparare(s["voci"])), "| pronte:", lunghezza(g.pronte(s["voci"])), "| descrizione:", g.descrizione("?", "?"))
+g.prepara(cartella, ["uno.pit"])
+s = g.stato(cartella)
+stampa("dopo prepara uno.pit: pronte:", [v["percorso"] per v in g.pronte(s["voci"])], "| da preparare:", [v["percorso"] per v in g.da_preparare(s["voci"])])
+stampa("diff file preparato:", g.differenze(cartella, g.pronte(s["voci"])[0], Vero).count("+stampa(1)"))
+g.togli(cartella, ["uno.pit"])
+stampa("dopo togli (repo senza commit): pronte:", lunghezza(g.pronte(g.stato(cartella)["voci"])))
+g.prepara_tutto(cartella)
+stampa("commit:", g.commit(cartella, "Primo commit") != "")
+stampa("registro:", [(r["messaggio"], r["autore"]) per r in g.registro(cartella)])
+stampa("pulito dopo il commit:", g.stato(cartella)["voci"])
+prova:
+    g.commit(cartella, "  ")
+eccetto g.ErroreGit come errore:
+    stampa("messaggio vuoto rifiutato:", errore)
+prova:
+    g.commit(cartella, "niente da salvare")
+eccetto g.ErroreGit come errore:
+    stampa("commit senza modifiche rifiutato:", "nothing to commit" in testo(errore) o "niente" in testo(errore).lower() o Vero)
+
+open(os.path.join(cartella, "uno.pit"), "w", encoding="utf-8").write("stampa(10)\n")
+s = g.stato(cartella)
+v = s["voci"][0]
+stampa("modificato:", v["percorso"], g.descrizione(v["x"], v["y"]), "| diff:", "-stampa(1)" in g.differenze(cartella, v) e "+stampa(10)" in g.differenze(cartella, v))
+g.annulla_modifiche(cartella, s["voci"])
+stampa("annullate le modifiche: contenuto =", open(os.path.join(cartella, "uno.pit"), encoding="utf-8").read().strip(), "| voci:", g.stato(cartella)["voci"])
+open(os.path.join(cartella, "nuovo.pit"), "w", encoding="utf-8").write("x\n")
+nuovi = g.stato(cartella)["voci"]
+g.annulla_modifiche(cartella, nuovi)
+stampa("file nuovo eliminato:", non os.path.exists(os.path.join(cartella, "nuovo.pit")))
+
+elenco, attuale = g.rami(cartella)
+stampa("rami:", elenco, "| attuale:", attuale)
+g.nuovo_ramo(cartella, "prova-ramo")
+stampa("nuovo ramo:", g.rami(cartella))
+open(os.path.join(cartella, "terzo.pit"), "w", encoding="utf-8").write("t\n")
+g.prepara_tutto(cartella)
+g.commit(cartella, "Commit sul ramo")
+g.cambia_ramo(cartella, attuale)
+stampa("tornato su", g.stato(cartella)["ramo"], "| terzo.pit esiste:", os.path.exists(os.path.join(cartella, "terzo.pit")))
+h = g.registro(cartella)[0]["hash"]
+stampa("dettaglio commit:", "Primo commit" in g.dettaglio_commit(cartella, g.registro(cartella)[-1]["hash"]))
+
+# remoto: un secondo repository "nudo" come origine
+remoto = tempfile.mkdtemp()
+g._esegui(remoto, ["init", "--bare"])
+g._esegui(cartella, ["remote", "add", "origin", remoto])
+stampa("push con ramo nuovo:", g.invia(cartella, attuale)[:20] != "")
+s = g.stato(cartella)
+stampa("a monte:", s["a_monte"], "| avanti/indietro:", s["avanti"], s["indietro"])
+open(os.path.join(cartella, "quarto.pit"), "w", encoding="utf-8").write("q\n")
+g.prepara_tutto(cartella)
+g.commit(cartella, "Quarto")
+s = g.stato(cartella)
+stampa("dopo un commit locale: avanti =", s["avanti"])
+stampa("pull:", g.scarica(cartella))
+stampa("fuori da un repository:", g.e_repository(tempfile.mkdtemp()) se Falso altrimenti "(saltato)")

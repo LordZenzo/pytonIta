@@ -1,0 +1,134 @@
+"""Pannelli Test, Git e Pacchetti nella finestra di PitStudio (finestra vera, repository e wheel di prova)."""
+importa sys, os, tempfile, time, zipfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+messagebox.askyesno = lambda *a, **k: Vero
+messagebox.showwarning = lambda *a, **k: Nessuno
+messagebox.showerror = lambda *a, **k: Nessuno
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa git_uso, pacchetti_uso, esecuzione
+
+temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(temp, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x860+20+20")
+app = Applicazione(radice, cfg)
+cart = os.path.join(temp, "ProvaPannelli")
+Progetto.nuovo(cart, "ProvaPannelli", "vuoto")
+p = Progetto(cart)
+p.crea_file("principale.pit", "stampa('ciao')\n")
+p.crea_file("tests/prova_ok.pit", "stampa('tutto bene')\n")
+p.crea_file("tests/prova_ko.pit", "stampa('prima')\nx = 1 / 0\n")
+p.crea_file("tests/prova_lenta.pit", "importa time\ntime.sleep(30)\n")
+p.manifesto["principale"] = "principale.pit"
+p.salva_manifesto()
+app.apri_progetto(cart)
+radice.update()
+
+
+definisci aspetta_che(condizione, secondi=60):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione():
+            ritorna Vero
+        time.sleep(0.03)
+    ritorna Falso
+
+
+stampa("schede a sinistra:", sorted(app.pulsanti_sinistra))
+
+# ---------------------------------------------------------------- Test
+app.mostra_pannello_sinistro("test")
+t = app.pannello_test
+radice.update()
+stampa("prove trovate:", lista(t.esiti))
+cfg.imposta("test.tempo_massimo", 4)
+t.albero.selection_set("tests/prova_ok.pit", "tests/prova_ko.pit")
+t.esegui_selezionati()
+stampa("finita:", aspetta_che(lambda: non t.in_corso))
+stampa("esiti:", {r: x["stato"] per r, x in t.esiti.items()})
+stampa("riassunto:", t.riassunto.cget("text"))
+t.albero.selection_set("tests/prova_ko.pit")
+radice.update()
+testo_uscita = t.uscita.get("1.0", "end")
+stampa("dettaglio del fallito mostra l'errore:", "ZeroDivisionError" in testo_uscita o "DivisioneZero" in testo_uscita o "division" in testo_uscita.lower(), "| 'prima':", "prima" in testo_uscita)
+t.esegui_tutti()
+stampa("tutte (con la lenta, limite 4 s):", aspetta_che(lambda: non t.in_corso, 60), {r: x["stato"] per r, x in t.esiti.items()})
+t.esegui_falliti()
+aspetta_che(lambda: non t.in_corso, 60)
+stampa("rifatti i falliti:", t.riassunto.cget("text"))
+t.esegui_tutti()
+aspetta_che(lambda: t.esiti["tests/prova_lenta.pit"]["stato"] == "in corso", 20)
+t.ferma()
+stampa("fermata:", aspetta_che(lambda: non t.in_corso, 30), t.esiti["tests/prova_lenta.pit"]["stato"])
+
+# ---------------------------------------------------------------- Git
+app.mostra_pannello_sinistro("git")
+g = app.pannello_git
+aspetta_che(lambda: g.disponibile è non Nessuno e non g.occupato)
+stampa("git disponibile:", g.disponibile, "| repository:", g.repo, "| pulsante Crea visibile:", g.crea.winfo_ismapped())
+g.crea_repository()
+aspetta_che(lambda: g.repo, 20)
+stampa("dopo Crea: repository:", g.repo, "| voci:", lunghezza(g.voci))
+git_uso._esegui(cart, ["config", "user.name", "Prova"])
+git_uso._esegui(cart, ["config", "user.email", "prova@example.com"])
+git_uso._esegui(cart, ["config", "commit.gpgsign", "false"])
+g.aggiorna()
+aspetta_che(lambda: non g.occupato)
+stampa("albero modifiche:", [g.albero.item(i, "text") per i in g.albero.get_children()])
+g.prepara()
+aspetta_che(lambda: non g.occupato)
+aspetta_che(lambda: git_uso.pronte(g.voci), 10)
+stampa("dopo Prepara: pronte:", lunghezza(git_uso.pronte(g.voci)), "| pulsante:", g.pulsante_commit.cget("text"))
+g.messaggio_commit.insert("1.0", "Primo commit di prova")
+g.fai_commit()
+aspetta_che(lambda: non g.occupato)
+aspetta_che(lambda: g._commit, 10)
+stampa("storia:", [c["messaggio"] per c in g._commit], "| messaggio svuotato:", g.messaggio_commit.get("1.0", "end").strip() == "")
+open(os.path.join(cart, "principale.pit"), "w", encoding="utf-8").write("stampa('cambiato')\n")
+g.aggiorna()
+aspetta_che(lambda: g.voci, 10)
+m = [i per i in g.albero.get_children("g:mod")] se g.albero.exists("g:mod") altrimenti []
+stampa("modificato visibile:", m)
+g.albero.selection_set(m[0])
+aspetta_che(lambda: "cambiato" in g.diff.get("1.0", "end"), 10)
+stampa("differenze mostrate:", "+stampa('cambiato')" in g.diff.get("1.0", "end"))
+g.annulla()
+aspetta_che(lambda: non g.occupato)
+aspetta_che(lambda: non g.voci, 10)
+stampa("dopo Annulla il file è tornato com'era:", open(os.path.join(cart, "principale.pit"), encoding="utf-8").read().strip())
+g.albero.selection_remove(*g.albero.selection())
+
+git_uso.nuovo_ramo(cart, "secondo")
+g.aggiorna()
+aspetta_che(lambda: g._ramo == "secondo", 10)
+stampa("ramo mostrato:", g.var_ramo.get(), "|", g.stato.cget("text"))
+
+# ---------------------------------------------------------------- Pacchetti
+app.mostra_pannello_sinistro("pacchetti")
+k = app.pannello_pacchetti
+aspetta_che(lambda: non k.occupato)
+file_wheel = os.path.join(temp, "saluto_prova-1.0-py3-none-any.whl")
+con zipfile.ZipFile(file_wheel, "w") come z:
+    z.writestr("saluto_prova/__init__.py", "def ciao():\n    return 'ciao'\n")
+    z.writestr("saluto_prova-1.0.dist-info/METADATA", "Metadata-Version: 2.1\nName: saluto_prova\nVersion: 1.0\n")
+    z.writestr("saluto_prova-1.0.dist-info/WHEEL", "Wheel-Version: 1.0\nGenerator: prova\nRoot-Is-Purelib: true\nTag: py3-none-any\n")
+    z.writestr("saluto_prova-1.0.dist-info/RECORD", "saluto_prova/__init__.py,,\nsaluto_prova-1.0.dist-info/METADATA,,\nsaluto_prova-1.0.dist-info/WHEEL,,\nsaluto_prova-1.0.dist-info/RECORD,,\n")
+k.var_nome.set(file_wheel)
+k.installa()
+stampa("installato:", aspetta_che(lambda: [x["nome"] per x in k.pacchetti] == ["saluto_prova"], 120), "| albero:", [k.albero.item(i, "values") per i in k.albero.get_children()])
+stampa("percorsi per i programmi:", [os.path.basename(x) per x in esecuzione.PERCORSI_PROGETTO], "| messaggio:", k.uscita.get("1.0", "end").strip()[:30])
+k.albero.selection_set("saluto_prova")
+k.salva_requisiti()
+aspetta_che(lambda: os.path.exists(os.path.join(cart, "requirements.txt")), 30)
+stampa("requirements.txt:", open(os.path.join(cart, "requirements.txt")).read().strip().splitlines())
+k.togli()
+stampa("tolto:", aspetta_che(lambda: [x["nome"] per x in k.pacchetti] == [] e non k.occupato, 60))
+k.var_ambiente.set("Tutti i progetti (runtime di pitonit)")
+k.aggiorna()
+stampa("elenco del runtime:", aspetta_che(lambda: lunghezza(k.pacchetti) > 3, 60), lunghezza(k.pacchetti) > 3, "| nota:", k.nota.cget("text")[:40])
+radice.destroy()

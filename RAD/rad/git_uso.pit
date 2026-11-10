@@ -1,0 +1,221 @@
+"""Git per PitStudio: chiama il programma `git` (se è installato) e ne traduce i risultati. Nessuna grafica qui: la usa il pannello Git."""
+importa os
+importa subprocess
+
+_NASCONDI = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+GITIGNORE = "__pycache__/\n*.pyc\n.rad/\n.pacchetti/\n"
+NOMI_STATO = {"M": "modificato", "A": "aggiunto", "D": "eliminato", "R": "rinominato", "C": "copiato", "T": "tipo cambiato", "?": "nuovo", "U": "in conflitto"}
+
+
+classe ErroreGit(Exception):
+    """Git ha risposto con un errore (il testo è quello di git)."""
+
+
+definisci git(cartella, argomenti, tempo=30, ingresso=Nessuno):
+    """Esegue `git <argomenti>` in `cartella`. Ritorna (codice, uscita, errori). Non chiede mai password nel terminale."""
+    ambiente = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
+    prova:
+        r = subprocess.run(["git", "-c", "core.quotepath=false"] + lista(argomenti), cwd=cartella, capture_output=Vero, timeout=tempo,
+                           input=ingresso.encode("utf-8") se ingresso è non Nessuno altrimenti Nessuno, env=ambiente, creationflags=_NASCONDI)
+    eccetto FileNotFoundError:
+        ritorna 127, "", "Git non è installato (o non è nel percorso di sistema). Si scarica da https://git-scm.com"
+    eccetto subprocess.TimeoutExpired:
+        ritorna 124, "", f"Git non ha risposto entro {tempo} secondi."
+    ritorna r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
+
+
+definisci _esegui(cartella, argomenti, tempo=30, ingresso=Nessuno):
+    """Come git(), ma solleva ErroreGit se fallisce. Ritorna l'uscita."""
+    codice, uscita, errori = git(cartella, argomenti, tempo, ingresso)
+    se codice != 0:
+        solleva ErroreGit((errori o uscita).strip() o f"git {argomenti[0]} è fallito (codice {codice})")
+    ritorna uscita
+
+
+definisci disponibile():
+    """True se git è installato."""
+    ritorna git(".", ["--version"], 8)[0] == 0
+
+
+definisci e_repository(cartella):
+    codice, uscita, _ = git(cartella, ["rev-parse", "--is-inside-work-tree"], 10)
+    ritorna codice == 0 e uscita.strip() == "true"
+
+
+definisci inizializza(cartella):
+    """git init (e un .gitignore con le cartelle che non vanno nel repository, se manca)."""
+    _esegui(cartella, ["init"])
+    percorso = os.path.join(cartella, ".gitignore")
+    se non os.path.exists(percorso):
+        con open(percorso, "w", encoding="utf-8", newline="\n") come f:
+            f.write(GITIGNORE)
+
+
+definisci stato(cartella):
+    """{"ramo": nome, "a_monte": nome o "", "avanti": n, "indietro": n, "voci": [{"x", "y", "percorso", "vecchio"}]} di `git status`."""
+    uscita = _esegui(cartella, ["status", "--porcelain=v1", "-b", "-uall"])
+    risultato = {"ramo": "", "a_monte": "", "avanti": 0, "indietro": 0, "voci": []}
+    per riga in uscita.splitlines():
+        se riga.startswith("## "):
+            testo_ = riga[3:]
+            dettagli = ""
+            se " [" in testo_ e testo_.endswith("]"):
+                testo_, _, dettagli = testo_.partition(" [")
+                dettagli = dettagli[:-1]
+            se testo_.startswith("No commits yet on "):
+                risultato["ramo"] = testo_[len("No commits yet on "):]
+            altrimenti_se "..." in testo_:
+                risultato["ramo"], _, risultato["a_monte"] = testo_.partition("...")
+            altrimenti:
+                risultato["ramo"] = testo_
+            per parte in dettagli.split(","):
+                parte = parte.strip()
+                se parte.startswith("ahead "):
+                    risultato["avanti"] = int(parte[6:])
+                altrimenti_se parte.startswith("behind "):
+                    risultato["indietro"] = int(parte[7:])
+            continua
+        se lunghezza(riga) < 4:
+            continua
+        x, y, percorso = riga[0], riga[1], riga[3:]
+        vecchio = ""
+        se " -> " in percorso:
+            vecchio, _, percorso = percorso.partition(" -> ")
+        risultato["voci"].append({"x": x, "y": y, "percorso": percorso, "vecchio": vecchio})
+    ritorna risultato
+
+
+definisci pronte(voci):
+    """Le voci già preparate per il commit (area di staging)."""
+    ritorna [v per v in voci se v["x"] non in (" ", "?")]
+
+
+definisci da_preparare(voci):
+    """Le voci con modifiche non ancora preparate (anche i file nuovi)."""
+    ritorna [v per v in voci se v["y"] != " " o v["x"] == "?"]
+
+
+definisci descrizione(x, y):
+    """Parola italiana per lo stato di una voce (per la colonna accanto al nome)."""
+    se x == "?" e y == "?":
+        ritorna NOMI_STATO["?"]
+    lettera = x se x non in (" ", "?") altrimenti y
+    ritorna NOMI_STATO.get(lettera, lettera)
+
+
+definisci prepara(cartella, percorsi):
+    _esegui(cartella, ["add", "--"] + lista(percorsi))
+
+
+definisci prepara_tutto(cartella):
+    _esegui(cartella, ["add", "-A"])
+
+
+definisci togli(cartella, percorsi):
+    """Toglie file dall'area di staging (restano modificati sul disco)."""
+    codice, uscita, errori = git(cartella, ["restore", "--staged", "--"] + lista(percorsi))
+    se codice != 0:        # repository senza commit: restore non funziona, si usa rm --cached
+        _esegui(cartella, ["rm", "--cached", "-r", "-q", "--"] + lista(percorsi))
+
+
+definisci annulla_modifiche(cartella, voci):
+    """Butta via le modifiche non preparate: i file tracciati tornano all'ultimo commit, i file nuovi vengono eliminati."""
+    tracciati = [v["percorso"] per v in voci se v["x"] != "?"]
+    nuovi = [v["percorso"] per v in voci se v["x"] == "?"]
+    se tracciati:
+        _esegui(cartella, ["restore", "--"] + tracciati)
+    se nuovi:
+        _esegui(cartella, ["clean", "-f", "--"] + nuovi)
+
+
+definisci commit(cartella, messaggio):
+    se non messaggio.strip():
+        solleva ErroreGit("Scrivi il messaggio del commit.")
+    ritorna _esegui(cartella, ["commit", "-m", messaggio.strip()]).strip()
+
+
+definisci identita(cartella):
+    """(nome, email) configurati in git, oppure ("", "")."""
+    nome = git(cartella, ["config", "user.name"], 8)[1].strip()
+    email = git(cartella, ["config", "user.email"], 8)[1].strip()
+    ritorna nome, email
+
+
+definisci imposta_identita(cartella, nome, email):
+    _esegui(cartella, ["config", "--global", "user.name", nome.strip()])
+    _esegui(cartella, ["config", "--global", "user.email", email.strip()])
+
+
+definisci registro(cartella, quanti=80):
+    """Gli ultimi commit: lista di dizionari {"hash", "autore", "quando", "messaggio", "etichette"}."""
+    codice, uscita, errori = git(cartella, ["log", "-n", testo(quanti), "--pretty=format:%h%x1f%an%x1f%ar%x1f%s%x1f%D"])
+    se codice != 0:
+        ritorna []           # repository senza commit
+    risultato = []
+    per riga in uscita.splitlines():
+        parti = riga.split("\x1f")
+        se lunghezza(parti) >= 5:
+            risultato.append({"hash": parti[0], "autore": parti[1], "quando": parti[2], "messaggio": parti[3], "etichette": parti[4]})
+    ritorna risultato
+
+
+definisci differenze(cartella, voce, preparato=Falso):
+    """Il testo delle differenze di un file (preparato = quelle già nell'area di staging)."""
+    se voce["x"] == "?" e non preparato:
+        percorso = os.path.join(cartella, voce["percorso"])
+        prova:
+            con open(percorso, encoding="utf-8", errors="replace") come f:
+                ritorna "".join("+" + r per r in f.readlines()[:400]) o "(file vuoto)"
+        eccetto OSError:
+            ritorna "(non riesco a leggere il file)"
+    argomenti = ["diff"] + (["--cached"] se preparato altrimenti []) + ["--", voce["percorso"]]
+    ritorna _esegui(cartella, argomenti) o "(nessuna differenza)"
+
+
+definisci dettaglio_commit(cartella, codice_hash):
+    ritorna _esegui(cartella, ["show", "--stat", "--patch", "--format=%h  %an  %ad%n%n%B", "--date=format:%d/%m/%Y %H:%M", codice_hash])
+
+
+definisci rami(cartella):
+    """(elenco dei rami locali, ramo attuale)."""
+    uscita = git(cartella, ["branch", "--format=%(HEAD)|%(refname:short)"])[1]
+    elenco = []
+    attuale = ""
+    per riga in uscita.splitlines():
+        testa, _, nome = riga.partition("|")
+        se nome.startswith("("):
+            continua
+        elenco.append(nome)
+        se testa.strip() == "*":
+            attuale = nome
+    ritorna elenco, attuale
+
+
+definisci cambia_ramo(cartella, nome):
+    _esegui(cartella, ["switch", nome])
+
+
+definisci nuovo_ramo(cartella, nome):
+    _esegui(cartella, ["switch", "-c", nome])
+
+
+definisci remoti(cartella):
+    ritorna git(cartella, ["remote"], 8)[1].split()
+
+
+definisci scarica(cartella):
+    """git pull (solo avanzamenti semplici, senza creare commit di unione)."""
+    ritorna (_esegui(cartella, ["pull", "--ff-only"], 120)).strip() o "Già aggiornato."
+
+
+definisci invia(cartella, ramo):
+    """git push; se il ramo non ha ancora un 'a monte' lo crea sul primo remoto."""
+    codice, uscita, errori = git(cartella, ["push"], 120)
+    se codice != 0 e "no upstream" in errori:
+        elenco = remoti(cartella)
+        se non elenco:
+            solleva ErroreGit("Il repository non ha un indirizzo remoto (git remote add origin <indirizzo>).")
+        ritorna _esegui(cartella, ["push", "--set-upstream", elenco[0], ramo], 120).strip() o "Inviato."
+    se codice != 0:
+        solleva ErroreGit((errori o uscita).strip())
+    ritorna (errori o uscita).strip() o "Inviato."

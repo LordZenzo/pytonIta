@@ -1,0 +1,238 @@
+"""Pannello «Pacchetti»: installa, aggiorna e toglie i pacchetti Python (pip) nell'ambiente del progetto (.pacchetti) o nel runtime di pitonit.
+La logica è in rad/pacchetti_uso.pit."""
+importa os
+importa tkinter come tk
+da tkinter importa messagebox, ttk
+
+da rad importa esecuzione, pacchetti_uso, stile, tema
+
+AMBIENTI = ("Questo progetto (.pacchetti)", "Tutti i progetti (runtime di pitonit)")
+
+
+classe PannelloPacchetti(tk.Frame):
+    """Gli elenchi dei pacchetti installati, con installazione, aggiornamento, rimozione e requirements.txt."""
+
+    definisci __inizializza__(se_stesso, genitore, app):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.app = app
+        se_stesso.cartella = Nessuno
+        se_stesso.occupato = Falso
+        se_stesso.pacchetti = []
+        se_stesso.nuovi = {}                      # nome minuscolo -> ultima versione (dopo «Cerca aggiornamenti»)
+        se_stesso._da_rifare = Falso              # si è chiesto di aggiornare l'elenco mentre pip lavorava
+        se_stesso.barra = tk.Frame(se_stesso)
+        se_stesso.barra.pack(fill="x")
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="Pacchetti Python", anchor="w", font=("Segoe UI Semibold", 10))
+        se_stesso.titolo.pack(side="left", padx=8, pady=5)
+        se_stesso.contatore = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.contatore.pack(side="right", padx=8)
+        riga = tk.Frame(se_stesso)
+        riga.pack(fill="x", padx=6, pady=(0, 4))
+        se_stesso.var_ambiente = tk.StringVar(value=AMBIENTI[0])
+        se_stesso.scelta = ttk.Combobox(riga, textvariable=se_stesso.var_ambiente, values=AMBIENTI, state="readonly")
+        se_stesso.scelta.pack(fill="x")
+        se_stesso.scelta.bind("<<ComboboxSelected>>", lambda ev: se_stesso.aggiorna())
+        stile.suggerisci(se_stesso.scelta, "Dove installare e cercare i pacchetti: solo per questo progetto (cartella .pacchetti) oppure per tutti")
+        installa = tk.Frame(se_stesso)
+        installa.pack(fill="x", padx=6, pady=(0, 4))
+        se_stesso.var_nome = tk.StringVar()
+        se_stesso.campo = tk.Entry(installa, textvariable=se_stesso.var_nome, relief="flat", font=("Segoe UI", 10))
+        se_stesso.campo.pack(side="left", fill="x", expand=Vero, ipady=3)
+        se_stesso.campo.bind("<Return>", lambda ev: se_stesso.installa())
+        stile.suggerisci(se_stesso.campo, "Nome del pacchetto da installare, per esempio  requests  oppure  rich>=13  (Invio per installare)")
+        se_stesso.b_installa = tk.Button(installa, text="Installa", command=se_stesso.installa, relief="flat", padx=8, pady=2, font=("Segoe UI", 9))
+        se_stesso.b_installa.pack(side="left", padx=(4, 0))
+        ops = tk.Frame(se_stesso)
+        ops.pack(fill="x", padx=6, pady=(0, 4))
+        se_stesso.ops = {}
+        per nome, testo_, aiuto, azione in (("aggiorna_uno", "⬆ Aggiorna", "Installa l'ultima versione del pacchetto scelto", se_stesso.aggiorna_scelto),
+                                            ("toglie", "✖ Togli", "Disinstalla il pacchetto scelto", se_stesso.togli),
+                                            ("obsoleti", "Novità", "Controlla (con la rete) quali pacchetti hanno una versione più nuova", se_stesso.cerca_aggiornamenti),
+                                            ("salva_req", "Salva req.", "Scrive requirements.txt nel progetto con i pacchetti installati qui", se_stesso.salva_requisiti),
+                                            ("leggi_req", "Installa req.", "Installa tutto quello che c'è in requirements.txt", se_stesso.installa_requisiti)):
+            b = tk.Button(ops, text=testo_, command=azione, relief="flat", padx=6, pady=1, font=("Segoe UI", 9))
+            b.pack(side="left", padx=(0, 3))
+            stile.suggerisci(b, aiuto)
+            se_stesso.ops[nome] = b
+        corpo = tk.PanedWindow(se_stesso, orient="vertical", sashwidth=4, borderwidth=0)
+        corpo.pack(fill="both", expand=Vero, padx=6)
+        alto = tk.Frame(corpo)
+        se_stesso.albero = ttk.Treeview(alto, columns=("nome", "versione", "nuova"), show="headings", selectmode="browse", height=8)
+        per col, testo_, larghezza, tende in (("nome", "Pacchetto", 170, Vero), ("versione", "Versione", 80, Falso), ("nuova", "Disponibile", 90, Falso)):
+            se_stesso.albero.heading(col, text=testo_)
+            se_stesso.albero.column(col, width=larghezza, stretch=tende, anchor="w" se tende altrimenti "e")
+        sb = ttk.Scrollbar(alto, orient="vertical", command=se_stesso.albero.yview)
+        se_stesso.albero.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        se_stesso.albero.pack(fill="both", expand=Vero)
+        corpo.add(alto, minsize=100, stretch="always", height=300)
+        se_stesso.uscita = tk.Text(corpo, height=6, wrap="word", relief="flat", font=("Consolas", 9), state="disabled")
+        corpo.add(se_stesso.uscita, minsize=70, stretch="never", height=100)
+        se_stesso.nota = tk.Label(se_stesso, text="", anchor="w", justify="left", wraplength=380, font=("Segoe UI", 8))
+        se_stesso.nota.pack(fill="x", padx=8, pady=(2, 4))
+        se_stesso._attiva()
+
+    # ------------------------------------------------------------ ambiente
+    definisci imposta_progetto(se_stesso, progetto):
+        se_stesso.cartella = progetto.cartella se progetto altrimenti Nessuno
+        se_stesso.pacchetti = []
+        se_stesso.nuovi = {}
+        pacchetti_uso.imposta_percorsi_progetto(se_stesso.cartella)
+        se_stesso._riempi()
+
+    definisci quando_mostrato(se_stesso):
+        se_stesso.aggiorna()
+
+    definisci _bersaglio(se_stesso):
+        """La cartella .pacchetti del progetto, oppure Nessuno per il runtime."""
+        se se_stesso.var_ambiente.get() == AMBIENTI[0] e se_stesso.cartella:
+            ritorna pacchetti_uso.cartella_pacchetti(se_stesso.cartella)
+        ritorna Nessuno
+
+    definisci _nel_progetto(se_stesso):
+        ritorna se_stesso.var_ambiente.get() == AMBIENTI[0]
+
+    definisci _scrivi(se_stesso, messaggio):
+        u = se_stesso.uscita
+        u.configure(state="normal")
+        u.delete("1.0", "end")
+        u.insert("end", messaggio)
+        u.configure(state="disabled")
+
+    definisci _attiva(se_stesso):
+        pronto = non se_stesso.occupato e (non se_stesso._nel_progetto() o bool(se_stesso.cartella))
+        per b in (se_stesso.b_installa, ) + tuple(se_stesso.ops.values()):
+            b.configure(state="normal" se pronto altrimenti "disabled")
+        se non se_stesso.cartella:
+            se_stesso.nota.configure(text="Apri un progetto per avere un ambiente tutto suo.")
+        altrimenti_se se_stesso._nel_progetto():
+            se_stesso.nota.configure(text="I pacchetti stanno nella cartella .pacchetti del progetto: i programmi lanciati da PitStudio (F5, debug, test) li trovano da soli.")
+        altrimenti:
+            se_stesso.nota.configure(text="Attenzione: questi pacchetti valgono per tutti i progetti e stanno dentro l'installazione di pitonit.")
+
+    # ------------------------------------------------------------ elenco
+    definisci aggiorna(se_stesso):
+        se se_stesso.occupato:
+            se_stesso._da_rifare = Vero
+            ritorna
+        bersaglio = se_stesso._bersaglio()
+        interprete = se_stesso.app.config_.interprete()
+        se_stesso._lavora(lambda: pacchetti_uso.elenca(interprete, bersaglio), lambda r: se_stesso._imposta_elenco(r) se bersaglio == se_stesso._bersaglio() altrimenti Nessuno, "")
+
+    definisci _imposta_elenco(se_stesso, elenco):
+        se_stesso.pacchetti = elenco
+        se_stesso._riempi()
+
+    definisci _riempi(se_stesso):
+        sel = se_stesso.albero.selection()
+        se_stesso.albero.delete(*se_stesso.albero.get_children())
+        per x in se_stesso.pacchetti:
+            nuova = se_stesso.nuovi.get(x["nome"].lower(), "")
+            se_stesso.albero.insert("", "end", iid=x["nome"], values=(x["nome"], x["versione"], nuova), tags=("nuovo",) se nuova altrimenti ())
+        se_stesso.albero.tag_configure("nuovo", foreground="#d99a00")
+        per s in sel:
+            se se_stesso.albero.exists(s):
+                se_stesso.albero.selection_set(s)
+        se_stesso.contatore.configure(text=f"{lunghezza(se_stesso.pacchetti)} installati")
+        se_stesso._attiva()
+
+    definisci _lavora(se_stesso, funzione, dopo, messaggio_attesa="Un momento…", aggiorna_dopo=Falso):
+        """Esegue pip in secondo piano. dopo(risultato) a lavoro finito; gli errori di pip appaiono nell'area in basso."""
+        se_stesso.occupato = Vero
+        se_stesso._attiva()
+        se messaggio_attesa:
+            se_stesso._scrivi(messaggio_attesa)
+
+        definisci finito(riuscito, risultato):
+            se_stesso.occupato = Falso
+            se non riuscito:
+                se_stesso._scrivi("⚠ " + testo(risultato))
+                se_stesso._attiva()
+                ritorna
+            dopo(risultato)
+            se_stesso._attiva()
+            se aggiorna_dopo o se_stesso._da_rifare:
+                se_stesso._da_rifare = Falso
+                se_stesso.aggiorna()
+
+        esecuzione.in_secondo_piano(se_stesso, funzione, finito)
+
+    definisci _scelto(se_stesso):
+        sel = se_stesso.albero.selection()
+        ritorna sel[0] se sel altrimenti Nessuno
+
+    # ------------------------------------------------------------ azioni
+    definisci installa(se_stesso, nome=Nessuno, aggiorna=Falso):
+        nome = (nome o se_stesso.var_nome.get()).strip()
+        se non nome:
+            ritorna
+        se non pacchetti_uso.nome_valido(nome):
+            se_stesso._scrivi(f"⚠ «{nome}» non sembra un nome di pacchetto valido.")
+            ritorna
+        bersaglio = se_stesso._bersaglio()
+        interprete = se_stesso.app.config_.interprete()
+        se_stesso._lavora(lambda: pacchetti_uso.installa(interprete, nome, bersaglio, aggiorna),
+                          lambda r: (se_stesso._scrivi("✔ Installato.\n" + r), se_stesso.var_nome.set(""), se_stesso._dopo_modifica()),
+                          f"Installo {nome}…", Vero)
+
+    definisci aggiorna_scelto(se_stesso):
+        nome = se_stesso._scelto()
+        se nome:
+            se_stesso.installa(nome, Vero)
+
+    definisci togli(se_stesso):
+        nome = se_stesso._scelto()
+        se non nome:
+            ritorna
+        se non messagebox.askyesno("Togli il pacchetto", f"Disinstallo «{nome}»?", parent=se_stesso.app.radice):
+            ritorna
+        bersaglio = se_stesso._bersaglio()
+        interprete = se_stesso.app.config_.interprete()
+        se_stesso._lavora(lambda: pacchetti_uso.disinstalla(interprete, nome, bersaglio),
+                          lambda r: (se_stesso._scrivi(f"✔ {nome} è stato tolto."), se_stesso._dopo_modifica()), "", Vero)
+
+    definisci cerca_aggiornamenti(se_stesso):
+        bersaglio = se_stesso._bersaglio()
+        interprete = se_stesso.app.config_.interprete()
+
+        definisci dopo(r):
+            se_stesso.nuovi = r
+            se_stesso._scrivi(f"{lunghezza(r)} pacchetti hanno una versione più nuova (colonna «Disponibile»)." se r altrimenti "Tutto è aggiornato.")
+            se_stesso._riempi()
+        se_stesso._lavora(lambda: pacchetti_uso.obsoleti(interprete, bersaglio), dopo, "Controllo gli aggiornamenti (serve la rete)…")
+
+    definisci salva_requisiti(se_stesso):
+        se non se_stesso.cartella:
+            ritorna
+        percorso = os.path.join(se_stesso.cartella, pacchetti_uso.FILE_REQUISITI)
+        bersaglio = se_stesso._bersaglio()
+        interprete = se_stesso.app.config_.interprete()
+        se_stesso._lavora(lambda: pacchetti_uso.scrivi_requisiti(interprete, percorso, bersaglio),
+                          lambda n: (se_stesso._scrivi(f"✔ requirements.txt scritto con {n} pacchetti."), se_stesso.app.pannello_progetto.aggiorna()), "")
+
+    definisci installa_requisiti(se_stesso):
+        se non se_stesso.cartella:
+            ritorna
+        percorso = os.path.join(se_stesso.cartella, pacchetti_uso.FILE_REQUISITI)
+        se non os.path.exists(percorso):
+            se_stesso._scrivi("⚠ Nel progetto non c'è requirements.txt.")
+            ritorna
+        bersaglio = se_stesso._bersaglio()
+        interprete = se_stesso.app.config_.interprete()
+        se_stesso._lavora(lambda: pacchetti_uso.installa_requisiti(interprete, percorso, bersaglio),
+                          lambda r: (se_stesso._scrivi("✔ Installati i pacchetti di requirements.txt.\n" + r), se_stesso._dopo_modifica()),
+                          "Installo i pacchetti di requirements.txt…", Vero)
+
+    definisci _dopo_modifica(se_stesso):
+        se_stesso.nuovi = {}
+        se se_stesso._nel_progetto():
+            pacchetti_uso.imposta_percorsi_progetto(se_stesso.cartella)
+            se_stesso.app.pannello_progetto.aggiorna()
+
+    definisci applica_colori(se_stesso, c):
+        tema.applica(se_stesso, c)
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.contatore.configure(foreground=c["tenue"])
+        se_stesso.nota.configure(foreground=c["tenue"])
+        se_stesso.uscita.configure(background=c["sfondo"], foreground=c["primo_piano"])
+        se_stesso.b_installa.configure(background=c["accento"], foreground="#ffffff", activebackground=c["accento"])

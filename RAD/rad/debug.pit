@@ -86,7 +86,8 @@ classe PannelloDebug(tk.Frame):
             b.configure(state="normal" se (fermo o nome == "ferma") altrimenti "disabled")
         se_stesso.stato.configure(text="fermo" se fermo altrimenti "in esecuzione…")
 
-    definisci mostra_stato(se_stesso, ev):
+    definisci mostra_stato(se_stesso, ev, mantieni=Nessuno):
+        """Mostra variabili, pila ed espressioni. mantieni: numero della riga della pila scelta dall'utente (la tiene selezionata)."""
         se_stesso.attiva_comandi(Vero)
         se_stesso.variabili.delete(*se_stesso.variabili.get_children())
         per v in ev.get("variabili", []):
@@ -95,8 +96,12 @@ classe PannelloDebug(tk.Frame):
         se_stesso._frame_pila = ev.get("pila", [])
         per f in se_stesso._frame_pila:
             se_stesso.pila.insert("end", f"{f['funzione']}   ·   {os.path.basename(f['file'])}:{f['riga']}")
+        se mantieni è non Nessuno e mantieni < lunghezza(se_stesso._frame_pila):
+            se_stesso.pila.selection_set(mantieni)
         se_stesso.aggiorna_osservate(ev.get("osservate", []))
-        se_stesso.stato.configure(text=f"fermo alla riga {ev.get('riga')}")
+        se_stesso.stato.configure(text=f"fermo alla riga {ev.get('riga')}" se mantieni è Nessuno altrimenti f"{ev.get('funzione')}, riga {ev.get('riga')}")
+        se ev.get("avviso"):
+            se_stesso.stato.configure(text="⚠ " + ev["avviso"])
 
     definisci aggiorna_osservate(se_stesso, osservate):
         se_stesso.osservate.delete(*se_stesso.osservate.get_children())
@@ -108,6 +113,7 @@ classe PannelloDebug(tk.Frame):
         se sel e sel[0] < lunghezza(se_stesso._frame_pila):
             f = se_stesso._frame_pila[sel[0]]
             se_stesso.sessione.mostra_posizione(f["file"], f["riga"])
+            se_stesso.sessione.scegli_frame(sel[0])
 
     definisci _aggiungi_osservata(se_stesso, e=Nessuno):
         espressione = se_stesso.var_osserva.get().strip()
@@ -145,6 +151,7 @@ classe SessioneDebug:
         se_stesso.fermo = Falso           # ed è fermo, in attesa di un comando
         se_stesso.osservate = []
         se_stesso.file_fermo = Nessuno
+        se_stesso._frame_scelto = 0
 
     # ------------------------------------------------------------ avvio
     definisci avvia(se_stesso, percorso, inizio=Falso):
@@ -178,18 +185,35 @@ classe SessioneDebug:
         ritorna Vero
 
     definisci punti_arresto(se_stesso):
-        """{percorso: [righe]} di tutti i punti di arresto (anche dei file non aperti)."""
-        ritorna {p: sorted(r) per p, r in se_stesso.app.punti_arresto.items() se r}
+        """{percorso: [riga | [riga, condizione, dopo, messaggio]]} di tutti i punti di arresto (anche dei file non aperti)."""
+        risultato = {}
+        per p, righe in se_stesso.app.punti_arresto.items():
+            se non righe:
+                continua
+            dettagli = se_stesso.app.dettagli_punti.get(p, {})
+            voci = []
+            per riga in sorted(righe):
+                d = dettagli.get(riga)
+                se d e (d.get("se") o d.get("dopo") o d.get("messaggio")):
+                    voci.append([riga, d.get("se", ""), d.get("dopo", 0), d.get("messaggio", "")])
+                altrimenti:
+                    voci.append(riga)
+            risultato[p] = voci
+        ritorna risultato
 
     # ------------------------------------------------------------ eventi dal programma
     definisci gestisci_evento(se_stesso, ev):
         tipo_ = ev.get("evento")
         se tipo_ == "fermo":
             se_stesso.fermo = Vero
+            se_stesso._frame_scelto = 0
             se_stesso.file_fermo = ev["file"]
             se_stesso.mostra_posizione(ev["file"], ev["riga"], segna=Vero)
             se se_stesso.pannello:
                 se_stesso.pannello.mostra_stato(ev)
+        altrimenti_se tipo_ == "frame":
+            se se_stesso.pannello:
+                se_stesso.pannello.mostra_stato(ev, mantieni=se_stesso._frame_scelto)
         altrimenti_se tipo_ in ("fine", "fine_processo"):
             se_stesso.termina()
 
@@ -236,6 +260,12 @@ classe SessioneDebug:
         se_stesso._cancella_marcatore()
         se se_stesso.pannello:
             se_stesso.pannello.attiva_comandi(Falso)
+
+    definisci scegli_frame(se_stesso, numero):
+        """Mostra variabili ed espressioni di un'altra riga della pila delle chiamate (0 = quella in cui il programma è fermo)."""
+        se se_stesso.attiva e se_stesso.fermo:
+            se_stesso._frame_scelto = numero
+            se_stesso.app.console.esecutore.invia(PREFISSO_COMANDO + f"frame {numero}")
 
     definisci aggiungi_osservata(se_stesso, espressione):
         se espressione non in se_stesso.osservate:

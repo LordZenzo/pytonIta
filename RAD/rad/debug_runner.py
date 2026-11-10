@@ -5,11 +5,16 @@ Uso:  pitonit -u debug_runner.py programma.pit [--punti file.json] [--inizio] [a
 Il dialogo con PitStudio passa dagli stessi canali del programma:
   - eventi in uscita (stdout):   \x01DBG{json}\x02
   - comandi in ingresso (stdin): \x01CMD <comando> [dati]\n   (solo mentre il programma è fermo)
-Comandi: continua, passo (sopra), entra, esci, ferma, osserva <json lista di espressioni>
+Comandi: continua, passo (sopra), entra, esci, ferma, osserva <json lista di espressioni>, frame <numero nella pila>, punti <json>
+I punti di arresto sono {file: [riga | [riga, condizione, dopo_n_passaggi, messaggio], ...]}:
+  condizione  = espressione (anche con parole italiane): si ferma solo se è vera;
+  dopo        = si ferma solo dal passaggio numero N in poi;
+  messaggio   = «punto di registrazione»: scrive il messaggio ({espressione} viene sostituita) e non si ferma.
 """
 import bdb
 import json
 import os
+import re
 import sys
 
 INIZIO, FINE = "\x01DBG", "\x02"
@@ -43,12 +48,45 @@ class Debugger(bdb.Bdb):
         self.inizio = inizio
         self.osservate = []
         self.fermo_frame = None
+        self.scelto = None               # il frame della pila di cui si vedono variabili ed espressioni
+        self.speciali = {}               # (file, riga) -> {"se": ..., "dopo": ..., "messaggio": ...}
+        self.passaggi = {}               # (file, riga) -> quante volte si è passati (con la condizione vera)
+        self.avviso = ""
         self.primo = True
         self.cartella_stdlib = os.path.normcase(os.path.dirname(os.__file__))
         self.questo = os.path.normcase(os.path.abspath(__file__))
+        self.imposta_punti(punti)
+
+    def imposta_punti(self, punti):
+        self.clear_all_breaks()
+        self.speciali = {}
         for file, righe in punti.items():
-            for riga in righe:
-                self.set_break(os.path.abspath(file), int(riga))
+            file = os.path.abspath(file)
+            for voce in righe:
+                if isinstance(voce, (list, tuple)):
+                    riga = int(voce[0])
+                    se = (voce[1] if len(voce) > 1 else "") or ""
+                    dopo = int(voce[2]) if len(voce) > 2 and voce[2] else 0
+                    messaggio = (voce[3] if len(voce) > 3 else "") or ""
+                    if se.strip() or dopo or messaggio.strip():
+                        chiave = (file, riga)
+                        self.speciali[chiave] = {"se": se.strip(), "dopo": dopo, "messaggio": messaggio.strip()}
+                        self.passaggi.setdefault(chiave, 0)
+                else:
+                    riga = int(voce)
+                self.set_break(file, riga)
+
+    def valuta(self, espressione, frame):
+        codice = compile(espressione, "<espressione>", "eval", FLAG_ITALIANO, True)
+        return eval(codice, frame.f_globals, frame.f_locals)
+
+    def messaggio_formattato(self, modello, frame):
+        def sostituisci(m):
+            try:
+                return str(self.valuta(m.group(1), frame))
+            except Exception as errore:
+                return "<" + type(errore).__name__ + ">"
+        return re.sub(r"\{([^{}]+)\}", sostituisci, modello)
 
     # --- quali frame interessano: solo il codice dell'utente
     def _utente(self, frame):
@@ -61,7 +99,27 @@ class Debugger(bdb.Bdb):
         return super().stop_here(frame) and self._utente(frame)
 
     def break_here(self, frame):
-        return self._utente(frame) and super().break_here(frame)
+        if not (self._utente(frame) and super().break_here(frame)):
+            return False
+        chiave = (os.path.abspath(frame.f_code.co_filename), frame.f_lineno)
+        extra = self.speciali.get(chiave)
+        if not extra:
+            return True
+        if extra["se"]:
+            try:
+                if not self.valuta(extra["se"], frame):
+                    return False
+            except Exception as errore:
+                self.avviso = "Condizione della riga %d non valutabile (%s): mi fermo comunque." % (chiave[1], type(errore).__name__)
+                return True
+        self.passaggi[chiave] = self.passaggi.get(chiave, 0) + 1
+        if extra["dopo"] and self.passaggi[chiave] < extra["dopo"]:
+            return False
+        if extra["messaggio"]:
+            sys.stdout.write("🔶 riga %d: %s\n" % (chiave[1], self.messaggio_formattato(extra["messaggio"], frame)))
+            sys.stdout.flush()
+            return False
+        return True
 
     # --- eventi del debugger
     def user_line(self, frame):
@@ -79,8 +137,18 @@ class Debugger(bdb.Bdb):
     def user_exception(self, frame, exc_info):
         pass
 
+    def pila_utente(self, frame):
+        pila = []
+        f = frame
+        while f is not None:
+            if self._utente(f):
+                pila.append(f)
+            f = f.f_back
+        return pila
+
     def fermo(self, frame):
         self.fermo_frame = frame
+        self.scelto = frame
         self.invia_stato(frame)
         while True:
             comando = self.leggi_comando()
@@ -93,7 +161,15 @@ class Debugger(bdb.Bdb):
                     self.osservate = list(json.loads(dati))
                 except ValueError:
                     self.osservate = []
-                self.invia_stato(frame)          # aggiorna i valori delle espressioni osservate
+                self.invia_stato(self.scelto or frame, "frame")          # aggiorna i valori delle espressioni osservate
+                continue
+            if nome == "frame":
+                try:
+                    pila = self.pila_utente(frame)
+                    self.scelto = pila[int(dati)]
+                except (ValueError, IndexError):
+                    self.scelto = frame
+                self.invia_stato(self.scelto, "frame")
                 continue
             if nome == "punti":
                 self.aggiorna_punti(dati)
@@ -115,10 +191,7 @@ class Debugger(bdb.Bdb):
             punti = json.loads(dati)
         except ValueError:
             return
-        self.clear_all_breaks()
-        for file, righe in punti.items():
-            for riga in righe:
-                self.set_break(os.path.abspath(file), int(riga))
+        self.imposta_punti(punti)
 
     def leggi_comando(self):
         while True:
@@ -131,13 +204,9 @@ class Debugger(bdb.Bdb):
                 nome, _, dati = resto.partition(" ")
                 return nome, dati
 
-    def invia_stato(self, frame):
-        pila = []
-        f = frame
-        while f is not None:
-            if self._utente(f):
-                pila.append({"file": os.path.abspath(f.f_code.co_filename), "riga": f.f_lineno, "funzione": f.f_code.co_name})
-            f = f.f_back
+    def invia_stato(self, frame, evento="fermo"):
+        pila = [{"file": os.path.abspath(f.f_code.co_filename), "riga": f.f_lineno, "funzione": f.f_code.co_name}
+                for f in self.pila_utente(self.fermo_frame or frame)]
         locali = frame.f_locals
         globali = frame.f_globals
         variabili = []
@@ -156,8 +225,9 @@ class Debugger(bdb.Bdb):
                 osservate.append({"espressione": espressione, "valore": breve(eval(codice, globali, locali))})
             except Exception as errore:
                 osservate.append({"espressione": espressione, "valore": "⚠ " + type(errore).__name__})
-        emetti(evento="fermo", file=os.path.abspath(frame.f_code.co_filename), riga=frame.f_lineno,
-               funzione=frame.f_code.co_name, pila=pila, variabili=variabili, osservate=osservate)
+        avviso, self.avviso = self.avviso, ""
+        emetti(evento=evento, file=os.path.abspath(frame.f_code.co_filename), riga=frame.f_lineno,
+               funzione=frame.f_code.co_name, pila=pila, variabili=variabili, osservate=osservate, avviso=avviso)
 
 
 def main(argv):

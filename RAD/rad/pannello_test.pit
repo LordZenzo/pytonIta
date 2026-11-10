@@ -1,0 +1,295 @@
+"""Pannello «Test»: trova i programmi di prova del progetto (test_*.pit, prova_*.pit, *_test.pit e i file nelle cartelle tests/test),
+li esegue uno alla volta e mostra per ciascuno ✔ riuscito, ✘ fallito (codice di uscita diverso da 0) o ⏱ scaduto, con l'output.
+"""
+importa fnmatch
+importa os
+importa re
+importa subprocess
+importa sys
+importa threading
+importa time
+importa tkinter come tk
+da tkinter importa ttk
+
+da rad importa esecuzione, stile, tema
+da rad.progetto importa IGNORA
+
+ESTENSIONI = (".pit", ".py")
+MODELLI = ("test_*", "prova_*", "*_test")
+CARTELLE_TEST = ("tests", "test", "prove")
+ESCLUSI = ("schermata", "schermate", "_")          # prefissi di file che non sono test (copie di schermo, supporto)
+SIMBOLI = {"attesa": "·", "in corso": "▶", "ok": "✔", "fallito": "✘", "scaduto": "⏱", "ferma": "■"}
+_RE_LINK = re.compile(r'File "([^"]+)", (?:riga|line) (\d+)')
+
+
+definisci trova_test(cartella):
+    """I file di prova del progetto (percorsi relativi, in ordine alfabetico)."""
+    trovati = []
+    per radice, cartelle, nomi in os.walk(cartella):
+        cartelle[:] = [d per d in cartelle se d non in IGNORA e d != ".pacchetti" e non d.startswith(".")]
+        in_cartella_test = os.path.basename(radice).lower() in CARTELLE_TEST
+        per n in nomi:
+            base, estensione = os.path.splitext(n)
+            se estensione.lower() non in ESTENSIONI:
+                continua
+            minuscolo = base.lower()
+            se minuscolo.startswith(ESCLUSI):
+                continua
+            se any(fnmatch.fnmatch(minuscolo, m) per m in MODELLI) o in_cartella_test:
+                trovati.append(os.path.relpath(os.path.join(radice, n), cartella).replace("\\", "/"))
+    ritorna sorted(trovati)
+
+
+classe Prova:
+    """Una prova in corso: tiene il processo per poterlo fermare."""
+
+    definisci __inizializza__(se_stesso):
+        se_stesso.processo = Nessuno
+        se_stesso.fermata = Falso
+
+    definisci ferma(se_stesso):
+        se_stesso.fermata = Vero
+        se se_stesso.processo è non Nessuno e se_stesso.processo.poll() è Nessuno:
+            esecuzione.termina_albero(se_stesso.processo)
+
+
+definisci _ambiente_test(cartella):
+    """L'ambiente di una prova: come gli altri programmi, più la cartella del progetto (così le prove in tests/ importano i moduli del progetto)."""
+    ambiente = esecuzione.ambiente_base()
+    percorsi = [x per x in ambiente.get("PITONIT_PERCORSI", "").split(os.pathsep) se x]
+    ambiente["PITONIT_PERCORSI"] = os.pathsep.join([cartella] + percorsi)
+    ritorna ambiente
+
+
+definisci esegui_test(interprete, cartella, relativo, tempo_massimo=120, controllo=Nessuno):
+    """Esegue un file di prova. Ritorna {"stato": ok|fallito|scaduto|ferma, "secondi": n, "uscita": testo, "codice": n}."""
+    percorso = os.path.join(cartella, relativo)
+    inizio = time.time()
+    controllo = controllo o Prova()
+    prova:
+        p = subprocess.Popen([interprete, "-u", percorso], cwd=cartella, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             env=_ambiente_test(cartella), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    eccetto OSError come errore:
+        ritorna {"stato": "fallito", "secondi": 0, "uscita": testo(errore), "codice": -1}
+    controllo.processo = p
+    se controllo.fermata:               # «Ferma» è stato premuto mentre il processo partiva
+        esecuzione.termina_albero(p)
+    prova:
+        uscita, _ = p.communicate(timeout=tempo_massimo)
+    eccetto subprocess.TimeoutExpired:
+        esecuzione.termina_albero(p)
+        uscita, _ = p.communicate()
+        se controllo.fermata:
+            ritorna {"stato": "ferma", "secondi": round(time.time() - inizio, 2), "uscita": (uscita o b"").decode("utf-8", "replace") + "\n■ Fermato.", "codice": -1}
+        ritorna {"stato": "scaduto", "secondi": round(time.time() - inizio, 2), "uscita": (uscita o b"").decode("utf-8", "replace")
+                 + f"\n⏱ Interrotto dopo {tempo_massimo} secondi.", "codice": -1}
+    testo_ = (uscita o b"").decode("utf-8", "replace")
+    se controllo.fermata:
+        ritorna {"stato": "ferma", "secondi": round(time.time() - inizio, 2), "uscita": testo_ + "\n■ Fermato.", "codice": -1}
+    ritorna {"stato": "ok" se p.returncode == 0 altrimenti "fallito", "secondi": round(time.time() - inizio, 2), "uscita": testo_, "codice": p.returncode}
+
+
+classe PannelloTest(tk.Frame):
+    """Elenco delle prove del progetto con esito e output."""
+
+    definisci __inizializza__(se_stesso, genitore, app):
+        tk.Frame.__init__(se_stesso, genitore)
+        se_stesso.app = app
+        se_stesso.cartella = Nessuno
+        se_stesso.esiti = {}              # relativo -> dizionario di esegui_test (oppure {"stato": "attesa"})
+        se_stesso.in_corso = Falso
+        se_stesso._prova = Nessuno
+        se_stesso._coda = []
+        se_stesso.barra = tk.Frame(se_stesso)
+        se_stesso.barra.pack(fill="x")
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="Test", anchor="w", font=("Segoe UI Semibold", 10))
+        se_stesso.titolo.pack(side="left", padx=8, pady=5)
+        se_stesso.riassunto = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.riassunto.pack(side="right", padx=8)
+        comandi = tk.Frame(se_stesso)
+        comandi.pack(fill="x", padx=6, pady=(0, 4))
+        se_stesso.pulsanti = {}
+        per nome, testo_, aiuto, azione in (("tutti", "▶ Tutti", "Esegue tutte le prove del progetto", se_stesso.esegui_tutti),
+                                            ("scelti", "▶ Selezionati", "Esegue solo le prove scelte nell'elenco", se_stesso.esegui_selezionati),
+                                            ("falliti", "↻ Falliti", "Rifà solo le prove che non sono riuscite", se_stesso.esegui_falliti),
+                                            ("ferma", "■ Ferma", "Ferma l'esecuzione", se_stesso.ferma),
+                                            ("aggiorna", "⟳", "Cerca di nuovo le prove nel progetto", se_stesso.aggiorna_elenco)):
+            b = tk.Button(comandi, text=testo_, command=azione, relief="flat", padx=7, pady=2, font=("Segoe UI", 9))
+            b.pack(side="left", padx=(0, 4))
+            stile.suggerisci(b, aiuto)
+            se_stesso.pulsanti[nome] = b
+        corpo = tk.PanedWindow(se_stesso, orient="vertical", sashwidth=4, borderwidth=0)
+        corpo.pack(fill="both", expand=Vero)
+        se_stesso.corpo = corpo
+        alto = tk.Frame(corpo)
+        se_stesso.albero = ttk.Treeview(alto, columns=("tempo",), show="tree", selectmode="extended")
+        se_stesso.albero.column("#0", width=210, stretch=Vero)
+        se_stesso.albero.column("tempo", width=60, stretch=Falso, anchor="e")
+        sb = ttk.Scrollbar(alto, orient="vertical", command=se_stesso.albero.yview)
+        se_stesso.albero.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        se_stesso.albero.pack(fill="both", expand=Vero)
+        se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._scelta)
+        se_stesso.albero.bind("<Double-1>", se_stesso._apri_file)
+        corpo.add(alto, minsize=80, stretch="always", height=200)
+        basso = tk.Frame(corpo)
+        se_stesso.uscita = tk.Text(basso, height=8, wrap="word", relief="flat", font=("Consolas", 9), state="disabled")
+        sb2 = ttk.Scrollbar(basso, orient="vertical", command=se_stesso.uscita.yview)
+        se_stesso.uscita.configure(yscrollcommand=sb2.set)
+        sb2.pack(side="right", fill="y")
+        se_stesso.uscita.pack(fill="both", expand=Vero)
+        se_stesso.uscita.tag_configure("errore", foreground="#e5484d")
+        se_stesso.uscita.tag_configure("link", foreground="#4aa3ff", underline=Vero)
+        se_stesso.uscita.tag_bind("link", "<Button-1>", se_stesso._clic_link)
+        se_stesso.uscita.tag_bind("link", "<Enter>", lambda ev: se_stesso.uscita.configure(cursor="hand2"))
+        se_stesso.uscita.tag_bind("link", "<Leave>", lambda ev: se_stesso.uscita.configure(cursor=""))
+        corpo.add(basso, minsize=60, stretch="always")
+        se_stesso._attiva_pulsanti()
+
+    # ------------------------------------------------------------ elenco
+    definisci imposta_progetto(se_stesso, progetto):
+        se_stesso.cartella = progetto.cartella se progetto altrimenti Nessuno
+        se_stesso.esiti = {}
+        se_stesso.aggiorna_elenco()
+
+    definisci aggiorna_elenco(se_stesso):
+        se se_stesso.in_corso:
+            ritorna
+        vecchi = se_stesso.esiti
+        se_stesso.esiti = {}
+        se se_stesso.cartella:
+            per rel in trova_test(se_stesso.cartella):
+                se_stesso.esiti[rel] = vecchi.get(rel, {"stato": "attesa"})
+        se_stesso._ridisegna()
+        se_stesso._mostra_uscita()
+
+    definisci _ridisegna(se_stesso):
+        selezionati = se_stesso.albero.selection()
+        se_stesso.albero.delete(*se_stesso.albero.get_children())
+        per rel, esito in se_stesso.esiti.items():
+            simbolo = SIMBOLI.get(esito["stato"], "·")
+            tempo = f"{esito['secondi']:.1f} s" se "secondi" in esito altrimenti ""
+            se_stesso.albero.insert("", "end", iid=rel, text=f"{simbolo}  {rel}", values=(tempo,), tags=(esito["stato"],))
+        se_stesso.albero.tag_configure("ok", foreground="#3fb950")
+        se_stesso.albero.tag_configure("fallito", foreground="#e5484d")
+        se_stesso.albero.tag_configure("scaduto", foreground="#d99a00")
+        per s in selezionati:
+            se s in se_stesso.esiti:
+                se_stesso.albero.selection_add(s)
+        n = lunghezza(se_stesso.esiti)
+        riusciti = sum(1 per x in se_stesso.esiti.values() se x["stato"] == "ok")
+        falliti = sum(1 per x in se_stesso.esiti.values() se x["stato"] in ("fallito", "scaduto"))
+        se_stesso.riassunto.configure(text=("nessuna prova trovata" se n == 0 altrimenti f"{n} prove  ·  {riusciti} ✔  ·  {falliti} ✘" se (riusciti o falliti) altrimenti f"{n} prove"))
+        se_stesso._attiva_pulsanti()
+
+    definisci _attiva_pulsanti(se_stesso):
+        p = se_stesso.pulsanti
+        ci_sono = bool(se_stesso.esiti)
+        p["tutti"].configure(state="normal" se ci_sono e non se_stesso.in_corso altrimenti "disabled")
+        p["scelti"].configure(state="normal" se ci_sono e non se_stesso.in_corso e se_stesso.albero.selection() altrimenti "disabled")
+        p["falliti"].configure(state="normal" se non se_stesso.in_corso e any(x["stato"] in ("fallito", "scaduto") per x in se_stesso.esiti.values()) altrimenti "disabled")
+        p["ferma"].configure(state="normal" se se_stesso.in_corso altrimenti "disabled")
+        p["aggiorna"].configure(state="disabled" se se_stesso.in_corso altrimenti "normal")
+
+    # ------------------------------------------------------------ esecuzione
+    definisci esegui_tutti(se_stesso):
+        se_stesso._avvia(lista(se_stesso.esiti))
+
+    definisci esegui_selezionati(se_stesso):
+        se_stesso._avvia([s per s in se_stesso.albero.selection() se s in se_stesso.esiti])
+
+    definisci esegui_falliti(se_stesso):
+        se_stesso._avvia([r per r, x in se_stesso.esiti.items() se x["stato"] in ("fallito", "scaduto")])
+
+    definisci _avvia(se_stesso, elenco):
+        se se_stesso.in_corso o non elenco o non se_stesso.cartella:
+            ritorna
+        se se_stesso.app.config_.ottieni("esecuzione.salva_prima", Vero):
+            se_stesso.app.salva_tutto()
+        se_stesso.in_corso = Vero
+        se_stesso._coda = lista(elenco)
+        se_stesso._prova = Prova()
+        per rel in elenco:
+            se_stesso.esiti[rel] = {"stato": "attesa"}
+        se_stesso._ridisegna()
+        se_stesso._prossimo()
+
+    definisci _prossimo(se_stesso):
+        se non se_stesso._coda o se_stesso._prova.fermata:
+            se_stesso.in_corso = Falso
+            per rel in se_stesso._coda:
+                se_stesso.esiti[rel] = {"stato": "attesa"}
+            se_stesso._coda = []
+            se_stesso._ridisegna()
+            ritorna
+        rel = se_stesso._coda.pop(0)
+        se_stesso.esiti[rel] = {"stato": "in corso"}
+        se_stesso._ridisegna()
+        interprete = se_stesso.app.config_.interprete()
+        massimo = int(se_stesso.app.config_.ottieni("test.tempo_massimo", 120))
+        cartella = se_stesso.cartella
+        prova_ = se_stesso._prova
+
+        definisci lavoro():
+            ritorna esegui_test(interprete, cartella, rel, massimo, prova_)
+
+        definisci finito(riuscito, risultato):
+            se riuscito:
+                se_stesso.esiti[rel] = risultato
+            altrimenti:
+                se_stesso.esiti[rel] = {"stato": "fallito", "secondi": 0, "uscita": testo(risultato), "codice": -1}
+            se_stesso._ridisegna()
+            se_stesso._mostra_uscita()
+            se_stesso._prossimo()
+
+        esecuzione.in_secondo_piano(se_stesso, lavoro, finito)
+
+    definisci ferma(se_stesso):
+        se se_stesso._prova è non Nessuno e se_stesso.in_corso:
+            se_stesso._prova.ferma()
+
+    # ------------------------------------------------------------ dettaglio
+    definisci _scelta(se_stesso, ev=Nessuno):
+        se_stesso._mostra_uscita()
+        se_stesso._attiva_pulsanti()
+
+    definisci _mostra_uscita(se_stesso):
+        sel = se_stesso.albero.selection()
+        u = se_stesso.uscita
+        u.configure(state="normal")
+        u.delete("1.0", "end")
+        se sel e sel[0] in se_stesso.esiti e "uscita" in se_stesso.esiti[sel[0]]:
+            esito = se_stesso.esiti[sel[0]]
+            u.insert("end", f"{SIMBOLI[esito['stato']]} {sel[0]}  ({esito['secondi']} s, codice {esito['codice']})\n\n")
+            per riga in esito["uscita"].splitlines():
+                m = _RE_LINK.search(riga)
+                etichette = ["errore"] se (riga.startswith("Traceback") o "Errore" in riga[:40] o "Error" in riga[:40]) altrimenti []
+                se m:
+                    u.insert("end", riga + "\n", ("link", f"@{m.group(1)}|{m.group(2)}"))
+                altrimenti:
+                    u.insert("end", riga + "\n", tuple(etichette))
+        altrimenti_se sel e sel[0] in se_stesso.esiti:
+            u.insert("end", "Non ancora eseguito.")
+        u.configure(state="disabled")
+
+    definisci _clic_link(se_stesso, ev):
+        indice = se_stesso.uscita.index(f"@{ev.x},{ev.y}")
+        per etichetta in se_stesso.uscita.tag_names(indice):
+            se etichetta.startswith("@"):
+                percorso, _, riga = etichetta[1:].rpartition("|")
+                se os.path.exists(percorso):
+                    se_stesso.app.apri_file(percorso, int(riga))
+                ritorna
+
+    definisci _apri_file(se_stesso, ev=Nessuno):
+        sel = se_stesso.albero.selection()
+        se sel e se_stesso.cartella:
+            se_stesso.app.apri_file(os.path.join(se_stesso.cartella, sel[0]))
+
+    definisci applica_colori(se_stesso, c):
+        tema.applica(se_stesso, c)
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.titolo.configure(font=("Segoe UI Semibold", 10))
+        se_stesso.riassunto.configure(foreground=c["tenue"])
+        se_stesso.uscita.configure(background=c["sfondo"], foreground=c["primo_piano"])
+        se_stesso.uscita.tag_configure("errore", foreground=c["errore"])

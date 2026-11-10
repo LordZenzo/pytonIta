@@ -53,6 +53,35 @@ classe DialogoBase(tk.Toplevel):
         ritorna se_stesso.risultato
 
 
+classe DialogoPuntoArresto(DialogoBase):
+    """Condizione, numero di passaggi e messaggio di un punto di arresto."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, riga, dettagli=Nessuno):
+        DialogoBase.__init__(se_stesso, genitore, f"Punto di arresto alla riga {riga}", colori, 560, 300)
+        d = dettagli o {}
+        se_stesso.columnconfigure(1, weight=1)
+        se_stesso.var_se = tk.StringVar(value=d.get("se", ""))
+        se_stesso.var_dopo = tk.StringVar(value=testo(d.get("dopo")) se d.get("dopo") altrimenti "")
+        se_stesso.var_messaggio = tk.StringVar(value=d.get("messaggio", ""))
+        e1 = se_stesso.riga("Fermati solo se", se_stesso.campo(se_stesso.var_se, 44), 0)
+        se_stesso.riga("Dal passaggio numero", se_stesso.campo(se_stesso.var_dopo, 8), 1)
+        se_stesso.riga("Scrivi il messaggio", se_stesso.campo(se_stesso.var_messaggio, 44), 2)
+        tk.Label(se_stesso, anchor="w", justify="left", wraplength=520, background=colori["pannello"], foreground=colori["tenue"], font=("Segoe UI", 9),
+                 text="Condizione: un'espressione, per esempio  i > 10  oppure  nome == \"Anna\".\n"
+                      "Messaggio: se lo scrivi, il programma NON si ferma: stampa il messaggio (con {espressione} sostituita, es. {i}) e continua.").grid(
+            row=3, column=0, columnspan=2, sticky="we", padx=14, pady=(0, 4))
+        se_stesso.pulsanti(4, "Salva", se_stesso._conferma)
+        e1.focus_set()
+        se_stesso.bind("<Return>", lambda ev: se_stesso._conferma())
+
+    definisci _conferma(se_stesso):
+        dopo = se_stesso.var_dopo.get().strip()
+        se dopo e non dopo.isdigit():
+            ritorna
+        se_stesso.risultato = {"se": se_stesso.var_se.get().strip(), "dopo": int(dopo) se dopo altrimenti 0, "messaggio": se_stesso.var_messaggio.get().strip()}
+        se_stesso.destroy()
+
+
 classe DialogoNuovoProgetto(DialogoBase):
     definisci __inizializza__(se_stesso, genitore, colori, cartella_base):
         DialogoBase.__init__(se_stesso, genitore, "Nuovo progetto", colori, 520, 260)
