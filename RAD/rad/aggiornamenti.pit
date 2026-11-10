@@ -9,6 +9,7 @@ importa json
 importa os
 importa re
 importa sys
+importa shutil
 importa tempfile
 importa urllib.parse
 importa urllib.request
@@ -144,11 +145,24 @@ definisci avvia_installatore(percorso):
 
 definisci installa_da_sorgenti(archivio, prefisso=Nessuno, tempo_massimo=600):
     """Linux e macOS: scompatta i sorgenti della Release e lancia «installa.sh --solo-pitstudio» sull'installazione in uso.
-    Ritorna il testo scritto dallo script; solleva ErroreAggiornamenti se non riesce."""
-    importa subprocess
-    importa tarfile
+    Ritorna il testo scritto dallo script; solleva ErroreAggiornamenti se non riesce.
+    Alla fine toglie le cartelle temporanee (i sorgenti scompattati e, se è riuscito, anche il file scaricato)."""
     prefisso = prefisso o sys.prefix
     cartella = tempfile.mkdtemp(prefix="pitstudio_sorgenti_")
+    prova:
+        testo_ = _installa_da_cartella(archivio, cartella, prefisso, tempo_massimo)
+    infine:
+        shutil.rmtree(cartella, ignore_errors=Vero)              # la cartella dei sorgenti non serve più, riuscito o no
+    # riuscito: anche il file scaricato (e la sua cartella temporanea) si possono togliere
+    cartella_scarico = os.path.dirname(os.path.abspath(archivio))
+    se os.path.basename(cartella_scarico).startswith("pitstudio_aggiornamento_"):
+        shutil.rmtree(cartella_scarico, ignore_errors=Vero)
+    ritorna testo_
+
+
+definisci _installa_da_cartella(archivio, cartella, prefisso, tempo_massimo):
+    importa subprocess
+    importa tarfile
     prova:
         con tarfile.open(archivio) come t:
             per m in t.getmembers():
