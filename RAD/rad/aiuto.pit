@@ -12,6 +12,7 @@ da tkinter importa ttk
 da PIL importa Image, ImageTk
 
 da rad importa NOME, VERSIONE, markdown_mini, stile
+da rad.piattaforma importa FONT_MONO, FONT_SIMBOLI, FONT_UI, semi
 
 CARTELLA_AIUTO = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "aiuto")
 CARTELLA_HTML = os.path.join(CARTELLA_AIUTO, "html")
@@ -207,12 +208,12 @@ classe FinestraAiuto(tk.Toplevel):
             b = stile.PulsanteIcona(se_stesso.barra, icona, "", comando, c, Falso, aiuto)
             b.pack(side="left", padx=1, pady=4)
             se_stesso.pulsanti.append(b)
-        se_stesso.titolo = tk.Label(se_stesso.barra, text="", anchor="w", font=("Segoe UI Semibold", 11))
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="", anchor="w", font=semi(11))
         se_stesso.titolo.pack(side="left", padx=14)
         se_stesso.var_cerca = tk.StringVar()
-        se_stesso.campo = tk.Entry(se_stesso.barra, textvariable=se_stesso.var_cerca, width=30, relief="flat", font=("Segoe UI", 10))
+        se_stesso.campo = tk.Entry(se_stesso.barra, textvariable=se_stesso.var_cerca, width=30, relief="flat", font=(FONT_UI, 10))
         se_stesso.campo.pack(side="right", padx=(4, 12), pady=8, ipady=3)
-        se_stesso.etichetta_cerca = tk.Label(se_stesso.barra, text=stile.glifo("cerca"), font=(stile.famiglia_icone() o "Segoe UI Symbol", 11))
+        se_stesso.etichetta_cerca = tk.Label(se_stesso.barra, text=stile.glifo("cerca"), font=(stile.famiglia_icone() o FONT_SIMBOLI, 11))
         se_stesso.etichetta_cerca.pack(side="right")
         se_stesso.campo.bind("<KeyRelease>", se_stesso._cerca_digitando)
         se_stesso.campo.bind("<Return>", lambda e: se_stesso._apri_primo_risultato())
@@ -233,7 +234,7 @@ classe FinestraAiuto(tk.Toplevel):
                 gruppi[g] = se_stesso.albero.insert("", "end", text=g.upper(), open=Vero, tags=("gruppo",))
             se_stesso._nodi[a["id"]] = se_stesso.albero.insert(gruppi[g], "end", text="   " + a["titolo"], values=(a["id"],))
         se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._scelta_albero)
-        se_stesso.risultati = tk.Listbox(sinistra, activestyle="none", exportselection=Falso, font=("Segoe UI", 10), borderwidth=0,
+        se_stesso.risultati = tk.Listbox(sinistra, activestyle="none", exportselection=Falso, font=(FONT_UI, 10), borderwidth=0,
                                          highlightthickness=0)
         se_stesso.risultati.bind("<<ListboxSelect>>", se_stesso._scelta_risultato)
         se_stesso._risultati = []
@@ -241,7 +242,7 @@ classe FinestraAiuto(tk.Toplevel):
         # testo
         destra = tk.Frame(se_stesso.corpo)
         se_stesso.t = tk.Text(destra, wrap="word", borderwidth=0, highlightthickness=0, padx=34, pady=22, cursor="arrow",
-                              font=("Segoe UI", 11), spacing1=2, spacing3=3, state="disabled")
+                              font=(FONT_UI, 11), spacing1=2, spacing3=3, state="disabled")
         barra_y = ttk.Scrollbar(destra, orient="vertical", command=se_stesso.t.yview)
         se_stesso.t.configure(yscrollcommand=barra_y.set)
         barra_y.pack(side="right", fill="y")
@@ -262,34 +263,34 @@ classe FinestraAiuto(tk.Toplevel):
                                   highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
         per b in se_stesso.pulsanti:
             b.applica_colori(c)
-        se_stesso.albero.tag_configure("gruppo", foreground=c["tenue"], font=("Segoe UI Semibold", 9))
+        se_stesso.albero.tag_configure("gruppo", foreground=c["tenue"], font=semi(9))
         se_stesso.risultati.configure(background=c["campo"], foreground=c["primo_piano"], selectbackground=c["accento"],
                                       selectforeground="#ffffff")
         t = se_stesso.t
         t.configure(background=c["editor"], foreground=c["editor_testo"], selectbackground=c["selezione"],
                     insertbackground=c["editor"])
-        t.tag_configure("h1", font=("Segoe UI Semibold", 22), spacing1=4, spacing3=12, foreground=c["primo_piano"])
-        t.tag_configure("h2", font=("Segoe UI Semibold", 16), spacing1=22, spacing3=8, foreground=c["primo_piano"])
-        t.tag_configure("h3", font=("Segoe UI Semibold", 12), spacing1=14, spacing3=4, foreground=c["accento"])
-        t.tag_configure("h4", font=("Segoe UI Semibold", 11), spacing1=10, spacing3=2, foreground=c["tenue"])
-        t.tag_configure("p", font=("Segoe UI", 11), spacing1=3, spacing3=6, lmargin1=0, lmargin2=0)
-        t.tag_configure("b", font=("Segoe UI Semibold", 11))
-        t.tag_configure("i", font=("Segoe UI", 11, "italic"))
-        t.tag_configure("inline", font=("Consolas", 10), background=c["campo"], foreground=c["costante"])
-        t.tag_configure("blocco", font=("Consolas", 10), background=c["campo"], foreground=c["editor_testo"], lmargin1=18, lmargin2=18,
+        t.tag_configure("h1", font=semi(22), spacing1=4, spacing3=12, foreground=c["primo_piano"])
+        t.tag_configure("h2", font=semi(16), spacing1=22, spacing3=8, foreground=c["primo_piano"])
+        t.tag_configure("h3", font=semi(12), spacing1=14, spacing3=4, foreground=c["accento"])
+        t.tag_configure("h4", font=semi(11), spacing1=10, spacing3=2, foreground=c["tenue"])
+        t.tag_configure("p", font=(FONT_UI, 11), spacing1=3, spacing3=6, lmargin1=0, lmargin2=0)
+        t.tag_configure("b", font=semi(11))
+        t.tag_configure("i", font=(FONT_UI, 11, "italic"))
+        t.tag_configure("inline", font=(FONT_MONO, 10), background=c["campo"], foreground=c["costante"])
+        t.tag_configure("blocco", font=(FONT_MONO, 10), background=c["campo"], foreground=c["editor_testo"], lmargin1=18, lmargin2=18,
                         rmargin=18, spacing1=0, spacing3=0)
-        t.tag_configure("uscita", font=("Consolas", 10), background=c["sfondo"], foreground=c["ok"], lmargin1=18, lmargin2=18, rmargin=18,
+        t.tag_configure("uscita", font=(FONT_MONO, 10), background=c["sfondo"], foreground=c["ok"], lmargin1=18, lmargin2=18, rmargin=18,
                         spacing1=0, spacing3=0)
-        t.tag_configure("etichetta_uscita", font=("Segoe UI", 8), foreground=c["tenue"], lmargin1=18, spacing1=2)
+        t.tag_configure("etichetta_uscita", font=(FONT_UI, 8), foreground=c["tenue"], lmargin1=18, spacing1=2)
         t.tag_configure("barra_codice", background=c["campo"], lmargin1=18, rmargin=18, justify="right", spacing1=8)
         t.tag_configure("nota", background=c["chat_strumento"], lmargin1=20, lmargin2=20, rmargin=20, spacing1=8, spacing3=8,
-                        font=("Segoe UI", 10))
+                        font=(FONT_UI, 10))
         t.tag_configure("elenco", lmargin1=22, lmargin2=40, spacing1=1, spacing3=1)
         t.tag_configure("link", foreground=c["accento"], underline=Vero)
         t.tag_configure("tenue", foreground=c["tenue"])
         t.tag_configure("evidenzia", background=c["avviso"], foreground="#000000")
         t.tag_configure("figura", justify="center", spacing1=8, spacing3=2)
-        t.tag_configure("didascalia", foreground=c["tenue"], font=("Segoe UI", 9, "italic"), justify="center", spacing3=10)
+        t.tag_configure("didascalia", foreground=c["tenue"], font=(FONT_UI, 9, "italic"), justify="center", spacing3=10)
         se se_stesso.corrente:
             se_stesso.mostra(se_stesso.corrente, mantieni=Vero)
 
@@ -435,7 +436,7 @@ classe FinestraAiuto(tk.Toplevel):
             t.insert("end", "\n", ("p",))
             ritorna
         t.insert("end", "\n", ("p",))
-        bottone = tk.Button(t, text="Copia", font=("Segoe UI", 8), relief="flat", background=c["pulsante"], foreground=c["primo_piano"],
+        bottone = tk.Button(t, text="Copia", font=(FONT_UI, 8), relief="flat", background=c["pulsante"], foreground=c["primo_piano"],
                             activebackground=c["pulsante_attivo"], cursor="hand2",
                             command=lambda: (se_stesso.clipboard_clear(), se_stesso.clipboard_append(codice)))
         t.window_create("end", window=bottone)
@@ -478,7 +479,7 @@ classe FinestraAiuto(tk.Toplevel):
                 l = tk.Label(cornice, text=testo_, anchor="w", justify="left", padx=8, pady=4, wraplength=300,
                              background=c["pulsante"] se intestazione altrimenti (c["editor"] se i % 2 altrimenti c["campo"]),
                              foreground=c["primo_piano"] se intestazione altrimenti c["editor_testo"],
-                             font=("Segoe UI Semibold", 10) se intestazione altrimenti (("Consolas", 9) se "`" in cella altrimenti ("Segoe UI", 10)))
+                             font=semi(10) se intestazione altrimenti ((FONT_MONO, 9) se "`" in cella altrimenti (FONT_UI, 10)))
                 l.grid(row=i, column=j, sticky="nsew", padx=(0, 1), pady=(0, 1))
         per j in intervallo(colonne):
             cornice.grid_columnconfigure(j, weight=1 se j == colonne - 1 altrimenti 0)

@@ -48,6 +48,7 @@ def _percorsi_italiano():
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))          # .../pitonit
     return [os.path.join(base, 'Lib', '_italiano.py'),
             os.path.join(base, 'installazione', 'Lib', '_italiano.py'),
+            os.path.join(os.path.dirname(os.__file__), '_italiano.py'),      # la Lib dell'interprete in uso (Linux e macOS)
             SRC_ITALIANO]
 
 

@@ -6,6 +6,7 @@ da tkinter importa ttk, messagebox
 da rad.dialoghi importa DialogoBase
 da rad importa NOME, VERSIONE_BASE
 da rad importa aggiornamenti, esecuzione
+da rad.piattaforma importa FONT_UI, semi
 
 
 classe DialogoAggiornamento(DialogoBase):
@@ -19,14 +20,14 @@ classe DialogoAggiornamento(DialogoBase):
         se_stesso._scaricando = Falso
         se_stesso._avanzamento = (0, 0)
         c = colori
-        tk.Label(se_stesso, text=f"{NOME} {info['versione']} è disponibile", font=("Segoe UI Semibold", 14), anchor="w",
+        tk.Label(se_stesso, text=f"{NOME} {info['versione']} è disponibile", font=semi(14), anchor="w",
                  background=c["pannello"], foreground=c["primo_piano"]).pack(fill="x", padx=18, pady=(16, 0))
         tk.Label(se_stesso, text=f"Hai la versione {VERSIONE_BASE}. Le tue impostazioni e i tuoi progetti restano dove sono.", anchor="w",
                  background=c["pannello"], foreground=c["tenue"]).pack(fill="x", padx=18, pady=(0, 8))
         cornice = tk.Frame(se_stesso, background=c["pannello"])
         cornice.pack(fill="both", expand=Vero, padx=18)
         se_stesso.note = tk.Text(cornice, wrap="word", height=10, relief="flat", background=c["campo"], foreground=c["primo_piano"],
-                                 highlightthickness=1, highlightbackground=c["bordo"], font=("Segoe UI", 9))
+                                 highlightthickness=1, highlightbackground=c["bordo"], font=(FONT_UI, 9))
         barra = ttk.Scrollbar(cornice, orient="vertical", command=se_stesso.note.yview)
         se_stesso.note.configure(yscrollcommand=barra.set)
         barra.pack(side="right", fill="y")

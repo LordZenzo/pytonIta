@@ -11,6 +11,9 @@ da rad.config importa Configurazione
 da rad.finestra importa Applicazione
 da rad importa aggiornamenti come ag
 da rad importa aggiornamenti_ui
+da rad importa piattaforma
+
+piattaforma.WINDOWS = Vero        # prova il flusso Windows: installatore .exe, uscita da PitStudio, avvio
 
 errori = []
 

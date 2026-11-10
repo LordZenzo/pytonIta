@@ -4,6 +4,7 @@ da tkinter importa ttk
 
 da rad.dialoghi importa DialogoBase
 da rad.esempi importa elenco_esempi
+da rad.piattaforma importa FONT_UI, semi
 
 
 classe DialogoEsempi(DialogoBase):
@@ -25,14 +26,14 @@ classe DialogoEsempi(DialogoBase):
         se_stesso.albero.bind("<Double-Button-1>", lambda e: se_stesso._conferma())
         destra = tk.Frame(se_stesso, background=c["pannello"])
         destra.grid(row=0, column=1, sticky="nsew", padx=(6, 14), pady=14)
-        se_stesso.titolo = tk.Label(destra, text="Scegli un esempio a sinistra", anchor="w", background=c["pannello"], foreground=c["primo_piano"], font=("Segoe UI Semibold", 14))
+        se_stesso.titolo = tk.Label(destra, text="Scegli un esempio a sinistra", anchor="w", background=c["pannello"], foreground=c["primo_piano"], font=semi(14))
         se_stesso.titolo.pack(fill="x")
-        se_stesso.riga_info = tk.Label(destra, text="", anchor="w", background=c["pannello"], foreground=c["accento"], font=("Segoe UI", 9))
+        se_stesso.riga_info = tk.Label(destra, text="", anchor="w", background=c["pannello"], foreground=c["accento"], font=(FONT_UI, 9))
         se_stesso.riga_info.pack(fill="x", pady=(0, 8))
-        se_stesso.testo = tk.Text(destra, wrap="word", relief="flat", font=("Segoe UI", 10), background=c["campo"], foreground=c["primo_piano"], height=14,
+        se_stesso.testo = tk.Text(destra, wrap="word", relief="flat", font=(FONT_UI, 10), background=c["campo"], foreground=c["primo_piano"], height=14,
                                   highlightthickness=1, highlightbackground=c["bordo"], state="disabled", padx=10, pady=8)
         se_stesso.testo.pack(fill="both", expand=Vero)
-        se_stesso.testo.tag_configure("titolo", font=("Segoe UI Semibold", 10), foreground=c["accento"], spacing1=8)
+        se_stesso.testo.tag_configure("titolo", font=semi(10), foreground=c["accento"], spacing1=8)
         fondo = tk.Frame(se_stesso, background=c["pannello"])
         fondo.grid(row=1, column=0, columnspan=2, sticky="e", padx=14, pady=(0, 12))
         tk.Button(fondo, text="Chiudi", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=14).pack(side="right", padx=4)

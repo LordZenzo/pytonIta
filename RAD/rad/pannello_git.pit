@@ -4,6 +4,7 @@ importa tkinter come tk
 da tkinter importa messagebox, simpledialog, ttk
 
 da rad importa esecuzione, git_uso, stile, tema
+da rad.piattaforma importa FONT_MONO, FONT_UI, semi
 
 
 classe PannelloGit(tk.Frame):
@@ -21,12 +22,12 @@ classe PannelloGit(tk.Frame):
         se_stesso._ramo = ""
         se_stesso.barra = tk.Frame(se_stesso)
         se_stesso.barra.pack(fill="x")
-        se_stesso.titolo = tk.Label(se_stesso.barra, text="Git", anchor="w", font=("Segoe UI Semibold", 10))
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="Git", anchor="w", font=semi(10))
         se_stesso.titolo.pack(side="left", padx=8, pady=5)
-        se_stesso.stato = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.stato = tk.Label(se_stesso.barra, text="", anchor="e", font=(FONT_UI, 9))
         se_stesso.stato.pack(side="right", padx=8)
         # messaggio (nessun repository / git mancante / errori)
-        se_stesso.avviso_ = tk.Label(se_stesso, text="", anchor="w", justify="left", wraplength=360, font=("Segoe UI", 9))
+        se_stesso.avviso_ = tk.Label(se_stesso, text="", anchor="w", justify="left", wraplength=360, font=(FONT_UI, 9))
         se_stesso.crea = tk.Button(se_stesso, text="Crea il repository Git qui (git init)", command=se_stesso.crea_repository, relief="flat", padx=10, pady=4)
         # ramo e sincronizzazione
         se_stesso.riga_ramo = tk.Frame(se_stesso)
@@ -39,7 +40,7 @@ classe PannelloGit(tk.Frame):
                                              ("scarica", "⬇ Pull", "Scarica le novità dal repository remoto (git pull)", se_stesso.scarica),
                                              ("invia", "⬆ Push", "Invia i tuoi commit al repository remoto (git push)", se_stesso.invia),
                                              ("aggiorna", "⟳", "Rilegge lo stato del repository", se_stesso.aggiorna)):
-            b = tk.Button(se_stesso.riga_ramo, text=simbolo, command=azione, relief="flat", padx=6, pady=1, font=("Segoe UI", 9))
+            b = tk.Button(se_stesso.riga_ramo, text=simbolo, command=azione, relief="flat", padx=6, pady=1, font=(FONT_UI, 9))
             b.pack(side="left", padx=(0, 3))
             stile.suggerisci(b, aiuto)
             se_stesso.pulsanti[nome] = b
@@ -62,13 +63,13 @@ classe PannelloGit(tk.Frame):
         per nome, simbolo, aiuto, azione in (("prepara", "＋ Prepara", "Prepara i file scelti per il commit (git add); senza scelta, tutti", se_stesso.prepara),
                                              ("togli", "－ Togli", "Toglie i file scelti dall'area dei file preparati", se_stesso.togli),
                                              ("annulla", "↶ Annulla", "Butta via le modifiche dei file scelti (non si può tornare indietro)", se_stesso.annulla)):
-            b = tk.Button(riga_op, text=simbolo, command=azione, relief="flat", padx=7, pady=1, font=("Segoe UI", 9))
+            b = tk.Button(riga_op, text=simbolo, command=azione, relief="flat", padx=7, pady=1, font=(FONT_UI, 9))
             b.pack(side="left", padx=(0, 3))
             stile.suggerisci(b, aiuto)
             se_stesso.ops[nome] = b
-        se_stesso.messaggio_commit = tk.Text(mod, height=3, wrap="word", relief="flat", font=("Segoe UI", 9))
+        se_stesso.messaggio_commit = tk.Text(mod, height=3, wrap="word", relief="flat", font=(FONT_UI, 9))
         se_stesso.messaggio_commit.pack(fill="x", pady=(2, 0))
-        se_stesso.pulsante_commit = tk.Button(mod, text="✔ Commit", command=se_stesso.fai_commit, relief="flat", padx=10, pady=3, font=("Segoe UI Semibold", 9))
+        se_stesso.pulsante_commit = tk.Button(mod, text="✔ Commit", command=se_stesso.fai_commit, relief="flat", padx=10, pady=3, font=semi(9))
         se_stesso.pulsante_commit.pack(fill="x", pady=3)
         stile.suggerisci(se_stesso.pulsante_commit, "Registra i file preparati con il messaggio scritto sopra")
         # --- storia
@@ -82,7 +83,7 @@ classe PannelloGit(tk.Frame):
         se_stesso.storia.bind("<<TreeviewSelect>>", se_stesso._scelta_commit)
         se_stesso._commit = []
         # --- differenze
-        se_stesso.diff = tk.Text(se_stesso.corpo, height=9, wrap="none", relief="flat", font=("Consolas", 9), state="disabled")
+        se_stesso.diff = tk.Text(se_stesso.corpo, height=9, wrap="none", relief="flat", font=(FONT_MONO, 9), state="disabled")
         se_stesso.corpo.add(se_stesso.diff, minsize=60, stretch="always")
         se_stesso.diff.tag_configure("piu", foreground="#3fb950")
         se_stesso.diff.tag_configure("meno", foreground="#e5484d")
@@ -186,7 +187,7 @@ classe PannelloGit(tk.Frame):
                 se_stesso.albero.insert("g:mod", "end", iid="m:" + v["percorso"], text=v["percorso"], values=(git_uso.descrizione(v["x"] se v["x"] == "?" altrimenti " ", v["y"]),))
         se non pronte e non altre:
             se_stesso.albero.insert("", "end", iid="g:niente", text="Nessuna modifica: tutto è già registrato.", tags=("gruppo",))
-        se_stesso.albero.tag_configure("gruppo", font=("Segoe UI Semibold", 9))
+        se_stesso.albero.tag_configure("gruppo", font=semi(9))
         per s_ in selezionate:
             se se_stesso.albero.exists(s_):
                 se_stesso.albero.selection_add(s_)

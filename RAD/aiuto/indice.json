@@ -175,6 +175,11 @@
   "gruppo": "Programmare"
  },
  {
+  "id": "linux-mac",
+  "titolo": "pytonIta su Linux e macOS",
+  "gruppo": "Programmare"
+ },
+ {
   "id": "progettista",
   "titolo": "Il progettista di finestre",
   "gruppo": "Costruire senza scrivere codice"

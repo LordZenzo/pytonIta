@@ -6,6 +6,7 @@ importa tkinter come tk
 da tkinter importa ttk
 
 da rad importa parole, stile, navigazione
+da rad.piattaforma importa FONT_MONO
 
 _RE_TOKEN = re.compile(r"""
     (?P<stringa>[rRbBfFuU]{0,2}(?:\"\"\"[\s\S]*?(?:\"\"\"|\Z)|'''[\s\S]*?(?:'''|\Z)|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?))
@@ -144,7 +145,7 @@ classe Editor(tk.Frame):
 
     definisci applica_impostazioni(se_stesso):
         cfg = se_stesso.config_
-        se_stesso.carattere = (cfg.ottieni("editor.carattere", "Consolas"),
+        se_stesso.carattere = (cfg.ottieni("editor.carattere", FONT_MONO),
                                cfg.ottieni("editor.dimensione", 11))
         se_stesso.t.configure(font=se_stesso.carattere,
                               wrap="word" se cfg.ottieni("editor.a_capo") altrimenti "none")

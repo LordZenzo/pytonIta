@@ -13,6 +13,8 @@ importa tkinter come tk
 da rad importa diagnosi, stile
 da rad importa limiti come limiti_mod
 da tkinter importa ttk
+da rad.piattaforma importa FONT_MONO
+da rad importa piattaforma
 
 _RE_LINK = re.compile(r'File "([^"]+)", (?:riga|line) (\d+)')
 _FLAG_NASCONDI = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -67,7 +69,8 @@ definisci esegui_sincrono(argomenti, cartella=Nessuno, tempo_massimo=60, ingress
     inizio = time.time()
     prova:
         p = subprocess.Popen(argomenti, cwd=cartella, stdin=subprocess.PIPE se ingresso è non Nessuno altrimenti subprocess.DEVNULL,
-                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ambiente, creationflags=_FLAG_NASCONDI)
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ambiente, creationflags=_FLAG_NASCONDI,
+                             start_new_session=piattaforma.NUOVA_SESSIONE)
     eccetto OSError come e:
         ritorna {"codice": -1, "uscita": "", "errori": testo(e), "scaduto": Falso, "secondi": 0}
     limite = limiti_mod.applica(p, *limiti) se limiti altrimenti Nessuno
@@ -146,7 +149,7 @@ classe Esecutore:
         ambiente = ambiente_base()
         se_stesso.processo = subprocess.Popen(argomenti, cwd=cartella, stdin=subprocess.PIPE,
                                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                              env=ambiente, creationflags=_FLAG_NASCONDI)
+                                              env=ambiente, creationflags=_FLAG_NASCONDI, start_new_session=piattaforma.NUOVA_SESSIONE)
         se_stesso.inizio = time.time()
         p = se_stesso.processo
         se_stesso.limite = limiti_mod.applica(p, *limiti) se limiti altrimenti Nessuno
@@ -184,7 +187,7 @@ classe Esecutore:
                 subprocess.run(["taskkill", "/T", "/F", "/PID", testo(p.pid)], capture_output=Vero,
                                creationflags=_FLAG_NASCONDI)
             altrimenti:
-                p.kill()
+                piattaforma.termina_gruppo(p)
         eccetto OSError:
             passa
 
@@ -259,7 +262,7 @@ classe Console(tk.Frame):
         se_stesso.colori = c
         se_stesso.configure(background=c["pannello"])
         se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"],
-                              font=(se_stesso.config_.ottieni("editor.carattere", "Consolas"),
+                              font=(se_stesso.config_.ottieni("editor.carattere", FONT_MONO),
                                     max(9, se_stesso.config_.ottieni("editor.dimensione", 11) - 1)))
         se_stesso.t.tag_configure("out", foreground=c["editor_testo"])
         se_stesso.t.tag_configure("err", foreground=c["errore"])

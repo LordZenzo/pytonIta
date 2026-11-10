@@ -30,7 +30,8 @@ def cartelle_lib():
     """Le cartelle Lib di pitonit: sviluppo (installazione\\Lib) o installato (pitonit\\Lib)."""
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     candidati = [os.path.join(base, "installazione", "Lib"), os.path.join(base, "Lib"),
-                 os.path.join(os.path.dirname(base), "Lib")]
+                 os.path.join(os.path.dirname(base), "Lib"),
+                 os.path.dirname(os.__file__)]      # la Lib dell'interprete in uso (Linux e macOS)
     return [c for c in candidati if os.path.exists(os.path.join(c, "_mappa_moduli.py"))]
 
 

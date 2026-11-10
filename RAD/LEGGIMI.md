@@ -16,6 +16,13 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.35
+
+- **Linux (e, da provare, macOS)**: l'interprete pitonit compila con `./configure && make` (la patch aveva una sola chiamata solo Windows, `_wcsicmp`, ora corretta) e **PitStudio gira su Linux**: provato su Ubuntu 24.10 con tutti i 62 test. Nuovo `installatore/linux/installa.sh`: scarica CPython, applica la patch, compila, installa PitStudio e le librerie italiane, crea il comando `pitstudio` e la voce nel menu (opzioni `--prefisso`, `--scientifiche`, `--solo-pitstudio`). Istruzioni in `installatore/linux/LEGGIMI.md` e nella pagina della guida «pytonIta su Linux e macOS».
+- **Nuovo modulo `rad/piattaforma.pit`**: caratteri per sistema (al posto di «Segoe UI» e «Consolas» scritti a mano), apertura di file e cartelle, terminale, cursori di ridimensionamento, rotella del mouse (X11), arresto dell'albero di processi.
+- I limiti di memoria ai programmi funzionano anche su Linux; il pulsante *Controlla aggiornamenti* su Linux e Mac riscrive PitStudio dai sorgenti della Release senza ricompilare l'interprete.
+- Gli strumenti di conversione (`py2pit`, `pit2py`) trovano da soli la `Lib` dell'interprete in uso.
+
 ## Novità della 1.34
 
 - **Zona `librerie/` nel repository**: i moduli italiani attuali (108 librerie, 152 file) con un indice (`librerie/indice.json`, con versione e impronta SHA-256 di ogni file) e lo script `librerie/costruisci_indice.py` che lo ricostruisce. Istruzioni in `librerie/LEGGIMI.md`.

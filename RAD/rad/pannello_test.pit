@@ -13,6 +13,8 @@ da tkinter importa ttk
 
 da rad importa esecuzione, stile, tema
 da rad.progetto importa IGNORA
+da rad.piattaforma importa FONT_MONO, FONT_UI, semi
+da rad importa piattaforma
 
 ESTENSIONI = (".pit", ".py")
 MODELLI = ("test_*", "prova_*", "*_test")
@@ -68,7 +70,8 @@ definisci esegui_test(interprete, cartella, relativo, tempo_massimo=120, control
     controllo = controllo o Prova()
     prova:
         p = subprocess.Popen([interprete, "-u", percorso], cwd=cartella, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             env=_ambiente_test(cartella), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                             env=_ambiente_test(cartella), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                             start_new_session=piattaforma.NUOVA_SESSIONE)
     eccetto OSError come errore:
         ritorna {"stato": "fallito", "secondi": 0, "uscita": testo(errore), "codice": -1}
     controllo.processo = p
@@ -102,9 +105,9 @@ classe PannelloTest(tk.Frame):
         se_stesso._coda = []
         se_stesso.barra = tk.Frame(se_stesso)
         se_stesso.barra.pack(fill="x")
-        se_stesso.titolo = tk.Label(se_stesso.barra, text="Test", anchor="w", font=("Segoe UI Semibold", 10))
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="Test", anchor="w", font=semi(10))
         se_stesso.titolo.pack(side="left", padx=8, pady=5)
-        se_stesso.riassunto = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.riassunto = tk.Label(se_stesso.barra, text="", anchor="e", font=(FONT_UI, 9))
         se_stesso.riassunto.pack(side="right", padx=8)
         comandi = tk.Frame(se_stesso)
         comandi.pack(fill="x", padx=6, pady=(0, 4))
@@ -114,7 +117,7 @@ classe PannelloTest(tk.Frame):
                                             ("falliti", "↻ Falliti", "Rifà solo le prove che non sono riuscite", se_stesso.esegui_falliti),
                                             ("ferma", "■ Ferma", "Ferma l'esecuzione", se_stesso.ferma),
                                             ("aggiorna", "⟳", "Cerca di nuovo le prove nel progetto", se_stesso.aggiorna_elenco)):
-            b = tk.Button(comandi, text=testo_, command=azione, relief="flat", padx=7, pady=2, font=("Segoe UI", 9))
+            b = tk.Button(comandi, text=testo_, command=azione, relief="flat", padx=7, pady=2, font=(FONT_UI, 9))
             b.pack(side="left", padx=(0, 4))
             stile.suggerisci(b, aiuto)
             se_stesso.pulsanti[nome] = b
@@ -133,7 +136,7 @@ classe PannelloTest(tk.Frame):
         se_stesso.albero.bind("<Double-1>", se_stesso._apri_file)
         corpo.add(alto, minsize=80, stretch="always", height=200)
         basso = tk.Frame(corpo)
-        se_stesso.uscita = tk.Text(basso, height=8, wrap="word", relief="flat", font=("Consolas", 9), state="disabled")
+        se_stesso.uscita = tk.Text(basso, height=8, wrap="word", relief="flat", font=(FONT_MONO, 9), state="disabled")
         sb2 = ttk.Scrollbar(basso, orient="vertical", command=se_stesso.uscita.yview)
         se_stesso.uscita.configure(yscrollcommand=sb2.set)
         sb2.pack(side="right", fill="y")
@@ -289,7 +292,7 @@ classe PannelloTest(tk.Frame):
     definisci applica_colori(se_stesso, c):
         tema.applica(se_stesso, c)
         se_stesso.configure(background=c["pannello"])
-        se_stesso.titolo.configure(font=("Segoe UI Semibold", 10))
+        se_stesso.titolo.configure(font=semi(10))
         se_stesso.riassunto.configure(foreground=c["tenue"])
         se_stesso.uscita.configure(background=c["sfondo"], foreground=c["primo_piano"])
         se_stesso.uscita.tag_configure("errore", foreground=c["errore"])

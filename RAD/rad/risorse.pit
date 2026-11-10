@@ -8,6 +8,7 @@ da tkinter importa ttk, messagebox, simpledialog
 
 da rad.progetto importa tipo_file
 da rad.stile importa suggerisci
+da rad.piattaforma importa FONT_MONO, lega_rotella
 
 
 classe VisoreBase(tk.Frame):
@@ -67,7 +68,7 @@ classe VisoreImmagine(VisoreBase):
         by.pack(side="right", fill="y")
         se_stesso.tela.pack(fill="both", expand=Vero)
         se_stesso.tela.bind("<Configure>", lambda e: se_stesso._ricentra())
-        se_stesso.tela.bind("<Control-MouseWheel>", se_stesso._rotella)
+        lega_rotella(se_stesso.tela, se_stesso._rotella, "Control-")
         se_stesso.carica()
         se_stesso.applica_colori(colori)
 
@@ -193,7 +194,7 @@ classe VisoreJson(VisoreBase):
         se_stesso.divisore.configure(background=c["sfondo"])
         per f in se_stesso.divisore.winfo_children():
             f.configure(background=c["pannello"])
-        font = (se_stesso.config_.ottieni("editor.carattere", "Consolas"), se_stesso.config_.ottieni("editor.dimensione", 11))
+        font = (se_stesso.config_.ottieni("editor.carattere", FONT_MONO), se_stesso.config_.ottieni("editor.dimensione", 11))
         se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"], font=font,
                               insertbackground=c["cursore"], selectbackground=c["selezione"])
         se_stesso.t.tag_configure("errore", background="#5a2a2a" se c["editor"] < "#808080" altrimenti "#fadada")
@@ -429,7 +430,7 @@ classe VisoreBinario(VisoreBase):
     definisci applica_colori(se_stesso, c):
         se_stesso.colori = c
         se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"],
-                              font=(se_stesso.config_.ottieni("editor.carattere", "Consolas"), 10))
+                              font=(se_stesso.config_.ottieni("editor.carattere", FONT_MONO), 10))
 
 
 definisci crea_visore(genitore, percorso, colori, config, azioni):

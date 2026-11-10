@@ -3,6 +3,7 @@ importa json
 importa os
 importa re
 importa shlex
+importa subprocess
 importa sys
 importa tkinter come tk
 da tkinter importa ttk, messagebox, filedialog, simpledialog
@@ -44,6 +45,8 @@ da rad.esecuzione importa Console
 da rad.chat importa PannelloChat
 da rad.ponte_ui importa PonteUI
 da rad.impostazioni importa Impostazioni
+da rad.piattaforma importa FONT_MONO, FONT_SIMBOLI, FONT_UI, semi
+da rad importa piattaforma
 
 CARTELLA_PROGETTI = os.path.join(os.path.expanduser("~"), "RAD_progetti")
 
@@ -95,14 +98,14 @@ classe Applicazione:
         # ---- barra di stato
         se_stesso.stato = tk.Frame(r)
         se_stesso.stato.pack(side="bottom", fill="x")
-        se_stesso.testo_stato = tk.Label(se_stesso.stato, anchor="w", text="Pronto", font=("Segoe UI", 9))
+        se_stesso.testo_stato = tk.Label(se_stesso.stato, anchor="w", text="Pronto", font=(FONT_UI, 9))
         se_stesso.testo_stato.pack(side="left", padx=10, pady=3)
         se_stesso.segmenti_stato = []
 
         definisci segmento(testo_=""):
             sep = tk.Frame(se_stesso.stato, width=1)
             sep.pack(side="right", fill="y", pady=4)
-            lab = tk.Label(se_stesso.stato, anchor="e", text=testo_, font=("Segoe UI", 9))
+            lab = tk.Label(se_stesso.stato, anchor="e", text=testo_, font=(FONT_UI, 9))
             lab.pack(side="right", padx=10)
             se_stesso.segmenti_stato.append((lab, sep))
             ritorna lab
@@ -135,7 +138,7 @@ classe Applicazione:
                         "git": "Git: modifiche, commit, rami, storia, pull e push",
                         "pacchetti": "Pacchetti Python (pip): installa e aggiorna le librerie del progetto"}
         per chiave, testo_ in (("progetto", "📁  Progetto"), ("librerie", "📚  Librerie"), ("test", "Test"), ("git", "Git"), ("pacchetti", "Pip")):
-            b = tk.Label(se_stesso.schede_sinistra, text=testo_, padx=10 se chiave in ("progetto", "librerie") altrimenti 8, pady=6, cursor="hand2", font=("Segoe UI", 9))
+            b = tk.Label(se_stesso.schede_sinistra, text=testo_, padx=10 se chiave in ("progetto", "librerie") altrimenti 8, pady=6, cursor="hand2", font=(FONT_UI, 9))
             b.pack(side="left")
             b.bind("<Button-1>", lambda e, k=chiave: se_stesso.mostra_pannello_sinistro(k))
             stile.suggerisci(b, AIUTI_SCHEDE[chiave], c)
@@ -489,7 +492,7 @@ classe Applicazione:
         per k, b in se_stesso.pulsanti_sinistra.items():
             attivo = k == chiave
             b.configure(background=c["sfondo"] se attivo altrimenti c["pannello"], foreground=c["primo_piano"] se attivo altrimenti c["tenue"],
-                        font=("Segoe UI Semibold", 9) se attivo altrimenti ("Segoe UI", 9))
+                        font=semi(9) se attivo altrimenti (FONT_UI, 9))
 
     definisci _editor_corrente(se_stesso):
         w = se_stesso._scheda_corrente()
@@ -1331,7 +1334,7 @@ classe Applicazione:
         finestra.title("Report della classe")
         finestra.geometry("720x520+120+90")
         finestra.configure(background=se_stesso.colori["pannello"])
-        t = tk.Text(finestra, font=("Consolas", 10), wrap="none", background=se_stesso.colori["campo"], foreground=se_stesso.colori["primo_piano"], relief="flat", padx=12, pady=10)
+        t = tk.Text(finestra, font=(FONT_MONO, 10), wrap="none", background=se_stesso.colori["campo"], foreground=se_stesso.colori["primo_piano"], relief="flat", padx=12, pady=10)
         t.pack(fill="both", expand=Vero, padx=10, pady=(10, 4))
         t.insert("1.0", testo_)
         t.configure(state="disabled")
@@ -1428,7 +1431,7 @@ classe Applicazione:
         se_stesso.info(f"Progetto Python creato in {destinazione}")
         se messagebox.askyesno("Esporta come Python", esporta_python.riassunto(r) + "\n\nAprire la cartella?", parent=se_stesso.radice):
             prova:
-                os.startfile(destinazione)
+                piattaforma.apri(destinazione)
             eccetto Exception:
                 passa
         ritorna r
@@ -1612,8 +1615,32 @@ classe Applicazione:
                                         parent=se_stesso.radice)
         esecuzione.in_secondo_piano(se_stesso.radice, lavoro, fine)
 
+    definisci _aggiorna_da_sorgenti(se_stesso, archivio):
+        """Linux e macOS: riscrive PitStudio e le librerie dai sorgenti scaricati, poi propone di riavviare."""
+        se_stesso.info("Aggiorno PitStudio…")
+
+        definisci fine(riuscito, r):
+            se non riuscito:
+                se_stesso.info("Aggiornamento non riuscito")
+                messagebox.showerror("Aggiornamento", testo(r), parent=se_stesso.radice)
+                ritorna
+            se_stesso.info("PitStudio aggiornato")
+            se messagebox.askyesno("Aggiornamento", "PitStudio è stato aggiornato.\n\nLo riavvio adesso?", parent=se_stesso.radice):
+                comando = [sys.executable, os.path.join(sys.prefix, "PitStudio", "rad.pit")]
+                se_stesso.esci()
+                prova:
+                    vivo = bool(se_stesso.radice.winfo_exists())
+                eccetto tk.TclError:
+                    vivo = Falso
+                se non vivo:
+                    subprocess.Popen(comando, start_new_session=Vero)
+        esecuzione.in_secondo_piano(se_stesso.radice, lambda: aggiornamenti.installa_da_sorgenti(archivio), fine)
+
     definisci installa_aggiornamento(se_stesso, percorso):
         """Chiude PitStudio (chiedendo di salvare) e avvia l'installatore scaricato. Se l'uscita viene annullata, l'installazione resta da fare."""
+        se non piattaforma.WINDOWS:
+            se_stesso._aggiorna_da_sorgenti(percorso)
+            ritorna
         se_stesso.esci()
         prova:
             vivo = bool(se_stesso.radice.winfo_exists())
@@ -1647,9 +1674,9 @@ classe Applicazione:
         centro.place(relx=0.5, rely=0.46, anchor="center")
         se_stesso._logo_benvenuto = stile.logo_tk(88)
         tk.Label(centro, image=se_stesso._logo_benvenuto, background=c["editor"]).grid(row=0, column=0, rowspan=2, padx=(0, 18))
-        tk.Label(centro, text=NOME, font=("Segoe UI Semibold", 30), background=c["editor"], foreground=c["primo_piano"]).grid(
+        tk.Label(centro, text=NOME, font=semi(30), background=c["editor"], foreground=c["primo_piano"]).grid(
             row=0, column=1, sticky="sw")
-        tk.Label(centro, text=f"Ambiente di sviluppo per pytonIta  ·  versione {VERSIONE}", font=("Segoe UI", 11),
+        tk.Label(centro, text=f"Ambiente di sviluppo per pytonIta  ·  versione {VERSIONE}", font=(FONT_UI, 11),
                  background=c["editor"], foreground=c["tenue"]).grid(row=1, column=1, sticky="nw")
         carte = tk.Frame(centro, background=c["editor"])
         carte.grid(row=2, column=0, columnspan=2, pady=(28, 6))
@@ -1662,13 +1689,13 @@ classe Applicazione:
         per i, (icona, titolo, descr, comando) in enumera(voci):
             carta = tk.Frame(carte, background=c["pannello"], cursor="hand2", highlightthickness=1, highlightbackground=c["bordo"])
             carta.grid(row=i // 2, column=i % 2, padx=8, pady=8, sticky="nsew")
-            lab_i = tk.Label(carta, text=stile.glifo(icona), font=(stile.famiglia_icone() o "Segoe UI Symbol", 20),
+            lab_i = tk.Label(carta, text=stile.glifo(icona), font=(stile.famiglia_icone() o FONT_SIMBOLI, 20),
                              background=c["pannello"], foreground=c["accento"], width=3)
             lab_i.grid(row=0, column=0, rowspan=2, padx=(12, 4), pady=12)
-            lab_t = tk.Label(carta, text=titolo, font=("Segoe UI Semibold", 11), background=c["pannello"],
+            lab_t = tk.Label(carta, text=titolo, font=semi(11), background=c["pannello"],
                              foreground=c["primo_piano"], anchor="w", width=22)
             lab_t.grid(row=0, column=1, sticky="sw", padx=(0, 14), pady=(12, 0))
-            lab_d = tk.Label(carta, text=descr, font=("Segoe UI", 9), background=c["pannello"], foreground=c["tenue"], anchor="w")
+            lab_d = tk.Label(carta, text=descr, font=(FONT_UI, 9), background=c["pannello"], foreground=c["tenue"], anchor="w")
             lab_d.grid(row=1, column=1, sticky="nw", padx=(0, 14), pady=(0, 12))
             per w in (carta, lab_i, lab_t, lab_d):
                 w.bind("<Button-1>", lambda e, fn=comando: fn())
@@ -1677,20 +1704,20 @@ classe Applicazione:
                 w.bind("<Leave>", lambda e, k=carta: k.configure(highlightbackground=c["bordo"]))
         recenti = [r per r in se_stesso.config_.ottieni("recenti", []) se os.path.isdir(r)][:5]
         se recenti:
-            tk.Label(centro, text="PROGETTI RECENTI", font=("Segoe UI Semibold", 9), background=c["editor"],
+            tk.Label(centro, text="PROGETTI RECENTI", font=semi(9), background=c["editor"],
                      foreground=c["tenue"]).grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=(18, 4))
             per r in recenti:
                 riga = tk.Frame(centro, background=c["editor"], cursor="hand2")
                 riga.grid(sticky="we", columnspan=2)
-                nome_ = tk.Label(riga, text=os.path.basename(r), font=("Segoe UI Semibold", 10), background=c["editor"],
+                nome_ = tk.Label(riga, text=os.path.basename(r), font=semi(10), background=c["editor"],
                                  foreground=c["accento"], anchor="w")
                 nome_.pack(side="left", padx=(10, 12))
-                perc = tk.Label(riga, text=r, font=("Segoe UI", 9), background=c["editor"], foreground=c["tenue"], anchor="w")
+                perc = tk.Label(riga, text=r, font=(FONT_UI, 9), background=c["editor"], foreground=c["tenue"], anchor="w")
                 perc.pack(side="left")
                 per w in (riga, nome_, perc):
                     w.bind("<Button-1>", lambda e, p=r: se_stesso.apri_progetto(p))
                     stile.suggerisci(w, "Apri il progetto " + r, c)
-        tk.Label(f, text="Premi F1 in qualsiasi momento per aprire la guida", font=("Segoe UI", 9), background=c["editor"],
+        tk.Label(f, text="Premi F1 in qualsiasi momento per aprire la guida", font=(FONT_UI, 9), background=c["editor"],
                  foreground=c["tenue"]).place(relx=0.5, rely=0.97, anchor="s")
         se_stesso._benvenuto = f
         se_stesso.schede_nb.add(f, text="Benvenuto")

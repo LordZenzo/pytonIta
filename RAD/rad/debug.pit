@@ -9,6 +9,7 @@ importa tempfile
 importa tkinter come tk
 da rad importa stile
 da tkinter importa ttk
+da rad.piattaforma importa FONT_UI, semi
 
 RUNNER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "debug_runner.py")
 INIZIO_EVENTO = chr(1) + "DBG"
@@ -27,7 +28,7 @@ classe PannelloDebug(tk.Frame):
         se_stesso.sessione = sessione
         se_stesso.barra = tk.Frame(se_stesso)
         se_stesso.barra.pack(fill="x")
-        se_stesso.titolo = tk.Label(se_stesso.barra, text="🐞 Debug", font=("Segoe UI Semibold", 9))
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="🐞 Debug", font=semi(9))
         se_stesso.titolo.pack(side="left", padx=(8, 12), pady=3)
         se_stesso.pulsanti = {}
         per nome, simbolo, etichetta, tasto in COMANDI:
@@ -36,7 +37,7 @@ classe PannelloDebug(tk.Frame):
             b.pack(side="left", padx=1, pady=2)
             se_stesso.pulsanti[nome] = b
             stile.suggerisci(b, f"{etichetta} ({tasto})")
-        se_stesso.stato = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.stato = tk.Label(se_stesso.barra, text="", anchor="e", font=(FONT_UI, 9))
         se_stesso.stato.pack(side="right", padx=8)
         se_stesso.corpo = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=4, borderwidth=0)
         se_stesso.corpo.pack(fill="both", expand=Vero)
@@ -56,18 +57,18 @@ classe PannelloDebug(tk.Frame):
         se_stesso.corpo.add(a, minsize=220, stretch="always", width=330)
 
         b = tk.Frame(se_stesso.corpo)
-        tk.Label(b, text="Pila delle chiamate", anchor="w", font=("Segoe UI", 9)).pack(fill="x", padx=4)
-        se_stesso.pila = tk.Listbox(b, height=5, activestyle="none", exportselection=Falso, borderwidth=0, highlightthickness=0, font=("Segoe UI", 9))
+        tk.Label(b, text="Pila delle chiamate", anchor="w", font=(FONT_UI, 9)).pack(fill="x", padx=4)
+        se_stesso.pila = tk.Listbox(b, height=5, activestyle="none", exportselection=Falso, borderwidth=0, highlightthickness=0, font=(FONT_UI, 9))
         se_stesso.pila.pack(fill="both", expand=Vero)
         se_stesso.pila.bind("<<ListboxSelect>>", se_stesso._scelta_pila)
         se_stesso._etichetta_pila = b.winfo_children()[0]
         se_stesso.corpo.add(b, minsize=140, stretch="never", width=200)
 
         c = tk.Frame(se_stesso.corpo)
-        se_stesso._etichetta_osserva = tk.Label(c, text="Espressioni osservate (Invio per aggiungere)", anchor="w", font=("Segoe UI", 9))
+        se_stesso._etichetta_osserva = tk.Label(c, text="Espressioni osservate (Invio per aggiungere)", anchor="w", font=(FONT_UI, 9))
         se_stesso._etichetta_osserva.pack(fill="x", padx=4)
         se_stesso.var_osserva = tk.StringVar()
-        se_stesso.campo = tk.Entry(c, textvariable=se_stesso.var_osserva, relief="flat", font=("Segoe UI", 9))
+        se_stesso.campo = tk.Entry(c, textvariable=se_stesso.var_osserva, relief="flat", font=(FONT_UI, 9))
         se_stesso.campo.pack(fill="x", padx=4, ipady=2)
         se_stesso.campo.bind("<Return>", se_stesso._aggiungi_osservata)
         se_stesso.osservate = ttk.Treeview(c, columns=("valore",), show="tree headings", height=4, selectmode="browse")

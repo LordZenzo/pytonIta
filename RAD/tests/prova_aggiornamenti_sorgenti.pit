@@ -1,0 +1,85 @@
+"""Aggiornamento di PitStudio su Linux e macOS: scompatta i sorgenti della Release e lancia installa.sh --solo-pitstudio (senza rete)."""
+importa sys, os, io, tarfile, tempfile, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa aggiornamenti come ag
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+se shutil.which("sh") è Nessuno:
+    stampa("sh non disponibile su questo sistema: prova saltata")
+altrimenti:
+    lavoro = tempfile.mkdtemp()
+    prefisso = os.path.join(lavoro, "installazione")
+    os.makedirs(prefisso)
+
+    definisci crea_tar(nome, voci):
+        percorso = os.path.join(lavoro, nome)
+        con tarfile.open(percorso, "w:gz") come t:
+            per nome_voce, contenuto in voci:
+                dati = contenuto.encode("utf-8")
+                info = tarfile.TarInfo(nome_voce)
+                info.size = len(dati)
+                info.mode = 0o755
+                t.addfile(info, io.BytesIO(dati))
+        ritorna percorso
+
+    # uno script finto che scrive come è stato chiamato
+    script = '#!/bin/sh\necho "argomenti: $@" > "$(dirname "$0")/chiamato.txt"\necho aggiornato\n'
+    buono = crea_tar("buono.tar.gz", [("LordZenzo-pytonIta-abc123/installatore/linux/installa.sh", script)])
+    uscita = ag.installa_da_sorgenti(buono, prefisso)
+    verifica("aggiornato" in uscita, "uscita dello script: " + uscita)
+    trovato = []
+    per radice, _, nomi in os.walk(tempfile.gettempdir()):
+        se "chiamato.txt" in nomi e "pitstudio_sorgenti_" in radice:
+            trovato.append(os.path.join(radice, "chiamato.txt"))
+    verifica(trovato, "lo script doveva essere eseguito")
+    se trovato:
+        testo_ = open(trovato[0], encoding="utf-8").read()
+        verifica("--solo-pitstudio" in testo_ e prefisso in testo_, "argomenti passati: " + testo_)
+
+    # archivio senza lo script: errore chiaro
+    vuoto = crea_tar("vuoto.tar.gz", [("x/leggimi.txt", "niente")])
+    sollevato = Falso
+    prova:
+        ag.installa_da_sorgenti(vuoto, prefisso)
+    eccetto ag.ErroreAggiornamenti:
+        sollevato = Vero
+    verifica(sollevato, "senza installa.sh doveva dare errore")
+
+    # percorso che esce dalla cartella: rifiutato
+    cattivo = crea_tar("cattivo.tar.gz", [("../fuori.txt", "no"), ("a/installatore/linux/installa.sh", script)])
+    sollevato = Falso
+    prova:
+        ag.installa_da_sorgenti(cattivo, prefisso)
+    eccetto ag.ErroreAggiornamenti:
+        sollevato = Vero
+    verifica(sollevato, "un percorso con .. doveva essere rifiutato")
+    verifica(non os.path.exists(os.path.join(lavoro, "fuori.txt")), "non deve scrivere fuori dalla cartella")
+
+    # script che fallisce: errore con il testo
+    guasto = crea_tar("guasto.tar.gz", [("a/installatore/linux/installa.sh", '#!/bin/sh\necho "compilazione fallita" >&2\nexit 3\n')])
+    sollevato = Falso
+    prova:
+        ag.installa_da_sorgenti(guasto, prefisso)
+    eccetto ag.ErroreAggiornamenti come e:
+        sollevato = "compilazione fallita" in testo(e)
+    verifica(sollevato, "lo script fallito doveva dare un errore con il suo testo")
+
+    # archivio non valido
+    rotto = os.path.join(lavoro, "rotto.tar.gz")
+    open(rotto, "wb").write(b"non e' un archivio")
+    sollevato = Falso
+    prova:
+        ag.installa_da_sorgenti(rotto, prefisso)
+    eccetto ag.ErroreAggiornamenti:
+        sollevato = Vero
+    verifica(sollevato, "archivio non valido doveva dare errore")
+    shutil.rmtree(lavoro, ignore_errors=Vero)
+    stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

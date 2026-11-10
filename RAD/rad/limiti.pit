@@ -46,13 +46,30 @@ classe Limite:
 
 
 definisci disponibile():
-    ritorna sys.platform == "win32"
+    """Vero se c'è almeno un limite applicabile (Windows: memoria e processi; Linux: solo la memoria)."""
+    ritorna sys.platform == "win32" o sys.platform.startswith("linux")
+
+
+definisci _applica_posix(processo, memoria_mb):
+    """Linux: tetto di memoria (spazio di indirizzamento) con prlimit. Il limite sui processi non c'è: RLIMIT_NPROC vale per tutto l'utente,
+    non per l'albero del programma, e rischierebbe di bloccare il resto della sessione. Su macOS il limite di memoria non è applicato."""
+    se non memoria_mb o non sys.platform.startswith("linux"):
+        ritorna Nessuno
+    prova:
+        importa resource
+        byte = int(memoria_mb) * 1024 * 1024
+        resource.prlimit(processo.pid, resource.RLIMIT_AS, (byte, byte))
+    eccetto (OSError, ValueError, ImportError, AttributeError):
+        passa
+    ritorna Nessuno
 
 
 definisci applica(processo, memoria_mb=0, processi=0):
     """Aggancia un subprocess.Popen a un gruppo con i limiti indicati (0 = nessun limite).
 
     Ritorna un oggetto Limite (da chiudere a fine esecuzione) oppure Nessuno se non serve o non è possibile."""
+    se sys.platform != "win32":
+        ritorna _applica_posix(processo, memoria_mb)
     se non disponibile() o (non memoria_mb e non processi):
         ritorna Nessuno
     prova:

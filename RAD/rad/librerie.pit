@@ -12,6 +12,7 @@ da rad importa parole
 da rad.stile importa posizione_fumetto, suggerisci
 da rad importa librerie_online come online
 da rad importa esecuzione
+da rad.piattaforma importa FONT_UI, semi
 
 # modulo italiano -> (categoria, descrizione)
 CATALOGO = {
@@ -217,17 +218,17 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso._nodi = {}
         se_stesso.barra = tk.Frame(se_stesso)
         se_stesso.barra.pack(fill="x")
-        se_stesso.titolo = tk.Label(se_stesso.barra, text="Librerie", anchor="w", font=("Segoe UI Semibold", 10))
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="Librerie", anchor="w", font=semi(10))
         se_stesso.titolo.pack(side="left", padx=8, pady=5)
-        se_stesso.contatore = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.contatore = tk.Label(se_stesso.barra, text="", anchor="e", font=(FONT_UI, 9))
         se_stesso.contatore.pack(side="right", padx=8)
         se_stesso.var_cerca = tk.StringVar()
         se_stesso.var_solo = tk.BooleanVar(value=Falso)
         riga = tk.Frame(se_stesso)
         riga.pack(fill="x", padx=6)
-        se_stesso.campo = tk.Entry(riga, textvariable=se_stesso.var_cerca, relief="flat", font=("Segoe UI", 10))
+        se_stesso.campo = tk.Entry(riga, textvariable=se_stesso.var_cerca, relief="flat", font=(FONT_UI, 10))
         se_stesso.campo.pack(side="left", fill="x", expand=Vero, ipady=3)
-        se_stesso.solo = tk.Checkbutton(riga, text="solo spuntate", variable=se_stesso.var_solo, font=("Segoe UI", 9),
+        se_stesso.solo = tk.Checkbutton(riga, text="solo spuntate", variable=se_stesso.var_solo, font=(FONT_UI, 9),
                                         command=se_stesso.riempi)
         se_stesso.solo.pack(side="right", padx=(6, 0))
         suggerisci(se_stesso.solo, "Mostra solo le librerie spuntate (scelte per il progetto o usate nel file aperto)")
@@ -235,7 +236,7 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso.riga_ricerca = riga
         se_stesso.var_cerca.trace_add("write", lambda *a: se_stesso.riempi())
         se_stesso.descrizione = tk.Label(se_stesso, text="Seleziona una libreria per vederne la descrizione.", anchor="nw", justify="left",
-                                         wraplength=240, font=("Segoe UI", 9), height=5)
+                                         wraplength=240, font=(FONT_UI, 9), height=5)
         se_stesso.descrizione.pack(side="bottom", fill="x", padx=8, pady=6)
         se_stesso.barra_online = tk.Frame(se_stesso)
         se_stesso.barra_online.pack(side="bottom", fill="x", padx=6)
@@ -245,7 +246,7 @@ classe PannelloLibrerie(tk.Frame):
                 ("Installa / Aggiorna", se_stesso.installa_selezionata, "Scarica la libreria selezionata (⬆ = c'è una versione più recente, ✚ = nuova)"),
                 ("Aggiorna tutte", se_stesso.aggiorna_tutte, "Aggiorna tutte le librerie con ⬆"),
                 ("Ripristina", se_stesso.ripristina_selezionata, "Toglie la copia scaricata e torna alla libreria inclusa nell'installazione")):
-            b = tk.Button(se_stesso.barra_online, text=etichetta, relief="flat", font=("Segoe UI", 9), padx=6, command=comando)
+            b = tk.Button(se_stesso.barra_online, text=etichetta, relief="flat", font=(FONT_UI, 9), padx=6, command=comando)
             b.pack(side="left", padx=(0, 4), pady=2)
             suggerisci(b, aiuto)
             se_stesso.pulsanti_online.append(b)
@@ -264,7 +265,7 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso._suggerimento = Nessuno
         se_stesso._lavoro_sug = Nessuno
         se_stesso._riga_sug = Nessuno
-        se_stesso.albero.tag_configure("categoria", font=("Segoe UI Semibold", 9))
+        se_stesso.albero.tag_configure("categoria", font=semi(9))
         se_stesso.albero.tag_configure("assente", foreground="#9a9a9a")
         se_stesso.bind("<Configure>", lambda e: se_stesso.descrizione.configure(wraplength=max(120, e.width - 24)))
         se_stesso.riempi()
@@ -576,7 +577,7 @@ classe PannelloLibrerie(tk.Frame):
         sfondo = c["chat_strumento"] se c altrimenti "#ffffe0"
         primo = c["primo_piano"] se c altrimenti "#000000"
         tk.Label(w, text=f"{iid[4:]}  (= {orig})\n{descr}", justify="left", background=sfondo, foreground=primo, borderwidth=1,
-                 relief="solid", padx=8, pady=5, font=("Segoe UI", 9)).pack()
+                 relief="solid", padx=8, pady=5, font=(FONT_UI, 9)).pack()
         w.update_idletasks()
         px, py = posizione_fumetto(se_stesso, w.winfo_reqwidth(), w.winfo_reqheight())
         w.geometry(f"+{px}+{py}")

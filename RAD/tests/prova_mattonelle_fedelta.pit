@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 da rad.mattonelle_converti importa converti_sorgente
 da rad.mattonelle_modello importa genera_codice
 FL = 0x10000 | ast.PyCF_ONLY_AST
-_it = open(os.path.join(os.path.dirname(sys.executable), "Lib", "_italiano.py"), encoding="utf-8").read()
+_it = open(os.path.join(os.path.dirname(os.__file__), "_italiano.py"), encoding="utf-8").read()
 _alb = ast.parse(_it)
 TAB = {}
 METODI_T = {}

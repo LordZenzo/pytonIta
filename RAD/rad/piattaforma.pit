@@ -1,0 +1,120 @@
+"""Differenze tra sistemi operativi: caratteri, nomi dei file eseguibili, apertura di file e cartelle.
+
+Tutto il resto di PitStudio passa da qui, così Windows, Linux e macOS si comportano allo stesso modo dove possibile."""
+importa os
+importa shlex
+importa shutil
+importa subprocess
+importa sys
+
+WINDOWS = sys.platform == "win32"
+MAC = sys.platform == "darwin"
+LINUX = non WINDOWS e non MAC
+
+# caratteri: quelli scelti per Windows e, sugli altri sistemi, i più comuni installati di serie (Tk ripiega da solo se mancano)
+FONT_UI = "Segoe UI" se WINDOWS altrimenti ("Helvetica Neue" se MAC altrimenti "sans-serif")
+FONT_MONO = "Consolas" se WINDOWS altrimenti ("Menlo" se MAC altrimenti "monospace")
+FONT_SIMBOLI = "Segoe UI Symbol" se WINDOWS altrimenti ("Apple Symbols" se MAC altrimenti "sans-serif")
+
+
+definisci semi(dimensione):
+    """Carattere dei titoli: «Segoe UI Semibold» su Windows, il normale in grassetto altrove."""
+    se WINDOWS:
+        ritorna ("Segoe UI Semibold", dimensione)
+    ritorna (FONT_UI, dimensione, "bold")
+
+
+NUOVA_SESSIONE = non WINDOWS          # sui sistemi POSIX ogni programma lanciato ha un suo gruppo di processi: si può fermare tutto l'albero
+
+
+definisci termina_gruppo(processo):
+    """Ferma un processo e tutti quelli che ha avviato (su Windows lo fa taskkill, vedi esecuzione.termina_albero)."""
+    importa signal
+    prova:
+        os.killpg(os.getpgid(processo.pid), signal.SIGKILL)
+    eccetto (OSError, ProcessLookupError):
+        prova:
+            processo.kill()
+        eccetto OSError:
+            passa
+
+
+definisci mostra_in_gestore_file(percorso):
+    """Mostra un file o una cartella nel gestore file del sistema (selezionandolo dove si può)."""
+    se WINDOWS:
+        se os.path.isdir(percorso):
+            subprocess.Popen(["explorer", percorso])
+        altrimenti:
+            subprocess.Popen(["explorer", "/select,", percorso])
+    altrimenti_se MAC:
+        subprocess.Popen(["open", "-R", percorso] se os.path.isfile(percorso) altrimenti ["open", percorso])
+    altrimenti:
+        apri(percorso se os.path.isdir(percorso) altrimenti os.path.dirname(percorso))
+
+
+definisci apri_terminale(cartella, comando):
+    """Apre una finestra di terminale nella cartella ed esegue il comando (lista di parole). Ritorna il processo."""
+    se WINDOWS:
+        ritorna subprocess.Popen(["cmd.exe", "/k"] + comando, cwd=cartella, creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0))
+    riga = " ".join(shlex.quote(c) per c in comando)
+    se MAC:
+        copione = f'tell application "Terminal" to do script "cd {shlex.quote(cartella)}; {riga}"'
+        ritorna subprocess.Popen(["osascript", "-e", copione, "-e", 'tell application "Terminal" to activate'])
+    per terminale in ("x-terminal-emulator", "gnome-terminal", "konsole", "xfce4-terminal", "xterm"):
+        percorso = shutil.which(terminale)
+        se percorso:
+            se terminale == "gnome-terminal":
+                argomenti = [percorso, "--", "bash", "-c", riga + "; exec bash"]
+            altrimenti_se terminale in ("konsole", "xfce4-terminal"):
+                argomenti = [percorso, "-e", f"bash -c {shlex.quote(riga + '; exec bash')}"]
+            altrimenti:
+                argomenti = [percorso, "-e", "bash", "-c", riga + "; exec bash"]
+            ritorna subprocess.Popen(argomenti, cwd=cartella)
+    solleva OSError("Non trovo un programma di terminale (x-terminal-emulator, gnome-terminal, konsole, xterm).")
+
+
+definisci cursore(nome):
+    """Il cursore di ridimensionamento («size_nw_se», «size_ne_sw», «size_ns», «size_we»): i nomi di Windows non esistono altrove."""
+    se WINDOWS:
+        ritorna nome
+    se MAC:
+        ritorna {"size_ns": "resizeupdown", "size_we": "resizeleftright"}.get(nome, "fleur")
+    ritorna {"size_nw_se": "bottom_right_corner", "size_ne_sw": "bottom_left_corner",
+             "size_ns": "sb_v_double_arrow", "size_we": "sb_h_double_arrow"}.get(nome, nome)
+
+
+classe _EventoRotella:
+    """Un evento della rotella ricostruito da Button-4/5 (X11): ha il «delta» come su Windows."""
+
+    definisci __inizializza__(se_stesso, evento, delta):
+        se_stesso.delta = delta
+        se_stesso.x = evento.x
+        se_stesso.y = evento.y
+        se_stesso.x_root = evento.x_root
+        se_stesso.y_root = evento.y_root
+        se_stesso.widget = evento.widget
+        se_stesso.state = evento.state
+
+
+definisci lega_rotella(widget, funzione, modificatore=""):
+    """Collega funzione(evento) alla rotella del mouse. Windows e macOS mandano <MouseWheel>; X11 (Linux) manda Button-4 e Button-5:
+    qui diventano un evento con delta +120 / -120, così il codice che legge e.delta funziona ovunque."""
+    widget.bind(f"<{modificatore}MouseWheel>", funzione, add="+")
+    se LINUX:
+        per bottone, delta in ((4, 120), (5, -120)):
+            widget.bind(f"<{modificatore}Button-{bottone}>", lambda e, d=delta: funzione(_EventoRotella(e, d)), add="+")
+
+
+definisci nome_eseguibile(nome):
+    """«pitonit» -> «pitonit.exe» su Windows, «pitonit» altrove."""
+    ritorna nome + ".exe" se WINDOWS altrimenti nome
+
+
+definisci apri(percorso):
+    """Apre un file o una cartella con il programma predefinito del sistema (come un doppio clic)."""
+    se WINDOWS:
+        os.startfile(percorso)
+    altrimenti_se MAC:
+        subprocess.Popen(["open", percorso])
+    altrimenti:
+        subprocess.Popen(["xdg-open", percorso], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

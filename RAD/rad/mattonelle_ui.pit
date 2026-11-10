@@ -10,6 +10,7 @@ da rad.mattonelle_modello importa (CATEGORIE, ORDINE_CATEGORIE, PREFERITE_PER_CA
 da rad.mattonelle_disegno importa Disegnatore, scurisci, schiarisci
 da rad.editor importa Editor
 da rad.stile importa suggerisci
+da rad.piattaforma importa FONT_MONO, FONT_UI, lega_rotella
 
 CAPPELLI = ("avvio", "definisci_funzione")
 
@@ -44,7 +45,7 @@ classe DialogoTesto(tk.Toplevel):
         cornice.rowconfigure(0, weight=1)
         cornice.columnconfigure(0, weight=1)
         se_stesso.t = tk.Text(cornice, wrap="none" se e_codice altrimenti "word", undo=Vero, tabs=("1c",),
-                              font=("Consolas", 11) se e_codice altrimenti ("Segoe UI", 11),
+                              font=(FONT_MONO, 11) se e_codice altrimenti (FONT_UI, 11),
                               background=colori["campo"], foreground=colori["primo_piano"],
                               insertbackground=colori["cursore"], relief="flat", highlightthickness=1,
                               highlightbackground=colori["bordo"], highlightcolor=colori["accento"], padx=6, pady=4)
@@ -131,7 +132,7 @@ classe DialogoClasse(tk.Toplevel):
         se_stesso.e_base.grid(row=1, column=1, sticky="we", padx=(0, 10), pady=6)
         tk.Label(se_stesso, text="Attributi e costanti della classe\n(una per riga, es.  colore = \"rosso\")", anchor="nw", justify="left",
                  background=colori["pannello"], foreground=colori["primo_piano"]).grid(row=2, column=0, sticky="nw", padx=10, pady=6)
-        se_stesso.t = tk.Text(se_stesso, height=6, width=30, font=("Consolas", 11), undo=Vero, **stile)
+        se_stesso.t = tk.Text(se_stesso, height=6, width=30, font=(FONT_MONO, 11), undo=Vero, **stile)
         se_stesso.t.insert("1.0", attributi)
         se_stesso.t.grid(row=2, column=1, sticky="nsew", padx=(0, 10), pady=6)
         barra = tk.Frame(se_stesso, background=colori["pannello"])
@@ -184,9 +185,9 @@ classe AreaMattonelle(tk.Frame):
         t.bind("<ButtonRelease-1>", se_stesso._rilascia)
         t.bind("<Double-Button-1>", se_stesso._doppio)
         t.bind("<Button-3>", se_stesso._menu)
-        t.bind("<MouseWheel>", se_stesso._rotella)
-        t.bind("<Shift-MouseWheel>", lambda e: t.xview_scroll(-1 se e.delta > 0 altrimenti 1, "units"))
-        t.bind("<Control-MouseWheel>", se_stesso._zoom_rotella)
+        lega_rotella(t, se_stesso._rotella)
+        lega_rotella(t, lambda e: t.xview_scroll(-1 se e.delta > 0 altrimenti 1, "units"), "Shift-")
+        lega_rotella(t, se_stesso._zoom_rotella, "Control-")
         t.bind("<Delete>", lambda e: se_stesso.cancella_selezione())
         t.bind("<Control-d>", lambda e: se_stesso.duplica_selezione())
         t.bind("<Control-z>", lambda e: se_stesso.editor.annulla())
@@ -231,7 +232,7 @@ classe AreaMattonelle(tk.Frame):
                 lay = se_stesso.disegnatore.lay.get(r.pila[0].id)
                 se lay:
                     se_stesso.tela.create_text(lay.x, lay.y - 6, text="non collegato: non verrà eseguito", anchor="sw",
-                                               fill=se_stesso.colori["avviso"], font=("Segoe UI", 8, "italic"), tags=("m", "sciolta"))
+                                               fill=se_stesso.colori["avviso"], font=(FONT_UI, 8, "italic"), tags=("m", "sciolta"))
 
     definisci _coord(se_stesso, e):
         ritorna se_stesso.tela.canvasx(e.x), se_stesso.tela.canvasy(e.y)
@@ -633,7 +634,7 @@ classe Tavolozza(tk.Frame):
         se_stesso.colonna.pack(side="left", fill="y")
         per cat in ORDINE_CATEGORIE:
             nome, col = CATEGORIE[cat]
-            b = tk.Label(se_stesso.colonna, text=nome, anchor="w", padx=8, pady=5, cursor="hand2", font=("Segoe UI", 9, "bold"))
+            b = tk.Label(se_stesso.colonna, text=nome, anchor="w", padx=8, pady=5, cursor="hand2", font=(FONT_UI, 9, "bold"))
             b.pack(fill="x")
             b.bind("<Button-1>", lambda e, c=cat: se_stesso.scegli(c))
             suggerisci(b, f"Mostra le mattonelle della categoria «{nome}»")
@@ -648,7 +649,7 @@ classe Tavolozza(tk.Frame):
         se_stesso.tela.bind("<ButtonPress-1>", se_stesso._premi)
         se_stesso.tela.bind("<B1-Motion>", se_stesso._muovi)
         se_stesso.tela.bind("<ButtonRelease-1>", se_stesso._rilascia)
-        se_stesso.tela.bind("<MouseWheel>", lambda e: se_stesso.tela.yview_scroll(-1 se e.delta > 0 altrimenti 1, "units"))
+        lega_rotella(se_stesso.tela, lambda e: se_stesso.tela.yview_scroll(-1 se e.delta > 0 altrimenti 1, "units"))
         se_stesso.tela.bind("<Motion>", se_stesso._passa)
         se_stesso.applica_colori(colori)
 
@@ -711,7 +712,7 @@ classe Tavolozza(tk.Frame):
         se non voci:
             testo_ = {"eventi": "Il blocco di inizio c'è già:\nè il cappello giallo in cima a ogni finestra.",
                       "funzioni": "Nessuna funzione ancora.\nCreane una con «＋ Funzione»:\nogni funzione ha la sua finestra."}.get(se_stesso.categoria, "")
-            t.create_text(14, 20, text=testo_, anchor="nw", fill=c["tenue"], font=("Segoe UI", 9), width=200)
+            t.create_text(14, 20, text=testo_, anchor="nw", fill=c["tenue"], font=(FONT_UI, 9), width=200)
         per tipo_, campi in voci:
             m = Mattonella(tipo_, se_stesso.editor.programma)
             m.campi.update(campi)
@@ -841,7 +842,7 @@ classe EditorMattonelle(tk.Frame):
         se_stesso.corpo.configure(background=c["sfondo"])
         se_stesso.titolo.configure(background=c["pannello"], foreground=c["primo_piano"])
         se_stesso.stato.configure(background=c["pannello"], foreground=c["tenue"])
-        se_stesso.descrizione.configure(background=c["pannello"], foreground=c["tenue"], font=("Segoe UI", 9))
+        se_stesso.descrizione.configure(background=c["pannello"], foreground=c["tenue"], font=(FONT_UI, 9))
         se_stesso.avvisi.configure(background=c["pannello"], foreground=c["avviso"])
         per b in se_stesso.barra.winfo_children():
             se b.winfo_class() == "Button":

@@ -3,6 +3,9 @@ importa sys, os, json, tempfile, hashlib, shutil
 da pathlib importa Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 da rad importa aggiornamenti come ag
+da rad importa piattaforma
+
+piattaforma.WINDOWS = Vero        # questa parte prova il ramo Windows (installatore .exe); il ramo Linux/macOS è più sotto
 
 errori = []
 
@@ -49,6 +52,18 @@ verifica(non ag.controlla("2.0")["nuova"], "versione più recente della Release:
 release["assets"][1]["browser_download_url"] = "https://example.com/Installa_pytonIta.exe"
 file_release.write_text(json.dumps(release), encoding="utf-8")
 verifica(ag.controlla("1.33")["url_installatore"] è Nessuno, "indirizzo non fidato scartato")
+
+# Linux e macOS: l'«installatore» sono i sorgenti della Release (tarball_url), non un .exe
+piattaforma.WINDOWS = Falso
+release["assets"][1]["browser_download_url"] = "https://github.com/LordZenzo/pytonIta/releases/download/v1.99/Installa_pytonIta.exe"
+release["tarball_url"] = "https://api.github.com/repos/LordZenzo/pytonIta/tarball/v1.99"
+file_release.write_text(json.dumps(release), encoding="utf-8")
+info_l = ag.controlla("1.33")
+verifica(info_l["url_installatore"] == release["tarball_url"], "su Linux/mac si scaricano i sorgenti: " + testo(info_l["url_installatore"]))
+verifica(info_l["impronta"] è Nessuno, "i sorgenti non hanno impronta")
+piattaforma.WINDOWS = Vero
+release["assets"][1]["browser_download_url"] = "https://example.com/Installa_pytonIta.exe"
+file_release.write_text(json.dumps(release), encoding="utf-8")
 
 # download (da file locale: ammesso solo con la variabile di prova)
 avanzamenti = []

@@ -15,6 +15,8 @@ da tkinter importa ttk, messagebox, filedialog
 da rad importa esporta_python
 da rad.dialoghi importa DialogoBase
 da rad.stile importa suggerisci
+da rad.piattaforma importa FONT_MONO
+da rad importa piattaforma
 
 NASCONDI_CONSOLE = 0x08000000 se os.name == "nt" altrimenti 0          # CREATE_NO_WINDOW
 FILE_NON_DATI = ("requirements.txt", "installa_librerie.bat", "installa_librerie.sh", "LEGGIMI.txt", "CONVERSIONE.md")
@@ -221,7 +223,7 @@ classe DialogoEseguibile(DialogoBase):
         suggerisci(se_stesso.casella_console, "Per i programmi che usano input()/print() lascia la finestra nera (togli la spunta)", c)
         corpo = tk.Frame(se_stesso, background=c["pannello"])
         corpo.grid(row=5, column=0, columnspan=3, sticky="nsew", padx=14, pady=8)
-        se_stesso.registro = tk.Text(corpo, height=14, font=("Consolas", 9), background=c["editor"], foreground=c["primo_piano"], relief="flat", state="disabled", wrap="none")
+        se_stesso.registro = tk.Text(corpo, height=14, font=(FONT_MONO, 9), background=c["editor"], foreground=c["primo_piano"], relief="flat", state="disabled", wrap="none")
         barra = ttk.Scrollbar(corpo, orient="vertical", command=se_stesso.registro.yview)
         se_stesso.registro.configure(yscrollcommand=barra.set)
         barra.pack(side="right", fill="y")
@@ -315,7 +317,7 @@ classe DialogoEseguibile(DialogoBase):
     definisci _apri_cartella(se_stesso):
         se se_stesso.esito e se_stesso.esito.get("cartella"):
             prova:
-                os.startfile(se_stesso.esito["cartella"])
+                piattaforma.apri(se_stesso.esito["cartella"])
             eccetto Exception:
                 passa
 

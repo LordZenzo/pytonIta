@@ -1,6 +1,7 @@
 """Temi grafici di PitStudio e applicazione ai widget."""
 importa tkinter
 da tkinter importa ttk
+da rad.piattaforma importa FONT_UI
 
 TEMI = {
     "scuro": {
@@ -40,7 +41,7 @@ definisci colori(config):
     ritorna base
 
 
-definisci configura_stile(radice, c, carattere_ui=("Segoe UI", 10)):
+definisci configura_stile(radice, c, carattere_ui=(FONT_UI, 10)):
     """Imposta gli stili ttk in base ai colori c."""
     s = ttk.Style(radice)
     prova:

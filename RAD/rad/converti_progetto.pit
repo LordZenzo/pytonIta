@@ -18,6 +18,7 @@ importa tkinter come tk
 da tkinter importa ttk, filedialog, messagebox
 
 da rad.dialoghi importa DialogoBase
+da rad.piattaforma importa FONT_MONO, FONT_UI
 
 CARTELLE_ESCLUSE = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules", "venv", ".venv", "env",
                     "build", "dist", ".mypy_cache", ".pytest_cache", ".tox", "__pypackages__", ".eggs"}
@@ -311,7 +312,7 @@ classe DialogoConversione(DialogoBase):
         se_stesso.var_apri = tk.BooleanVar(value=Vero)
 
         tk.Label(se_stesso, text="Crea una nuova cartella con la versione in pytonIta di un progetto Python. L'originale non viene toccato.",
-                 anchor="w", background=c["pannello"], foreground=c["tenue"], font=("Segoe UI", 9)).pack(fill="x", padx=14, pady=(12, 6))
+                 anchor="w", background=c["pannello"], foreground=c["tenue"], font=(FONT_UI, 9)).pack(fill="x", padx=14, pady=(12, 6))
         griglia = tk.Frame(se_stesso, background=c["pannello"])
         griglia.pack(fill="x", padx=14)
         griglia.grid_columnconfigure(1, weight=1)
@@ -324,7 +325,7 @@ classe DialogoConversione(DialogoBase):
             tk.Checkbutton(opzioni, text=testo_, variable=var, anchor="w", background=c["pannello"], foreground=c["primo_piano"],
                            activebackground=c["pannello"], activeforeground=c["primo_piano"], selectcolor=c["casella"]).pack(fill="x")
         se_stesso.etichetta_piano = tk.Label(se_stesso, text="", anchor="w", justify="left", background=c["pannello"], foreground=c["primo_piano"],
-                                             font=("Segoe UI", 9))
+                                             font=(FONT_UI, 9))
         se_stesso.etichetta_piano.pack(fill="x", padx=14, pady=(10, 0))
         barra = tk.Frame(se_stesso, background=c["pannello"])
         barra.pack(side="bottom", fill="x", padx=14, pady=10)
@@ -339,7 +340,7 @@ classe DialogoConversione(DialogoBase):
         se_stesso.pulsante_apri.pack(side="left", padx=4)
         se_stesso.progresso = ttk.Progressbar(se_stesso, maximum=100)
         se_stesso.progresso.pack(side="bottom", fill="x", padx=14, pady=(0, 6))
-        se_stesso.log = tk.Text(se_stesso, wrap="word", font=("Consolas", 9), borderwidth=0, highlightthickness=1, state="disabled",
+        se_stesso.log = tk.Text(se_stesso, wrap="word", font=(FONT_MONO, 9), borderwidth=0, highlightthickness=1, state="disabled",
                                 background=c["editor"], foreground=c["editor_testo"], highlightbackground=c["bordo"])
         se_stesso.log.pack(fill="both", expand=Vero, padx=14, pady=(8, 6))
         se_stesso.var_origine.trace_add("write", lambda *a: se_stesso._aggiorna_piano())

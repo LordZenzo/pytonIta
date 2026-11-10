@@ -5,6 +5,7 @@ importa tkinter.font come tkfont
 da tkinter importa ttk
 
 da PIL importa Image, ImageDraw, ImageTk
+da rad.piattaforma importa FONT_MONO, FONT_SIMBOLI, FONT_UI, semi
 
 CARTELLA_RISORSE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "risorse")
 
@@ -111,7 +112,7 @@ classe Suggerimento:
         f.wm_overrideredirect(Vero)
         f.attributes("-topmost", Vero)
         tk.Label(f, text=se_stesso.testo, background=c["pulsante"], foreground=c["primo_piano"], padx=8, pady=3,
-                 relief="solid", borderwidth=1, font=("Segoe UI", 9), justify="left").pack()
+                 relief="solid", borderwidth=1, font=(FONT_UI, 9), justify="left").pack()
         f.update_idletasks()
         x, y = posizione_fumetto(se_stesso.widget, f.winfo_reqwidth(), f.winfo_reqheight())
         f.wm_geometry(f"+{x}+{y}")
@@ -142,7 +143,7 @@ definisci crea_fumetto(widget, testo_, colori=Nessuno):
     f.wm_overrideredirect(Vero)
     f.attributes("-topmost", Vero)
     tk.Label(f, text=testo_, background=c["pulsante"], foreground=c["primo_piano"], padx=8, pady=4, relief="solid", borderwidth=1,
-             font=("Consolas", 9), justify="left", anchor="w", wraplength=520).pack()
+             font=(FONT_MONO, 9), justify="left", anchor="w", wraplength=520).pack()
     f.update_idletasks()
     x, y = posizione_fumetto(widget, f.winfo_reqwidth(), f.winfo_reqheight())
     f.wm_geometry(f"+{x}+{y}")
@@ -167,12 +168,12 @@ classe PulsanteIcona(tk.Frame):
         se_stesso.colori = colori
         se_stesso._attivo = Vero
         # senza icona (comandi dei menu che non ne hanno una) il pulsante mostra solo il testo
-        se_stesso.icona = tk.Label(se_stesso, text=glifo(icona) se icona altrimenti "", font=(famiglia_icone() o "Segoe UI Symbol", 12))
+        se_stesso.icona = tk.Label(se_stesso, text=glifo(icona) se icona altrimenti "", font=(famiglia_icone() o FONT_SIMBOLI, 12))
         se icona:
             se_stesso.icona.pack(side="left", padx=(9, 4 se testo_ altrimenti 9), pady=5)
         se_stesso.etichetta = Nessuno
         se testo_:
-            se_stesso.etichetta = tk.Label(se_stesso, text=testo_, font=("Segoe UI Semibold", 9))
+            se_stesso.etichetta = tk.Label(se_stesso, text=testo_, font=semi(9))
             se_stesso.etichetta.pack(side="left", padx=(0 se icona altrimenti 10, 10), pady=5)
         per w in (se_stesso, se_stesso.icona, se_stesso.etichetta):
             se w:
@@ -341,7 +342,7 @@ classe SchedeChiudibili(ttk.Notebook):
                     (el, {"side": "left", "sticky": ""})]})]})]})])
         s.configure("SchedeX.TNotebook", background=c["sfondo"], borderwidth=0, tabmargins=(4, 6, 4, 0))
         s.configure("SchedeX.TNotebook.Tab", background=c["pannello"], foreground=c["tenue"], padding=(14, 6, 8, 6),
-                    borderwidth=0, font=("Segoe UI", 9))
+                    borderwidth=0, font=(FONT_UI, 9))
         s.map("SchedeX.TNotebook.Tab", background=[("selected", c["editor"]), ("active", c["pulsante"])],
               foreground=[("selected", c["primo_piano"]), ("active", c["primo_piano"])])
 

@@ -76,6 +76,7 @@ VERSIONE = "0.1"
 
 da {pacchetto}.saluti importa saluta
 da {pacchetto}.contatore importa Contatore
+da rad importa piattaforma
 ''',
         f"{pacchetto}/saluti.pit": '''"""Un modulo della libreria: funzioni semplici. Aggiungi qui le tue."""
 
@@ -618,8 +619,4 @@ classe PannelloProgetto(tk.Frame):
     definisci mostra_in_esplora(se_stesso):
         rel, e_cartella = se_stesso._selezionato()
         p = se_stesso.progetto.assoluto(rel) se rel altrimenti se_stesso.progetto.cartella
-        se sys.platform == "win32":
-            se os.path.isdir(p):
-                subprocess.Popen(["explorer", p])
-            altrimenti:
-                subprocess.Popen(["explorer", "/select,", p])
+        piattaforma.mostra_in_gestore_file(p)

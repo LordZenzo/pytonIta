@@ -5,6 +5,7 @@ importa tkinter.font come tkfont
 
 da rad.mattonelle_modello importa (CATEGORIE, FORME_ISTRUZIONE, FORME_VALORE, definizione, ingressi_di, campi_di,
                                    Mattonella, Radice)
+da rad.piattaforma importa FONT_MONO, FONT_UI
 
 
 definisci _rgb(colore):
@@ -70,9 +71,9 @@ classe Disegnatore:
     definisci _font(se_stesso):
         z = se_stesso.zoom
         dim = max(7, int(round(10 * z)))
-        se_stesso.f_testo = tkfont.Font(family="Segoe UI", size=dim, weight="bold")
-        se_stesso.f_campo = tkfont.Font(family="Segoe UI", size=dim)
-        se_stesso.f_cod = tkfont.Font(family="Consolas", size=dim)
+        se_stesso.f_testo = tkfont.Font(family=FONT_UI, size=dim, weight="bold")
+        se_stesso.f_campo = tkfont.Font(family=FONT_UI, size=dim)
+        se_stesso.f_cod = tkfont.Font(family=FONT_MONO, size=dim)
 
     definisci imposta_zoom(se_stesso, z):
         se_stesso.zoom = max(0.5, min(2.0, z))

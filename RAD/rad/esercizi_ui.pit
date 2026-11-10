@@ -4,6 +4,7 @@ da tkinter importa ttk, messagebox
 
 da rad importa esercizi
 da rad.stile importa suggerisci
+da rad.piattaforma importa FONT_MONO, FONT_UI, semi
 
 
 classe FinestraEsercizi(tk.Toplevel):
@@ -41,11 +42,11 @@ classe FinestraEsercizi(tk.Toplevel):
         destra.grid_columnconfigure(0, weight=1)
         destra.grid_rowconfigure(2, weight=2)
         destra.grid_rowconfigure(5, weight=3)
-        se_stesso.titolo = tk.Label(destra, text="Scegli un esercizio", anchor="w", background=c["pannello"], foreground=c["primo_piano"], font=("Segoe UI Semibold", 14))
+        se_stesso.titolo = tk.Label(destra, text="Scegli un esercizio", anchor="w", background=c["pannello"], foreground=c["primo_piano"], font=semi(14))
         se_stesso.titolo.grid(row=0, column=0, sticky="we")
         se_stesso.riga_info = tk.Label(destra, text="", anchor="w", background=c["pannello"], foreground=c["accento"])
         se_stesso.riga_info.grid(row=1, column=0, sticky="we", pady=(0, 6))
-        se_stesso.consegna = tk.Text(destra, wrap="word", relief="flat", height=8, font=("Segoe UI", 10), background=c["campo"], foreground=c["primo_piano"], state="disabled",
+        se_stesso.consegna = tk.Text(destra, wrap="word", relief="flat", height=8, font=(FONT_UI, 10), background=c["campo"], foreground=c["primo_piano"], state="disabled",
                                      highlightthickness=1, highlightbackground=c["bordo"], padx=10, pady=8)
         se_stesso.consegna.grid(row=2, column=0, sticky="nsew")
         pulsanti = tk.Frame(destra, background=c["pannello"])
@@ -70,11 +71,11 @@ classe FinestraEsercizi(tk.Toplevel):
         se_stesso.menu_classe.pack(side="right")
         suggerisci(se_stesso.menu_classe, "Per la classe: consegna i progressi all'insegnante o guarda quelli degli allievi", c)
         tk.Label(destra, text="Risultato", anchor="w", background=c["pannello"], foreground=c["tenue"]).grid(row=4, column=0, sticky="we")
-        se_stesso.risultato = tk.Text(destra, wrap="word", relief="flat", height=8, font=("Consolas", 10), background=c["campo"], foreground=c["primo_piano"], state="disabled",
+        se_stesso.risultato = tk.Text(destra, wrap="word", relief="flat", height=8, font=(FONT_MONO, 10), background=c["campo"], foreground=c["primo_piano"], state="disabled",
                                       highlightthickness=1, highlightbackground=c["bordo"], padx=10, pady=8)
         se_stesso.risultato.grid(row=5, column=0, sticky="nsew")
-        se_stesso.risultato.tag_configure("ok", foreground="#2e7d32", font=("Consolas", 10, "bold"))
-        se_stesso.risultato.tag_configure("no", foreground=c["errore"], font=("Consolas", 10, "bold"))
+        se_stesso.risultato.tag_configure("ok", foreground="#2e7d32", font=(FONT_MONO, 10, "bold"))
+        se_stesso.risultato.tag_configure("no", foreground=c["errore"], font=(FONT_MONO, 10, "bold"))
         se_stesso.barra = ttk.Progressbar(destra, maximum=max(1, lunghezza(lista_esercizi)))
         se_stesso.barra.grid(row=6, column=0, sticky="we", pady=(8, 0))
         se_stesso.riga_progressi = tk.Label(destra, text="", anchor="w", background=c["pannello"], foreground=c["tenue"])

@@ -11,6 +11,7 @@ importa subprocess
 importa sys
 
 da rad importa NOME
+da rad importa piattaforma
 
 MARCATORE_INIZIO = "<!-- pitstudio:inizio -->"
 MARCATORE_FINE = "<!-- pitstudio:fine -->"
@@ -28,8 +29,10 @@ definisci trova_claude(config=Nessuno):
     trovato = shutil.which("claude")
     se trovato:
         ritorna trovato
-    per candidato in (os.path.join(os.path.expanduser("~"), ".local", "bin", "claude.exe"),
-                      os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "claude", "claude.exe")):
+    per candidato in (os.path.join(os.path.expanduser("~"), ".local", "bin", piattaforma.nome_eseguibile("claude")),
+                      os.path.join(os.path.expanduser("~"), ".claude", "local", piattaforma.nome_eseguibile("claude")),
+                      os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "claude", "claude.exe"),
+                      "/usr/local/bin/claude", "/opt/homebrew/bin/claude"):
         se os.path.exists(candidato):
             ritorna candidato
     ritorna Nessuno
@@ -42,11 +45,11 @@ definisci percorso_pitonit(config=Nessuno):
         base = os.path.dirname(config.interprete())
     altrimenti:
         base = os.path.dirname(sys.executable)
-    per nome in ("pitonit.exe", "pitonitw.exe"):
+    per nome in (piattaforma.nome_eseguibile("pitonit"), piattaforma.nome_eseguibile("pitonitw"), os.path.basename(sys.executable)):
         p = os.path.join(base, nome)
         se os.path.exists(p):
             ritorna p
-    ritorna os.path.join(base, "pitonit.exe")
+    ritorna os.path.join(base, piattaforma.nome_eseguibile("pitonit"))
 
 
 definisci _gestore(pitonit):
@@ -158,5 +161,4 @@ definisci prepara_progetto(cartella, config=Nessuno, nome_progetto=""):
 
 definisci avvia(cartella, claude):
     """Apre il Claude Code ufficiale in una nuova console, nella cartella del progetto."""
-    flag = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-    ritorna subprocess.Popen(["cmd.exe", "/k", claude], cwd=cartella, creationflags=flag)
+    ritorna piattaforma.apri_terminale(cartella, [claude])

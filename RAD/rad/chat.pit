@@ -12,6 +12,7 @@ da rad importa ai
 da rad.stile importa suggerisci
 da rad.registro_ai importa RegistroAI
 da rad importa registro_ai
+da rad.piattaforma importa FONT_MONO, FONT_UI
 
 _RE_BLOCCO = re.compile(r"```([\w+-]*)\n(.*?)```", re.S)
 _RE_INLINE = re.compile(r"`([^`\n]+)`|\*\*([^*\n]+)\*\*")
@@ -126,11 +127,11 @@ classe PannelloChat(tk.Frame):
         per casella in (se_stesso.casella_contesto, se_stesso.casella_economico):
             casella.configure(background=c["pannello"], foreground=c["tenue"], activebackground=c["pannello"],
                               activeforeground=c["primo_piano"], selectcolor=c["casella"])
-        carattere = (se_stesso.config_.ottieni("editor.carattere", "Consolas"), 10)
-        se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"], font=("Segoe UI", 10),
+        carattere = (se_stesso.config_.ottieni("editor.carattere", FONT_MONO), 10)
+        se_stesso.t.configure(background=c["editor"], foreground=c["editor_testo"], font=(FONT_UI, 10),
                               selectbackground=c["selezione"])
         se_stesso.ingresso.configure(background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"],
-                                     font=("Segoe UI", 10), highlightbackground=c["bordo"], highlightcolor=c["accento"],
+                                     font=(FONT_UI, 10), highlightbackground=c["bordo"], highlightcolor=c["accento"],
                                      relief="flat")
         per b in (se_stesso.pulsante_invia, se_stesso.pulsante_ferma) + tuple(
                 w per w in se_stesso.testata.winfo_children() se w.winfo_class() == "Button"):
@@ -140,8 +141,8 @@ classe PannelloChat(tk.Frame):
         t = se_stesso.t
         t.tag_configure("utente", background=c["chat_utente"], lmargin1=8, lmargin2=8, rmargin=8,
                         spacing1=6, spacing3=6)
-        t.tag_configure("etichetta_utente", foreground=c["accento"], font=("Segoe UI", 9, "bold"))
-        t.tag_configure("etichetta_ai", foreground=c["ok"], font=("Segoe UI", 9, "bold"))
+        t.tag_configure("etichetta_utente", foreground=c["accento"], font=(FONT_UI, 9, "bold"))
+        t.tag_configure("etichetta_ai", foreground=c["ok"], font=(FONT_UI, 9, "bold"))
         t.tag_configure("ai", lmargin1=8, lmargin2=8, spacing1=2, spacing3=4)
         t.tag_configure("strumento", background=c["chat_strumento"], foreground=c["tenue"], font=(carattere[0], 9),
                         lmargin1=14, lmargin2=14, spacing1=2, spacing3=2)
@@ -150,11 +151,11 @@ classe PannelloChat(tk.Frame):
         t.tag_configure("risultato_err", foreground=c["errore"], background=c["chat_strumento"], font=(carattere[0], 9),
                         lmargin1=14, lmargin2=14)
         t.tag_configure("errore", foreground=c["errore"], lmargin1=8, lmargin2=8, spacing1=4)
-        t.tag_configure("info", foreground=c["tenue"], lmargin1=8, lmargin2=8, font=("Segoe UI", 9, "italic"))
+        t.tag_configure("info", foreground=c["tenue"], lmargin1=8, lmargin2=8, font=(FONT_UI, 9, "italic"))
         t.tag_configure("codice", background=c["campo"], foreground=c["editor_testo"], font=carattere,
                         lmargin1=14, lmargin2=14, rmargin=8, spacing1=1, spacing3=1)
         t.tag_configure("inline", background=c["campo"], font=carattere)
-        t.tag_configure("grassetto", font=("Segoe UI", 10, "bold"))
+        t.tag_configure("grassetto", font=(FONT_UI, 10, "bold"))
 
     # ------------------------------------------------------------ scrittura nella cronologia
     definisci _scrivi(se_stesso, testo_, *tag):
@@ -193,11 +194,11 @@ classe PannelloChat(tk.Frame):
         t.configure(state="normal")
         barra = tk.Frame(t, background=c["campo"])
         tk.Label(barra, text=linguaggio o "codice", background=c["campo"], foreground=c["tenue"],
-                 font=("Segoe UI", 8)).pack(side="left", padx=4)
+                 font=(FONT_UI, 8)).pack(side="left", padx=4)
         per etichetta, comando, aiuto in (("Copia", lambda: se_stesso._copia(codice), "Copia il codice negli appunti"),
                                            ("Inserisci nell'editor", lambda: se_stesso.ambiente.inserisci_nell_editor(codice), "Inserisce il codice nel file aperto, dove sta il cursore"),
                                            ("Nuovo file", lambda: se_stesso.ambiente.codice_in_nuovo_file(codice), "Crea un nuovo file con questo codice")):
-            b = tk.Button(barra, text=etichetta, command=comando, relief="flat", font=("Segoe UI", 8),
+            b = tk.Button(barra, text=etichetta, command=comando, relief="flat", font=(FONT_UI, 8),
                           background=c["pulsante"], foreground=c["primo_piano"],
                           activebackground=c["pulsante_attivo"], padx=6)
             b.pack(side="right", padx=2, pady=1)

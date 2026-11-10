@@ -6601,10 +6601,10 @@ index 8a4bf6d..ecb1ed8 100644
      for line in pth:
          line = line.partition('#')[0].strip()
 diff --git a/Modules/main.c b/Modules/main.c
-index d1fb740..e36e220 100644
+index d1fb740..0f3da55 100644
 --- a/Modules/main.c
 +++ b/Modules/main.c
-@@ -74,6 +74,39 @@ pymain_init(const _PyArgv *args)
+@@ -74,6 +74,46 @@ pymain_init(const _PyArgv *args)
  }
  
  
@@ -6613,11 +6613,18 @@ index d1fb740..e36e220 100644
 +extern PyObject *_PyItaliano_Builtins(void);
 +static int pymain_italiano = 0;
 +
++/* confronto senza maiuscole: _wcsicmp esiste solo su Windows */
++#ifdef MS_WINDOWS
++#  define pymain_wcsicmp _wcsicmp
++#else
++#  define pymain_wcsicmp wcscasecmp
++#endif
++
 +static int
 +pymain_wcs_endswith(const wchar_t *s, const wchar_t *suffix)
 +{
 +    size_t n = wcslen(s), m = wcslen(suffix);
-+    return n >= m && _wcsicmp(s + n - m, suffix) == 0;
++    return n >= m && pymain_wcsicmp(s + n - m, suffix) == 0;
 +}
 +
 +/* __main__ usa i builtin italiani */
@@ -6644,7 +6651,7 @@ index d1fb740..e36e220 100644
  /* --- pymain_run_python() ---------------------------------------- */
  
  static int
-@@ -196,9 +229,11 @@ pymain_header(const PyConfig *config)
+@@ -196,9 +236,11 @@ pymain_header(const PyConfig *config)
          return;
      }
  
@@ -6658,7 +6665,7 @@ index d1fb740..e36e220 100644
      }
  }
  
-@@ -260,6 +295,36 @@ pymain_run_command(wchar_t *command)
+@@ -260,6 +302,36 @@ pymain_run_command(wchar_t *command)
  
      PyCompilerFlags cf = _PyCompilerFlags_INIT;
      cf.cf_flags |= PyCF_IGNORE_COOKIE;
@@ -6695,7 +6702,7 @@ index d1fb740..e36e220 100644
      PyObject *result = NULL;
      PyObject *string_obj = PyUnicode_FromString("<string>");
      if (string_obj != NULL) {
-@@ -436,6 +501,9 @@ pymain_run_file_obj(PyObject *program_name, PyObject *filename,
+@@ -436,6 +508,9 @@ pymain_run_file_obj(PyObject *program_name, PyObject *filename,
  
      /* _PyRun_AnyFile(closeit=1) calls fclose(fp) before running code */
      PyCompilerFlags cf = _PyCompilerFlags_INIT;
@@ -6705,7 +6712,7 @@ index d1fb740..e36e220 100644
      PyObject *result = _PyRun_AnyFile(fp, filename, 1, &cf);
      if (result == NULL) {
          return pymain_exit_err_print();
-@@ -597,6 +665,9 @@ _pymain_run_repl(PyConfig *config, int startup)
+@@ -597,6 +672,9 @@ _pymain_run_repl(PyConfig *config, int startup)
      }
  
      PyCompilerFlags cf = _PyCompilerFlags_INIT;
@@ -6715,7 +6722,7 @@ index d1fb740..e36e220 100644
      PyObject *result = NULL;
      PyObject *stdin_obj = PyUnicode_FromString("<stdin>");
      if (stdin_obj != NULL) {
-@@ -728,6 +799,14 @@ pymain_run_python(int *exitcode)
+@@ -728,6 +806,14 @@ pymain_run_python(int *exitcode)
  
      pymain_header(config);
  

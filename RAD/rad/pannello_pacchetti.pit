@@ -5,6 +5,7 @@ importa tkinter come tk
 da tkinter importa messagebox, ttk
 
 da rad importa esecuzione, pacchetti_uso, stile, tema
+da rad.piattaforma importa FONT_MONO, FONT_UI, semi
 
 AMBIENTI = ("Questo progetto (.pacchetti)", "Tutti i progetti (runtime di pitonit)")
 
@@ -22,9 +23,9 @@ classe PannelloPacchetti(tk.Frame):
         se_stesso._da_rifare = Falso              # si è chiesto di aggiornare l'elenco mentre pip lavorava
         se_stesso.barra = tk.Frame(se_stesso)
         se_stesso.barra.pack(fill="x")
-        se_stesso.titolo = tk.Label(se_stesso.barra, text="Pacchetti Python", anchor="w", font=("Segoe UI Semibold", 10))
+        se_stesso.titolo = tk.Label(se_stesso.barra, text="Pacchetti Python", anchor="w", font=semi(10))
         se_stesso.titolo.pack(side="left", padx=8, pady=5)
-        se_stesso.contatore = tk.Label(se_stesso.barra, text="", anchor="e", font=("Segoe UI", 9))
+        se_stesso.contatore = tk.Label(se_stesso.barra, text="", anchor="e", font=(FONT_UI, 9))
         se_stesso.contatore.pack(side="right", padx=8)
         riga = tk.Frame(se_stesso)
         riga.pack(fill="x", padx=6, pady=(0, 4))
@@ -36,11 +37,11 @@ classe PannelloPacchetti(tk.Frame):
         installa = tk.Frame(se_stesso)
         installa.pack(fill="x", padx=6, pady=(0, 4))
         se_stesso.var_nome = tk.StringVar()
-        se_stesso.campo = tk.Entry(installa, textvariable=se_stesso.var_nome, relief="flat", font=("Segoe UI", 10))
+        se_stesso.campo = tk.Entry(installa, textvariable=se_stesso.var_nome, relief="flat", font=(FONT_UI, 10))
         se_stesso.campo.pack(side="left", fill="x", expand=Vero, ipady=3)
         se_stesso.campo.bind("<Return>", lambda ev: se_stesso.installa())
         stile.suggerisci(se_stesso.campo, "Nome del pacchetto da installare, per esempio  requests  oppure  rich>=13  (Invio per installare)")
-        se_stesso.b_installa = tk.Button(installa, text="Installa", command=se_stesso.installa, relief="flat", padx=8, pady=2, font=("Segoe UI", 9))
+        se_stesso.b_installa = tk.Button(installa, text="Installa", command=se_stesso.installa, relief="flat", padx=8, pady=2, font=(FONT_UI, 9))
         se_stesso.b_installa.pack(side="left", padx=(4, 0))
         ops = tk.Frame(se_stesso)
         ops.pack(fill="x", padx=6, pady=(0, 4))
@@ -50,7 +51,7 @@ classe PannelloPacchetti(tk.Frame):
                                             ("obsoleti", "Novità", "Controlla (con la rete) quali pacchetti hanno una versione più nuova", se_stesso.cerca_aggiornamenti),
                                             ("salva_req", "Salva req.", "Scrive requirements.txt nel progetto con i pacchetti installati qui", se_stesso.salva_requisiti),
                                             ("leggi_req", "Installa req.", "Installa tutto quello che c'è in requirements.txt", se_stesso.installa_requisiti)):
-            b = tk.Button(ops, text=testo_, command=azione, relief="flat", padx=6, pady=1, font=("Segoe UI", 9))
+            b = tk.Button(ops, text=testo_, command=azione, relief="flat", padx=6, pady=1, font=(FONT_UI, 9))
             b.pack(side="left", padx=(0, 3))
             stile.suggerisci(b, aiuto)
             se_stesso.ops[nome] = b
@@ -66,9 +67,9 @@ classe PannelloPacchetti(tk.Frame):
         sb.pack(side="right", fill="y")
         se_stesso.albero.pack(fill="both", expand=Vero)
         corpo.add(alto, minsize=100, stretch="always", height=300)
-        se_stesso.uscita = tk.Text(corpo, height=6, wrap="word", relief="flat", font=("Consolas", 9), state="disabled")
+        se_stesso.uscita = tk.Text(corpo, height=6, wrap="word", relief="flat", font=(FONT_MONO, 9), state="disabled")
         corpo.add(se_stesso.uscita, minsize=70, stretch="never", height=100)
-        se_stesso.nota = tk.Label(se_stesso, text="", anchor="w", justify="left", wraplength=380, font=("Segoe UI", 8))
+        se_stesso.nota = tk.Label(se_stesso, text="", anchor="w", justify="left", wraplength=380, font=(FONT_UI, 8))
         se_stesso.nota.pack(fill="x", padx=8, pady=(2, 4))
         se_stesso._attiva()
 

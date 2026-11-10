@@ -2,6 +2,7 @@
 importa json
 importa os
 importa copy
+da rad.piattaforma importa FONT_MONO, WINDOWS
 
 CARTELLA = os.path.join(os.path.expanduser("~"), ".rad")
 FILE_CONFIG = os.path.join(CARTELLA, "config.json")
@@ -10,7 +11,7 @@ PREDEFINITI = {
     "tema": "scuro",
     "temi_personalizzati": {},
     "editor": {
-        "carattere": "Consolas",
+        "carattere": FONT_MONO,
         "dimensione": 11,
         "tabulazione": 4,
         "numeri_riga": Vero,
@@ -62,8 +63,8 @@ PREDEFINITI = {
     },
     "finestra": {
         "geometria": "1400x860",
-        "pannello_sinistro": 270,
-        "pannello_destro": 430,
+        "pannello_sinistro": 270 se WINDOWS altrimenti 320,        # sugli altri sistemi i caratteri sono più larghi
+        "pannello_destro": 430 se WINDOWS altrimenti 480,
         "console_altezza": 190,
         "chat_visibile": Vero,
         "progetti_visibile": Vero,
