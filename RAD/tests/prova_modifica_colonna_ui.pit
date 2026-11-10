@@ -1,0 +1,107 @@
+"""Scheda Struttura: modificare una colonna esistente dal dialogo (pulsante e doppio clic), con l'anteprima delle istruzioni SQL."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+errori_mostrati = []
+messagebox.showwarning = lambda *a, **k: errori_mostrati.append(a)
+messagebox.showerror = lambda *a, **k: errori_mostrati.append(a)
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa database_modello come dbm
+da rad.database_ui importa DialogoTabella
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cartella = tempfile.mkdtemp()
+c = dbm.apri_sqlite(os.path.join(cartella, "negozio.db"))
+c.esegui("CREATE TABLE prodotti (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, prezzo REAL DEFAULT 1.5, nota TEXT DEFAULT 'a b');"
+         "INSERT INTO prodotti (nome, prezzo) VALUES ('Penna', 1.2), ('Quaderno', 3), ('Zaino', 30)")
+c.chiudi()
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+w = app.apri_file(os.path.join(cartella, "negozio.db"))
+radice.update()
+w.elenco.selection_set("prodotti")
+radice.update()
+
+# il dialogo, da solo
+vecchia = [k per k in w.conn.colonne("prodotti") se k.nome == "prezzo"][0]
+d = DialogoTabella(radice, w.colori, w.conn, "prodotti", da_modificare=vecchia)
+radice.update()
+verifica(d.title() == "Modifica colonna", "titolo: " + d.title())
+r = d.righe_colonne[0]
+verifica(r["nome"].get() == "prezzo" e r["tipo"].get() == "REAL" e r["pred"].get() == "1.5", "campi precompilati")
+verifica(r["chiave_casella"].cget("state") == "disabled" e r["unica_casella"].cget("state") == "disabled" e r["auto_casella"].cget("state") == "disabled", "chiave, unica e auto bloccate")
+verifica(r["nome_campo"].cget("state") == "normal", "il nome si può cambiare")
+anteprima = d.anteprima.get("1.0", "end")
+verifica(anteprima.strip().startswith("-- Nessuna modifica"), "senza cambi lo dice: " + anteprima)
+r["nome"].set("costo")
+r["tipo"].set("NUMERIC")
+radice.update()
+anteprima = d.anteprima.get("1.0", "end")
+verifica("RENAME COLUMN" in anteprima e "CREATE TABLE" in anteprima e "NUMERIC" in anteprima, "anteprima con le istruzioni: " + anteprima)
+d._conferma()
+radice.update()
+verifica(isinstance(d.risultato, dbm.Colonna) e d.risultato.nome == "costo" e d.risultato.tipo == "NUMERIC", "il risultato è la colonna nuova")
+
+# senza cambiamenti: la conferma avvisa e il dialogo resta
+d2 = DialogoTabella(radice, w.colori, w.conn, "prodotti", da_modificare=vecchia)
+radice.update()
+prima = lunghezza(errori_mostrati)
+d2._conferma()
+verifica(lunghezza(errori_mostrati) == prima + 1 e d2.risultato è Nessuno, "senza cambi non conferma")
+d2.destroy()
+
+# il pulsante e il doppio clic, con il dialogo sostituito da una risposta pronta
+w.schede.select(1)
+radice.update()
+verifica(any("Modifica colonna" in b.cget("text") per b in w.pulsanti_barra), "c'è il pulsante «Modifica colonna»")
+risposte = []
+DialogoTabella.mostra = lambda se_stesso: risposte.pop(0) se risposte altrimenti Nessuno
+w._messaggio("")
+w.modifica_colonna()
+verifica("Scegli prima" in w.stato.cget("text"), "senza riga scelta avvisa: " + w.stato.cget("text"))
+albero = w.griglia_struttura.albero
+albero.selection_set("2")                                   # la riga di «prezzo»
+risposte.append(dbm.Colonna("costo", "REAL", Falso, "1.5"))
+w.modifica_colonna()
+radice.update()
+nomi = [k.nome per k in w.conn.colonne("prodotti")]
+verifica(nomi == ["id", "nome", "costo", "nota"], "colonna rinominata: " + str(nomi))
+verifica([r[0] per r in w.griglia_struttura.righe] == nomi, "la struttura mostrata si aggiorna")
+verifica(w.griglia.colonne == nomi, "i dati mostrati si aggiornano: " + str(w.griglia.colonne))
+verifica("modificata" in w.stato.cget("text"), "messaggio: " + w.stato.cget("text"))
+verifica(w.conn.esegui_una("SELECT costo FROM prodotti ORDER BY id").righe == [[1.2], [3.0], [30.0]], "i dati restano")
+
+# errore durante la modifica: messaggio e niente cambia
+albero.selection_set("1")                                   # «nome» (non nulla) diventa... un nome già usato
+risposte.append(dbm.Colonna("nota", "TEXT", Vero, ""))
+prima = lunghezza(errori_mostrati)
+w.modifica_colonna()
+verifica(lunghezza(errori_mostrati) == prima + 1, "l'errore viene mostrato")
+verifica([k.nome per k in w.conn.colonne("prodotti")] == nomi, "niente è cambiato dopo l'errore")
+
+# doppio clic su una riga
+risposte.append(dbm.Colonna("etichetta", "TEXT", Falso, "a b"))
+albero.selection_set("3")
+radice.update()
+x, y, _, _ = albero.bbox("3", "#1")
+per _ in (1, 2):
+    albero.event_generate("<ButtonPress-1>", x=x + 5, y=y + 5)
+    albero.event_generate("<ButtonRelease-1>", x=x + 5, y=y + 5)
+radice.update()
+verifica("etichetta" in [k.nome per k in w.conn.colonne("prodotti")], "il doppio clic apre la modifica: " + str([k.nome per k in w.conn.colonne("prodotti")]))
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

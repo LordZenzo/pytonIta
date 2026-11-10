@@ -140,6 +140,14 @@ definisci valore_sql(testo_):
     ritorna "'" + t.replace("'", "''") + "'"
 
 
+definisci predefinito_utente(p):
+    """Il valore predefinito come lo scrive l'utente: quello letto dal database arriva con gli apici («'abc'»), qui senza."""
+    t = (p o "").strip()
+    se lunghezza(t) >= 2 e t[0] == t[-1] e t[0] in "'\"":
+        ritorna t[1:-1].replace(t[0] * 2, t[0])
+    ritorna t
+
+
 definisci a_testo(valore):
     """Come si mostra un valore del database in una cella."""
     se valore è Nessuno:
@@ -311,6 +319,33 @@ classe Connessione:
     definisci aggiungi_colonna(se_stesso, tabella, c):
         se_stesso.esegui(f"ALTER TABLE {se_stesso.citato(tabella)} ADD COLUMN {se_stesso._definizione_colonna(c, in_tabella=Falso)}")
 
+    # --- modifica di una colonna esistente: nome, tipo, «non nulla», valore predefinito (chiave, unica e auto-incremento restano come sono)
+    definisci _forma_cambia(se_stesso, vecchia, nuova):
+        """Vero se cambia qualcosa oltre al nome (tipo, «non nulla», valore predefinito)."""
+        ritorna (nuova.tipo.strip().upper() != vecchia.tipo.strip().upper() o bool(nuova.non_nullo) != bool(vecchia.non_nullo)
+                 o predefinito_utente(nuova.predefinito) != predefinito_utente(vecchia.predefinito))
+
+    definisci _controlla_modifica(se_stesso, tabella, vecchia, nuova):
+        """Solleva ErroreDatabase se la modifica non ha senso (niente da cambiare, nome vuoto o già usato)."""
+        se non nuova.nome.strip():
+            solleva ErroreDatabase("Scrivi il nome della colonna.")
+        se non nuova.tipo.strip():
+            solleva ErroreDatabase("Scegli il tipo della colonna.")
+        altre = [c.nome.lower() per c in se_stesso.colonne(tabella) se c.nome != vecchia.nome]
+        se nuova.nome.strip().lower() in altre:
+            solleva ErroreDatabase(f"Esiste già una colonna «{nuova.nome}».")
+        se nuova.nome == vecchia.nome e non se_stesso._forma_cambia(vecchia, nuova):
+            solleva ErroreDatabase("Nessuna modifica: cambia almeno un valore.")
+
+    definisci sql_modifica_colonna(se_stesso, tabella, vecchia, nuova):
+        """Il testo delle istruzioni SQL che modificano la colonna (per mostrarle prima di eseguirle)."""
+        ritorna ""
+
+    definisci modifica_colonna(se_stesso, tabella, vecchia, nuova):
+        """Modifica la colonna `vecchia` (un oggetto Colonna) in quella descritta da `nuova`. I dati restano."""
+        se_stesso._controlla_modifica(tabella, vecchia, nuova)
+        se_stesso.esegui(se_stesso.sql_modifica_colonna(tabella, vecchia, nuova))
+
     definisci _definizione_colonna(se_stesso, c, in_tabella=Vero):
         ritorna ""
 
@@ -400,6 +435,132 @@ classe ConnessioneSqlite(Connessione):
             parti.append("DEFAULT " + pred)
         ritorna " ".join(p per p in parti se p)
 
+    # --- modifica di una colonna. SQLite sa solo rinominarla (RENAME COLUMN, che aggiorna da sé indici, trigger e viste);
+    # per tipo, «non nulla» e predefinito si ricostruisce la tabella, tutto in una transazione: se qualcosa va storto non cambia niente.
+    definisci _leggi(se_stesso, sql, parametri=()):
+        """Legge righe senza toccare la transazione in corso (esegui_una confermerebbe)."""
+        ritorna [lista(r) per r in se_stesso.conn.execute(sql, tuple(parametri)).fetchall()]
+
+    definisci _colonne_complete(se_stesso, tabella):
+        """Le colonne con anche «unica» e «auto-incremento» (che PRAGMA table_info non dice). Solleva ErroreDatabase se la tabella ha
+        vincoli che una ricostruzione perderebbe."""
+        importa re
+        righe = se_stesso._leggi("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", [tabella])
+        creazione = (righe[0][0] se righe altrimenti "") o ""
+        alto = creazione.upper()
+        per parola in ("CHECK", "GENERATED", "COLLATE", "WITHOUT ROWID", "STRICT", "ON CONFLICT"):
+            se re.search(r"\b" + parola.replace(" ", r"\s+") + r"\b", alto):
+                solleva ErroreDatabase(f"La tabella «{tabella}» usa {parola}: ricostruendola si perderebbe. "
+                                       "Per cambiare tipo, «non nulla» o il predefinito di questa colonna usa la scheda SQL.")
+        colonne = se_stesso.colonne(tabella)
+        per riga in se_stesso._leggi(f"PRAGMA index_list({se_stesso.citato(tabella)})"):
+            se riga[3] == "u":
+                nomi = [x[2] per x in se_stesso._leggi(f"PRAGMA index_info({se_stesso.citato(riga[1])})")]
+                se lunghezza(nomi) > 1:
+                    solleva ErroreDatabase(f"La tabella «{tabella}» ha un vincolo di unicità su più colonne: ricostruendola si perderebbe. "
+                                           "Per cambiare questa colonna usa la scheda SQL.")
+                per c in colonne:
+                    se nomi e c.nome == nomi[0]:
+                        c.unica = Vero
+        chiavi = [c per c in colonne se c.chiave]
+        se lunghezza(chiavi) == 1 e "AUTOINCREMENT" in alto e chiavi[0].tipo.upper() == "INTEGER":
+            chiavi[0].autoincremento = Vero
+        per c in colonne:
+            c.predefinito = predefinito_utente(c.predefinito)
+        ritorna colonne
+
+    definisci _passi_ricostruzione(se_stesso, tabella, nome_attuale, nuova, con_indici=Vero):
+        """Le istruzioni che ricostruiscono la tabella con la colonna `nome_attuale` cambiata in `nuova` (la procedura consigliata da SQLite)."""
+        colonne = se_stesso._colonne_complete(tabella)
+        nomi_vecchi = [c.nome per c in colonne]
+        trovata = Falso
+        per i, c in enumera(colonne):
+            se c.nome == nome_attuale:
+                colonne[i] = Colonna(nuova.nome, nuova.tipo, nuova.non_nullo, nuova.predefinito, c.chiave, c.unica, c.autoincremento)
+                trovata = Vero
+        se non trovata:
+            solleva ErroreDatabase(f"Non trovo la colonna «{nome_attuale}» nella tabella.")
+        provvisoria = "_pit_nuova_" + tabella
+        creazione = se_stesso.sql_crea_tabella(provvisoria, colonne)
+        esterne = {}
+        per riga in se_stesso._leggi(f"PRAGMA foreign_key_list({se_stesso.citato(tabella)})"):
+            e = esterne.setdefault(riga[0], {"tabella": riga[2], "da": [], "a": [], "aggiorna": riga[5], "elimina": riga[6]})
+            e["da"].append(riga[3])
+            e["a"].append(riga[4])
+        clausole = []
+        per e in esterne.values():
+            da_ = ", ".join(se_stesso.citato(x) per x in e["da"])
+            a_ = ", ".join(se_stesso.citato(x) per x in e["a"] se x)
+            t_ = f"  FOREIGN KEY ({da_}) REFERENCES {se_stesso.citato(e['tabella'])}" + (f" ({a_})" se a_ altrimenti "")
+            se e["aggiorna"] e e["aggiorna"] != "NO ACTION":
+                t_ += " ON UPDATE " + e["aggiorna"]
+            se e["elimina"] e e["elimina"] != "NO ACTION":
+                t_ += " ON DELETE " + e["elimina"]
+            clausole.append(t_)
+        se clausole:
+            creazione = creazione[:-2] + ",\n" + ",\n".join(clausole) + "\n)"
+        nuovi = ", ".join(se_stesso.citato(c.nome) per c in colonne)
+        vecchi = ", ".join(se_stesso.citato(n) per n in nomi_vecchi)
+        passi = [creazione,
+                 f"INSERT INTO {se_stesso.citato(provvisoria)} ({nuovi}) SELECT {vecchi} FROM {se_stesso.citato(tabella)}",
+                 f"DROP TABLE {se_stesso.citato(tabella)}",
+                 f"ALTER TABLE {se_stesso.citato(provvisoria)} RENAME TO {se_stesso.citato(tabella)}"]
+        se con_indici:
+            per riga in se_stesso._leggi("SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN ('index', 'trigger') AND sql IS NOT NULL", [tabella]):
+                passi.append(riga[0])
+        ritorna passi
+
+    definisci _istruzione_rinomina(se_stesso, tabella, vecchia, nuova):
+        ritorna f"ALTER TABLE {se_stesso.citato(tabella)} RENAME COLUMN {se_stesso.citato(vecchia.nome)} TO {se_stesso.citato(nuova.nome)}"
+
+    definisci sql_modifica_colonna(se_stesso, tabella, vecchia, nuova):
+        se_stesso._controlla_modifica(tabella, vecchia, nuova)
+        istruzioni = []
+        se nuova.nome != vecchia.nome:
+            istruzioni.append(se_stesso._istruzione_rinomina(tabella, vecchia, nuova))
+        se se_stesso._forma_cambia(vecchia, nuova):
+            istruzioni += se_stesso._passi_ricostruzione(tabella, vecchia.nome, nuova, con_indici=Falso)
+            istruzioni.append("-- poi si ricreano gli indici e i trigger della tabella, com'erano")
+        ritorna ";\n".join(istruzioni).replace(";\n-- poi", "\n-- poi") + ("" se istruzioni[-1].startswith("--") altrimenti ";")
+
+    definisci modifica_colonna(se_stesso, tabella, vecchia, nuova):
+        se_stesso._controlla_modifica(tabella, vecchia, nuova)
+        ricostruisci = se_stesso._forma_cambia(vecchia, nuova)
+        se ricostruisci:
+            se_stesso._colonne_complete(tabella)               # rifiuta subito le tabelle che non si possono ricostruire
+        eseguite = []
+        prova:
+            se_stesso.conn.commit()
+            se_stesso.conn.execute("PRAGMA foreign_keys = OFF")
+            prova:
+                se_stesso.conn.execute("BEGIN")
+                prova:
+                    se nuova.nome != vecchia.nome:
+                        istr = se_stesso._istruzione_rinomina(tabella, vecchia, nuova)
+                        se_stesso.conn.execute(istr)
+                        eseguite.append(istr)
+                    se ricostruisci:
+                        se_stesso.conn.execute("PRAGMA legacy_alter_table = ON")
+                        per passo in se_stesso._passi_ricostruzione(tabella, nuova.nome, nuova):
+                            se_stesso.conn.execute(passo)
+                            eseguite.append(passo)
+                    se_stesso.conn.execute("COMMIT")
+                eccetto Exception come e:
+                    prova:
+                        se_stesso.conn.execute("ROLLBACK")
+                    eccetto Exception:
+                        passa
+                    solleva ErroreDatabase(f"Modifica annullata, la tabella è com'era: {e}") da e
+            infine:
+                prova:
+                    se_stesso.conn.execute("PRAGMA legacy_alter_table = OFF")
+                    se_stesso.conn.execute("PRAGMA foreign_keys = ON")
+                eccetto Exception:
+                    passa
+        eccetto sqlite3.Error come e:
+            solleva ErroreDatabase(testo(e)) da e
+        se_stesso.storia.append(";\n".join(eseguite) + ";")
+
     definisci sql_crea_tabella(se_stesso, nome, colonne):
         se non nome.strip():
             solleva ErroreDatabase("Dai un nome alla tabella.")
@@ -461,6 +622,12 @@ classe ConnessioneMysql(Connessione):
         se c.unica e non c.chiave:
             parti.append("UNIQUE")
         ritorna " ".join(p per p in parti se p)
+
+    definisci sql_modifica_colonna(se_stesso, tabella, vecchia, nuova):
+        se_stesso._controlla_modifica(tabella, vecchia, nuova)
+        # chiave e auto-incremento restano quelli di prima; l'unicità non si ripete (l'indice c'è già)
+        definizione = Colonna(nuova.nome, nuova.tipo, nuova.non_nullo, predefinito_utente(nuova.predefinito), vecchia.chiave, Falso, vecchia.autoincremento)
+        ritorna f"ALTER TABLE {se_stesso.citato(tabella)} CHANGE COLUMN {se_stesso.citato(vecchia.nome)} {se_stesso._definizione_colonna(definizione)}"
 
     definisci sql_crea_tabella(se_stesso, nome, colonne):
         se non nome.strip():

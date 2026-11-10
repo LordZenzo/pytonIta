@@ -208,6 +208,26 @@ definisci rinomina_nel_progetto(cartella, vecchio, nuovo, testi_aperti=Nessuno):
     ritorna cambi
 
 
+# ---------------------------------------------------------------- rinomina di una finestra disegnata
+definisci importa_finestra(testo, nome):
+    """Vero se il testo importa il modulo della finestra `nome` o la sua parte grafica («<nome>_ui»)."""
+    ritorna bool(re.search(r"(?m)^[ \t]*(?:da|importa)[ \t]+" + re.escape(nome.lower()) + r"(?:_ui)?(?=[ \t,\r]|$)", testo))
+
+
+definisci rinomina_finestra_nel_testo(testo, vecchio_nome, nuovo_nome):
+    """Cambia nel testo i nomi che dipendono dal nome di una finestra: il modulo «<nome>_ui», le classi «<Nome>UI» e «<Nome>»,
+    e le righe «importa <nome>» / «da <nome> importa»."""
+    da rad importa form_modello
+    coppie = [(form_modello.nome_file_ui(vecchio_nome), form_modello.nome_file_ui(nuovo_nome)),
+              (form_modello._nome_classe(vecchio_nome) + "UI", form_modello._nome_classe(nuovo_nome) + "UI"),
+              (form_modello._nome_classe(vecchio_nome), form_modello._nome_classe(nuovo_nome))]
+    per a, b in coppie:
+        se a != b e a in testo:
+            testo, _ = rinomina_in(testo, a, b)
+    v, n = vecchio_nome.lower(), nuovo_nome.lower()
+    ritorna re.sub(r"(?m)^([ \t]*(?:da|importa)[ \t]+)" + re.escape(v) + r"(?=[ \t,\r]|$)", lambda m: m.group(1) + n, testo)
+
+
 # ---------------------------------------------------------------- documentazione al passaggio del mouse
 definisci documentazione(cartella, nome, percorso_corrente=Nessuno, testo_corrente=Nessuno):
     """Testo breve da mostrare passando sopra un nome: firma e descrizione di una funzione del progetto, o spiegazione di una parola del linguaggio."""

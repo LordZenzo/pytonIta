@@ -1,0 +1,138 @@
+"""Modifica di una colonna esistente (SQLite): nome, tipo, «non nulla», predefinito; i dati, gli indici, i trigger, le viste e le chiavi esterne restano."""
+importa os
+importa sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+da rad importa database_modello come dm
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci tipi_e_nomi(db, tabella):
+    ritorna [(c.nome, c.tipo.upper(), c.non_nullo, dm.predefinito_utente(c.predefinito), c.chiave) per c in db.colonne(tabella)]
+
+
+definisci sql_di(db, nome):
+    ritorna db.esegui_una("SELECT sql FROM sqlite_master WHERE name = ?", [nome]).righe[0][0]
+
+
+db = dm.apri_sqlite(":memory:")
+db.conn.executescript("""CREATE TABLE reparti (id INTEGER PRIMARY KEY, nome TEXT);
+INSERT INTO reparti VALUES (1, 'Vendite'), (2, 'Acquisti');
+CREATE TABLE clienti (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  email TEXT UNIQUE,
+  eta TEXT DEFAULT '18',
+  reparto INTEGER,
+  nota TEXT DEFAULT 'it''s',
+  FOREIGN KEY (reparto) REFERENCES reparti (id) ON DELETE SET NULL
+);
+INSERT INTO clienti (nome, email, eta, reparto, nota) VALUES ('Anna', 'a@x.it', '30', 1, 'ok'), ('Bruno', 'b@x.it', '41', 2, 'ciao'), ('Carla', NULL, '7', NULL, NULL);
+CREATE INDEX idx_nome ON clienti (nome);
+CREATE TABLE registro (testo TEXT);
+CREATE TRIGGER t_nuovo AFTER INSERT ON clienti BEGIN INSERT INTO registro VALUES (NEW.nome); END;
+CREATE VIEW v_adulti AS SELECT nome, eta FROM clienti WHERE eta >= 18;""")
+
+vecchia = [c per c in db.colonne("clienti") se c.nome == "eta"][0]
+
+# controlli
+sollevato = Falso
+prova:
+    db.modifica_colonna("clienti", vecchia, dm.Colonna("eta", "TEXT", Falso, "18"))
+eccetto dm.ErroreDatabase:
+    sollevato = Vero
+verifica(sollevato, "senza cambiamenti doveva rifiutare")
+per nuova in (dm.Colonna("", "TEXT"), dm.Colonna("eta", ""), dm.Colonna("NOME", "TEXT")):
+    sollevato = Falso
+    prova:
+        db.modifica_colonna("clienti", vecchia, nuova)
+    eccetto dm.ErroreDatabase:
+        sollevato = Vero
+    verifica(sollevato, "doveva rifiutare: " + nuova.nome + "/" + nuova.tipo)
+
+# anteprima
+sql = db.sql_modifica_colonna("clienti", vecchia, dm.Colonna("anni", "INTEGER", Vero, "18"))
+verifica("RENAME COLUMN" in sql e "_pit_nuova_clienti" in sql e "FOREIGN KEY" in sql, "anteprima SQL: " + sql)
+
+# rinomina + tipo + non nulla in un colpo solo
+db.modifica_colonna("clienti", vecchia, dm.Colonna("anni", "INTEGER", Vero, "18"))
+verifica(("anni", "INTEGER", Vero, "18", Falso) in tipi_e_nomi(db, "clienti"), "colonna cambiata: " + str(tipi_e_nomi(db, "clienti")))
+righe = db.esegui_una("SELECT nome, anni FROM clienti ORDER BY id").righe
+verifica(righe == [["Anna", 30], ["Bruno", 41], ["Carla", 7]], "i dati restano e diventano numeri: " + str(righe))
+verifica(db.esegui_una("SELECT nota FROM clienti WHERE nome = 'Anna'").righe == [["ok"]], "le altre colonne restano")
+verifica(db.esegui_una("PRAGMA integrity_check").righe == [["ok"]], "integrità")
+verifica(db.esegui_una("PRAGMA foreign_key_check").righe == [], "chiavi esterne")
+verifica(db.chiavi_esterne("clienti") == [("reparto", "reparti", "id")], "la chiave esterna resta: " + str(db.chiavi_esterne("clienti")))
+verifica(sql_di(db, "clienti").count("ON DELETE SET NULL") == 1, "azione della chiave esterna")
+verifica(db.esegui_una("SELECT COUNT(*) FROM sqlite_master WHERE name IN ('idx_nome', 't_nuovo', 'v_adulti')").righe == [[3]], "indice, trigger e vista restano")
+verifica("AUTOINCREMENT" in sql_di(db, "clienti"), "auto-incremento resta")
+verifica("UNIQUE" in sql_di(db, "clienti"), "unica resta")
+verifica("'it''s'" in sql_di(db, "clienti"), "il predefinito con l'apice resta uguale")
+db.esegui("INSERT INTO clienti (nome, email, anni) VALUES ('Dino', 'd@x.it', 50)")
+verifica(db.esegui_una("SELECT testo FROM registro ORDER BY rowid DESC LIMIT 1").righe == [["Dino"]], "il trigger funziona ancora")
+verifica(db.esegui_una("SELECT COUNT(*) FROM v_adulti").righe == [[3]], "la vista funziona ancora: " + str(db.esegui_una("SELECT COUNT(*) FROM v_adulti").righe))
+verifica(db.esegui_una("PRAGMA foreign_keys").righe == [[1]], "chiavi esterne di nuovo attive")
+verifica(any("RENAME COLUMN" in s per s in db.storia), "nella storia")
+
+# sola rinomina: nessuna ricostruzione, la vista e l'indice vengono aggiornati da SQLite
+nome_ = [c per c in db.colonne("clienti") se c.nome == "nome"][0]
+db.modifica_colonna("clienti", nome_, dm.Colonna("cognome", "TEXT", Vero))
+verifica(db.esegui_una("SELECT cognome FROM clienti WHERE id = 1").righe == [["Anna"]], "rinomina: dati")
+verifica(db.esegui_una("SELECT COUNT(*) FROM v_adulti").righe[0][0] >= 1, "rinomina: la vista funziona ancora")
+verifica("cognome" in sql_di(db, "idx_nome"), "rinomina: l'indice segue")
+
+# togliere «non nulla» e il predefinito
+anni = [c per c in db.colonne("clienti") se c.nome == "anni"][0]
+db.modifica_colonna("clienti", anni, dm.Colonna("anni", "INTEGER", Falso, ""))
+verifica(("anni", "INTEGER", Falso, "", Falso) in tipi_e_nomi(db, "clienti"), "tolti vincolo e predefinito: " + str(tipi_e_nomi(db, "clienti")))
+verifica(db.esegui_una("SELECT COUNT(*) FROM clienti").righe == [[4]], "righe intatte")
+
+# errore a metà: i NULL non entrano in una colonna «non nulla»; tutto torna com'era, rinomina compresa
+nota = [c per c in db.colonne("clienti") se c.nome == "nota"][0]
+prima = tipi_e_nomi(db, "clienti")
+sollevato = Falso
+prova:
+    db.modifica_colonna("clienti", nota, dm.Colonna("appunto", "TEXT", Vero, ""))
+eccetto dm.ErroreDatabase come e:
+    sollevato = "annullata" in testo(e)
+verifica(sollevato, "doveva annullare")
+verifica(tipi_e_nomi(db, "clienti") == prima, "dopo l'errore la tabella è com'era (anche il nome): " + str(tipi_e_nomi(db, "clienti")))
+verifica(db.esegui_una("SELECT COUNT(*) FROM sqlite_master WHERE name LIKE '_pit_nuova_%'").righe == [[0]], "nessuna tabella provvisoria rimasta")
+verifica(db.esegui_una("SELECT COUNT(*) FROM clienti").righe == [[4]], "righe intatte dopo l'errore")
+verifica(non db.conn.in_transaction, "nessuna transazione rimasta aperta")
+verifica(db.esegui_una("PRAGMA foreign_keys").righe == [[1]], "chiavi esterne attive anche dopo l'errore")
+
+# tabelle che non si possono ricostruire senza perdere qualcosa
+db.esegui("CREATE TABLE con_check (a INTEGER CHECK (a > 0), b TEXT)")
+b_ = db.colonne("con_check")[1]
+sollevato = Falso
+prova:
+    db.modifica_colonna("con_check", b_, dm.Colonna("b", "INTEGER"))
+eccetto dm.ErroreDatabase come e:
+    sollevato = "CHECK" in testo(e)
+verifica(sollevato, "CHECK: doveva rifiutare la ricostruzione")
+db.modifica_colonna("con_check", b_, dm.Colonna("c", "TEXT"))
+verifica([c.nome per c in db.colonne("con_check")] == ["a", "c"], "ma la sola rinomina si può fare")
+db.esegui("CREATE TABLE doppia (a TEXT, b TEXT, UNIQUE (a, b))")
+sollevato = Falso
+prova:
+    db.modifica_colonna("doppia", db.colonne("doppia")[0], dm.Colonna("a", "INTEGER"))
+eccetto dm.ErroreDatabase come e:
+    sollevato = "più colonne" in testo(e)
+verifica(sollevato, "unicità composta: doveva rifiutare")
+
+# chiave primaria e predefinito con parole chiave
+db.esegui("CREATE TABLE ordini (id INTEGER PRIMARY KEY, creato TEXT DEFAULT CURRENT_TIMESTAMP)")
+db.esegui("INSERT INTO ordini DEFAULT VALUES")
+db.modifica_colonna("ordini", db.colonne("ordini")[0], dm.Colonna("numero", "INTEGER", Falso, "", Vero))
+verifica(db.colonne("ordini")[0].nome == "numero" e db.colonne("ordini")[0].chiave, "la chiave primaria resta")
+db.modifica_colonna("ordini", db.colonne("ordini")[1], dm.Colonna("creato", "TEXT", Vero, "CURRENT_TIMESTAMP"))
+verifica(db.colonne("ordini")[1].non_nullo e "CURRENT_TIMESTAMP" in db.colonne("ordini")[1].predefinito, "predefinito con parola chiave")
+
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

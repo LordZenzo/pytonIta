@@ -1,0 +1,108 @@
+"""Suggerimenti per programmare una finestra disegnata: componenti dopo se_stesso., metodi dopo il componente, argomenti dentro le parentesi."""
+importa os
+importa sys
+importa json
+importa tempfile
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+importa tkinter come tk
+da rad importa api_finestra
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.editor importa Editor
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cart = tempfile.mkdtemp()
+disegno = {"versione": 1, "nome": "Scheda", "titolo": "x", "componenti": [
+    {"tipo": "Etichetta", "nome": "etichetta1", "x": 1, "y": 1, "valori": {}},
+    {"tipo": "CampoTesto", "nome": "campo1", "x": 1, "y": 1, "valori": {}},
+    {"tipo": "CasellaSelezione", "nome": "ok1", "x": 1, "y": 1, "valori": {}},
+    {"tipo": "PulsanteOpzione", "nome": "opz1", "x": 1, "y": 1, "valori": {"gruppo": "sesso"}},
+    {"tipo": "Elenco", "nome": "elenco1", "x": 1, "y": 1, "valori": {}}]}
+con open(os.path.join(cart, "scheda.form.json"), "w", encoding="utf-8") come f:
+    json.dump(disegno, f)
+logica = os.path.join(cart, "scheda.pit")
+ui = os.path.join(cart, "scheda_ui.pit")
+altro = os.path.join(cart, "altro.pit")
+
+verifica(api_finestra.percorso_disegno(logica) == os.path.join(cart, "scheda.form.json"), "disegno dalla logica")
+verifica(api_finestra.percorso_disegno(ui) == os.path.join(cart, "scheda.form.json"), "disegno dal codice dell'aspetto")
+verifica(api_finestra.percorso_disegno(altro) è Nessuno, "un file senza disegno")
+verifica(api_finestra.percorso_disegno(Nessuno) è Nessuno, "file senza nome")
+verifica([n per n, t, _ in api_finestra.componenti_di(logica)] == ["etichetta1", "campo1", "ok1", "opz1", "elenco1"], "componenti")
+verifica(api_finestra.componenti_di(altro) == [], "nessun componente senza disegno")
+
+# dopo se_stesso.
+voci, esclusivo = api_finestra.membri_finestra("se_stesso", logica)
+nomi = [v[0] per v in voci]
+verifica(nomi[:5] == ["etichetta1", "campo1", "ok1", "opz1", "elenco1"] e esclusivo è Falso, "componenti dopo se_stesso: " + str(nomi))
+verifica(("campo1", "componente", "CampoTesto") in voci, "il tipo accanto al nome")
+verifica("var_ok1" in nomi e "var_sesso" in nomi, "variabili di caselle e pulsanti di opzione: " + str(nomi))
+verifica(api_finestra.membri_finestra("se_stesso", altro) è Nessuno, "fuori da una finestra disegnata niente")
+verifica(api_finestra.membri_finestra("radice", logica) è Nessuno, "solo se_stesso")
+
+# dopo il componente
+voci, esclusivo = api_finestra.membri_finestra("se_stesso.campo1", logica)
+nomi = [v[0] per v in voci]
+verifica(esclusivo e "ottieni" in nomi e "inserisci" in nomi e "configura" in nomi, "metodi del campo: " + str(nomi))
+verifica("seleziona" in [v[0] per v in api_finestra.membri_finestra("se_stesso.ok1", logica)[0]], "metodi della casella")
+verifica([v[0] per v in api_finestra.membri_finestra("se_stesso.var_ok1", logica)[0]] == ["ottieni", "imposta"], "metodi della variabile")
+verifica(api_finestra.membri_finestra("se_stesso.sconosciuto", logica) è Nessuno, "componente inesistente")
+
+# parentesi
+verifica(api_finestra.chiamata_aperta("se_stesso.campo1.configura(") == ("se_stesso.campo1.configura", ""), "parentesi appena aperta")
+verifica(api_finestra.chiamata_aperta('f(a, g(1), se_stesso.x.configura(testo="a)", ') == ("se_stesso.x.configura", 'testo="a)", '), "le stringhe e le parentesi chiuse non contano")
+verifica(api_finestra.chiamata_aperta('se_stesso.x.configura(testo="ab') è Nessuno, "dentro una stringa niente")
+verifica(api_finestra.chiamata_aperta("stampa(1)") è Nessuno, "chiamata chiusa")
+
+voci, prefisso = api_finestra.argomenti_chiamata("        se_stesso.etichetta1.configura(", logica)
+nomi = [v[0] per v in voci]
+verifica(prefisso == "" e "testo=" in nomi e "sfondo=" in nomi e "stato=" in nomi, "opzioni della etichetta: " + str(nomi))
+voci, prefisso = api_finestra.argomenti_chiamata("se_stesso.etichetta1.configura(testo=\"Ciao\", sf", logica)
+verifica(prefisso == "sf" e [v[0] per v in voci] == ["sfondo="], "dopo la virgola, con l'inizio di un nome: " + str(voci))
+voci, prefisso = api_finestra.argomenti_chiamata("se_stesso.etichetta1.configura(testo=\"Ciao\", ", logica)
+verifica("testo=" non in [v[0] per v in voci] e "sfondo=" in [v[0] per v in voci], "le opzioni già scritte non si ripropongono")
+verifica(api_finestra.argomenti_chiamata("se_stesso.etichetta1.configura(testo=", logica) è Nessuno, "dopo il segno = niente")
+voci, prefisso = api_finestra.argomenti_chiamata("se_stesso.campo1.cancella(", logica)
+verifica(voci == [('0, "end"', "argomenti", "tutto il testo")], "argomenti pronti: " + str(voci))
+verifica(api_finestra.argomenti_chiamata("se_stesso.campo1.cancella(0, ", logica) è Nessuno, "con già un argomento niente")
+verifica(api_finestra.argomenti_chiamata("stampa(", logica) è Nessuno, "altre funzioni non c'entrano")
+verifica(api_finestra.argomenti_chiamata("se_stesso.campo1.configura(", altro) è Nessuno, "senza finestra disegnata niente")
+
+# nell'editor
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice = tk.Tk()
+radice.geometry("700x400+10+10")
+ed = Editor(radice, cfg, colori(cfg))
+ed.pack(fill="both", expand=Vero)
+ed.percorso = logica
+ed.imposta_contenuto("classe Scheda:\n    definisci inizia(se_stesso):\n        se_stesso.")
+radice.update()
+ed.t.mark_set("insert", "end-1c")
+ed.suggerisci(forza=Vero)
+radice.update()
+verifica(ed._popup è non Nessuno e ed._voci[0][0] == "etichetta1", "popup dopo se_stesso.: " + str([v[0] per v in ed._voci[:4]]))
+ed.chiudi_suggerimenti()
+ed.t.insert("end-1c", "etichetta1.")
+ed.suggerisci(forza=Vero)
+radice.update()
+verifica(ed._popup è non Nessuno e "configura" in [v[0] per v in ed._voci] e "elementi" non in [v[0] per v in ed._voci], "popup dopo il componente: " + str([v[0] per v in ed._voci[:6]]))
+ed.chiudi_suggerimenti()
+ed.t.insert("end-1c", "configura(")
+ed.suggerisci()
+radice.update()
+verifica(ed._popup è non Nessuno e "testo=" in [v[0] per v in ed._voci], "popup dentro le parentesi: " + str([v[0] per v in (ed._voci se ed._popup altrimenti [])][:6]))
+se ed._popup:
+    ed._lista.selection_clear(0, "end")
+    ed._lista.selection_set([v[0] per v in ed._voci].index("testo="))
+    ed.accetta_suggerimento()
+    verifica(ed.t.get("end-30c", "end-1c").endswith("configura(testo=)") o "configura(testo=" in ed.t.get("1.0", "end"), "dopo aver accettato: " + repr(ed.t.get("3.0", "end")))
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

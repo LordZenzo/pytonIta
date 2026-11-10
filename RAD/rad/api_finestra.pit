@@ -1,0 +1,189 @@
+"""Suggerimenti per programmare una finestra disegnata: dopo «se_stesso.» i suoi componenti, dopo il nome del componente
+i suoi metodi, e dentro le parentesi gli argomenti (le opzioni di configura, le posizioni di inserisci…). Solo logica, senza grafica."""
+importa json
+importa os
+importa re
+
+# ------------------------------------------------------------------ che cosa si può fare con ciascun tipo di componente
+AIUTO_OPZIONI = {
+    "testo": "il testo mostrato", "sfondo": "colore di sfondo", "primo_piano": "colore del testo",
+    "carattere": "carattere, es. (\"Segoe UI\", 11, \"bold\")", "stato": "\"normal\" o \"disabled\"",
+    "comando": "funzione chiamata al clic", "larghezza": "larghezza (in caratteri o pixel)", "altezza": "altezza",
+    "allineamento": "\"left\", \"center\" o \"right\"", "ancora": "\"w\", \"center\" o \"e\"", "immagine": "immagine mostrata",
+    "bordo": "spessore del bordo", "rilievo": "\"flat\", \"raised\", \"sunken\", \"solid\"", "cursore": "forma del puntatore",
+    "mostra": "carattere al posto del testo, es. \"*\"", "a_capo": "\"word\" o \"none\"", "valore": "il valore",
+    "valori": "l'elenco dei valori", "massimo": "il valore massimo", "orientamento": "\"horizontal\" o \"vertical\"",
+}
+
+_BASE = ["sfondo", "primo_piano", "carattere", "stato", "bordo", "rilievo", "cursore"]
+OPZIONI = {
+    "Etichetta": ["testo", "allineamento", "ancora", "immagine", "larghezza", "altezza"] + _BASE,
+    "Pulsante": ["testo", "comando", "immagine", "larghezza", "altezza"] + _BASE,
+    "CampoTesto": ["mostra", "larghezza"] + _BASE,
+    "AreaTesto": ["a_capo", "larghezza", "altezza"] + _BASE,
+    "Elenco": ["larghezza", "altezza"] + _BASE,
+    "CasellaSelezione": ["testo", "comando"] + _BASE,
+    "PulsanteOpzione": ["testo", "comando", "valore"] + _BASE,
+    "Cursore": ["comando", "orientamento", "larghezza"] + _BASE,
+    "CasellaCombinata": ["valori", "larghezza", "carattere", "stato"],
+    "BarraProgresso": ["valore", "massimo", "orientamento"],
+    "Riquadro": ["sfondo", "larghezza", "altezza", "bordo", "rilievo", "cursore"],
+    "Tela": ["sfondo", "larghezza", "altezza", "bordo", "rilievo", "cursore"],
+    "Albero": ["altezza"],
+    "Immagine": ["immagine", "sfondo", "larghezza", "altezza"],
+}
+
+_COMUNI = [("configura", "configura(testo=\"…\", sfondo=\"…\")"), ("ottieni_opzione", "ottieni_opzione(\"testo\")"),
+           ("imposta_focus", "imposta_focus()"), ("associa", "associa(\"<Evento>\", funzione)")]
+METODI = {
+    "Pulsante": [("invoca", "invoca()  — come un clic"), ("lampeggia", "lampeggia()")],
+    "CampoTesto": [("ottieni", "ottieni()  — il testo"), ("inserisci", "inserisci(0, \"testo\")"), ("cancella", "cancella(0, \"end\")")],
+    "AreaTesto": [("ottieni", "ottieni(\"1.0\", \"end\")"), ("inserisci", "inserisci(\"end\", \"testo\")"),
+                  ("cancella", "cancella(\"1.0\", \"end\")"), ("mostra", "mostra(\"end\")")],
+    "Elenco": [("ottieni", "ottieni(0, \"end\")  — tutti gli elementi"), ("inserisci", "inserisci(\"end\", \"voce\")"),
+               ("cancella", "cancella(0, \"end\")"), ("selezione_corrente", "selezione_corrente()  — le posizioni scelte"), ("mostra", "mostra(posizione)")],
+    "CasellaSelezione": [("seleziona", "seleziona()"), ("deseleziona", "deseleziona()"), ("inverti", "inverti()"), ("invoca", "invoca()")],
+    "PulsanteOpzione": [("seleziona", "seleziona()"), ("deseleziona", "deseleziona()"), ("invoca", "invoca()")],
+    "Cursore": [("ottieni", "ottieni()  — il valore"), ("imposta", "imposta(valore)")],
+    "CasellaCombinata": [("ottieni", "ottieni()  — il valore"), ("imposta", "imposta(\"valore\")")],
+    "BarraProgresso": [("avvia", "avvia()"), ("ferma", "ferma()")],
+    "Albero": [("inserisci", "inserisci(\"\", \"end\", values=(…))"), ("cancella", "cancella(elemento)"), ("seleziona", "seleziona(elemento)"), ("mostra", "mostra(elemento)")],
+    "Tela": [("crea_linea", "crea_linea(x1, y1, x2, y2)"), ("crea_rettangolo", "crea_rettangolo(x1, y1, x2, y2)"), ("crea_ovale", "crea_ovale(x1, y1, x2, y2)"),
+             ("crea_testo", "crea_testo(x, y, text=\"…\")"), ("cancella", "cancella(\"all\")"), ("sposta", "sposta(elemento, dx, dy)")],
+}
+# argomenti già pronti, per i metodi che si chiamano sempre allo stesso modo: (tipo, metodo) -> [(testo da inserire, spiegazione)]
+ARGOMENTI = {
+    ("CampoTesto", "inserisci"): [("0, \"\"", "dall'inizio")], ("CampoTesto", "cancella"): [("0, \"end\"", "tutto il testo")],
+    ("AreaTesto", "inserisci"): [("\"end\", \"\"", "in fondo")], ("AreaTesto", "cancella"): [("\"1.0\", \"end\"", "tutto il testo")],
+    ("AreaTesto", "ottieni"): [("\"1.0\", \"end\"", "tutto il testo")],
+    ("Elenco", "inserisci"): [("\"end\", \"\"", "in fondo")], ("Elenco", "cancella"): [("0, \"end\"", "tutti gli elementi")],
+    ("Elenco", "ottieni"): [("0, \"end\"", "tutti gli elementi")],
+}
+
+
+# ------------------------------------------------------------------ i componenti della finestra
+definisci percorso_disegno(percorso):
+    """Il .form.json della finestra a cui appartiene il file di codice (<nome>.pit o <nome>_ui.pit), o Nessuno."""
+    se non percorso o non percorso.endswith(".pit"):
+        ritorna Nessuno
+    cartella_, nome = os.path.split(percorso)
+    base = nome[:-len(".pit")]
+    se base.endswith("_ui"):
+        base = base[:-len("_ui")]
+    p = os.path.join(cartella_, base + ".form.json")
+    ritorna p se os.path.exists(p) altrimenti Nessuno
+
+
+definisci componenti_di(percorso):
+    """[(nome, tipo, dati)] dei componenti della finestra disegnata del file; lista vuota se non ce n'è una."""
+    p = percorso_disegno(percorso)
+    se non p:
+        ritorna []
+    prova:
+        con open(p, encoding="utf-8") come f:
+            d = json.load(f)
+    eccetto (OSError, ValueError):
+        ritorna []
+    ritorna [(c["nome"], c["tipo"], c) per c in d.get("componenti", []) se isinstance(c, dict) e c.get("nome") e c.get("tipo")]
+
+
+definisci _variabile_di(c):
+    """Il nome dell'attributo con il valore Vero/Falso o il testo scelto (caselle e pulsanti di opzione), o Nessuno."""
+    tipo_, nome = c[1], c[0]
+    se tipo_ == "CasellaSelezione":
+        ritorna "var_" + nome
+    se tipo_ == "PulsanteOpzione":
+        ritorna "var_" + ((c[2].get("valori") o {}).get("gruppo") o "gruppo1")
+    ritorna Nessuno
+
+
+# ------------------------------------------------------------------ dopo il punto
+definisci membri_finestra(espressione, percorso):
+    """Suggerimenti dopo `espressione.` per i file di una finestra disegnata. Ritorna (voci, esclusivo) o None.
+    Voci: (nome, tipo, spiegazione). `esclusivo`: i suggerimenti generici non servono."""
+    parti = espressione.strip().split(".")
+    se parti[0] != "se_stesso" o lunghezza(parti) > 2:
+        ritorna Nessuno
+    componenti = componenti_di(percorso)
+    se non componenti:
+        ritorna Nessuno
+    se lunghezza(parti) == 1:
+        voci = [(n, "componente", t) per n, t, _ in componenti]
+        viste = set()
+        per c in componenti:
+            v = _variabile_di(c)
+            se v e v non in viste:
+                viste.add(v)
+                voci.append((v, "variabile", "Vero/Falso" se c[1] == "CasellaSelezione" altrimenti "il valore scelto"))
+        ritorna voci, Falso
+    nome = parti[1]
+    per n, t, _ in componenti:
+        se n == nome:
+            ritorna [(m, "metodo", aiuto) per m, aiuto in METODI.get(t, []) + _COMUNI], Vero
+    se nome.startswith("var_"):
+        ritorna [("ottieni", "metodo", "ottieni()  — il valore"), ("imposta", "metodo", "imposta(valore)")], Vero
+    ritorna Nessuno
+
+
+# ------------------------------------------------------------------ dentro le parentesi
+definisci chiamata_aperta(riga):
+    """(espressione prima della parentesi, argomenti già scritti) per l'ultima parentesi tonda non chiusa della riga (le stringhe non contano);
+    Nessuno se non c'è, o se il cursore è dentro una stringa."""
+    pila = []
+    virgolette = Nessuno
+    i = 0
+    mentre i < lunghezza(riga):
+        c = riga[i]
+        se virgolette:
+            se c == "\\":
+                i += 2
+                continua
+            se c == virgolette:
+                virgolette = Nessuno
+        altrimenti_se c in "\"'":
+            virgolette = c
+        altrimenti_se c == "(":
+            pila.append(i)
+        altrimenti_se c == ")" e pila:
+            pila.pop()
+        i += 1
+    se virgolette o non pila:
+        ritorna Nessuno
+    m = re.search(r"([\w.]+)$", riga[:pila[-1]])
+    se non m:
+        ritorna Nessuno
+    ritorna m.group(1), riga[pila[-1] + 1:]
+
+
+definisci argomenti_chiamata(riga, percorso):
+    """Suggerimenti per gli argomenti di `se_stesso.<componente>.<metodo>(` ... Ritorna (voci, prefisso) o None."""
+    chiamata = chiamata_aperta(riga)
+    se non chiamata:
+        ritorna Nessuno
+    espressione, scritti = chiamata
+    parti = espressione.split(".")
+    se lunghezza(parti) != 3 o parti[0] != "se_stesso":
+        ritorna Nessuno
+    tipo_ = Nessuno
+    per n, t, _ in componenti_di(percorso):
+        se n == parti[1]:
+            tipo_ = t
+    se tipo_ è Nessuno:
+        ritorna Nessuno
+    metodo = parti[2]
+    se metodo == "configura":
+        ultimo = scritti.rsplit(",", 1)[-1]
+        se non re.fullmatch(r"\s*\w*", ultimo):
+            ritorna Nessuno
+        prefisso = ultimo.strip()
+        usate = set()
+        per pezzo in scritti.split(","):
+            m = re.match(r"\s*(\w+)\s*=", pezzo)
+            se m:
+                usate.add(m.group(1))
+        voci = [(o + "=", "opzione", AIUTO_OPZIONI.get(o, "")) per o in OPZIONI.get(tipo_, _BASE)
+                se o non in usate e o.startswith(prefisso) e o != prefisso]
+        ritorna (voci, prefisso) se voci altrimenti Nessuno
+    se scritti.strip() == "" e (tipo_, metodo) in ARGOMENTI:
+        ritorna [(testo_, "argomenti", spiegazione) per testo_, spiegazione in ARGOMENTI[(tipo_, metodo)]], ""
+    ritorna Nessuno

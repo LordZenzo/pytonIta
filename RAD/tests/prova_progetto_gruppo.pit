@@ -1,0 +1,75 @@
+"""I tre file di una finestra disegnata (disegno, aspetto, codice) si trattano insieme: gruppo e rinomina."""
+importa os
+importa sys
+importa json
+importa tempfile
+importa shutil
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+da rad importa progetto
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cart = tempfile.mkdtemp()
+p = progetto.Progetto(cart)
+p.crea_file("miafinestra.form.json", json.dumps({"versione": 1, "nome": "MiaFinestra", "titolo": "Ciao", "componenti": []}, indent=2))
+p.crea_file("miafinestra_ui.pit", 'importa interfaccia come tk\n\nclasse MiaFinestraUI:\n    passa\n')
+p.crea_file("miafinestra.pit", 'da miafinestra_ui importa MiaFinestraUI\n\n\nclasse MiaFinestra(MiaFinestraUI):\n    passa\n')
+p.crea_file("principale.pit", 'da miafinestra importa MiaFinestra\nstampa("MiaFinestra resta qui")\n')
+p.crea_file("altro.pit", 'MiaFinestra = 3\n')
+p.crea_file("sotto/solo.pit", 'stampa(1)\n')
+p.imposta_principale("miafinestra.pit")
+
+# gruppo: da uno qualunque dei tre file
+per r in ("miafinestra.form.json", "miafinestra_ui.pit", "miafinestra.pit"):
+    g = p.gruppo_finestra(r)
+    verifica([x[0] per x in g] == ["miafinestra.form.json", "miafinestra_ui.pit", "miafinestra.pit"], "gruppo da " + r + ": " + str(g))
+verifica(p.gruppo_finestra("altro.pit") == [], "un file qualunque non è una finestra")
+verifica(p.gruppo_finestra("sotto/solo.pit") == [], "un file in una cartella senza disegno non è una finestra")
+
+# senza il file del codice il gruppo ha due file
+os.rename(p.assoluto("miafinestra.pit"), p.assoluto("tmp.pit"))
+verifica(len(p.gruppo_finestra("miafinestra.form.json")) == 2, "gruppo di due file")
+os.rename(p.assoluto("tmp.pit"), p.assoluto("miafinestra.pit"))
+
+# rinomina
+sollevato = Falso
+prova:
+    p.rinomina_finestra("miafinestra.pit", "non valido!")
+eccetto Exception:
+    sollevato = Vero
+verifica(sollevato, "un nome non valido doveva essere rifiutato")
+p.crea_file("nuova.pit", "x = 1\n")
+sollevato = Falso
+prova:
+    p.rinomina_finestra("miafinestra.pit", "Nuova")
+eccetto OSError:
+    sollevato = Vero
+verifica(sollevato, "un nome già usato doveva essere rifiutato")
+verifica(os.path.exists(p.assoluto("miafinestra.pit")), "dopo il rifiuto i file sono ancora al loro posto")
+os.remove(p.assoluto("nuova.pit"))
+
+coppie, riscritti = p.rinomina_finestra("miafinestra.pit", "Bella")
+verifica(len(coppie) == 3, "tre file spostati: " + str(coppie))
+per n in ("bella.form.json", "bella_ui.pit", "bella.pit"):
+    verifica(os.path.exists(p.assoluto(n)), "manca " + n)
+per n in ("miafinestra.form.json", "miafinestra_ui.pit", "miafinestra.pit"):
+    verifica(non os.path.exists(p.assoluto(n)), "doveva sparire " + n)
+verifica(json.loads(p.leggi("bella.form.json"))["nome"] == "Bella", "il nome nel disegno")
+verifica("classe BellaUI:" in p.leggi("bella_ui.pit"), "classe dell'aspetto: " + p.leggi("bella_ui.pit"))
+logica = p.leggi("bella.pit")
+verifica("da bella_ui importa BellaUI" in logica e "classe Bella(BellaUI):" in logica, "codice della finestra: " + logica)
+principale = p.leggi("principale.pit")
+verifica("da bella importa Bella" in principale, "chi la importa: " + principale)
+verifica('"MiaFinestra resta qui"' in principale, "le stringhe restano come sono")
+verifica(p.leggi("altro.pit") == "MiaFinestra = 3\n", "un file che non importa la finestra non si tocca")
+verifica(p.principale == "bella.pit", "il file principale segue: " + str(p.principale))
+
+shutil.rmtree(cart, ignore_errors=Vero)
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

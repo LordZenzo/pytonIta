@@ -16,6 +16,13 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.38
+
+- **Progetto**: i tre file di una finestra (`<nome>.form.json`, `<nome>_ui.pit`, `<nome>.pit`) si trattano insieme. *Elimina* mostra una finestra con tre spunte (tutte attive) per scegliere quali file togliere; *Rinomina* li rinomina tutti e aggiorna il nome della finestra, le classi e le importazioni.
+- **Progettista › Proprietà**: il carattere non è più un testo libero. Un elenco con i caratteri installati nel sistema, la dimensione, e le caselle G (grassetto), C (corsivo), S (sottolineato), B (barrato). I file già salvati restano validi.
+- **Editor**: nei file di una finestra disegnata, `se_stesso.` propone i componenti con il loro tipo; dopo il nome del componente propone i suoi metodi; dentro le parentesi propone gli argomenti (`se_stesso.etichetta1.configura(` → `testo=`, `sfondo=`, `stato=`…). Per cambiare un componente si scrive `se_stesso.<nome>.configura(testo="Ciao")`; `radice.elementi` non serve.
+- **Dati › Struttura**: «✎ Modifica colonna…» (anche con il doppio clic su una riga) cambia nome, tipo, «non nulla» e valore predefinito di una colonna esistente. L'anteprima mostra le istruzioni SQL; in SQLite la tabella si ricostruisce in una transazione (se qualcosa non va, tutto torna com'era; indici, trigger, viste e chiavi esterne restano). Le tabelle con CHECK, COLLATE o unicità su più colonne si rifiutano con un messaggio che manda alla scheda SQL.
+
 ## Novità della 1.37
 
 - **Aggiornamento su Linux e macOS**: a fine aggiornamento si tolgono le cartelle temporanee (i sorgenti scompattati e il file scaricato), che prima restavano in `/tmp`.

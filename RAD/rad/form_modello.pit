@@ -7,12 +7,12 @@ importa shutil
 
 # Tipi di componenti: classe tkinter (in italiano), modulo, proprietà con valori predefiniti
 # proprietà: nome -> (tipo, predefinito, descrizione). tipo: testo | numero | si_no | scelta:a,b | colore |
-#            elenco | file | evento
+#            elenco | file | evento | carattere
 COMUNI = {
     "stato": ("scelta:normale,disabilitato", "normale", "Stato"),
     "sfondo": ("colore", "", "Colore di sfondo"),
     "primo_piano": ("colore", "", "Colore del testo"),
-    "carattere": ("testo", "", "Carattere (es. Segoe UI 11 bold)"),
+    "carattere": ("carattere", "", "Carattere"),
 }
 
 TIPI = {
@@ -564,6 +564,42 @@ definisci genera_ui(form):
         r.append("        passa")
         r.append("")
     ritorna "\n".join(r).rstrip() + "\n"
+
+
+STILI_CARATTERE = ("bold", "italic", "underline", "overstrike")
+
+
+definisci font_scomponi(testo_):
+    """«Segoe UI 11 bold italic» diventa ('Segoe UI', 11, {'bold', 'italic'}). Senza dimensione: (testo, 0, insieme vuoto)."""
+    parti = (testo_ o "").split()
+    indice = Nessuno
+    per i, p in enumera(parti):
+        se p.lstrip("-").isdigit():
+            indice = i
+            interrompi
+    se indice è Nessuno:
+        ritorna " ".join(parti), 0, set()
+    ritorna " ".join(parti[:indice]), int(parti[indice]), {s.lower() per s in parti[indice + 1:] se s.lower() in STILI_CARATTERE}
+
+
+definisci font_componi(famiglia, dimensione, stili):
+    """L'inverso di font_scomponi: ('Segoe UI', 11, {'bold'}) diventa «Segoe UI 11 bold». Con gli stili ma senza dimensione ne mette una, altrimenti Tk non li capirebbe."""
+    parti = [famiglia.strip()] se (famiglia o "").strip() altrimenti []
+    se stili e non dimensione:
+        dimensione = 10
+    se dimensione:
+        parti.append(testo(dimensione))
+    parti += [s per s in STILI_CARATTERE se s in stili]
+    ritorna " ".join(parti)
+
+
+definisci famiglie_sistema():
+    """I caratteri installati nel sistema (ordinati, senza doppioni); lista vuota se non si possono leggere. Serve una finestra Tk già creata."""
+    prova:
+        da tkinter importa font come tkfont
+        ritorna sorted({f per f in tkfont.families() se f e non f.startswith(("@", "."))}, key=lambda f: f.lower())
+    eccetto Exception:
+        ritorna []
 
 
 definisci font_tk(testo_):

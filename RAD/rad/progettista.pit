@@ -1404,6 +1404,70 @@ classe Progettista(tk.Frame):
         stile_suggerisci(b2, "Toglie il colore (usa quello predefinito)", se_stesso.colori)
         ritorna cornice
 
+    definisci _campo_carattere(se_stesso, genitore, valore, alla_conferma):
+        """Il carattere in parti: famiglia (tra quelle installate, o scritta a mano), dimensione, grassetto, corsivo, sottolineato, barrato."""
+        c_ = se_stesso.colori
+        famiglia, dimensione, stili = form_modello.font_scomponi(valore)
+        installati = form_modello.famiglie_sistema()
+        prova:
+            da tkinter importa font come tkfont
+            predefinita = int(tkfont.nametofont("TkDefaultFont").cget("size"))
+        eccetto Exception:
+            predefinita = 9
+        predefinita = abs(predefinita) o 9
+        cornice = tk.Frame(genitore, background=c_["pannello"])
+        cb = ttk.Combobox(cornice, values=installati, width=16)
+        cb.set(famiglia)
+        cb.grid(row=0, column=0, columnspan=5, sticky="ew")
+        cornice.columnconfigure(0, weight=1)
+        stile_suggerisci(cb, "Il carattere: scegli tra quelli installati o scrivi il nome", c_)
+        variabili = {}
+        stato = {"corrente": valore}
+
+        definisci applica(ev=Nessuno):
+            f = cb.get().strip()
+            prova:
+                d = abs(int(sp.get()))
+            eccetto ValueError:
+                d = 0
+            s = {k per k, v in variabili.items() se v.get()}
+            se non valore e non stato["corrente"] e non f e non s e d in (0, predefinita):
+                ritorna
+            nuovo = form_modello.font_componi(f, d, s)
+            se nuovo != stato["corrente"] e nuovo != form_modello.font_componi(*form_modello.font_scomponi(stato["corrente"])):
+                stato["corrente"] = nuovo
+                alla_conferma(nuovo)
+
+        sp = se_stesso._spin(cornice, abs(dimensione) o predefinita, lambda v: applica(), 1, 200, larghezza=4)
+        sp.grid(row=1, column=0, sticky="w", pady=(3, 0))
+        cb.bind("<<ComboboxSelected>>", applica)
+        cb.bind("<Return>", applica)
+        cb.bind("<FocusOut>", applica)
+        colonna = 1
+        per stile_, lettera, aiuto in (("bold", "G", "Grassetto"), ("italic", "C", "Corsivo"),
+                                       ("underline", "S", "Sottolineato"), ("overstrike", "B", "Barrato")):
+            variabili[stile_] = tk.BooleanVar(value=(stile_ in stili))
+            b = tk.Checkbutton(cornice, text=lettera, variable=variabili[stile_], indicatoron=Falso, width=2, relief="flat",
+                               background=c_["pulsante"], foreground=c_["primo_piano"], selectcolor=c_["accento"],
+                               activebackground=c_["pulsante"], command=applica)
+            b.grid(row=1, column=colonna, padx=(2, 0), pady=(3, 0))
+            stile_suggerisci(b, aiuto, c_)
+            colonna += 1
+
+        definisci azzera():
+            cb.set("")
+            sp.delete(0, "end")
+            sp.insert(0, testo(predefinita))
+            per v in variabili.values():
+                v.set(Falso)
+            stato["corrente"] = ""
+            alla_conferma("")
+        x = tk.Button(cornice, text="✕", command=azzera, width=2, relief="flat",
+                      background=c_["pulsante"], foreground=c_["primo_piano"])
+        x.grid(row=1, column=colonna, padx=(2, 0), pady=(3, 0))
+        stile_suggerisci(x, "Toglie il carattere scelto (usa quello predefinito)", c_)
+        ritorna cornice
+
     definisci _editor_valore(se_stesso, genitore, c, chiave, tipo_):
         c_ = se_stesso.colori
         valore = c.valori.get(chiave)
@@ -1425,6 +1489,8 @@ classe Progettista(tk.Frame):
             ritorna cb
         se tipo_ == "colore":
             ritorna se_stesso._campo_colore(genitore, valore o "", lambda v: se_stesso._modifica(c, chiave, v))
+        se tipo_ == "carattere":
+            ritorna se_stesso._campo_carattere(genitore, valore o "", lambda v: se_stesso._modifica(c, chiave, v))
         se tipo_ == "colonne_albero":
             cornice = tk.Frame(genitore, background=c_["pannello"])
             riassunto = ", ".join(f"{n} ({l})" per n, l, a in colonne_albero(c.valori))

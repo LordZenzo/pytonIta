@@ -5,7 +5,7 @@ importa re
 importa tkinter come tk
 da tkinter importa ttk
 
-da rad importa parole, stile, navigazione
+da rad importa parole, stile, navigazione, api_finestra
 da rad.piattaforma importa FONT_MONO
 
 _RE_TOKEN = re.compile(r"""
@@ -583,7 +583,7 @@ classe Editor(tk.Frame):
             ritorna
         se non se_stesso.config_.ottieni("editor.suggerimenti", Vero):
             ritorna
-        se e.char e (e.char.isalnum() o e.char in "_." o e.keysym == "BackSpace"):
+        se e.char e (e.char.isalnum() o e.char in "_.(," o e.keysym == "BackSpace" o (e.char == " " e se_stesso._dopo_virgola())):
             se se_stesso._lavoro_suggerimenti:
                 se_stesso.after_cancel(se_stesso._lavoro_suggerimenti)
             se_stesso._lavoro_suggerimenti = se_stesso.after(
@@ -735,19 +735,33 @@ classe Editor(tk.Frame):
             t.mark_set("insert", f"{inizio}+{posizione}c")
         ritorna Vero
 
+    definisci _dopo_virgola(se_stesso):
+        """Vero se il cursore sta dopo «, » dentro una chiamata: lì conviene riproporre le opzioni."""
+        ritorna bool(re.search(r",\s$", se_stesso.t.get("insert linestart", "insert")))
+
     definisci suggerisci(se_stesso, forza=Falso):
         se_stesso._lavoro_suggerimenti = Nessuno
         t = se_stesso.t
         riga = t.get("insert linestart", "insert")
         sorgente = se_stesso.contenuto()
+        # finestra disegnata: argomenti dentro le parentesi di se_stesso.<componente>.<metodo>(
+        se se_stesso.linguaggio == "pit":
+            argomenti = api_finestra.argomenti_chiamata(riga, se_stesso.percorso)
+            se argomenti:
+                se_stesso._mostra_popup(argomenti[0], argomenti[1])
+                ritorna
         # attributo dopo il punto
         m = re.search(r"([\w.]+)\.(\w*)$", riga)
         voci = []
         se m:
             espressione, prefisso = m.group(1), m.group(2)
-            membri = parole.membri_di(espressione, sorgente, se_stesso.cartelle_progetto, se_stesso.linguaggio)
+            finestra = api_finestra.membri_finestra(espressione, se_stesso.percorso) se se_stesso.linguaggio == "pit" altrimenti Nessuno
+            membri = [] se (finestra e finestra[1]) altrimenti parole.membri_di(espressione, sorgente, se_stesso.cartelle_progetto, se_stesso.linguaggio)
             voci = [(n, tp, "") per n, tp in membri se n.lower().startswith(prefisso.lower())
                     e n != prefisso][:80]
+            se finestra:
+                propri = [(n, tp, ex) per n, tp, ex in finestra[0] se n.lower().startswith(prefisso.lower()) e n != prefisso]
+                voci = propri + [v per v in voci se v[0] non in {p[0] per p in propri}]
         altrimenti:
             m = re.search(r"([^\W\d]\w*)$", riga)
             prefisso = m.group(1) se m altrimenti ""

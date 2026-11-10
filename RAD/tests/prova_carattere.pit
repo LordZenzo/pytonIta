@@ -1,0 +1,80 @@
+"""Il carattere di un componente: scomposto in famiglia, dimensione e stili, e ricomposto; il campo del progettista lo modifica per parti."""
+importa os
+importa sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+importa tkinter come tk
+da rad importa form_modello, progettista
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+verifica(form_modello.font_scomponi("Segoe UI 11 bold italic") == ("Segoe UI", 11, {"bold", "italic"}), "scomponi: " + str(form_modello.font_scomponi("Segoe UI 11 bold italic")))
+verifica(form_modello.font_scomponi("Consolas") == ("Consolas", 0, set()), "senza dimensione")
+verifica(form_modello.font_scomponi("") == ("", 0, set()), "vuoto")
+verifica(form_modello.font_scomponi("Arial 12 BOLD underline")[2] == {"bold", "underline"}, "maiuscole e minuscole")
+verifica(form_modello.font_componi("Segoe UI", 11, {"italic", "bold"}) == "Segoe UI 11 bold italic", "ordine fisso degli stili")
+verifica(form_modello.font_componi("", 12, set()) == "12", "solo la dimensione")
+verifica(form_modello.font_componi("Arial", 0, {"bold"}) == "Arial 10 bold", "gli stili vogliono una dimensione")
+verifica(form_modello.font_componi("Arial", 0, set()) == "Arial", "solo la famiglia")
+per t in ("Segoe UI 14 bold", "Courier New 9 italic underline overstrike", "Arial 10", "Consolas"):
+    verifica(form_modello.font_componi(*form_modello.font_scomponi(t)) == t, "giro completo: " + t)
+verifica(form_modello.font_tk("Segoe UI 11 bold underline") == ("Segoe UI", 11, "bold", "underline"), "per Tk: " + str(form_modello.font_tk("Segoe UI 11 bold underline")))
+verifica(form_modello.proprieta_di("Etichetta")["carattere"][0] == "carattere", "il tipo della proprietà")
+
+radice = tk.Tk()
+radice.withdraw()
+famiglie = form_modello.famiglie_sistema()
+verifica(len(famiglie) > 3 e famiglie == sorted(set(famiglie), key=lambda f: f.lower()), "caratteri del sistema: " + str(len(famiglie)))
+verifica(non any(f.startswith(("@", ".")) per f in famiglie), "nomi interni esclusi")
+
+
+# il campo del progettista, con un «progettista» finto (basta che abbia colori e _spin)
+classe Finto:
+    colori = {"pannello": "#ffffff", "pulsante": "#eeeeee", "primo_piano": "#000000", "accento": "#3377ff", "campo": "#ffffff",
+              "cursore": "#000000", "bordo": "#cccccc", "casella": "#ffffff", "tenue": "#888888", "sfondo": "#ffffff"}
+    _spin = progettista.Progettista._spin
+    _campo_carattere = progettista.Progettista._campo_carattere
+
+
+ricevuti = []
+f = Finto()
+cornice = f._campo_carattere(radice, "Segoe UI 11 bold", lambda v: ricevuti.append(v))
+cornice.pack()
+radice.update()
+combo = [w per w in cornice.winfo_children() se w.winfo_class() == "TCombobox"][0]
+verifica(combo.get() == "Segoe UI", "famiglia nel campo: " + combo.get())
+caselle = [w per w in cornice.winfo_children() se w.winfo_class() == "Checkbutton"]
+verifica(len(caselle) == 4, "quattro stili")
+caselle[1].invoke()          # corsivo
+verifica(ricevuti[-1:] == ["Segoe UI 11 bold italic"], "dopo il corsivo: " + str(ricevuti))
+caselle[0].invoke()          # tolgo il grassetto
+verifica(ricevuti[-1:] == ["Segoe UI 11 italic"], "dopo aver tolto il grassetto: " + str(ricevuti))
+combo.set("Arial")
+combo.event_generate("<<ComboboxSelected>>")
+radice.update()
+verifica(ricevuti[-1:] == ["Arial 11 italic"], "dopo aver cambiato famiglia: " + str(ricevuti))
+n = len(ricevuti)
+combo.event_generate("<FocusOut>")
+radice.update()
+verifica(len(ricevuti) == n, "senza cambi non riscrive")
+azzera = [w per w in cornice.winfo_children() se w.winfo_class() == "Button"][0]
+azzera.invoke()
+verifica(ricevuti[-1:] == [""] e combo.get() == "", "azzera: " + str(ricevuti))
+
+# un campo vuoto, mai toccato, non scrive niente
+ricevuti = []
+vuoto = f._campo_carattere(radice, "", lambda v: ricevuti.append(v))
+vuoto.pack()
+radice.update()
+combo2 = [w per w in vuoto.winfo_children() se w.winfo_class() == "TCombobox"][0]
+combo2.event_generate("<FocusOut>")
+radice.update()
+verifica(ricevuti == [], "campo vuoto non toccato: " + str(ricevuti))
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

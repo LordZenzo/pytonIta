@@ -144,6 +144,10 @@ stampa({pacchetto}.saluta("mondo"))
     }
 
 
+definisci _unisci(cartella_, nome):
+    ritorna cartella_ + "/" + nome se cartella_ altrimenti nome
+
+
 definisci tipo_file(percorso):
     """Categoria di un file: codice, form, immagine, json, tabella, testo, binario."""
     nome = os.path.basename(percorso).lower()
@@ -323,6 +327,89 @@ classe Progetto:
             se_stesso.imposta_principale(nuovo_rel)
         ritorna nuovo
 
+    # --- finestre disegnate: <nome>.form.json + <nome>_ui.pit + <nome>.pit vanno trattati insieme
+    definisci _base_finestra(se_stesso, relativo):
+        """(cartella relativa, nome di base) se `relativo` è uno dei file di una finestra disegnata, altrimenti None."""
+        cartella_, nome = os.path.split(relativo.replace("\\", "/"))
+        se nome.endswith(".form.json"):
+            base = nome[:-len(".form.json")]
+        altrimenti_se nome.endswith("_ui.pit"):
+            base = nome[:-len("_ui.pit")]
+        altrimenti_se nome.endswith(".pit"):
+            base = nome[:-len(".pit")]
+        altrimenti:
+            ritorna Nessuno
+        se base e os.path.exists(se_stesso.assoluto(_unisci(cartella_, base + ".form.json"))):
+            ritorna cartella_, base
+        ritorna Nessuno
+
+    definisci gruppo_finestra(se_stesso, relativo):
+        """[(relativo, descrizione)] dei file della finestra a cui appartiene `relativo` (vuota se non è una finestra con almeno due file)."""
+        b = se_stesso._base_finestra(relativo)
+        se non b:
+            ritorna []
+        cartella_, base = b
+        voci = [(_unisci(cartella_, base + ".form.json"), "il disegno"),
+                (_unisci(cartella_, base + "_ui.pit"), "il codice dell'aspetto (si rigenera dal disegno)"),
+                (_unisci(cartella_, base + ".pit"), "il codice della finestra (il tuo)")]
+        trovate = [(r, d) per r, d in voci se os.path.exists(se_stesso.assoluto(r))]
+        ritorna trovate se lunghezza(trovate) >= 2 altrimenti []
+
+    definisci rinomina_finestra(se_stesso, relativo, nuovo_nome):
+        """Rinomina insieme i file di una finestra e aggiorna i nomi che ne dipendono (modulo, classi, importazioni, nome nel disegno).
+        Ritorna ([(vecchio, nuovo) percorsi assoluti dei file spostati], [percorsi assoluti dei file riscritti])."""
+        da rad importa navigazione
+        b = se_stesso._base_finestra(relativo)
+        se non b:
+            solleva ErroreDiValore("non è una finestra disegnata")
+        cartella_, vecchia_base = b
+        nuovo_nome = nuovo_nome.strip()
+        errore = navigazione.controlla_nuovo_nome(nuovo_nome, vecchia_base)
+        se errore:
+            solleva ErroreDiValore(errore)
+        nuova_base = nuovo_nome.lower()
+        se nuova_base == vecchia_base:
+            solleva ErroreDiValore("Il nome è lo stesso.")
+        coppie = []
+        per suffisso in (".form.json", "_ui.pit", ".pit"):
+            v = _unisci(cartella_, vecchia_base + suffisso)
+            se os.path.exists(se_stesso.assoluto(v)):
+                n = _unisci(cartella_, nuova_base + suffisso)
+                se os.path.exists(se_stesso.assoluto(n)):
+                    solleva FileEsistente(n)
+                coppie.append((se_stesso.assoluto(v), se_stesso.assoluto(n)))
+        percorso_json = coppie[0][0]
+        con open(percorso_json, encoding="utf-8") come f:
+            disegno = json.loads(f.read())
+        vecchio_nome = disegno.get("nome") o vecchia_base
+        sposta = {os.path.normcase(v): n per v, n in coppie}
+        # i nuovi testi, calcolati prima di spostare niente
+        scritture = {}
+        per p in navigazione.file_del_progetto(se_stesso.cartella):
+            try_ = Nessuno
+            prova:
+                con open(p, encoding="utf-8", newline="") come f:
+                    try_ = f.read()
+            eccetto (OSError, UnicodeDecodeError):
+                continua
+            della_finestra = os.path.normcase(p) in sposta
+            se non (della_finestra o navigazione.importa_finestra(try_, vecchio_nome)):
+                continua
+            nuovo_testo = navigazione.rinomina_finestra_nel_testo(try_, vecchio_nome, nuovo_nome)
+            se nuovo_testo != try_:
+                scritture[sposta.get(os.path.normcase(p), p)] = nuovo_testo
+        disegno["nome"] = nuovo_nome
+        scritture[coppie[0][1]] = json.dumps(disegno, indent=2, ensure_ascii=Falso)
+        relativo_principale = se_stesso.principale
+        per v, n in coppie:
+            os.rename(v, n)
+            se relativo_principale e os.path.normcase(se_stesso.assoluto(relativo_principale)) == os.path.normcase(v):
+                se_stesso.imposta_principale(se_stesso.relativo(n))
+        per p, testo_nuovo in scritture.items():
+            con open(p, "w", encoding="utf-8", newline="") come f:
+                f.write(testo_nuovo)
+        ritorna coppie, lista(scritture)
+
     definisci aggiungi_risorse(se_stesso, file_origine, sottocartella="risorse"):
         destinazione = se_stesso.assoluto(sottocartella)
         os.makedirs(destinazione, exist_ok=Vero)
@@ -388,6 +475,55 @@ classe Progetto:
 # --------------------------------------------------------------------------- pannello
 ICONE = {"cartella": "📁", "codice": "🧩", "python": "🐍", "form": "🪟", "mattonelle": "🧱", "immagine": "🖼", "json": "{}",
          "tabella": "▦", "database": "🗄", "testo": "📄", "binario": "▪"}
+
+
+classe DialogoGruppoFinestra(tk.Toplevel):
+    """Elimina una finestra disegnata: una spunta per ciascuno dei suoi file (all'inizio tutte attive); togliendone una, quel file resta."""
+
+    definisci __inizializza__(se_stesso, genitore, nome, voci):
+        tk.Toplevel.__init__(se_stesso, genitore)
+        se_stesso.title("Elimina finestra")
+        se_stesso.transient(genitore.winfo_toplevel())
+        se_stesso.resizable(Falso, Falso)
+        se_stesso.risultato = Nessuno
+        se_stesso._voci = voci
+        se_stesso._var = []
+        ttk.Label(se_stesso, justify="left",
+                  text=f"La finestra «{nome}» è fatta di {lunghezza(voci)} file.\nSpunta quelli da eliminare definitivamente:").pack(anchor="w", padx=14, pady=(12, 6))
+        per rel, descrizione in voci:
+            v = tk.BooleanVar(value=Vero)
+            v.trace_add("write", lambda *a: se_stesso._aggiorna())
+            se_stesso._var.append(v)
+            ttk.Checkbutton(se_stesso, text=f"{rel}  —  {descrizione}", variable=v).pack(anchor="w", padx=24, pady=2)
+        riga = ttk.Frame(se_stesso)
+        riga.pack(fill="x", padx=14, pady=12)
+        ttk.Button(riga, text="Annulla", command=se_stesso.destroy).pack(side="right")
+        se_stesso.bottone = ttk.Button(riga, text="Elimina", command=se_stesso._conferma)
+        se_stesso.bottone.pack(side="right", padx=(0, 8))
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.update_idletasks()
+        p = genitore.winfo_toplevel()
+        x = p.winfo_rootx() + max(0, (p.winfo_width() - se_stesso.winfo_reqwidth()) // 2)
+        y = p.winfo_rooty() + max(0, (p.winfo_height() - se_stesso.winfo_reqheight()) // 3)
+        se_stesso.geometry(f"+{x}+{y}")
+        prova:
+            se_stesso.grab_set()
+        eccetto tk.TclError:
+            passa
+
+    definisci scelti(se_stesso):
+        ritorna [rel per (rel, _), v in zip(se_stesso._voci, se_stesso._var) se v.get()]
+
+    definisci _aggiorna(se_stesso):
+        se_stesso.bottone.configure(state="normal" se se_stesso.scelti() altrimenti "disabled")
+
+    definisci _conferma(se_stesso):
+        se_stesso.risultato = se_stesso.scelti()
+        se_stesso.destroy()
+
+    definisci mostra(se_stesso):
+        se_stesso.wait_window(se_stesso)
+        ritorna se_stesso.risultato
 
 
 classe PannelloProgetto(tk.Frame):
@@ -582,6 +718,10 @@ classe PannelloProgetto(tk.Frame):
         rel, e_cartella = se_stesso._selezionato()
         se non rel:
             ritorna
+        gruppo = [] se e_cartella altrimenti se_stesso.progetto.gruppo_finestra(rel)
+        se gruppo:
+            se_stesso._rinomina_finestra(rel, gruppo)
+            ritorna
         nuovo = simpledialog.askstring("Rinomina", "Nuovo nome:", initialvalue=os.path.basename(rel), parent=se_stesso)
         se non nuovo o nuovo == os.path.basename(rel):
             ritorna
@@ -594,19 +734,52 @@ classe PannelloProgetto(tk.Frame):
         se_stesso.azioni.file_rinominato(vecchio, nuovo_p)
         se_stesso.aggiorna()
 
+    definisci _rinomina_finestra(se_stesso, rel, gruppo):
+        """Rinomina una finestra disegnata: i suoi file cambiano nome insieme, e con loro i nomi che ne dipendono."""
+        base = se_stesso.progetto._base_finestra(rel)[1]
+        nuovo = simpledialog.askstring("Rinomina finestra", f"Nuovo nome della finestra (rinomino insieme i suoi {lunghezza(gruppo)} file):",
+                                       initialvalue=base, parent=se_stesso)
+        se non nuovo o nuovo.strip() == base:
+            ritorna
+        se_stesso.azioni.salva_tutto()
+        prova:
+            coppie, riscritti = se_stesso.progetto.rinomina_finestra(rel, nuovo)
+        eccetto (OSError, ErroreDiValore) come errore:
+            messagebox.showerror("Rinomina finestra", testo(errore), parent=se_stesso)
+            ritorna
+        per v, n in coppie:
+            se_stesso.azioni.file_rinominato(v, n)
+        per w in lista(se_stesso.azioni.schede.values()):
+            se hasattr(w, "ricarica_se_cambiato_su_disco"):
+                prova:
+                    w.ricarica_se_cambiato_su_disco()
+                eccetto Exception:
+                    passa
+        se_stesso.aggiorna()
+        se_stesso.azioni.info(f"Finestra rinominata in «{nuovo.strip()}»: {lunghezza(coppie)} file, {lunghezza(riscritti)} riscritti.")
+
     definisci cancella(se_stesso):
         rel, e_cartella = se_stesso._selezionato()
         se non rel:
             ritorna
-        se non messagebox.askyesno("Elimina", f"Eliminare definitivamente «{rel}»?", parent=se_stesso):
-            ritorna
-        p = se_stesso.progetto.assoluto(rel)
-        prova:
-            se_stesso.progetto.cancella(rel)
-        eccetto OSError come errore:
-            messagebox.showerror("Errore", testo(errore), parent=se_stesso)
-            ritorna
-        se_stesso.azioni.file_eliminato(p)
+        gruppo = [] se e_cartella altrimenti se_stesso.progetto.gruppo_finestra(rel)
+        se gruppo:
+            nome = se_stesso.progetto._base_finestra(rel)[1]
+            da_eliminare = DialogoGruppoFinestra(se_stesso, nome, gruppo).mostra()
+            se non da_eliminare:
+                ritorna
+        altrimenti:
+            se non messagebox.askyesno("Elimina", f"Eliminare definitivamente «{rel}»?", parent=se_stesso):
+                ritorna
+            da_eliminare = [rel]
+        per r in da_eliminare:
+            p = se_stesso.progetto.assoluto(r)
+            prova:
+                se_stesso.progetto.cancella(r)
+            eccetto OSError come errore:
+                messagebox.showerror("Errore", testo(errore), parent=se_stesso)
+                interrompi
+            se_stesso.azioni.file_eliminato(p)
         se_stesso.aggiorna()
 
     definisci imposta_principale(se_stesso):

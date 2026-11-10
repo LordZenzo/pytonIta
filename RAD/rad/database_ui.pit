@@ -96,8 +96,12 @@ classe DialogoTabella(DialogoBase):
     """Nuova tabella (o nuova colonna): per ogni colonna nome, tipo, chiave, NOT NULL, unica, auto-incremento e valore predefinito.
     L'istruzione SQL che verrà eseguita si vede e si aggiorna mentre scrivi."""
 
-    definisci __inizializza__(se_stesso, genitore, colori, conn, nome_tabella="", solo_colonna=Falso):
-        DialogoBase.__init__(se_stesso, genitore, "Nuova colonna" se solo_colonna altrimenti "Nuova tabella", colori, 880, 600)
+    definisci __inizializza__(se_stesso, genitore, colori, conn, nome_tabella="", solo_colonna=Falso, da_modificare=Nessuno):
+        """`da_modificare`: una Colonna esistente da cambiare (nome, tipo, non nulla, predefinito; chiave, unica e auto restano com'erano)."""
+        se_stesso.da_modificare = da_modificare
+        solo_colonna = solo_colonna o da_modificare è non Nessuno
+        DialogoBase.__init__(se_stesso, genitore, ("Modifica colonna" se da_modificare è non Nessuno altrimenti "Nuova colonna" se solo_colonna altrimenti "Nuova tabella"),
+                             colori, 880, 600)
         se_stesso.resizable(Vero, Vero)
         se_stesso.conn = conn
         se_stesso.solo_colonna = solo_colonna
@@ -146,12 +150,21 @@ classe DialogoTabella(DialogoBase):
         fondo = tk.Frame(se_stesso, background=c["pannello"])
         fondo.grid(row=6, column=0, sticky="e", padx=14, pady=10)
         tk.Button(fondo, text="Annulla", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
-        suggerisci(tk.Button(fondo, text=("Aggiungi la colonna" se solo_colonna altrimenti "Crea la tabella"), command=se_stesso._conferma, background=c["accento"],
+        suggerisci(tk.Button(fondo, text=("Modifica la colonna" se da_modificare è non Nessuno altrimenti "Aggiungi la colonna" se solo_colonna altrimenti "Crea la tabella"),
+                             command=se_stesso._conferma, background=c["accento"],
                              foreground="#ffffff", relief="flat", padx=12), "Esegue l'istruzione e crea l'elemento nel database", c).pack(side="right", padx=4)
         se_stesso.var_nome.trace_add("write", lambda *a: se_stesso._aggiorna_anteprima())
         se non solo_colonna:
             se_stesso.aggiungi_riga(Colonna_predefinita(conn, chiave=Vero))
             se_stesso.aggiungi_riga()
+        altrimenti_se da_modificare è non Nessuno:
+            v = se_stesso.aggiungi_riga(dbm.Colonna(da_modificare.nome, da_modificare.tipo, da_modificare.non_nullo, dbm.predefinito_utente(da_modificare.predefinito),
+                                                    da_modificare.chiave, da_modificare.unica, da_modificare.autoincremento))
+            per chiave in ("chiave", "unica", "auto"):
+                v[chiave + "_casella"].configure(state="disabled")        # non si cambiano da qui: servirebbe ricostruire gli indici
+            nota = tk.Label(se_stesso, anchor="w", background=c["pannello"], foreground=c["tenue"], justify="left",
+                            text="Chiave primaria, «Unica» e «Auto» restano come sono. Con il cambio del tipo i valori vengono convertiti; se qualcosa non va, tutto torna com'era.")
+            nota.grid(row=7, column=0, sticky="we", padx=14)
         altrimenti:
             se_stesso.aggiungi_riga()
         se_stesso.bind("<Escape>", lambda ev: se_stesso.destroy())
@@ -177,6 +190,7 @@ classe DialogoTabella(DialogoBase):
             cb = tk.Checkbutton(riga, variable=v[chiave], width=larghezza, background=c["pannello"], activebackground=c["pannello"], selectcolor=c["casella"],
                                 foreground=c["primo_piano"])
             cb.pack(side="left", padx=2)
+            v[chiave + "_casella"] = cb
             suggerisci(cb, aiuto, c)
         p = tk.Entry(riga, textvariable=v["pred"], width=18, background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"], relief="flat",
                      highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
@@ -192,6 +206,7 @@ classe DialogoTabella(DialogoBase):
         se_stesso._aggiorna_anteprima()
         se_stesso.tela.update_idletasks()
         se_stesso.tela.yview_moveto(1.0)
+        ritorna v
 
     definisci togli_riga(se_stesso, v):
         v["riga"].destroy()
@@ -209,6 +224,10 @@ classe DialogoTabella(DialogoBase):
     definisci sql(se_stesso):
         """L'istruzione SQL descritta dalla finestra (può sollevare ErroreDatabase se manca qualcosa)."""
         colonne = se_stesso.colonne_attuali()
+        se se_stesso.da_modificare è non Nessuno:
+            se non colonne:
+                solleva dbm.ErroreDatabase("Scrivi il nome della colonna.")
+            ritorna se_stesso.conn.sql_modifica_colonna(se_stesso.nome_tabella, se_stesso.da_modificare, colonne[0])
         se se_stesso.solo_colonna:
             se non colonne:
                 solleva dbm.ErroreDatabase("Scrivi il nome della colonna.")
@@ -236,7 +255,8 @@ classe DialogoTabella(DialogoBase):
         eccetto dbm.ErroreDatabase come errore:
             messagebox.showwarning("Controlla i dati", testo(errore), parent=se_stesso)
             ritorna
-        se_stesso.risultato = sql_
+        # modificando una colonna il risultato è la colonna nuova (la modifica la esegue chi ha aperto il dialogo), altrimenti l'istruzione SQL
+        se_stesso.risultato = se_stesso.colonne_attuali()[0] se se_stesso.da_modificare è non Nessuno altrimenti sql_
         se_stesso.destroy()
 
 
@@ -436,9 +456,12 @@ classe VisoreDatabase(VisoreBase):
         su.pack(fill="x", padx=6, pady=4)
         se_stesso.cornici.append(su)
         se_stesso._pulsante(su, "＋ Colonna…", se_stesso.nuova_colonna, "Aggiunge una colonna alla tabella")
+        se_stesso._pulsante(su, "✎ Modifica colonna…", se_stesso.modifica_colonna,
+                            "Cambia nome, tipo, «non nulla» o valore predefinito della colonna scelta qui sotto (doppio clic su una riga fa lo stesso)")
         se_stesso._pulsante(su, "Elimina la tabella…", se_stesso.elimina_tabella, "Elimina la tabella con tutti i suoi dati (non si può annullare)", "right")
         se_stesso.griglia_struttura = Griglia(f)
         se_stesso.griglia_struttura.pack(fill="both", expand=Vero, padx=6)
+        se_stesso.griglia_struttura.albero.bind("<Double-Button-1>", lambda e: se_stesso.modifica_colonna() se se_stesso.griglia_struttura.albero.identify_row(e.y) altrimenti Nessuno, add="+")
         tk.Label(f, text="Istruzione che ha creato la tabella:", anchor="w").pack(fill="x", padx=6, pady=(6, 0))
         se_stesso.etichette.append(f.winfo_children()[-1])
         se_stesso.testo_creazione = tk.Text(f, height=8, font=(FONT_MONO, 10), relief="flat", state="disabled", wrap="none")
@@ -735,6 +758,31 @@ classe VisoreDatabase(VisoreBase):
             ritorna
         se_stesso.carica_struttura()
         se_stesso.carica_dati()
+
+    definisci modifica_colonna(se_stesso):
+        """Cambia la colonna scelta nella scheda Struttura (dialogo con l'anteprima delle istruzioni SQL)."""
+        se non se_stesso.tabella o se_stesso.è_vista:
+            ritorna
+        scelte = se_stesso.griglia_struttura.selezionate()
+        se non scelte:
+            se_stesso._messaggio("Scegli prima una colonna nell'elenco della struttura.", Vero)
+            ritorna
+        nome = se_stesso.griglia_struttura.righe[scelte[0]][0]
+        prova:
+            vecchia = [k per k in se_stesso.conn.colonne(se_stesso.tabella) se k.nome == nome][0]
+        eccetto (dbm.ErroreDatabase, IndexError):
+            ritorna
+        nuova = DialogoTabella(se_stesso.winfo_toplevel(), se_stesso.colori, se_stesso.conn, se_stesso.tabella, da_modificare=vecchia).mostra()
+        se non nuova:
+            ritorna
+        prova:
+            se_stesso.conn.modifica_colonna(se_stesso.tabella, vecchia, nuova)
+        eccetto dbm.ErroreDatabase come errore:
+            messagebox.showerror("Colonna non modificata", testo(errore), parent=se_stesso)
+            ritorna
+        se_stesso.carica_struttura()
+        se_stesso.carica_dati()
+        se_stesso._messaggio(f"Colonna «{nuova.nome}» modificata.")
 
     definisci elimina_tabella(se_stesso):
         se non se_stesso.tabella:
