@@ -10,6 +10,8 @@ da tkinter importa ttk
 
 da rad importa parole
 da rad.stile importa posizione_fumetto, suggerisci
+da rad importa librerie_online come online
+da rad importa esecuzione
 
 # modulo italiano -> (categoria, descrizione)
 CATALOGO = {
@@ -146,12 +148,15 @@ definisci e_installata(nome_it):
         ritorna Vero
 
 
-definisci elenco():
-    """Lista di (nome_italiano, categoria, descrizione, originale) per tutte le librerie note."""
+definisci elenco(extra=()):
+    """Lista di (nome_italiano, categoria, descrizione, originale) per tutte le librerie note.
+    extra: altre voci già in questo formato (le librerie solo online, non ancora installate)."""
     risultato = []
     per nome_it in parole.MODULI_PRIMO_LIVELLO:
         categoria, descrizione = CATALOGO.get(nome_it, ("Altre", "Libreria italiana di " + originale_di(nome_it) + "."))
         risultato.append((nome_it, categoria, descrizione, originale_di(nome_it).split(".")[0]))
+    noti = {r[0] per r in risultato}
+    risultato.extend(r per r in extra se r[0] non in noti)
     risultato.sort(key=lambda r: (ORDINE_CATEGORIE.index(r[1]) se r[1] in ORDINE_CATEGORIE altrimenti 99, r[0]))
     ritorna risultato
 
@@ -202,7 +207,10 @@ classe PannelloLibrerie(tk.Frame):
     definisci __inizializza__(se_stesso, genitore, app):
         tk.Frame.__init__(se_stesso, genitore)
         se_stesso.app = app
+        se_stesso.online = {}             # nome -> voce dell'indice online (dalla cache, poi aggiornato con «Novità»)
+        se_stesso.stati = {}              # nome -> "aggiornata" | "aggiornabile" | "nuova"
         se_stesso.tutte = elenco()
+        se_stesso._carica_online(online.indice_in_cache())
         se_stesso.spuntate = set()
         se_stesso.in_uso = set()          # librerie importate dal file aperto: risultano spuntate anche se non sono nel progetto
         se_stesso._lavoro_uso = Nessuno
@@ -229,6 +237,18 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso.descrizione = tk.Label(se_stesso, text="Seleziona una libreria per vederne la descrizione.", anchor="nw", justify="left",
                                          wraplength=240, font=("Segoe UI", 9), height=5)
         se_stesso.descrizione.pack(side="bottom", fill="x", padx=8, pady=6)
+        se_stesso.barra_online = tk.Frame(se_stesso)
+        se_stesso.barra_online.pack(side="bottom", fill="x", padx=6)
+        se_stesso.pulsanti_online = []
+        per etichetta, comando, aiuto in (
+                ("⟳ Novità", se_stesso.controlla_online, "Cerca online le librerie nuove e le versioni più recenti (cartella «librerie» del repository)"),
+                ("Installa / Aggiorna", se_stesso.installa_selezionata, "Scarica la libreria selezionata (⬆ = c'è una versione più recente, ✚ = nuova)"),
+                ("Aggiorna tutte", se_stesso.aggiorna_tutte, "Aggiorna tutte le librerie con ⬆"),
+                ("Ripristina", se_stesso.ripristina_selezionata, "Toglie la copia scaricata e torna alla libreria inclusa nell'installazione")):
+            b = tk.Button(se_stesso.barra_online, text=etichetta, relief="flat", font=("Segoe UI", 9), padx=6, command=comando)
+            b.pack(side="left", padx=(0, 4), pady=2)
+            suggerisci(b, aiuto)
+            se_stesso.pulsanti_online.append(b)
         se_stesso.albero = ttk.Treeview(se_stesso, show="tree", selectmode="browse")
         barra_y = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.albero.yview)
         se_stesso.albero.configure(yscrollcommand=barra_y.set)
@@ -267,6 +287,7 @@ classe PannelloLibrerie(tk.Frame):
     definisci riempi(se_stesso):
         aperte = {c per c, n in se_stesso._nodi.items() se n.startswith("cat:") e se_stesso.albero.exists(n) e se_stesso.albero.item(n, "open")}
         prima_volta = non se_stesso._nodi
+        scelta = se_stesso.albero.selection()
         se_stesso.albero.delete(*se_stesso.albero.get_children())
         se_stesso._nodi = {}
         q = se_stesso.var_cerca.get().strip().lower()
@@ -284,10 +305,19 @@ classe PannelloLibrerie(tk.Frame):
             se_stesso._nodi[categoria] = "cat:" + categoria
             per nome_it, cat, descr, orig in voci:
                 simbolo = SPUNTATO se nome_it in spuntate altrimenti VUOTO
-                marca = "" se e_installata(nome_it) altrimenti "  ⚠"
-                tag = () se e_installata(nome_it) altrimenti ("assente",)
-                se_stesso.albero.insert(nodo, "end", iid="lib:" + nome_it, text=f"{simbolo}  {nome_it}  —  {descr}{marca}", tags=tag)
+                stato_ = se_stesso.stati.get(nome_it)
+                presente = stato_ != "nuova" e e_installata(nome_it)
+                se stato_ == "aggiornabile":
+                    marca = "  ⬆"
+                altrimenti_se stato_ == "nuova":
+                    marca = "  ✚"
+                altrimenti:
+                    marca = "" se presente altrimenti "  ⚠"
+                tag = () se presente o stato_ == "nuova" altrimenti ("assente",)
+                se_stesso.albero.insert(nodo, "end", iid="lib:" + nome_it, text=f"{simbolo}  {nome_it}{marca}  —  {descr}", tags=tag)
         se_stesso.contatore.configure(text=f"{lunghezza(spuntate)} attive")
+        se scelta e se_stesso.albero.exists(scelta[0]):
+            se_stesso.albero.selection_set(scelta[0])      # dopo aver ricostruito la lista la voce resta selezionata
 
     definisci _attive(se_stesso):
         """Le librerie che risultano spuntate: quelle scelte per il progetto più quelle che il file aperto già importa."""
@@ -398,13 +428,132 @@ classe PannelloLibrerie(tk.Frame):
         se voce:
             _, cat, descr, orig = voce[0]
             testo_ = f"{nome_it}  (= {orig})\n{descr}"
-            se non e_installata(nome_it):
+            stato_ = se_stesso.stati.get(nome_it)
+            se stato_ == "nuova":
+                testo_ += f"\n✚ Libreria online (versione {se_stesso.online[nome_it]['versione']}): premi «Installa / Aggiorna»."
+            altrimenti_se stato_ == "aggiornabile":
+                testo_ += f"\n⬆ Versione {se_stesso.online[nome_it]['versione']} disponibile online: premi «Installa / Aggiorna»."
+            altrimenti_se non e_installata(nome_it):
                 testo_ += "\n⚠ Libreria non installata: serve il componente «librerie scientifiche»."
             altrimenti_se nome_it in se_stesso.in_uso e nome_it non in se_stesso.spuntate:
                 testo_ = se_stesso.spiega_uso(nome_it)
             altrimenti:
                 testo_ += "\nSpunta per averla sempre nei suggerimenti · doppio clic: inserisce «importa»."
             se_stesso.descrizione.configure(text=testo_)
+
+    # ------------------------------------------------------------ librerie online (installazione e aggiornamenti)
+    definisci _carica_online(se_stesso, indice):
+        """Memorizza l'indice online, confronta le librerie con quelle presenti e aggiunge all'elenco quelle solo online."""
+        se_stesso.online = {v["nome"]: v per v in indice["librerie"]} se indice altrimenti {}
+        se_stesso.stati = online.confronta(indice) se indice altrimenti {}
+        noti = {r[0] per r in elenco()}
+        extra = [(n, v["categoria"], v["descrizione"], v["originale"]) per n, v in se_stesso.online.items()
+                 se se_stesso.stati[n] == "nuova" e n non in noti]
+        se_stesso.tutte = elenco(extra)
+
+    definisci riassunto_online(se_stesso):
+        """«3 da aggiornare, 1 nuove» (testo vuoto se non c'è niente)."""
+        aggiornabili = sum(1 per s in se_stesso.stati.values() se s == "aggiornabile")
+        nuove = sum(1 per s in se_stesso.stati.values() se s == "nuova")
+        pezzi = []
+        se aggiornabili:
+            pezzi.append(f"{aggiornabili} da aggiornare")
+        se nuove:
+            pezzi.append(f"{nuove} nuove")
+        ritorna ", ".join(pezzi)
+
+    definisci _occupato(se_stesso, si):
+        per b in se_stesso.pulsanti_online:
+            b.configure(state="disabled" se si altrimenti "normal")
+
+    definisci controlla_online(se_stesso):
+        se_stesso._occupato(Vero)
+        se_stesso.descrizione.configure(text="Cerco le librerie online…")
+
+        definisci fine(riuscito, risultato):
+            se_stesso._occupato(Falso)
+            se riuscito:
+                se_stesso._carica_online(risultato)
+                se_stesso.riempi()
+                riassunto = se_stesso.riassunto_online()
+                se_stesso.descrizione.configure(text=("Librerie online: " + riassunto + ".") se riassunto altrimenti "Le librerie sono tutte aggiornate.")
+                se_stesso.app.info("Librerie: " + (riassunto o "tutte aggiornate"))
+            altrimenti:
+                se_stesso.descrizione.configure(text=f"Non riesco a controllare le librerie online.\n{risultato}")
+                se_stesso.app.info("Librerie online: controllo non riuscito")
+        esecuzione.in_secondo_piano(se_stesso, online.scarica_indice, fine)
+
+    definisci _selezionata(se_stesso):
+        sel = se_stesso.albero.selection()
+        ritorna se_stesso._nome_di(sel[0]) se sel altrimenti Nessuno
+
+    definisci _installa_nomi(se_stesso, nomi):
+        voci = [se_stesso.online[n] per n in nomi se n in se_stesso.online]
+        se non voci:
+            ritorna
+        nuove = [v["nome"] per v in voci se se_stesso.stati.get(v["nome"]) == "nuova"]
+        se_stesso._occupato(Vero)
+        se_stesso.descrizione.configure(text="Scarico " + ", ".join(v["nome"] per v in voci[:4]) + ("…" se lunghezza(voci) > 4 altrimenti ""))
+
+        definisci lavoro():
+            per v in voci:
+                online.installa(v)
+            ritorna lunghezza(voci)
+
+        definisci fine(riuscito, risultato):
+            se_stesso._occupato(Falso)
+            se riuscito:
+                se_stesso._carica_online(online.indice_in_cache())
+                se_stesso.riempi()
+                messaggio = f"Installate {risultato} librerie." se risultato > 1 altrimenti f"Installata «{voci[0]['nome']}»."
+                se nuove:
+                    messaggio += " Le nuove compaiono nei suggerimenti dopo il riavvio di PitStudio; i programmi le vedono subito."
+                se_stesso.descrizione.configure(text=messaggio)
+                se_stesso.app.info(messaggio)
+            altrimenti:
+                se_stesso.descrizione.configure(text=f"Installazione non riuscita.\n{risultato}")
+                se_stesso.app.info("Librerie online: installazione non riuscita")
+        esecuzione.in_secondo_piano(se_stesso, lavoro, fine)
+
+    definisci installa_selezionata(se_stesso):
+        nome_it = se_stesso._selezionata()
+        se non nome_it:
+            se_stesso.descrizione.configure(text="Seleziona una libreria da installare o aggiornare.")
+            ritorna
+        se non se_stesso.online:
+            se_stesso.descrizione.configure(text="Prima premi «⟳ Novità» per leggere l'elenco online.")
+            ritorna
+        se nome_it non in se_stesso.online:
+            se_stesso.descrizione.configure(text=f"«{nome_it}» non è nell'elenco online: è la versione inclusa nell'installazione.")
+            ritorna
+        se se_stesso.stati.get(nome_it) == "aggiornata":
+            se_stesso.descrizione.configure(text=f"«{nome_it}» è già all'ultima versione ({se_stesso.online[nome_it]['versione']}).")
+            ritorna
+        se_stesso._installa_nomi([nome_it])
+
+    definisci aggiorna_tutte(se_stesso):
+        da tkinter importa messagebox
+        da_fare = sorted(n per n, s in se_stesso.stati.items() se s == "aggiornabile")
+        se non da_fare:
+            se_stesso.descrizione.configure(text="Nessuna libreria da aggiornare." se se_stesso.online altrimenti "Prima premi «⟳ Novità» per leggere l'elenco online.")
+            ritorna
+        domanda = (f"Aggiorno {lunghezza(da_fare)} librerie con la versione online?\n\n" + ", ".join(da_fare[:12])
+                   + ("…" se lunghezza(da_fare) > 12 altrimenti "")
+                   + "\n\nLe copie scaricate vanno in ~/.rad/librerie; «Ripristina» riporta quella inclusa.")
+        se messagebox.askokcancel("Aggiorna le librerie", domanda, parent=se_stesso):
+            se_stesso._installa_nomi(da_fare)
+
+    definisci ripristina_selezionata(se_stesso):
+        nome_it = se_stesso._selezionata()
+        voce = se_stesso.online.get(nome_it) se nome_it altrimenti Nessuno
+        se non voce o non online.e_scaricata(voce):
+            se_stesso.descrizione.configure(text="Per questa libreria non c'è una copia scaricata: usi già quella inclusa nell'installazione.")
+            ritorna
+        online.ripristina(voce)
+        se_stesso._carica_online(online.indice_in_cache())
+        se_stesso.riempi()
+        se_stesso.descrizione.configure(text=f"«{nome_it}»: tolta la copia scaricata, torna quella inclusa.")
+        se_stesso.app.info(f"Libreria «{nome_it}» ripristinata")
 
     # ------------------------------------------------------------ suggerimento al passaggio del mouse
     definisci _muovi(se_stesso, e):
@@ -489,5 +638,8 @@ classe PannelloLibrerie(tk.Frame):
             w.configure(background=c["pannello"], foreground=c["tenue"] se w è non se_stesso.titolo altrimenti c["primo_piano"])
         se_stesso.solo.configure(background=c["pannello"], foreground=c["tenue"], activebackground=c["pannello"], selectcolor=c["casella"],
                                  activeforeground=c["primo_piano"])
+        se_stesso.barra_online.configure(background=c["pannello"])
+        per b in se_stesso.pulsanti_online:
+            b.configure(background=c["pulsante"], foreground=c["primo_piano"], activebackground=c["pulsante_attivo"], activeforeground=c["primo_piano"])
         se_stesso.campo.configure(background=c["sfondo"], foreground=c["primo_piano"], insertbackground=c["primo_piano"])
         se_stesso.albero.tag_configure("assente", foreground=c["tenue"])

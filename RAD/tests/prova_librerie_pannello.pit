@@ -1,0 +1,91 @@
+"""Pannello Librerie con l'elenco online: Novità, Installa / Aggiorna, Ripristina (senza rete: origine locale; cartelle finte, ~ del test)."""
+importa sys, os, tempfile, shutil
+da pathlib importa Path
+radice_test = tempfile.mkdtemp()
+os.environ["USERPROFILE"] = radice_test         # la cartella ~/.rad del test: non tocca quella vera
+os.environ["HOME"] = radice_test
+qui = os.path.dirname(os.path.abspath(__file__))
+os.environ["PITSTUDIO_LIBRERIE_ORIGINE"] = (Path(qui) / ".." / ".." / "librerie").resolve().as_uri() + "/"
+sys.path.insert(0, os.path.dirname(qui))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa librerie_online come online
+
+# runtime finto: matematica uguale, casuale vecchia, il resto assente
+runtime = os.path.join(radice_test, "Lib")
+os.makedirs(runtime)
+shutil.copyfile(os.path.join(qui, "..", "..", "librerie", "moduli", "matematica.py"), os.path.join(runtime, "matematica.py"))
+Path(runtime, "casuale.py").write_text("# vecchia\n", encoding="utf-8")
+online.cartella_runtime = lambda: runtime
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cfg = Configurazione(os.path.join(radice_test, "config.json"))
+tk_ = tk.Tk()
+tk_.geometry("1300x800+20+20")
+app = Applicazione(tk_, cfg)
+cart = os.path.join(radice_test, "P")
+Progetto.nuovo(cart, "P", "console")
+app.apri_progetto(cart)
+tk_.update()
+pl = app.pannello_librerie
+app.mostra_pannello_sinistro("librerie")
+verifica(non pl.online, "senza cache non ci sono dati online")
+
+
+definisci attendi(condizione, secondi=15):
+    importa time
+    per _ in range(int(secondi * 20)):
+        tk_.update()
+        se condizione():
+            ritorna Vero
+        time.sleep(0.05)
+    ritorna Falso
+
+
+pl.controlla_online()
+verifica(attendi(lambda: bool(pl.online)), "il controllo online non ha finito")
+verifica(pl.stati.get("casuale") == "aggiornabile", f"casuale: {pl.stati.get('casuale')}")
+verifica(pl.stati.get("matematica") == "aggiornata", "matematica aggiornata")
+verifica(pl.stati.get("calendario") == "nuova", "calendario nuova")
+testo_casuale = pl.albero.item("lib:casuale", "text")
+verifica("⬆" in testo_casuale, "freccia su casuale: " + testo_casuale)
+verifica("✚" in pl.albero.item("lib:calendario", "text") o non pl.albero.exists("lib:calendario"), "segno ✚ su calendario")
+stampa("riassunto:", pl.riassunto_online()[:60])
+
+# installa la selezionata (casuale)
+pl.albero.selection_set("lib:casuale")
+pl.installa_selezionata()
+verifica(attendi(lambda: pl.stati.get("casuale") == "aggiornata"), "casuale doveva diventare aggiornata")
+verifica("⬆" non in pl.albero.item("lib:casuale", "text"), "la freccia doveva sparire")
+verifica(os.path.isfile(os.path.join(online.CARTELLA_UTENTE, "casuale.py")), "copia in ~/.rad/librerie")
+verifica(online.CARTELLA_UTENTE.startswith(radice_test), "la prova deve scrivere solo nella cartella finta")
+
+# ripristina
+pl.ripristina_selezionata()
+verifica(pl.stati.get("casuale") == "aggiornabile", "dopo ripristina torna aggiornabile")
+verifica(non os.path.exists(os.path.join(online.CARTELLA_UTENTE, "casuale.py")), "copia tolta")
+
+# libreria già aggiornata: non scarica
+pl.albero.selection_set("lib:matematica")
+pl.installa_selezionata()
+verifica("già all'ultima" in pl.descrizione.cget("text"), "messaggio per libreria già aggiornata")
+
+# origine irraggiungibile: errore chiaro, i pulsanti tornano attivi
+os.environ["PITSTUDIO_LIBRERIE_ORIGINE"] = "file:///non/esiste/"
+pl.controlla_online()
+verifica(attendi(lambda: "Non riesco" in pl.descrizione.cget("text")), "messaggio d'errore")
+verifica(str(pl.pulsanti_online[0].cget("state")) == "normal", "i pulsanti tornano attivi")
+
+tk_.destroy()
+shutil.rmtree(radice_test, ignore_errors=Vero)
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

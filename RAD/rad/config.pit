@@ -53,6 +53,10 @@ PREDEFINITI = {
         "storia": Vero,                  # copie di sicurezza per annullare le modifiche dell'assistente (.rad/storia)
         "registro": Vero,                # registro locale di token e codice generato (.rad/ai_registro.jsonl)
     },
+    "aggiornamenti": {
+        "controlla_all_avvio": Vero,     # una volta al giorno controlla se ci sono una versione nuova di PitStudio e librerie nuove
+        "ultimo_controllo": "",          # data (AAAA-MM-GG) dell'ultimo controllo automatico
+    },
     "claude_code": {
         "percorso": "",                  # percorso di claude.exe se non è nel PATH
     },

@@ -1,0 +1,99 @@
+"""Aggiornamenti nella finestra: controllo automatico (barra di stato), finestra di download, uscita e avvio dell'installatore (senza rete, senza installare)."""
+importa sys, os, json, tempfile, hashlib, shutil, time
+da pathlib importa Path
+radice_test = tempfile.mkdtemp()
+os.environ["USERPROFILE"] = radice_test
+os.environ["HOME"] = radice_test
+qui = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(qui))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa aggiornamenti come ag
+da rad importa aggiornamenti_ui
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+exe = Path(radice_test) / "Installa_pytonIta.exe"
+exe.write_bytes(b"MZ" + bytes(range(256)) * 5000)
+impronta = hashlib.sha256(exe.read_bytes()).hexdigest()
+release = {"tag_name": "v1.99", "html_url": "https://github.com/LordZenzo/pytonIta/releases/tag/v1.99", "body": "Novità:\n- una\n- due",
+           "assets": [{"name": "Installa_pytonIta.exe", "size": exe.stat().st_size, "digest": "sha256:" + impronta,
+                       "browser_download_url": "https://github.com/LordZenzo/pytonIta/releases/download/v1.99/Installa_pytonIta.exe"}]}
+fr = Path(radice_test) / "ultima.json"
+fr.write_text(json.dumps(release), encoding="utf-8")
+os.environ[ag.VARIABILE_ULTIMA] = fr.as_uri()
+os.environ["PITSTUDIO_LIBRERIE_ORIGINE"] = (Path(qui) / ".." / ".." / "librerie").resolve().as_uri() + "/"
+# l'indirizzo di download "github" non esiste qui: scarico dal file locale
+originale_url_fidato = ag.url_fidato
+
+
+definisci aspetta(radice, condizione, secondi=15):
+    per _ in range(int(secondi * 20)):
+        radice.update()
+        se condizione():
+            ritorna Vero
+        time.sleep(0.05)
+    ritorna Falso
+
+
+cfg = Configurazione(os.path.join(radice_test, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+
+# controllo automatico: una volta al giorno, e solo se attivo
+verifica(cfg.ottieni("aggiornamenti.controlla_all_avvio") è Vero, "controllo attivo di serie")
+app.avvio_aggiornamenti()
+verifica(aspetta(radice, lambda: "1.99" in app.testo_stato.cget("text")), "barra di stato: " + app.testo_stato.cget("text"))
+verifica(cfg.ottieni("aggiornamenti.ultimo_controllo") != "", "data dell'ultimo controllo salvata")
+app.info("vuoto")
+app.avvio_aggiornamenti()
+radice.update()
+time.sleep(0.5)
+radice.update()
+verifica(app.testo_stato.cget("text") == "vuoto", "lo stesso giorno non ricontrolla")
+cfg.imposta("aggiornamenti.ultimo_controllo", "2000-01-01", notifica=Falso)
+cfg.imposta("aggiornamenti.controlla_all_avvio", Falso, notifica=Falso)
+app.avvio_aggiornamenti()
+radice.update()
+time.sleep(0.5)
+radice.update()
+verifica(app.testo_stato.cget("text") == "vuoto", "se disattivato non controlla")
+
+# finestra di download (senza mostra(): non bloccante)
+avviati = []
+info = ag.controlla("1.33")
+info["url_installatore"] = exe.as_uri()           # stesso file, via file:
+dialogo = aggiornamenti_ui.DialogoAggiornamento(radice, app.colori, info, lambda percorso: avviati.append(percorso))
+aggiornamenti_ui.messagebox.askyesno = lambda *a, **k: Vero
+dialogo.update()
+verifica("1.99" in dialogo.winfo_children()[0].cget("text"), "titolo con la versione")
+verifica("una" in dialogo.note.get("1.0", "end"), "note di rilascio")
+dialogo._scarica()
+verifica(aspetta(radice, lambda: avviati), "il download doveva finire")
+verifica(avviati e os.path.getsize(avviati[0]) == exe.stat().st_size, "installatore scaricato intero")
+verifica(avviati e hashlib.sha256(open(avviati[0], "rb").read()).hexdigest() == impronta, "impronta del file scaricato")
+dialogo.destroy()
+
+# installa_aggiornamento: esce (nessun file modificato) e avvia l'installatore
+lanciati = []
+ag.avvia_installatore = lambda p: lanciati.append(p)
+app.installa_aggiornamento(avviati[0])
+verifica(lanciati == [avviati[0]], f"l'installatore doveva partire dopo l'uscita: {lanciati}")
+prova:
+    radice.winfo_exists()
+    verifica(Falso, "PitStudio doveva essersi chiuso")
+eccetto tk.TclError:
+    passa
+
+shutil.rmtree(radice_test, ignore_errors=Vero)
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

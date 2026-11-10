@@ -1,0 +1,135 @@
+"""Aggiornamenti di PitStudio: legge l'ultima Release del repository su GitHub, confronta con la versione in uso e scarica l'installatore.
+
+Nessuna grafica qui (la finestra è in aggiornamenti_ui). Niente viene installato da solo: il file scaricato si avvia solo dopo
+che l'utente lo conferma. Si scarica solo da github.com / githubusercontent.com (https) e, se la Release indica l'impronta SHA-256,
+la si verifica.
+"""
+importa hashlib
+importa json
+importa os
+importa re
+importa tempfile
+importa urllib.parse
+importa urllib.request
+
+da rad importa VERSIONE_BASE
+
+REPOSITORY = "LordZenzo/pytonIta"
+URL_ULTIMA = f"https://api.github.com/repos/{REPOSITORY}/releases/latest"
+VARIABILE_ULTIMA = "PITSTUDIO_ULTIMA_RELEASE"          # per provare: un altro indirizzo (anche file:///…) con lo stesso JSON
+HOST_FIDATI = ("github.com", "githubusercontent.com")
+_RE_VERSIONE = re.compile(r"(\d+)\.(\d+)")
+
+
+classe ErroreAggiornamenti(Exception):
+    """Release non raggiungibile o non leggibile, download corrotto."""
+
+
+definisci numeri(versione):
+    """«v1.34», «1.34.3.13» -> (1, 34); None se non è una versione."""
+    m = _RE_VERSIONE.search(versione o "")
+    ritorna (int(m.group(1)), int(m.group(2))) se m altrimenti Nessuno
+
+
+definisci url_fidato(url):
+    """Vero se è https verso GitHub (o, per le prove, se c'è la variabile di prova e l'indirizzo è locale)."""
+    p = urllib.parse.urlparse(url)
+    se os.environ.get(VARIABILE_ULTIMA) e p.scheme == "file":
+        ritorna Vero
+    se p.scheme != "https" o non p.hostname:
+        ritorna Falso
+    ritorna any(p.hostname == h o p.hostname.endswith("." + h) per h in HOST_FIDATI)
+
+
+definisci _leggi(url, tempo_massimo=20):
+    richiesta = urllib.request.Request(url, headers={"User-Agent": "PitStudio", "Accept": "application/vnd.github+json"})
+    prova:
+        con urllib.request.urlopen(richiesta, timeout=tempo_massimo) come risposta:
+            ritorna risposta.read(2_000_000)
+    eccetto Exception come errore:
+        solleva ErroreAggiornamenti(f"Non riesco a contattare GitHub: {errore}") da errore
+
+
+definisci controlla(versione_attuale=Nessuno):
+    """Ritorna un dizionario sull'ultima Release:
+    {"nuova": bool, "versione": "1.34", "tag", "note", "pagina", "url_installatore" (o None), "dimensione", "impronta" (o None)}."""
+    versione_attuale = versione_attuale o VERSIONE_BASE
+    url = os.environ.get(VARIABILE_ULTIMA) o URL_ULTIMA
+    prova:
+        dati = json.loads(_leggi(url).decode("utf-8"))
+    eccetto (ValueError, UnicodeDecodeError) come errore:
+        solleva ErroreAggiornamenti(f"Risposta di GitHub non leggibile: {errore}") da errore
+    se non isinstance(dati, dict) o non dati.get("tag_name"):
+        solleva ErroreAggiornamenti("Nessuna Release trovata.")
+    ultima = numeri(dati["tag_name"])
+    attuale = numeri(versione_attuale)
+    se ultima è Nessuno o attuale è Nessuno:
+        solleva ErroreAggiornamenti(f"Versione non riconosciuta: {dati['tag_name']}")
+    installatore = Nessuno
+    per risorsa in dati.get("assets") o []:
+        nome = risorsa.get("name", "")
+        se nome.lower().endswith(".exe") e "installa" in nome.lower():
+            installatore = risorsa
+            interrompi
+    url_exe = installatore.get("browser_download_url") se installatore altrimenti Nessuno
+    impronta = Nessuno
+    se installatore e testo(installatore.get("digest") o "").startswith("sha256:"):
+        impronta = installatore["digest"][7:].lower()
+    ritorna {"nuova": ultima > attuale,
+            "versione": f"{ultima[0]}.{ultima[1]}", "tag": dati["tag_name"],
+            "note": (dati.get("body") o "").strip(), "pagina": dati.get("html_url") o f"https://github.com/{REPOSITORY}/releases",
+            "url_installatore": url_exe se (url_exe e url_fidato(url_exe)) altrimenti Nessuno,
+            "dimensione": installatore.get("size") se installatore altrimenti Nessuno, "impronta": impronta}
+
+
+definisci scarica(url, cartella=Nessuno, progresso=Nessuno, fermata=Nessuno, dimensione=Nessuno, impronta=Nessuno):
+    """Scarica l'installatore in una cartella temporanea e ne ritorna il percorso.
+    progresso(fatti, totale) viene chiamato di tanto in tanto; fermata() -> True interrompe (e toglie il file parziale)."""
+    se non url_fidato(url):
+        solleva ErroreAggiornamenti("L'indirizzo di download non è di GitHub: non lo scarico.")
+    cartella = cartella o tempfile.mkdtemp(prefix="pitstudio_aggiornamento_")
+    nome = os.path.basename(urllib.parse.urlparse(url).path) o "Installa_pytonIta.exe"
+    destinazione = os.path.join(cartella, nome)
+    parziale = destinazione + ".parte"
+    richiesta = urllib.request.Request(url, headers={"User-Agent": "PitStudio"})
+    h = hashlib.sha256()
+    fatti = 0
+    prova:
+        con urllib.request.urlopen(richiesta, timeout=30) come risposta, open(parziale, "wb") come f:
+            totale = int(risposta.headers.get("Content-Length") o dimensione o 0)
+            blocco = risposta.read(65536)
+            mentre blocco:
+                se fermata e fermata():
+                    solleva ErroreAggiornamenti("Download interrotto.")
+                f.write(blocco)
+                h.update(blocco)
+                fatti += lunghezza(blocco)
+                se progresso:
+                    progresso(fatti, totale)
+                blocco = risposta.read(65536)
+    eccetto ErroreAggiornamenti:
+        _togli(parziale)
+        solleva
+    eccetto Exception come errore:
+        _togli(parziale)
+        solleva ErroreAggiornamenti(f"Download non riuscito: {errore}") da errore
+    se dimensione e fatti != dimensione:
+        _togli(parziale)
+        solleva ErroreAggiornamenti(f"Download incompleto ({fatti} di {dimensione} byte).")
+    se impronta e h.hexdigest() != impronta:
+        _togli(parziale)
+        solleva ErroreAggiornamenti("L'impronta del file scaricato non corrisponde a quella della Release: non lo uso.")
+    os.replace(parziale, destinazione)
+    ritorna destinazione
+
+
+definisci _togli(percorso):
+    prova:
+        os.remove(percorso)
+    eccetto OSError:
+        passa
+
+
+definisci avvia_installatore(percorso):
+    """Avvia l'installatore scaricato (come farebbe un doppio clic)."""
+    os.startfile(percorso)

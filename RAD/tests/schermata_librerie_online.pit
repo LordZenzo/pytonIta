@@ -1,0 +1,74 @@
+"""Schermate per la guida: pannello Librerie con l'elenco online e finestra di aggiornamento. Uso: pitonit schermata_librerie_online.pit [cartella di uscita]"""
+importa sys, os, tempfile, time, shutil
+da pathlib importa Path
+radice_test = tempfile.mkdtemp()
+os.environ["USERPROFILE"] = radice_test
+os.environ["HOME"] = radice_test
+qui = os.path.dirname(os.path.abspath(__file__))
+os.environ["PITSTUDIO_LIBRERIE_ORIGINE"] = (Path(qui) / ".." / ".." / "librerie").resolve().as_uri() + "/"
+sys.path.insert(0, os.path.dirname(qui))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa librerie_online come online
+da rad.aggiornamenti_ui importa DialogoAggiornamento
+
+uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+# runtime finto: parte delle librerie incluse, qualcuna vecchia, qualcuna assente
+runtime = os.path.join(radice_test, "Lib")
+os.makedirs(runtime)
+moduli = os.path.join(qui, "..", "..", "librerie", "moduli")
+tenute = ["matematica", "casuale", "tempo", "statistica", "formato_json", "percorso", "data_ora", "calendario"]
+per n in tenute:
+    shutil.copyfile(os.path.join(moduli, n + ".py"), os.path.join(runtime, n + ".py"))
+Path(runtime, "statistica.py").write_text("# versione precedente\n", encoding="utf-8")
+Path(runtime, "casuale.py").write_text("# versione precedente\n", encoding="utf-8")
+online.cartella_runtime = lambda: runtime
+
+cfg = Configurazione(os.path.join(radice_test, "config.json"))
+radice = tk.Tk()
+radice.geometry("1400x820+10+10")
+app = Applicazione(radice, cfg)
+cart = os.path.join(radice_test, "Esempio")
+Progetto.nuovo(cart, "Esempio", "console")
+app.apri_progetto(cart)
+
+
+definisci aspetta(secondi=1.0, condizione=Nessuno):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione e condizione():
+            interrompi
+        time.sleep(0.03)
+
+
+definisci foto(nome, finestra=radice):
+    aspetta(0.4)
+    x, y = finestra.winfo_rootx(), finestra.winfo_rooty()
+    ImageGrab.grab(bbox=(x - 8, y - 40, x + finestra.winfo_width() + 8, y + finestra.winfo_height() + 8)).save(os.path.join(uscita, nome))
+
+
+pl = app.pannello_librerie
+app.mostra_pannello_sinistro("librerie")
+pl.controlla_online()
+aspetta(10, lambda: bool(pl.online))
+pl.var_cerca.set("")
+# metto in evidenza le categorie con novità aperte e seleziono una libreria da aggiornare
+pl.albero.see("lib:statistica")
+pl.albero.selection_set("lib:statistica")
+aspetta(0.6)
+foto("librerie_online.png")
+
+info = {"nuova": Vero, "versione": "1.34", "tag": "v1.34", "pagina": "https://github.com/LordZenzo/pytonIta/releases/tag/v1.34",
+        "url_installatore": "https://github.com/LordZenzo/pytonIta/releases/download/v1.34/Installa_pytonIta.exe", "dimensione": 96 * 1048576, "impronta": Nessuno,
+        "note": "PitStudio 1.34\n\n- Librerie online: la cartella librerie/ del repository con installazione e aggiornamento dal pannello Librerie.\n- Controllo degli aggiornamenti di PitStudio dal menu Aiuto, con download dell'installatore.\n- Una volta al giorno, all'avvio, un controllo silenzioso (si può disattivare nelle impostazioni)."}
+d = DialogoAggiornamento(radice, app.colori, info, lambda p: Nessuno)
+d.update()
+foto("aggiornamento.png", d)
+d.destroy()
+radice.destroy()
+shutil.rmtree(radice_test, ignore_errors=Vero)
+stampa("schermate salvate in", uscita)

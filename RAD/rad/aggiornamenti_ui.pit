@@ -1,0 +1,107 @@
+"""Finestra «Aggiornamento di PitStudio»: novità della nuova versione, download dell'installatore con avanzamento."""
+importa tkinter come tk
+importa webbrowser
+da tkinter importa ttk, messagebox
+
+da rad.dialoghi importa DialogoBase
+da rad importa NOME, VERSIONE_BASE
+da rad importa aggiornamenti, esecuzione
+
+
+classe DialogoAggiornamento(DialogoBase):
+    """Mostra le note della nuova versione; «Scarica e installa» scarica l'installatore e, dopo la tua conferma, chiude PitStudio e lo avvia."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, info, installa):
+        DialogoBase.__init__(se_stesso, genitore, f"Aggiornamento di {NOME}", colori, 560, 430)
+        se_stesso.info = info
+        se_stesso.installa = installa           # installa(percorso): chiude PitStudio e avvia l'installatore
+        se_stesso._interrompi = Falso
+        se_stesso._scaricando = Falso
+        se_stesso._avanzamento = (0, 0)
+        c = colori
+        tk.Label(se_stesso, text=f"{NOME} {info['versione']} è disponibile", font=("Segoe UI Semibold", 14), anchor="w",
+                 background=c["pannello"], foreground=c["primo_piano"]).pack(fill="x", padx=18, pady=(16, 0))
+        tk.Label(se_stesso, text=f"Hai la versione {VERSIONE_BASE}. Le tue impostazioni e i tuoi progetti restano dove sono.", anchor="w",
+                 background=c["pannello"], foreground=c["tenue"]).pack(fill="x", padx=18, pady=(0, 8))
+        cornice = tk.Frame(se_stesso, background=c["pannello"])
+        cornice.pack(fill="both", expand=Vero, padx=18)
+        se_stesso.note = tk.Text(cornice, wrap="word", height=10, relief="flat", background=c["campo"], foreground=c["primo_piano"],
+                                 highlightthickness=1, highlightbackground=c["bordo"], font=("Segoe UI", 9))
+        barra = ttk.Scrollbar(cornice, orient="vertical", command=se_stesso.note.yview)
+        se_stesso.note.configure(yscrollcommand=barra.set)
+        barra.pack(side="right", fill="y")
+        se_stesso.note.pack(side="left", fill="both", expand=Vero)
+        se_stesso.note.insert("1.0", info["note"] o "Nessuna nota di rilascio.")
+        se_stesso.note.configure(state="disabled")
+        se_stesso.barra_avanzamento = ttk.Progressbar(se_stesso, mode="determinate", maximum=100)
+        se_stesso.barra_avanzamento.pack(fill="x", padx=18, pady=(10, 0))
+        se_stesso.stato = tk.Label(se_stesso, text=se_stesso._dimensione_testo(), anchor="w", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.stato.pack(fill="x", padx=18)
+        pulsanti = tk.Frame(se_stesso, background=c["pannello"])
+        pulsanti.pack(fill="x", padx=14, pady=12)
+        se_stesso.chiudi = tk.Button(pulsanti, text="Più tardi", command=se_stesso._chiudi, background=c["pulsante"],
+                                     foreground=c["primo_piano"], relief="flat", padx=12)
+        se_stesso.chiudi.pack(side="right", padx=4)
+        se_stesso.scarica = tk.Button(pulsanti, text="Scarica e installa", command=se_stesso._scarica, background=c["accento"],
+                                      foreground="#ffffff", relief="flat", padx=12)
+        se_stesso.scarica.pack(side="right", padx=4)
+        se non info["url_installatore"]:
+            se_stesso.scarica.configure(state="disabled")
+            se_stesso.stato.configure(text="Questa Release non ha un installatore scaricabile da qui: apri la pagina e scaricalo a mano.")
+        tk.Button(pulsanti, text="Apri la pagina", command=lambda: webbrowser.open(info["pagina"]), background=c["pulsante"],
+                  foreground=c["primo_piano"], relief="flat", padx=12).pack(side="left", padx=4)
+        se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
+
+    definisci _dimensione_testo(se_stesso):
+        d = se_stesso.info.get("dimensione")
+        ritorna f"Dimensione del download: {d / 1048576:.0f} MB" se d altrimenti ""
+
+    definisci _chiudi(se_stesso):
+        se_stesso._interrompi = Vero
+        se_stesso.destroy()
+
+    definisci _scarica(se_stesso):
+        se_stesso._scaricando = Vero
+        se_stesso.scarica.configure(state="disabled")
+        se_stesso.chiudi.configure(text="Annulla")
+        info = se_stesso.info
+
+        definisci lavoro():
+            ritorna aggiornamenti.scarica(info["url_installatore"], progresso=se_stesso._segna, fermata=lambda: se_stesso._interrompi,
+                                          dimensione=info.get("dimensione"), impronta=info.get("impronta"))
+
+        esecuzione.in_secondo_piano(se_stesso, lavoro, se_stesso._finito)
+        se_stesso._aggiorna_barra()
+
+    definisci _segna(se_stesso, fatti, totale):
+        se_stesso._avanzamento = (fatti, totale)
+
+    definisci _aggiorna_barra(se_stesso):
+        se non se_stesso._scaricando:
+            ritorna
+        fatti, totale = se_stesso._avanzamento
+        prova:
+            se totale:
+                se_stesso.barra_avanzamento.configure(value=100 * fatti / totale)
+                se_stesso.stato.configure(text=f"Scaricati {fatti / 1048576:.0f} di {totale / 1048576:.0f} MB")
+            se_stesso.after(150, se_stesso._aggiorna_barra)
+        eccetto tk.TclError:
+            passa
+
+    definisci _finito(se_stesso, riuscito, risultato):
+        se_stesso._scaricando = Falso
+        se non riuscito:
+            se non se_stesso._interrompi:
+                se_stesso.stato.configure(text="Download non riuscito.")
+                messagebox.showwarning("Aggiornamento", testo(risultato), parent=se_stesso)
+                se_stesso.scarica.configure(state="normal")
+                se_stesso.chiudi.configure(text="Più tardi")
+            ritorna
+        se_stesso.barra_avanzamento.configure(value=100)
+        se_stesso.stato.configure(text="Scaricato.")
+        se messagebox.askyesno("Aggiornamento", "Installatore scaricato.\n\nChiudo PitStudio e avvio l'installazione?\n"
+                               "(Prima ti chiedo di salvare i file modificati.)", parent=se_stesso):
+            se_stesso.installa(risultato)
+        altrimenti:
+            se_stesso.stato.configure(text=f"Installatore scaricato in: {risultato}")
+            se_stesso.chiudi.configure(text="Chiudi")

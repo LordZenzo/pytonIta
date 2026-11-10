@@ -1,0 +1,26 @@
+"""Modulo italiano per `reportlab.pdfgen.canvas` (generato da tools/genera_moduli.py).
+
+Contiene tutti i nomi originali piu' gli alias italiani.
+"""
+import reportlab.pdfgen.canvas as _orig
+from reportlab.pdfgen.canvas import *
+from _italiano import alias_tipo, kw_tipo, ottieni as _ott
+
+
+def __getattr__(nome):
+    return getattr(_orig, nome)
+
+Tela = _ott(_orig, 'Canvas')
+_OPZ = {'dimensione_pagina': 'pagesize'}
+_VAL = {}
+kw_tipo(_ott(_orig, 'Canvas'), ['__init__'], _OPZ, _VAL)
+alias_tipo(_ott(_orig, 'Canvas'), {'disegna_testo': 'drawString', 'disegna_testo_centrato': 'drawCentredString', 'disegna_testo_a_destra': 'drawRightString', 'disegna_immagine': 'drawImage', 'linea': 'line', 'linee': 'lines', 'rettangolo': 'rect', 'cerchio': 'circle', 'ellisse': 'ellipse', 'arco': 'arc', 'imposta_carattere': 'setFont', 'imposta_colore_riempimento': 'setFillColor', 'imposta_colore_tratto': 'setStrokeColor', 'imposta_colore_riempimento_rgb': 'setFillColorRGB', 'imposta_colore_tratto_rgb': 'setStrokeColorRGB', 'imposta_spessore_linea': 'setLineWidth', 'nuova_pagina': 'showPage', 'salva': 'save', 'imposta_titolo': 'setTitle', 'imposta_autore': 'setAuthor', 'imposta_oggetto': 'setSubject', 'salva_stato': 'saveState', 'ripristina_stato': 'restoreState', 'trasla': 'translate', 'ruota': 'rotate', 'scala': 'scale', 'griglia': 'grid', 'imposta_tratteggio': 'setDash', 'imposta_dimensione_pagina': 'setPageSize', 'oggetto_testo': 'beginText', 'disegna_oggetto': 'drawText', 'percorso': 'beginPath', 'disegna_percorso': 'drawPath', 'ritaglia': 'clipPath', 'larghezza_testo': 'stringWidth'})
+
+# --- traduzione automatica del resto dell'API (glossario) ---
+_AUTO_NOMI = {}
+_AUTO_TIPI = {'ABag': {'clona': 'clone'}, 'CMYKColor': {'normalizzato_trasparenza': 'normalizedAlpha'}, 'Canvas': {'STATO_ATTRIBUTI': 'STATE_ATTRIBUTES', 'STATO_INTERVALLO': 'STATE_RANGE', 'posizione_assoluto': 'absolutePosition', 'aggiungi_letterale': 'addLiteral', 'aggiungi_contorno_campo_testo': 'addOutlineEntry', 'aggiungi_pagina_etichetta': 'addPageLabel', 'aggiungi_mostra_a_script_comando': 'addPostScriptCommand', 'arco': 'arc', 'inizia_forma': 'beginForm', 'inizia_percorso': 'beginPath', 'inizia_testo': 'beginText', 'cerchio': 'circle', 'limita_percorso': 'clipPath', 'disegna_confine': 'drawBoundary', 'disegna_immagine': 'drawImage', 'disegna_in_linea_immagine': 'drawInlineImage', 'disegna_percorso': 'drawPath', 'disegna_stringa_destra': 'drawRightString', 'disegna_stringa': 'drawString', 'disegna_testo': 'drawText', 'ellisse': 'ellipse', 'fine_forma': 'endForm', 'testo_libero_annotazione': 'freeTextAnnotation', 'ottieni_pagina_corrente_contenuto': 'getCurrentPageContent', 'ottieni_pagina_numero': 'getPageNumber', 'griglia': 'grid', 'ha_forma': 'hasForm', 'evidenzia_annotazione': 'highlightAnnotation', 'linea': 'line', 'lineare_gradiente': 'linearGradient', 'linee': 'lines', 'collega_assoluto': 'linkAbsolute', 'collega_rettangolo': 'linkRect', 'collega_url': 'linkURL', 'pagina_ha_dati': 'pageHasData', 'estrai_stato_pila': 'pop_state_stack', 'inserisci_stato_pila': 'push_state_stack', 'rettangolo': 'rect', 'ruota': 'rotate', 'arrotonda_rettangolo': 'roundRect', 'salva': 'save', 'salva_stato': 'saveState', 'scala': 'scale', 'imposta_autore': 'setAuthor', 'imposta_fondi_modalita': 'setBlendMode', 'imposta_creatore': 'setCreator', 'imposta_ritaglia_riquadro': 'setCropBox', 'imposta_tratteggio': 'setDash', 'imposta_data_formattatore': 'setDateFormatter', 'imposta_cifra': 'setEncrypt', 'imposta_carattere': 'setFont', 'imposta_carattere_dimensione': 'setFontSize', 'imposta_parole_chiave': 'setKeywords', 'imposta_linea_unisci': 'setLineJoin', 'imposta_linea_larghezza': 'setLineWidth', 'imposta_pagina_chiama_indietro': 'setPageCallBack', 'imposta_pagina_durata': 'setPageDuration', 'imposta_pagina_rotazione': 'setPageRotation', 'imposta_pagina_dimensione': 'setPageSize', 'imposta_oggetto': 'setSubject', 'imposta_titolo': 'setTitle', 'mostra_contorno': 'showOutline', 'mostra_pagina': 'showPage', 'asimmetria': 'skew', 'stringa_larghezza': 'stringWidth', 'testo_annotazione': 'textAnnotation', 'trasformazione': 'transform', 'trasla': 'translate'}, 'Color': {'clona': 'clone', 'intero_rgb': 'int_rgb', 'intero_rgba': 'int_rgba', 'normalizzato_trasparenza': 'normalizedAlpha'}, 'ExtGState': {'predefiniti': 'defaults', 'ottieni_stato': 'getState', 'ottieni_valore': 'getValue', 'pdf_nome_valori': 'pdfNameValues', 'inserisci_copia': 'pushCopy', 'imposta': 'set'}, 'ImageReader': {'ottieni_immagine_dati': 'getImageData', 'ottieni_rgb_dati': 'getRGBData', 'ottieni_dimensione': 'getSize', 'identita': 'identity', 'imposta_immagine_massimo_dimensione': 'set_max_image_size'}, 'PDFTextObject': {'ottieni_codice': 'getCode', 'ottieni_cursore': 'getCursor', 'ottieni_inizio_di_linea': 'getStartOfLine', 'sposta_cursore': 'moveCursor', 'imposta_carattere_spazio': 'setCharSpace', 'imposta_carattere': 'setFont', 'imposta_testo_origine': 'setTextOrigin', 'imposta_testo_rendi_modalita': 'setTextRenderMode', 'imposta_testo_trasformazione': 'setTextTransform', 'imposta_parola_spazio': 'setWordSpace', 'testo_linea': 'textLine', 'testo_linee': 'textLines', 'testo_fuori': 'textOut'}}
+from _italiano import applica_auto as _auto
+_auto(globals(), _orig, _AUTO_NOMI, _AUTO_TIPI)
+
+from _italiano import importa_basi as _basi
+_basi(_orig)

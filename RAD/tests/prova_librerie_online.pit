@@ -1,0 +1,101 @@
+# Librerie online: indice, confronto con l'inclusa, installa (con verifica dell'impronta), ripristina. Senza rete: l'origine è la cartella locale.
+importa sys
+importa os
+importa shutil
+importa tempfile
+importa json
+da pathlib importa Path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa librerie_online come lo
+
+errori = []
+
+
+definisci verifica(condizione, messaggio):
+    se non condizione:
+        errori.append(messaggio)
+        print("ERRORE:", messaggio)
+
+
+qui = os.path.dirname(os.path.abspath(__file__))
+origine = Path(os.path.join(qui, "..", "..", "librerie")).resolve().as_uri() + "/"
+lo.FILE_CACHE = os.path.join(tempfile.mkdtemp(), "cache.json")     # non toccare la cache vera dell'utente
+indice = lo.scarica_indice(origine)
+verifica(lunghezza(indice["librerie"]) > 100, "indice troppo corto")
+nomi = {v["nome"]: v per v in indice["librerie"]}
+verifica("matematica" in nomi, "matematica manca")
+
+# sicurezza dei percorsi
+verifica(lo.percorso_sicuro("a/b.py"), "percorso normale")
+verifica(non lo.percorso_sicuro("../x.py"), "percorso con ..")
+verifica(non lo.percorso_sicuro("a/../x.py"), "percorso con .. in mezzo")
+verifica(non lo.percorso_sicuro("C:/x.py"), "percorso assoluto")
+verifica(non lo.percorso_sicuro("a" + chr(92) + "b.py"), "backslash")
+verifica(non lo.percorso_sicuro("x.exe"), "non .py")
+
+# cartelle finte: runtime (con matematica uguale e casuale diversa) e utente vuota
+radice = tempfile.mkdtemp()
+runtime = os.path.join(radice, "Lib")
+utente = os.path.join(radice, "utente")
+os.makedirs(runtime)
+moduli = os.path.join(qui, "..", "..", "librerie", "moduli")
+shutil.copyfile(os.path.join(moduli, "matematica.py"), os.path.join(runtime, "matematica.py"))
+Path(os.path.join(runtime, "casuale.py")).write_text("# vecchia\n", encoding="utf-8")
+
+verifica(lo.stato(nomi["matematica"], utente, runtime) == "aggiornata", "matematica dovrebbe essere aggiornata")
+verifica(lo.stato(nomi["casuale"], utente, runtime) == "aggiornabile", "casuale dovrebbe essere aggiornabile")
+verifica(lo.stato(nomi["calendario"], utente, runtime) == "nuova", "calendario dovrebbe risultare nuova")
+verifica(non lo.e_scaricata(nomi["casuale"], utente), "casuale non è ancora scaricata")
+
+# installa: casuale diventa aggiornata e vince sulla vecchia; la copia è identica all'originale
+lo.installa(nomi["casuale"], origine, utente)
+verifica(lo.stato(nomi["casuale"], utente, runtime) == "aggiornata", "dopo installa deve essere aggiornata")
+verifica(lo.e_scaricata(nomi["casuale"], utente), "casuale ora è scaricata")
+verifica(lo.file_attivo("casuale.py", utente, runtime).startswith(utente), "la copia scaricata deve vincere")
+
+# un pacchetto va intero
+pacchetto = [v per v in indice["librerie"] se lunghezza(v["file"]) > 1][0]
+lo.installa(pacchetto, origine, utente)
+verifica(all(os.path.isfile(os.path.join(utente, *f["percorso"].split("/"))) per f in pacchetto["file"]), "pacchetto incompleto")
+verifica(lo.stato(pacchetto, utente, runtime) == "aggiornata", "pacchetto deve essere aggiornato")
+
+# ripristina
+tolti = lo.ripristina(nomi["casuale"], utente)
+verifica(tolti == 1, f"ripristina doveva togliere 1 file, ne ha tolti {tolti}")
+verifica(lo.stato(nomi["casuale"], utente, runtime) == "aggiornabile", "dopo ripristina torna la vecchia")
+lo.ripristina(pacchetto, utente)
+verifica(non os.path.isdir(os.path.join(utente, pacchetto["file"][0]["percorso"].split("/")[0])) o lo.stato(pacchetto, utente, runtime) == "nuova", "cartella del pacchetto non ripulita")
+
+# impronta sbagliata: non scrive niente
+falsa = json.loads(json.dumps(nomi["calendario"]))
+falsa["file"][0]["sha256"] = "0" * 64
+sollevato = Falso
+prova:
+    lo.installa(falsa, origine, utente)
+eccetto lo.ErroreLibrerie:
+    sollevato = Vero
+verifica(sollevato, "con impronta sbagliata doveva rifiutare")
+verifica(non os.path.exists(os.path.join(utente, "calendario.py")), "con impronta sbagliata non deve scrivere")
+
+# indice non valido / voce con percorso pericoloso scartata
+cattivo = lo._controlla_indice({"formato": 1, "librerie": [
+    {"nome": "x", "versione": "1.0", "file": [{"percorso": "../x.py", "sha256": "0" * 64}]},
+    {"nome": "y", "versione": "1.0", "file": [{"percorso": "y.py", "sha256": "0" * 64}]}]})
+verifica([v["nome"] per v in cattivo["librerie"]] == ["y"], "la voce con .. andava scartata")
+sollevato = Falso
+prova:
+    lo._controlla_indice({"formato": 99, "librerie": []})
+eccetto lo.ErroreLibrerie:
+    sollevato = Vero
+verifica(sollevato, "formato sconosciuto doveva essere rifiutato")
+
+# origine irraggiungibile
+sollevato = Falso
+prova:
+    lo.scarica_indice("file:///non/esiste/")
+eccetto lo.ErroreLibrerie:
+    sollevato = Vero
+verifica(sollevato, "origine inesistente doveva dare ErroreLibrerie")
+
+shutil.rmtree(radice, ignore_errors=Vero)
+print("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

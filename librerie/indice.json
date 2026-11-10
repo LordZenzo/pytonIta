@@ -1,0 +1,1585 @@
+{
+ "formato": 1,
+ "librerie": [
+  {
+   "nome": "albero_sintattico",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Analizza il codice come albero (ast).",
+   "originale": "ast",
+   "file": [
+    {
+     "percorso": "albero_sintattico.py",
+     "sha256": "eae340dbb004ec8eba3a38e1886987824bbc328be1bde5dae06b12babfe5f330"
+    }
+   ]
+  },
+  {
+   "nome": "albero_xml",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Legge e scrive file XML.",
+   "originale": "xml",
+   "file": [
+    {
+     "percorso": "albero_xml.py",
+     "sha256": "3aed5203aaf42b40cca1391a1747a9256d27ea2bc8a1352ec3dad77b00ccb852"
+    }
+   ]
+  },
+  {
+   "nome": "alla_chiusura",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Funzioni da eseguire alla chiusura del programma.",
+   "originale": "atexit",
+   "file": [
+    {
+     "percorso": "alla_chiusura.py",
+     "sha256": "3bcf72f3810fb399ccb7de2fc7e6dcb86e7993565819846d1db1a660e323b733"
+    }
+   ]
+  },
+  {
+   "nome": "analisi_comandi",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Divide una riga di comando in parole.",
+   "originale": "shlex",
+   "file": [
+    {
+     "percorso": "analisi_comandi.py",
+     "sha256": "8d39c687da7e79c5b6b13946b73a612087cb9ca71ad077472f152ee8cfa8df99"
+    }
+   ]
+  },
+  {
+   "nome": "archivio_chiave_valore",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Dizionari salvati su disco.",
+   "originale": "shelve",
+   "file": [
+    {
+     "percorso": "archivio_chiave_valore.py",
+     "sha256": "4fb853a90ef0b8efc95f5f704b42780f7f3b721eb61c9d5897c245aab2e90846"
+    }
+   ]
+  },
+  {
+   "nome": "archivio_tar",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Crea e legge archivi TAR.",
+   "originale": "tarfile",
+   "file": [
+    {
+     "percorso": "archivio_tar.py",
+     "sha256": "b95c89eb7cdbb11254971830e8db5921e4e6e0f6a3693f605980bd90b783865d"
+    }
+   ]
+  },
+  {
+   "nome": "archivio_zip",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Crea e legge archivi ZIP.",
+   "originale": "zipfile",
+   "file": [
+    {
+     "percorso": "archivio_zip.py",
+     "sha256": "4692fdc522c8dd0acb8c3649dff55b9813d1dbb8852a1254697434d11fe17d16"
+    }
+   ]
+  },
+  {
+   "nome": "argomenti",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Argomenti della riga di comando con aiuto automatico.",
+   "originale": "argparse",
+   "file": [
+    {
+     "percorso": "argomenti.py",
+     "sha256": "ba8813effbc73bd36e6881cef2ef498927a090f4282741abd752dcf819d960e0"
+    }
+   ]
+  },
+  {
+   "nome": "array_numerici",
+   "versione": "1.0",
+   "categoria": "Scienza e dati",
+   "descrizione": "Vettori compatti di numeri dello stesso tipo.",
+   "originale": "array",
+   "file": [
+    {
+     "percorso": "array_numerici.py",
+     "sha256": "c1dd6318025b5b27feb86152f8672f610f2bc794887ff2839c38ac7f54c4d90a"
+    }
+   ]
+  },
+  {
+   "nome": "asincronia",
+   "versione": "1.0",
+   "categoria": "Parallelismo",
+   "descrizione": "Programmazione asincrona con asincrono/attendi.",
+   "originale": "asyncio",
+   "file": [
+    {
+     "percorso": "asincronia.py",
+     "sha256": "9793b6b629e27307c06be1dbaa016185fd142860f153adfddd0d800bfa3a0398"
+    }
+   ]
+  },
+  {
+   "nome": "base64_testo",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Codifica dati binari in testo (base64).",
+   "originale": "base64",
+   "file": [
+    {
+     "percorso": "base64_testo.py",
+     "sha256": "8f85f4d5e2e222eb257f8940c95c8fedab5d992ef026b3749e59a9f074cae4ea"
+    }
+   ]
+  },
+  {
+   "nome": "bisezione",
+   "versione": "1.0",
+   "categoria": "Strutture dati",
+   "descrizione": "Ricerca e inserimento in liste ordinate.",
+   "originale": "bisect",
+   "file": [
+    {
+     "percorso": "bisezione.py",
+     "sha256": "c724873b0c7c078ef537d42b28f5df42172557a8b1b9530486daaf0ffd8d68d4"
+    }
+   ]
+  },
+  {
+   "nome": "browser_web",
+   "versione": "1.0",
+   "categoria": "Rete",
+   "descrizione": "Apre una pagina nel browser.",
+   "originale": "webbrowser",
+   "file": [
+    {
+     "percorso": "browser_web.py",
+     "sha256": "3d9371fbf25a247284e0021c9f880e0d952e2972a470fa84053190305c6ee9fb"
+    }
+   ]
+  },
+  {
+   "nome": "calendario",
+   "versione": "1.0",
+   "categoria": "Data e ora",
+   "descrizione": "Calendari mensili e annuali.",
+   "originale": "calendar",
+   "file": [
+    {
+     "percorso": "calendario.py",
+     "sha256": "2d614b71abce32dacd91f6b211b30bbde0430aff7a9a011424f91175d85d893e"
+    }
+   ]
+  },
+  {
+   "nome": "casuale",
+   "versione": "1.0",
+   "categoria": "Calcolo",
+   "descrizione": "Numeri casuali, scelte e rimescolamenti.",
+   "originale": "random",
+   "file": [
+    {
+     "percorso": "casuale.py",
+     "sha256": "bdb9bf003a0ae22dbd5b98b00e4b6d099ec0a9216362e9b324d9c6cef0eac7d3"
+    }
+   ]
+  },
+  {
+   "nome": "cerca_file",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Trova i file con i caratteri jolly (*.txt).",
+   "originale": "glob",
+   "file": [
+    {
+     "percorso": "cerca_file.py",
+     "sha256": "ce12fd929c0972c757139391a5679fffbb4d18de994ed261d461498d69ccdc2c"
+    }
+   ]
+  },
+  {
+   "nome": "classi_astratte",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Classi astratte da cui derivare.",
+   "originale": "abc",
+   "file": [
+    {
+     "percorso": "classi_astratte.py",
+     "sha256": "500ae5660b533d79a0a60d4b73333b88f41d7c068479b76f669fb1477d369804"
+    }
+   ]
+  },
+  {
+   "nome": "coda",
+   "versione": "1.0",
+   "categoria": "Parallelismo",
+   "descrizione": "Code sicure per scambiare dati tra thread.",
+   "originale": "queue",
+   "file": [
+    {
+     "percorso": "coda.py",
+     "sha256": "0110e4035921e4e30cc40101c8a46005adf55d8d1bfd3a56d16c35979eefefae"
+    }
+   ]
+  },
+  {
+   "nome": "codifiche",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Codifiche e decodifiche del testo.",
+   "originale": "codecs",
+   "file": [
+    {
+     "percorso": "codifiche.py",
+     "sha256": "355545a5d84ffd5bb6f4b027a614cb0831c16a892cd57b2141987b0e29362041"
+    }
+   ]
+  },
+  {
+   "nome": "collezioni",
+   "versione": "1.0",
+   "categoria": "Strutture dati",
+   "descrizione": "Contatori, code a due estremità, dizionari speciali.",
+   "originale": "collections",
+   "file": [
+    {
+     "percorso": "collezioni.py",
+     "sha256": "c9859ad6b7559bf33fbaae8d98260a055d40922b8bf57e5c64ad8ed9203919fc"
+    }
+   ]
+  },
+  {
+   "nome": "colori_conversioni",
+   "versione": "1.0",
+   "categoria": "Immagini e documenti",
+   "descrizione": "Conversioni tra sistemi di colore (RGB, HSV…).",
+   "originale": "colorsys",
+   "file": [
+    {
+     "percorso": "colori_conversioni.py",
+     "sha256": "4d30425b1786320563047342f80d4a260f7c0161461a660ef90e832bbdec2f54"
+    }
+   ]
+  },
+  {
+   "nome": "compressione_bz2",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Comprime e decomprime con bz2.",
+   "originale": "bz2",
+   "file": [
+    {
+     "percorso": "compressione_bz2.py",
+     "sha256": "82cb1ef43ad9b13549876d43693ac00984285dc5ba5761220525f94df4969c5e"
+    }
+   ]
+  },
+  {
+   "nome": "compressione_gzip",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Comprime e decomprime con gzip.",
+   "originale": "gzip",
+   "file": [
+    {
+     "percorso": "compressione_gzip.py",
+     "sha256": "de529591a3add75e5286df564b2e2fe994e6055466ef6807e65da0ecef797364"
+    }
+   ]
+  },
+  {
+   "nome": "compressione_lzma",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Comprime e decomprime con lzma/xz.",
+   "originale": "lzma",
+   "file": [
+    {
+     "percorso": "compressione_lzma.py",
+     "sha256": "29d64f797f13ec788f3faa90c53e9edd7e637783264c5e214632eac95733911d"
+    }
+   ]
+  },
+  {
+   "nome": "configurazione",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "File di configurazione in stile .ini.",
+   "originale": "configparser",
+   "file": [
+    {
+     "percorso": "configurazione.py",
+     "sha256": "83ff6bdffd8fe60dcba2608860be12296021285589a7a2ee7f1e66c991d68ab4"
+    }
+   ]
+  },
+  {
+   "nome": "contesti",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Strumenti per i blocchi «con».",
+   "originale": "contextlib",
+   "file": [
+    {
+     "percorso": "contesti.py",
+     "sha256": "be7d88ca1ba5d6ab62df2764a5768568e60edadb073004e7dd1c5d5a423679bc"
+    }
+   ]
+  },
+  {
+   "nome": "contesti_variabili",
+   "versione": "1.0",
+   "categoria": "Parallelismo",
+   "descrizione": "Variabili legate al contesto di esecuzione.",
+   "originale": "contextvars",
+   "file": [
+    {
+     "percorso": "contesti_variabili.py",
+     "sha256": "3d79e497ba4690e4695a9c73c605c22c32af44683bb50b679116d90bded9e5fd"
+    }
+   ]
+  },
+  {
+   "nome": "copia",
+   "versione": "1.0",
+   "categoria": "Strutture dati",
+   "descrizione": "Copie superficiali e profonde di oggetti.",
+   "originale": "copy",
+   "file": [
+    {
+     "percorso": "copia.py",
+     "sha256": "7b5e9d78b26cc310c2ce1c0024bfd06f750490d4342a0314914056177da19f09"
+    }
+   ]
+  },
+  {
+   "nome": "corrispondenza_nomi",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Nomi di file con i caratteri jolly.",
+   "originale": "fnmatch",
+   "file": [
+    {
+     "percorso": "corrispondenza_nomi.py",
+     "sha256": "f9cb9b35de9d86f49d1ea7feb3f09da4aa388964d8ec3fc593f76a52cf9a615a"
+    }
+   ]
+  },
+  {
+   "nome": "cronometro",
+   "versione": "1.0",
+   "categoria": "Data e ora",
+   "descrizione": "Misura quanto tempo impiega il codice.",
+   "originale": "timeit",
+   "file": [
+    {
+     "percorso": "cronometro.py",
+     "sha256": "09cf76e0e7d8a972a5532cd767f1acece3b6d4efba0e2626edc6da486ceb1d82"
+    }
+   ]
+  },
+  {
+   "nome": "data_ora",
+   "versione": "1.0",
+   "categoria": "Data e ora",
+   "descrizione": "Date, ore e differenze di tempo.",
+   "originale": "datetime",
+   "file": [
+    {
+     "percorso": "data_ora.py",
+     "sha256": "8c2a522444aa65b4b35da742c7e3124d8b043e57defb8a27549dd1094a05ad08"
+    }
+   ]
+  },
+  {
+   "nome": "database",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "sqlite3: database SQL in un solo file.",
+   "originale": "sqlite3",
+   "file": [
+    {
+     "percorso": "database.py",
+     "sha256": "27e0677cea61f4f79f9732ba0c75935b90fd9ba5265140647bfbad333e4004f0"
+    }
+   ]
+  },
+  {
+   "nome": "dati_classe",
+   "versione": "1.0",
+   "categoria": "Strutture dati",
+   "descrizione": "Classi di dati scritte in poche righe.",
+   "originale": "dataclasses",
+   "file": [
+    {
+     "percorso": "dati_classe.py",
+     "sha256": "2d44df0719f1f2980ef8a480379ee95e2d8fee50e8ff37d412eb3c38e2bed54b"
+    }
+   ]
+  },
+  {
+   "nome": "decimali",
+   "versione": "1.0",
+   "categoria": "Calcolo",
+   "descrizione": "Numeri decimali esatti, adatti ai calcoli di denaro.",
+   "originale": "decimal",
+   "file": [
+    {
+     "percorso": "decimali.py",
+     "sha256": "f18c89eb9ee7f34d0ca1f53ff9399afa1f339fb9c83a25e292bbe37c2735c7d9"
+    }
+   ]
+  },
+  {
+   "nome": "differenze",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Confronta due testi e mostra le differenze.",
+   "originale": "difflib",
+   "file": [
+    {
+     "percorso": "differenze.py",
+     "sha256": "bf77aad72510f04ba8d3ff0e01121196ab406790f7951085b1715c2d24941d47"
+    }
+   ]
+  },
+  {
+   "nome": "enumerazioni",
+   "versione": "1.0",
+   "categoria": "Strutture dati",
+   "descrizione": "Elenchi di valori con nome.",
+   "originale": "enum",
+   "file": [
+    {
+     "percorso": "enumerazioni.py",
+     "sha256": "bf7833292f22911046ab7da3abb71549bca04cc209014911cc84cd04257d8c2f"
+    }
+   ]
+  },
+  {
+   "nome": "esecutori",
+   "versione": "1.0",
+   "categoria": "Parallelismo",
+   "descrizione": "Gruppi di lavoratori per eseguire compiti in parallelo.",
+   "originale": "concurrent",
+   "file": [
+    {
+     "percorso": "esecutori.py",
+     "sha256": "ca61ef6c8687aa032d93ffde581a7e98bbea1894257941ef78c35b372e8048a1"
+    }
+   ]
+  },
+  {
+   "nome": "espressioni_regolari",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Cerca e sostituisce testo con modelli.",
+   "originale": "re",
+   "file": [
+    {
+     "percorso": "espressioni_regolari.py",
+     "sha256": "c254570f9b9525090d6ae5ee2666b6bbcac39f1504da9f754a025d41b125880b"
+    }
+   ]
+  },
+  {
+   "nome": "file_temporanei",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "File e cartelle temporanei.",
+   "originale": "tempfile",
+   "file": [
+    {
+     "percorso": "file_temporanei.py",
+     "sha256": "3120b7590821eabf5567f0dbaa1fa6bceef887a5b43277524b43225487dfb791"
+    }
+   ]
+  },
+  {
+   "nome": "flussi",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Flussi di testo e di byte in memoria.",
+   "originale": "io",
+   "file": [
+    {
+     "percorso": "flussi.py",
+     "sha256": "07680d7d319bdb9b69e480a59870bb668e7e5b4ccad9d853742541ac996d4b89"
+    }
+   ]
+  },
+  {
+   "nome": "foglio_tk",
+   "versione": "1.0",
+   "categoria": "Finestre",
+   "descrizione": "tksheet: tabelle modificabili nelle finestre.",
+   "originale": "tksheet",
+   "file": [
+    {
+     "percorso": "foglio_tk.py",
+     "sha256": "d2047616c26474ca138bd0abafa1b72747ca7cb2c453c017310570fd61bd3b3b"
+    }
+   ]
+  },
+  {
+   "nome": "formato_json",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Legge e scrive file JSON.",
+   "originale": "json",
+   "file": [
+    {
+     "percorso": "formato_json.py",
+     "sha256": "fee1c271b3b8e05afbf1b862cd23631aa120df3102227515594cbff84de30152"
+    }
+   ]
+  },
+  {
+   "nome": "frazioni",
+   "versione": "1.0",
+   "categoria": "Calcolo",
+   "descrizione": "Numeri razionali: frazioni esatte.",
+   "originale": "fractions",
+   "file": [
+    {
+     "percorso": "frazioni.py",
+     "sha256": "03f725d3d873b86ac502ca8cc30c6395a07007ff290911b2447b16211673d27e"
+    }
+   ]
+  },
+  {
+   "nome": "ftp",
+   "versione": "1.0",
+   "categoria": "Rete",
+   "descrizione": "Client FTP.",
+   "originale": "ftplib",
+   "file": [
+    {
+     "percorso": "ftp.py",
+     "sha256": "a6e5b2d791de327d9bf971e22768088d9d42067b7f0ba3815aa9435ecb9af614"
+    }
+   ]
+  },
+  {
+   "nome": "funzioni_utili",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Funzioni di ordine superiore, cache, riduzioni.",
+   "originale": "functools",
+   "file": [
+    {
+     "percorso": "funzioni_utili.py",
+     "sha256": "b68358b19e5370c123a599165652bf5f22a813201d75803b4445416ad29f9470"
+    }
+   ]
+  },
+  {
+   "nome": "fusi_orari",
+   "versione": "1.0",
+   "categoria": "Data e ora",
+   "descrizione": "Fusi orari e ora legale.",
+   "originale": "zoneinfo",
+   "file": [
+    {
+     "percorso": "fusi_orari.py",
+     "sha256": "b296eada527226bdad97a6d89e59226135cb8ebcc9a55c9d917009466d3837f3"
+    }
+   ]
+  },
+  {
+   "nome": "gettext_traduzioni",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Traduzione dei messaggi dei programmi.",
+   "originale": "gettext",
+   "file": [
+    {
+     "percorso": "gettext_traduzioni.py",
+     "sha256": "82c3d3ca5597a35d32ba1f21102c2116d380ec0e1290c8afd123ec543ab24111"
+    }
+   ]
+  },
+  {
+   "nome": "grafi",
+   "versione": "1.0",
+   "categoria": "Strutture dati",
+   "descrizione": "Ordinamento topologico di grafi.",
+   "originale": "graphlib",
+   "file": [
+    {
+     "percorso": "grafi.py",
+     "sha256": "9effc7c0a2882ab3b1cb294440da55c974a97a4f1c09e58d834ea4a5691d05ee"
+    }
+   ]
+  },
+  {
+   "nome": "grafici",
+   "versione": "1.0",
+   "categoria": "Scienza e dati",
+   "descrizione": "matplotlib: grafici e diagrammi.",
+   "originale": "matplotlib",
+   "file": [
+    {
+     "percorso": "grafici/__init__.py",
+     "sha256": "7ba1358fbfb0cfd67caaddfbb8c15bb97be53f699a5e11edf8aad5b0e024c0b0"
+    },
+    {
+     "percorso": "grafici/assi.py",
+     "sha256": "76c9a7b9e8bf6c86ba757be09f3b6b38db670b6f084f24e634b388187f12e8cf"
+    },
+    {
+     "percorso": "grafici/disegno.py",
+     "sha256": "e543bab1a3842957ae1ce85151ecf6897746395563f3baf8d3ce0926a4adaa65"
+    },
+    {
+     "percorso": "grafici/figura.py",
+     "sha256": "1c099a9ad32b606291fa92b11c02f480203a2108a6008ede23cd307356aa8574"
+    }
+   ]
+  },
+  {
+   "nome": "html_testo",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Escape e lettura di testo HTML.",
+   "originale": "html",
+   "file": [
+    {
+     "percorso": "html_testo/__init__.py",
+     "sha256": "4b7ec2e1b2fb8f19963ce2852351cd82bb6bb35e41ff8c80ecfd6de4f510d6e0"
+    },
+    {
+     "percorso": "html_testo/analizzatore.py",
+     "sha256": "363a124b139db0799d0053a9bcb6b0de20d8b7936c12a76f5e47f54e5acd9c29"
+    }
+   ]
+  },
+  {
+   "nome": "identificatori",
+   "versione": "1.0",
+   "categoria": "Sicurezza",
+   "descrizione": "Identificatori univoci (UUID).",
+   "originale": "uuid",
+   "file": [
+    {
+     "percorso": "identificatori.py",
+     "sha256": "22638f651e21268cf6c31a635c5afdf6a6ef13de3bbc882a9e2a4f7fb9dcd6a5"
+    }
+   ]
+  },
+  {
+   "nome": "immagini",
+   "versione": "1.0",
+   "categoria": "Immagini e documenti",
+   "descrizione": "PIL: apre, modifica e salva immagini.",
+   "originale": "PIL",
+   "file": [
+    {
+     "percorso": "immagini.py",
+     "sha256": "72114afd07637a06172c6bccd7f14880734519284ca23b0a0f5cf8728426ad4a"
+    }
+   ]
+  },
+  {
+   "nome": "impronte",
+   "versione": "1.0",
+   "categoria": "Sicurezza",
+   "descrizione": "Impronte digitali dei dati (SHA, MD5).",
+   "originale": "hashlib",
+   "file": [
+    {
+     "percorso": "impronte.py",
+     "sha256": "0909cd50462dbeaadae0e025e9b67efc2f0f64571ee85062454af4d9a2ba7f64"
+    }
+   ]
+  },
+  {
+   "nome": "indirizzi_ip",
+   "versione": "1.0",
+   "categoria": "Rete",
+   "descrizione": "Indirizzi e reti IP.",
+   "originale": "ipaddress",
+   "file": [
+    {
+     "percorso": "indirizzi_ip.py",
+     "sha256": "dbe2cc98dcea993948c0adbd84debdc668166207a36a2240ca08dd38a820339b"
+    }
+   ]
+  },
+  {
+   "nome": "installazione_python",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Percorsi e configurazione dell'installazione.",
+   "originale": "sysconfig",
+   "file": [
+    {
+     "percorso": "installazione_python.py",
+     "sha256": "49767134066c0c6cb251854f796d52b706442a9475501a35e0884d4fcb4b959f"
+    }
+   ]
+  },
+  {
+   "nome": "interfaccia",
+   "versione": "1.0",
+   "categoria": "Finestre",
+   "descrizione": "tkinter: finestre, pulsanti, caselle di testo.",
+   "originale": "tkinter",
+   "file": [
+    {
+     "percorso": "interfaccia/__init__.py",
+     "sha256": "f93bed1811741fc216a2be4206ca177d27ac43b10330dae3f624b3a0ce42316b"
+    },
+    {
+     "percorso": "interfaccia/caratteri.py",
+     "sha256": "82aab99788a18b26c43b7e309faaab6bd26ef434d3d50e210b925678d655121c"
+    },
+    {
+     "percorso": "interfaccia/dialoghi_file.py",
+     "sha256": "36334be6da0fb3c29d10cca01c37cabb41359e3deaf38ae0e33c732d22450ca8"
+    },
+    {
+     "percorso": "interfaccia/dialoghi_semplici.py",
+     "sha256": "a8b4910cbbed53939bd82f9c4d605903f7451c10ae814ed97dea97ad4665f429"
+    },
+    {
+     "percorso": "interfaccia/messaggi.py",
+     "sha256": "679c78e75b7cb49bfb92667f280884e51a1ec77d878aec75e0b94264a66c6176"
+    },
+    {
+     "percorso": "interfaccia/selettore_colori.py",
+     "sha256": "acb69b6f87be9a0aac917e6646ef7f8f8724af50f8b1394cabb3953e37f5bb62"
+    },
+    {
+     "percorso": "interfaccia/tema.py",
+     "sha256": "9edc176ff7e5b3d9caffa5f9cf805e704a69bba02fa28710154729f1ddbb7d5e"
+    },
+    {
+     "percorso": "interfaccia/testo_scorrevole.py",
+     "sha256": "d4e12192ac1a68fc32e1a4ee8d17162dc2257aff8897918142850a820acf2c38"
+    },
+    {
+     "percorso": "interfaccia/trascina.py",
+     "sha256": "6f52652d941967a2b22b853813d26d8d3bfa57b384800fbee0d464011b394e68"
+    }
+   ]
+  },
+  {
+   "nome": "ispezione",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Esamina funzioni, classi e moduli a runtime.",
+   "originale": "inspect",
+   "file": [
+    {
+     "percorso": "ispezione.py",
+     "sha256": "a26e4b2c21110055c81399608452f05adee6d1db64f6346e96a54be9372b3e20"
+    }
+   ]
+  },
+  {
+   "nome": "iteratori",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Strumenti per cicli e combinazioni.",
+   "originale": "itertools",
+   "file": [
+    {
+     "percorso": "iteratori.py",
+     "sha256": "f9c42e17c448bc8a62539c659850ba186f3aea021981b41373cdfea438354471"
+    }
+   ]
+  },
+  {
+   "nome": "localizzazione",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Formati di numeri e date per lingua e paese.",
+   "originale": "locale",
+   "file": [
+    {
+     "percorso": "localizzazione.py",
+     "sha256": "76b349d1db0b2c5a266f10016103ba07ca31200e5b8ca18d65a73bfdd4c03813"
+    }
+   ]
+  },
+  {
+   "nome": "matematica",
+   "versione": "1.0",
+   "categoria": "Calcolo",
+   "descrizione": "Radice quadrata, seno, logaritmi, pi greco.",
+   "originale": "math",
+   "file": [
+    {
+     "percorso": "matematica.py",
+     "sha256": "f6d3324444e4493a5b28c5b228a90f671fc9fcaa450cf85b502d820059365d35"
+    }
+   ]
+  },
+  {
+   "nome": "matematica_complessa",
+   "versione": "1.0",
+   "categoria": "Calcolo",
+   "descrizione": "Matematica con i numeri complessi.",
+   "originale": "cmath",
+   "file": [
+    {
+     "percorso": "matematica_complessa.py",
+     "sha256": "699a199a18f82f18634ce1471b9adecdf5b006b327323506c8ec82795f08d8d2"
+    }
+   ]
+  },
+  {
+   "nome": "mucchio",
+   "versione": "1.0",
+   "categoria": "Strutture dati",
+   "descrizione": "Code con priorità (heap).",
+   "originale": "heapq",
+   "file": [
+    {
+     "percorso": "mucchio.py",
+     "sha256": "a9380a4f8201d63aa1160e85b2b2e02fbfde6f5840c861062a48d4941ec6e09d"
+    }
+   ]
+  },
+  {
+   "nome": "multiprocesso",
+   "versione": "1.0",
+   "categoria": "Parallelismo",
+   "descrizione": "Più processi in parallelo, anche su più core.",
+   "originale": "multiprocessing",
+   "file": [
+    {
+     "percorso": "multiprocesso.py",
+     "sha256": "1193af93903adcdae609cdabad761a5fcbd7d51482ac817d33d636c7eb3d8b2c"
+    }
+   ]
+  },
+  {
+   "nome": "numerico",
+   "versione": "1.0",
+   "categoria": "Scienza e dati",
+   "descrizione": "numpy: matrici e calcolo numerico veloce.",
+   "originale": "numpy",
+   "file": [
+    {
+     "percorso": "numerico/__init__.py",
+     "sha256": "7a0187cf7c1f24743554450df58e9c16143f6b6816231097ff9cda742bb0ba72"
+    },
+    {
+     "percorso": "numerico/algebra_lineare.py",
+     "sha256": "770adeeef36dd98b7911e700cd333b10d02d4122a5f2bf1cc13a6b5815590d54"
+    },
+    {
+     "percorso": "numerico/casuale.py",
+     "sha256": "360c7f45792f9e07c655cf45c98264b6f8493e0d1a19f5cb41aa8b20ca477db4"
+    }
+   ]
+  },
+  {
+   "nome": "operatori",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Gli operatori come funzioni.",
+   "originale": "operator",
+   "file": [
+    {
+     "percorso": "operatori.py",
+     "sha256": "e7f03a687703a0da1f81fd3a39f9b7f908144cee1ba0cfae7ec7f33fd44fc6fe"
+    }
+   ]
+  },
+  {
+   "nome": "operazioni_file",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Copia, sposta e cancella file e cartelle.",
+   "originale": "shutil",
+   "file": [
+    {
+     "percorso": "operazioni_file.py",
+     "sha256": "f09452ea4cb7e292caef5ba725aaac89be3e59847acc46fa173dbf911677855d"
+    }
+   ]
+  },
+  {
+   "nome": "opzioni_riga_comando",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Opzioni della riga di comando (getopt).",
+   "originale": "getopt",
+   "file": [
+    {
+     "percorso": "opzioni_riga_comando.py",
+     "sha256": "cde6177009aafa8f0954c46033b2bf96f6dc12e20205030cbaeaf78daeb4c4c2"
+    }
+   ]
+  },
+  {
+   "nome": "parole_chiave",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Elenco delle parole chiave del linguaggio.",
+   "originale": "keyword",
+   "file": [
+    {
+     "percorso": "parole_chiave.py",
+     "sha256": "72563921467c58c2385f1a4b9bfb262dc8a2c32322dba35ab930658b15eddbcb"
+    }
+   ]
+  },
+  {
+   "nome": "password_utente",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Chiede una password senza mostrarla.",
+   "originale": "getpass",
+   "file": [
+    {
+     "percorso": "password_utente.py",
+     "sha256": "ee31981a46bb944213209508fa00658b370ab74e23e9ceee74aba89ae1cb396c"
+    }
+   ]
+  },
+  {
+   "nome": "percorso",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Percorsi di file e cartelle come oggetti.",
+   "originale": "pathlib",
+   "file": [
+    {
+     "percorso": "percorso.py",
+     "sha256": "27ea902df2ce964d3554d2329609d9bf00a434a16822be810aadf52025d8f27b"
+    }
+   ]
+  },
+  {
+   "nome": "piattaforma",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Informazioni su sistema operativo e computer.",
+   "originale": "platform",
+   "file": [
+    {
+     "percorso": "piattaforma.py",
+     "sha256": "165d0b297be0e941b8708cb30e5543c69c2e4c3f75cc26f32b852befa93f8c01"
+    }
+   ]
+  },
+  {
+   "nome": "posta",
+   "versione": "1.0",
+   "categoria": "Rete",
+   "descrizione": "Crea e analizza messaggi di posta elettronica.",
+   "originale": "email",
+   "file": [
+    {
+     "percorso": "posta/__init__.py",
+     "sha256": "0136e539f98fadcb05be4763b16570fa8f010402834564298ccaa1cc6e08f065"
+    },
+    {
+     "percorso": "posta/messaggio.py",
+     "sha256": "86141a5101b86a24e1db3fc7cc12aa55e180c130875c5776dd46b0d32f60fb84"
+    },
+    {
+     "percorso": "posta/mime.py",
+     "sha256": "d0e5e07523533a8af7f926c7c08d53614350e3f6dedd23b2ea0fa9afa11b35ba"
+    },
+    {
+     "percorso": "posta/mime_base.py",
+     "sha256": "d22d4122c76a134c7450ab9d7c60b1078cd902b5489cdd0c1e68bb55c6eeaf73"
+    },
+    {
+     "percorso": "posta/mime_immagine.py",
+     "sha256": "8c529c2f858904a1afd7183d498e87273bbe7b4f2d5759a6e4e6d45c473d6fba"
+    },
+    {
+     "percorso": "posta/mime_multiparte.py",
+     "sha256": "64950cc2fd3f7979fcfd8390e2c1fc11271061c8cb3105bf6bdfc3318f0edf7c"
+    },
+    {
+     "percorso": "posta/smtp.py",
+     "sha256": "fd0744ebbcf0e1ac20dbf42ebeb565c37679803a265c786ff842d9b62ffb6373"
+    },
+    {
+     "percorso": "posta/utilita.py",
+     "sha256": "3714405d5afe3f928c292fbfa02ba27a59cb9b52d1476fe7d9dc491ebbb7dd26"
+    }
+   ]
+  },
+  {
+   "nome": "processi",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Lancia altri programmi e ne legge l'output.",
+   "originale": "subprocess",
+   "file": [
+    {
+     "percorso": "processi.py",
+     "sha256": "af593d3225c9457e36656612068ad9a25624a2a1e2d159742ebf900f8306a063"
+    }
+   ]
+  },
+  {
+   "nome": "raccolta_rifiuti",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Gestione della memoria.",
+   "originale": "gc",
+   "file": [
+    {
+     "percorso": "raccolta_rifiuti.py",
+     "sha256": "b8a6505c8570a83cfc926bdbbbcfa4e55cc727ea69f19a3d862b5ac6a878c50b"
+    }
+   ]
+  },
+  {
+   "nome": "rapporti_pdf",
+   "versione": "1.0",
+   "categoria": "Immagini e documenti",
+   "descrizione": "reportlab: crea documenti PDF.",
+   "originale": "reportlab",
+   "file": [
+    {
+     "percorso": "rapporti_pdf/__init__.py",
+     "sha256": "57ee152f969584550662f3a14f9b5a7718788bd97f06ac248824515ca7687dd0"
+    },
+    {
+     "percorso": "rapporti_pdf/allineamento.py",
+     "sha256": "a18a232f0434adef4e55c51f682d9467702c50e3c16be72d331bf2ce14ca6da3"
+    },
+    {
+     "percorso": "rapporti_pdf/caratteri.py",
+     "sha256": "53baadcbe1d1ef08e725f0ec46a5887094272da88d9c2cae89b246c5e213b2e5"
+    },
+    {
+     "percorso": "rapporti_pdf/caratteri_ttf.py",
+     "sha256": "aacea50299358a5c2b4e98596064974ff54164e062f8d13e6cfa27f27330c495"
+    },
+    {
+     "percorso": "rapporti_pdf/colori.py",
+     "sha256": "1b7ea178c8bb19ef42f2a40ed1cc08cbd2f7f6747a632e49ffcede8e7512eab2"
+    },
+    {
+     "percorso": "rapporti_pdf/dimensioni_pagina.py",
+     "sha256": "bebcf3a953ce68a40b826953aa7a9196e1603ed116e75eadfc7b523edac52ad8"
+    },
+    {
+     "percorso": "rapporti_pdf/documento.py",
+     "sha256": "e672e290c314052ba7346d35a52d2b67327db3e83f00b07b0abd84e647b189f6"
+    },
+    {
+     "percorso": "rapporti_pdf/stili.py",
+     "sha256": "e7a2ccfa72d83144205727c781b8483c60fc8f1ac08ca8d996d7e6f49fa37a48"
+    },
+    {
+     "percorso": "rapporti_pdf/tela.py",
+     "sha256": "6a0b128adf017194571480ac05d8a36da0460ec176b831522582e689194d4de3"
+    },
+    {
+     "percorso": "rapporti_pdf/unita.py",
+     "sha256": "653a99ce18e015f3b2df3bb06a10ed09fc3317b8ce862dbf521ab7234f04fccb"
+    }
+   ]
+  },
+  {
+   "nome": "registro",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Registro degli eventi (logging) con livelli.",
+   "originale": "logging",
+   "file": [
+    {
+     "percorso": "registro/__init__.py",
+     "sha256": "1579ea6897d4d8da31d0c7b3dbe9f41131947d588850a66b9d5eb97f8655ae14"
+    },
+    {
+     "percorso": "registro/gestori.py",
+     "sha256": "5b834a476836c26e89cd44cfbc16e0619b32cae31802f6eefcf2a1a5cdefc55b"
+    }
+   ]
+  },
+  {
+   "nome": "registro_windows",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Legge e scrive il registro di Windows.",
+   "originale": "winreg",
+   "file": [
+    {
+     "percorso": "registro_windows.py",
+     "sha256": "601db78a6d89fd17c736cfa2ee71bd90193583703c5ffde46ef131db0225d01d"
+    }
+   ]
+  },
+  {
+   "nome": "rete",
+   "versione": "1.0",
+   "categoria": "Rete",
+   "descrizione": "Connessioni di rete a basso livello (socket).",
+   "originale": "socket",
+   "file": [
+    {
+     "percorso": "rete.py",
+     "sha256": "560cd437924aff8be95aa5ec8173d97b5fc542f10e51d5210cfecd9533793b57"
+    }
+   ]
+  },
+  {
+   "nome": "rete_http",
+   "versione": "1.0",
+   "categoria": "Rete",
+   "descrizione": "Client e server HTTP.",
+   "originale": "http",
+   "file": [
+    {
+     "percorso": "rete_http/__init__.py",
+     "sha256": "04c9080e7a139961a3d3f7250f067e2bfa5a1b994ed7c30502573df178542135"
+    },
+    {
+     "percorso": "rete_http/client.py",
+     "sha256": "6788442759da74d342a7231698fba7e6dbc23af6136f3236cd16c7dbe55dec76"
+    },
+    {
+     "percorso": "rete_http/server.py",
+     "sha256": "61773720a9b5ff2f60035d12123f4781e3afe375774434ec1df9e782097161a7"
+    }
+   ]
+  },
+  {
+   "nome": "rete_url",
+   "versione": "1.0",
+   "categoria": "Rete",
+   "descrizione": "Indirizzi web e download di base.",
+   "originale": "urllib",
+   "file": [
+    {
+     "percorso": "rete_url/__init__.py",
+     "sha256": "dcf0e34da171485b4ac44e2da9f424ca7b45c7c936f0e429e0af89f87dfb8324"
+    },
+    {
+     "percorso": "rete_url/analisi.py",
+     "sha256": "c264f5879a6d10471568b55f295d3742a0d9269724c829c91e625b9860eabb64"
+    },
+    {
+     "percorso": "rete_url/errori.py",
+     "sha256": "81096ab7c877430501de8476976a46995637b3687b04e7d596b1f5701ff3da4a"
+    },
+    {
+     "percorso": "rete_url/richiesta.py",
+     "sha256": "dee9f19cf63294f0053d2accb136db8fbdeb33ddb24f86513ea63eeaada02678"
+    }
+   ]
+  },
+  {
+   "nome": "richieste",
+   "versione": "1.0",
+   "categoria": "Rete",
+   "descrizione": "requests: scarica pagine e usa servizi web.",
+   "originale": "requests",
+   "file": [
+    {
+     "percorso": "richieste.py",
+     "sha256": "0873828fbb2cc8b990c9b406b31e834e60c3e366255daf3d083b5325112e8c67"
+    }
+   ]
+  },
+  {
+   "nome": "scienza",
+   "versione": "1.0",
+   "categoria": "Scienza e dati",
+   "descrizione": "scipy: ottimizzazione, integrali, statistica avanzata.",
+   "originale": "scipy",
+   "file": [
+    {
+     "percorso": "scienza/__init__.py",
+     "sha256": "4e86a51a411f66e6cc154cf300b150a15d1a1dbe8253444495b136f1728100e6"
+    },
+    {
+     "percorso": "scienza/algebra_lineare.py",
+     "sha256": "fbef365f15277ce663f8b34369ec71efe2d577b3cd15e00618c0a77ece2e186d"
+    },
+    {
+     "percorso": "scienza/integrazione.py",
+     "sha256": "3de82eaa08fac7ee949ab6fc039ba9472f6a662e46d8a1090f80b08c7c7c1b7d"
+    },
+    {
+     "percorso": "scienza/interpolazione.py",
+     "sha256": "9e6815172b333642bf2f3350ee7f780b6d88839fb5eb2c32a0f6533197ca0911"
+    },
+    {
+     "percorso": "scienza/ottimizzazione.py",
+     "sha256": "5f47088374b904a96ddb40953ceb2972320d945831c34da4b7738958c44ea326"
+    },
+    {
+     "percorso": "scienza/statistica.py",
+     "sha256": "f4729dd95f01b4589588811a9147edae5338f48810c159470c5845a93186a5c3"
+    }
+   ]
+  },
+  {
+   "nome": "segnali",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Gestione dei segnali del sistema.",
+   "originale": "signal",
+   "file": [
+    {
+     "percorso": "segnali.py",
+     "sha256": "8f1908f7b364ee8f0c9e4c2ec7144a52c2d5f28bfea48b21e5a0631edc4efa05"
+    }
+   ]
+  },
+  {
+   "nome": "segreti",
+   "versione": "1.0",
+   "categoria": "Sicurezza",
+   "descrizione": "Numeri e codici casuali sicuri per password e token.",
+   "originale": "secrets",
+   "file": [
+    {
+     "percorso": "segreti.py",
+     "sha256": "37c25d3f53a5d9ad4558da26c33120235821e5800b1cf139d4b7ebc111691c6a"
+    }
+   ]
+  },
+  {
+   "nome": "serializza",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Salva oggetti Python su file (pickle).",
+   "originale": "pickle",
+   "file": [
+    {
+     "percorso": "serializza.py",
+     "sha256": "853544d701ede39408707ab2fe0ef0a2a898cde7be19964798f44a3bb04d0d51"
+    }
+   ]
+  },
+  {
+   "nome": "sicurezza_ssl",
+   "versione": "1.0",
+   "categoria": "Sicurezza",
+   "descrizione": "Connessioni cifrate (SSL/TLS).",
+   "originale": "ssl",
+   "file": [
+    {
+     "percorso": "sicurezza_ssl.py",
+     "sha256": "fd86faa584e905859ee67a7cf3f8c6a0d7d5776cb5c7e52ce5308b875b7014de"
+    }
+   ]
+  },
+  {
+   "nome": "sistema",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Argomenti del programma, uscita, interprete.",
+   "originale": "sys",
+   "file": [
+    {
+     "percorso": "sistema.py",
+     "sha256": "e555921e6961af98b472e1d2468ea1b25c55cbb75bb22203555c3c85f5c4962f"
+    }
+   ]
+  },
+  {
+   "nome": "sistema_operativo",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Cartelle e variabili d'ambiente del sistema.",
+   "originale": "os",
+   "file": [
+    {
+     "percorso": "sistema_operativo/__init__.py",
+     "sha256": "3736c51751bd85bf16c04693989acb00da82c4fec6d2d5266dbde8a7143a07f2"
+    },
+    {
+     "percorso": "sistema_operativo/percorso.py",
+     "sha256": "b696c37ae92673cd4fd9243f2578679de17eb62952a3cea0a33bbf5b76790c82"
+    }
+   ]
+  },
+  {
+   "nome": "stampa_bella",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Stampa strutture di dati in modo leggibile.",
+   "originale": "pprint",
+   "file": [
+    {
+     "percorso": "stampa_bella.py",
+     "sha256": "7899e12f42cb2500821224ee72944e0d63f66bfdb6ba6eac5bf32e723c196d7c"
+    }
+   ]
+  },
+  {
+   "nome": "statistica",
+   "versione": "1.0",
+   "categoria": "Calcolo",
+   "descrizione": "Media, mediana, varianza e altre statistiche di base.",
+   "originale": "statistics",
+   "file": [
+    {
+     "percorso": "statistica.py",
+     "sha256": "155ec97b1dac3d3496e2b9629742b3409355bb605942a234a88cc05beb0b4d46"
+    }
+   ]
+  },
+  {
+   "nome": "stringhe",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Costanti e utilità per le stringhe.",
+   "originale": "string",
+   "file": [
+    {
+     "percorso": "stringhe.py",
+     "sha256": "4f7c87cf7455165b1600b1c6ea1f2e8e5c20a230dabc4891cf245ac2ab29b0be"
+    }
+   ]
+  },
+  {
+   "nome": "struttura_binaria",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Legge e scrive dati binari strutturati.",
+   "originale": "struct",
+   "file": [
+    {
+     "percorso": "struttura_binaria.py",
+     "sha256": "af74895aa93a1df5a26721719b9f8140f700dac326283e7d9a7362cd441ff92b"
+    }
+   ]
+  },
+  {
+   "nome": "tabelle",
+   "versione": "1.0",
+   "categoria": "Scienza e dati",
+   "descrizione": "pandas: tabelle di dati, analisi e filtri.",
+   "originale": "pandas",
+   "file": [
+    {
+     "percorso": "tabelle.py",
+     "sha256": "f2ba4c115fd9a089e1c5ce744418f4d8e5d0b60e4ef35457f9a071d2da4456ae"
+    }
+   ]
+  },
+  {
+   "nome": "tabelle_csv",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Legge e scrive file CSV.",
+   "originale": "csv",
+   "file": [
+    {
+     "percorso": "tabelle_csv.py",
+     "sha256": "963dee6caf5442f3e861b551343d73864040df7269b0d2229353d25a3a95f144"
+    }
+   ]
+  },
+  {
+   "nome": "tartaruga",
+   "versione": "1.0",
+   "categoria": "Immagini e documenti",
+   "descrizione": "Disegni con la tartaruga, per imparare a programmare.",
+   "originale": "turtle",
+   "file": [
+    {
+     "percorso": "tartaruga.py",
+     "sha256": "51af9744886d7e485700bf66937065ef3ce5aa704712254133779aa0f7147e0e"
+    }
+   ]
+  },
+  {
+   "nome": "tempo",
+   "versione": "1.0",
+   "categoria": "Data e ora",
+   "descrizione": "Orologio, pause e misure di tempo.",
+   "originale": "time",
+   "file": [
+    {
+     "percorso": "tempo.py",
+     "sha256": "b113704190b54bba58513bf9d3c4986507c71f09eeabcd9fee3819e3afc1e808"
+    }
+   ]
+  },
+  {
+   "nome": "test_documentazione",
+   "versione": "1.0",
+   "categoria": "Test",
+   "descrizione": "Test scritti negli esempi della documentazione.",
+   "originale": "doctest",
+   "file": [
+    {
+     "percorso": "test_documentazione.py",
+     "sha256": "812a8860e27c75feb1132724510b71e4bee8a6c254c4f16adf571de265ab4351"
+    }
+   ]
+  },
+  {
+   "nome": "test_unitari",
+   "versione": "1.0",
+   "categoria": "Test",
+   "descrizione": "unittest: scrivere ed eseguire test automatici.",
+   "originale": "unittest",
+   "file": [
+    {
+     "percorso": "test_unitari.py",
+     "sha256": "af0b3a0d61e82766e34546707aa68771edfc381a47481abb0d300d500767fa0e"
+    }
+   ]
+  },
+  {
+   "nome": "testo_a_capo",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Formatta il testo su più righe di larghezza fissa.",
+   "originale": "textwrap",
+   "file": [
+    {
+     "percorso": "testo_a_capo.py",
+     "sha256": "c65a7045d6e822eab7c1bca744b2e9516ab68e6293aca33cd7f88fb3ddedcf82"
+    }
+   ]
+  },
+  {
+   "nome": "thread",
+   "versione": "1.0",
+   "categoria": "Parallelismo",
+   "descrizione": "Più attività contemporanee nello stesso programma.",
+   "originale": "threading",
+   "file": [
+    {
+     "percorso": "thread.py",
+     "sha256": "cc07fc38682961642eceb1ccdbbff15631af042a8d3e29cd19bf5052618439a4"
+    }
+   ]
+  },
+  {
+   "nome": "tipi_annotazioni",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Annotazioni di tipo.",
+   "originale": "typing",
+   "file": [
+    {
+     "percorso": "tipi_annotazioni.py",
+     "sha256": "5c77b5bc68bc3d01807d34e36e7e2288cbb955003ba6cdaec74fa3155b2e9ba0"
+    }
+   ]
+  },
+  {
+   "nome": "tipi_c",
+   "versione": "1.0",
+   "categoria": "Sistema",
+   "descrizione": "Chiama le librerie di sistema (DLL) con i tipi del C.",
+   "originale": "ctypes",
+   "file": [
+    {
+     "percorso": "tipi_c/__init__.py",
+     "sha256": "36bf8ac6fac1df4558bfc4dd95e275aa985da8f065f2cb2a05fa1d99bd48e14f"
+    },
+    {
+     "percorso": "tipi_c/utilita.py",
+     "sha256": "2b99dfa7d60285f1faafd68eccdfa107fcd618f491dfbcd83f8a4c2a012b521d"
+    },
+    {
+     "percorso": "tipi_c/windows.py",
+     "sha256": "93fb216a4d82a30f2a04b988077bc8f515ff320734e82e57a4df43e32411fe0f"
+    }
+   ]
+  },
+  {
+   "nome": "tipi_mime",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Tipo di un file in base al nome.",
+   "originale": "mimetypes",
+   "file": [
+    {
+     "percorso": "tipi_mime.py",
+     "sha256": "2673a687659294c350914bed8104e342b841d06b58799f3dc542e6b969f8f5fd"
+    }
+   ]
+  },
+  {
+   "nome": "tipi_python",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Tipi di funzioni, moduli e altri oggetti interni.",
+   "originale": "types",
+   "file": [
+    {
+     "percorso": "tipi_python.py",
+     "sha256": "0eb58a546b18cdf8c1c2a9150b376bda0f368297c39e3fc569e97537336977db"
+    }
+   ]
+  },
+  {
+   "nome": "toml_lettura",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "Legge file di configurazione TOML.",
+   "originale": "tomllib",
+   "file": [
+    {
+     "percorso": "toml_lettura.py",
+     "sha256": "684a22ba28699613a566a93630ac48c68110e11cec357302b503272cd61d161f"
+    }
+   ]
+  },
+  {
+   "nome": "traccia_errori",
+   "versione": "1.0",
+   "categoria": "Programmazione",
+   "descrizione": "Stampa e analizza gli errori (traceback).",
+   "originale": "traceback",
+   "file": [
+    {
+     "percorso": "traccia_errori.py",
+     "sha256": "4d92ec88d62034c9195c263bf56a4b37dad39e8296bbf629cbcd1d2997568585"
+    }
+   ]
+  },
+  {
+   "nome": "unicode_dati",
+   "versione": "1.0",
+   "categoria": "Testo",
+   "descrizione": "Proprietà dei caratteri Unicode.",
+   "originale": "unicodedata",
+   "file": [
+    {
+     "percorso": "unicode_dati.py",
+     "sha256": "52b35d6687b657c14449ed668a16dfced21b2702c71a6b16b622b5960f8910ae"
+    }
+   ]
+  },
+  {
+   "nome": "xml_dom",
+   "versione": "1.0",
+   "categoria": "Dati e file",
+   "descrizione": "XML come albero di nodi (DOM).",
+   "originale": "xml",
+   "file": [
+    {
+     "percorso": "xml_dom.py",
+     "sha256": "04d3118d60a8ce7fa83ebef0271e4c0be1de9f18e785451f9bc77201961541eb"
+    }
+   ]
+  }
+ ]
+}

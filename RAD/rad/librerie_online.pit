@@ -1,0 +1,202 @@
+"""Librerie online: l'indice delle librerie pytonIta nel repository (cartella «librerie/»), con installazione e aggiornamento.
+
+Le librerie arrivano già con l'installatore. Qui si scaricano quelle nuove e le versioni più recenti di quelle incluse:
+i file finiscono in ~/.rad/librerie, una cartella che pitonit cerca PRIMA della sua Lib (lo fa sitecustomize.py), quindi
+una copia scaricata vince su quella inclusa. «Ripristina» cancella la copia scaricata e torna a quella inclusa.
+
+Ogni file è verificato con la sua impronta SHA-256 dell'indice prima di essere scritto. Nessuna grafica qui.
+"""
+importa hashlib
+importa json
+importa os
+importa sys
+importa urllib.request
+
+da rad importa config
+
+ORIGINE_PREDEFINITA = "https://raw.githubusercontent.com/LordZenzo/pytonIta/main/librerie/"
+VARIABILE_ORIGINE = "PITSTUDIO_LIBRERIE_ORIGINE"       # per provare: un'altra origine (anche una cartella locale, file:///…)
+CARTELLA_UTENTE = os.path.join(config.CARTELLA, "librerie")
+FILE_CACHE = os.path.join(CARTELLA_UTENTE, "indice_cache.json")
+FORMATO = 1
+MASSIMO_FILE = 4_000_000
+
+
+classe ErroreLibrerie(Exception):
+    """Indice non raggiungibile o non valido, file corrotto."""
+
+
+definisci origine():
+    base = os.environ.get(VARIABILE_ORIGINE) o ORIGINE_PREDEFINITA
+    ritorna base se base.endswith("/") altrimenti base + "/"
+
+
+definisci cartella_runtime():
+    """La Lib di pitonit (dove stanno le librerie incluse)."""
+    ritorna os.path.dirname(os.__file__)
+
+
+definisci _leggi_url(url, tempo_massimo=20):
+    richiesta = urllib.request.Request(url, headers={"User-Agent": "PitStudio"})
+    prova:
+        con urllib.request.urlopen(richiesta, timeout=tempo_massimo) come risposta:
+            dati = risposta.read(MASSIMO_FILE + 1)
+    eccetto Exception come errore:
+        solleva ErroreLibrerie(f"Non riesco a leggere {url}: {errore}") da errore
+    se lunghezza(dati) > MASSIMO_FILE:
+        solleva ErroreLibrerie(f"{url} è troppo grande")
+    ritorna dati
+
+
+definisci percorso_sicuro(relativo):
+    """Un percorso relativo con «/» che non esce dalla cartella e finisce in .py (altrimenti l'indice non è di fiducia)."""
+    se non isinstance(relativo, str) o non relativo.endswith(".py"):
+        ritorna Falso
+    pezzi = relativo.split("/")
+    ritorna tutti_validi(pezzi)
+
+
+definisci tutti_validi(pezzi):
+    per p in pezzi:
+        se non p o p in (".", "..") o ":" in p o "\\" in p o p.startswith("."):
+            ritorna Falso
+    ritorna Vero
+
+
+definisci _controlla_indice(indice):
+    se non isinstance(indice, dict) o indice.get("formato") != FORMATO o non isinstance(indice.get("librerie"), list):
+        solleva ErroreLibrerie("Indice delle librerie non riconosciuto (forse serve una versione più recente di PitStudio).")
+    validi = []
+    per voce in indice["librerie"]:
+        prova:
+            nome = voce["nome"]
+            se non nome.isidentifier() o lunghezza(voce["file"]) == 0:
+                continua
+            se all(percorso_sicuro(f["percorso"]) e lunghezza(f["sha256"]) == 64 per f in voce["file"]):
+                validi.append(voce)
+        eccetto (KeyError, TypeError, AttributeError):
+            continua
+    ritorna {"formato": FORMATO, "librerie": validi}
+
+
+definisci scarica_indice(base=Nessuno):
+    """Legge l'indice online, lo ricorda in cache e lo ritorna."""
+    base = base o origine()
+    dati = _leggi_url(base + "indice.json")
+    prova:
+        indice = _controlla_indice(json.loads(dati.decode("utf-8")))
+    eccetto (ValueError, UnicodeDecodeError) come errore:
+        solleva ErroreLibrerie(f"Indice non leggibile: {errore}") da errore
+    prova:
+        os.makedirs(os.path.dirname(FILE_CACHE), exist_ok=Vero)
+        con open(FILE_CACHE, "w", encoding="utf-8") come f:
+            json.dump(indice, f, ensure_ascii=Falso)
+    eccetto OSError:
+        passa
+    ritorna indice
+
+
+definisci indice_in_cache():
+    """L'ultimo indice scaricato (senza rete), o None."""
+    prova:
+        con open(FILE_CACHE, encoding="utf-8") come f:
+            ritorna _controlla_indice(json.load(f))
+    eccetto (OSError, ValueError, ErroreLibrerie):
+        ritorna Nessuno
+
+
+definisci _impronta(percorso):
+    prova:
+        con open(percorso, "rb") come f:
+            ritorna hashlib.sha256(f.read()).hexdigest()
+    eccetto OSError:
+        ritorna Nessuno
+
+
+definisci file_attivo(relativo, cartella_utente=Nessuno, runtime=Nessuno):
+    """Il file che pitonit userebbe: la copia scaricata se c'è, altrimenti quella inclusa (o None)."""
+    cartella_utente = cartella_utente o CARTELLA_UTENTE
+    runtime = runtime o cartella_runtime()
+    per base in (cartella_utente, runtime):
+        p = os.path.join(base, *relativo.split("/"))
+        se os.path.isfile(p):
+            ritorna p
+    ritorna Nessuno
+
+
+STATI = ("aggiornata", "aggiornabile", "nuova")
+
+
+definisci stato(voce, cartella_utente=Nessuno, runtime=Nessuno):
+    """«aggiornata» (identica all'indice), «aggiornabile» (diversa) o «nuova» (non c'è affatto)."""
+    presenti = 0
+    uguali = 0
+    per f in voce["file"]:
+        p = file_attivo(f["percorso"], cartella_utente, runtime)
+        se p:
+            presenti += 1
+            se _impronta(p) == f["sha256"]:
+                uguali += 1
+    se presenti == 0:
+        ritorna "nuova"
+    ritorna "aggiornata" se uguali == lunghezza(voce["file"]) altrimenti "aggiornabile"
+
+
+definisci e_scaricata(voce, cartella_utente=Nessuno):
+    """Vero se per questa libreria c'è una copia scaricata (che vince su quella inclusa)."""
+    cartella_utente = cartella_utente o CARTELLA_UTENTE
+    ritorna any(os.path.isfile(os.path.join(cartella_utente, *f["percorso"].split("/"))) per f in voce["file"])
+
+
+definisci confronta(indice, cartella_utente=Nessuno, runtime=Nessuno):
+    """{nome: stato} per tutte le librerie dell'indice."""
+    ritorna {v["nome"]: stato(v, cartella_utente, runtime) per v in indice["librerie"]}
+
+
+definisci metti_in_percorso(cartella_utente=Nessuno):
+    """Perché il processo in corso veda le copie scaricate (sitecustomize lo fa solo all'avvio)."""
+    cartella_utente = cartella_utente o CARTELLA_UTENTE
+    se cartella_utente non in sys.path:
+        sys.path.insert(min(1, lunghezza(sys.path)), cartella_utente)
+
+
+definisci installa(voce, base=Nessuno, cartella_utente=Nessuno):
+    """Scarica e scrive TUTTI i file della libreria (un pacchetto va intero, altrimenti la copia parziale nasconderebbe l'originale).
+    Verifica l'impronta di ognuno prima di scrivere qualcosa. Ritorna i percorsi scritti."""
+    base = base o origine()
+    cartella_utente = cartella_utente o CARTELLA_UTENTE
+    scaricati = []
+    per f in voce["file"]:
+        dati = _leggi_url(base + "moduli/" + f["percorso"])
+        se hashlib.sha256(dati).hexdigest() != f["sha256"]:
+            solleva ErroreLibrerie(f"«{f['percorso']}» non corrisponde all'impronta dell'indice: non lo installo.")
+        scaricati.append((f["percorso"], dati))
+    scritti = []
+    per relativo, dati in scaricati:
+        destinazione = os.path.join(cartella_utente, *relativo.split("/"))
+        os.makedirs(os.path.dirname(destinazione), exist_ok=Vero)
+        provvisorio = destinazione + ".nuovo"
+        con open(provvisorio, "wb") come f:
+            f.write(dati)
+        os.replace(provvisorio, destinazione)
+        scritti.append(destinazione)
+    metti_in_percorso(cartella_utente)
+    ritorna scritti
+
+
+definisci ripristina(voce, cartella_utente=Nessuno):
+    """Toglie la copia scaricata: torna quella inclusa nel runtime (se c'è). Ritorna quanti file ha tolto."""
+    cartella_utente = cartella_utente o CARTELLA_UTENTE
+    tolti = 0
+    per f in voce["file"]:
+        p = os.path.join(cartella_utente, *f["percorso"].split("/"))
+        se os.path.isfile(p):
+            os.remove(p)
+            tolti += 1
+            cartella = os.path.dirname(p)
+            prova:
+                se cartella != cartella_utente e non os.listdir(cartella):
+                    os.rmdir(cartella)
+            eccetto OSError:
+                passa
+    ritorna tolti

@@ -46,6 +46,9 @@ SCHEDE = [
         ("ai.url", "Indirizzo dell'API", "testo", Nessuno),
         ("ai.istruzioni_extra", "Istruzioni aggiuntive per l'assistente", "lungo", Nessuno),
     ]),
+    ("Aggiornamenti", [
+        ("aggiornamenti.controlla_all_avvio", "Una volta al giorno, all'avvio, controlla se c'è una versione nuova di PitStudio e delle librerie (contatta GitHub)", "si_no", Nessuno),
+    ]),
     ("Scorciatoie", [
         ("scorciatoie.salva", "Salva", "testo", Nessuno),
         ("scorciatoie.salva_tutto", "Salva tutto", "testo", Nessuno),

@@ -7,7 +7,7 @@ importa sys
 importa tkinter come tk
 da tkinter importa ttk, messagebox, filedialog, simpledialog
 
-da rad importa NOME, VERSIONE, tema, form_modello, esecuzione, dialoghi, stile
+da rad importa NOME, VERSIONE, VERSIONE_BASE, tema, form_modello, esecuzione, dialoghi, stile
 da rad.config importa Configurazione
 da rad.editor importa Editor, linguaggio_di
 da rad importa registro_ai
@@ -31,6 +31,8 @@ da rad.pannello_test importa PannelloTest
 da rad.pannello_git importa PannelloGit
 da rad.pannello_pacchetti importa PannelloPacchetti
 da rad importa pacchetti_uso
+da rad importa aggiornamenti
+da rad importa librerie_online
 da rad importa barra come barra_mod
 da rad.progetto importa Progetto, PannelloProgetto, tipo_file
 da rad.risorse importa crea_visore
@@ -349,6 +351,7 @@ classe Applicazione:
         aiuto.add_command(label="Riferimento del linguaggio pytonIta", command=lambda: se_stesso.apri_aiuto("linguaggio"))
         aiuto.add_command(label="Apri la guida nel browser", command=lambda: se_stesso.apri_aiuto("@browser"))
         aiuto.add_separator()
+        aiuto.add_command(label="Controlla aggiornamenti…", command=lambda: se_stesso.controlla_aggiornamenti(Vero))
         aiuto.add_command(label=f"Informazioni su {NOME}", command=lambda: dialoghi.informazioni(se_stesso.radice, se_stesso.colori, lambda: se_stesso.apri_aiuto()))
         barra.add_cascade(label="Aiuto", menu=aiuto)
         se_stesso._aggiorna_recenti()
@@ -1551,6 +1554,75 @@ classe Applicazione:
 
     definisci info(se_stesso, messaggio):
         se_stesso.testo_stato.configure(text=messaggio)
+
+    # ================================================================== aggiornamenti
+    definisci avvio_aggiornamenti(se_stesso):
+        """Controllo automatico, al massimo una volta al giorno e solo se non è disattivato nelle impostazioni."""
+        importa datetime
+        cfg = se_stesso.config_
+        oggi = datetime.date.today().isoformat()
+        se non cfg.ottieni("aggiornamenti.controlla_all_avvio", Vero) o cfg.ottieni("aggiornamenti.ultimo_controllo", "") == oggi:
+            ritorna
+        cfg.imposta("aggiornamenti.ultimo_controllo", oggi, notifica=Falso)
+        cfg.salva()
+        se_stesso.controlla_aggiornamenti(Falso)
+
+    definisci controlla_aggiornamenti(se_stesso, manuale=Vero):
+        """PitStudio (ultima Release su GitHub) e librerie (indice online). Manuale: risponde sempre; automatico: parla solo se c'è qualcosa."""
+        se manuale:
+            se_stesso.info("Cerco aggiornamenti…")
+
+        definisci lavoro():
+            risultato = {"app": Nessuno, "errore": Nessuno, "librerie": Nessuno}
+            prova:
+                risultato["app"] = aggiornamenti.controlla()
+            eccetto aggiornamenti.ErroreAggiornamenti come errore:
+                risultato["errore"] = testo(errore)
+            prova:
+                risultato["librerie"] = librerie_online.scarica_indice()
+            eccetto librerie_online.ErroreLibrerie:
+                passa
+            ritorna risultato
+
+        definisci fine(riuscito, r):
+            se non riuscito:
+                se manuale:
+                    messagebox.showwarning("Aggiornamenti", testo(r), parent=se_stesso.radice)
+                ritorna
+            pl = se_stesso.pannello_librerie
+            se r["librerie"]:
+                pl._carica_online(r["librerie"])
+                pl.riempi()
+            riassunto_librerie = pl.riassunto_online()
+            app = r["app"]
+            se app e app["nuova"]:
+                se manuale:
+                    da rad.aggiornamenti_ui importa DialogoAggiornamento
+                    DialogoAggiornamento(se_stesso.radice, se_stesso.colori, app, se_stesso.installa_aggiornamento).mostra()
+                altrimenti:
+                    se_stesso.info(f"{NOME} {app['versione']} è disponibile: Aiuto → Controlla aggiornamenti" + (f" · librerie: {riassunto_librerie}" se riassunto_librerie altrimenti ""))
+                ritorna
+            se riassunto_librerie e non manuale:
+                se_stesso.info(f"Librerie online: {riassunto_librerie} (pannello Librerie → Aggiorna)")
+            se manuale:
+                se r["errore"]:
+                    messagebox.showwarning("Aggiornamenti", r["errore"], parent=se_stesso.radice)
+                altrimenti:
+                    messagebox.showinfo("Aggiornamenti", f"{NOME} {VERSIONE_BASE} è l'ultima versione.\n\nLibrerie online: " + (riassunto_librerie o "tutte aggiornate") + ".",
+                                        parent=se_stesso.radice)
+        esecuzione.in_secondo_piano(se_stesso.radice, lavoro, fine)
+
+    definisci installa_aggiornamento(se_stesso, percorso):
+        """Chiude PitStudio (chiedendo di salvare) e avvia l'installatore scaricato. Se l'uscita viene annullata, l'installazione resta da fare."""
+        se_stesso.esci()
+        prova:
+            vivo = bool(se_stesso.radice.winfo_exists())
+        eccetto tk.TclError:
+            vivo = Falso
+        se non vivo:
+            aggiornamenti.avvia_installatore(percorso)
+        altrimenti:
+            se_stesso.info(f"Installazione rimandata: l'installatore è in {percorso}")
 
     # ================================================================== finestra di ricerca e manuale
     definisci cerca_nel_progetto(se_stesso):

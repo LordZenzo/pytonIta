@@ -16,6 +16,13 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.34
+
+- **Zona `librerie/` nel repository**: i moduli italiani attuali (108 librerie, 152 file) con un indice (`librerie/indice.json`, con versione e impronta SHA-256 di ogni file) e lo script `librerie/costruisci_indice.py` che lo ricostruisce. Istruzioni in `librerie/LEGGIMI.md`.
+- **Librerie online** nel pannello Librerie: **⟳ Novità** legge l'indice e segna ⬆ (versione diversa) e ✚ (nuova); **Installa / Aggiorna**, **Aggiorna tutte** e **Ripristina**. Le copie scaricate vanno in `~/.rad/librerie`, che pitonit cerca *prima* della sua `Lib` (nuovo `sitecustomize.py`); ogni file è verificato con la sua impronta. Logica in `rad/librerie_online.pit`; test: `tests/prova_librerie_online.pit`, `tests/prova_librerie_pannello.pit`.
+- **Aggiornamenti di PitStudio**: *Aiuto → Controlla aggiornamenti…* legge l'ultima Release su GitHub, mostra le novità e scarica l'installatore (solo da GitHub, impronta verificata), poi chiude PitStudio e lo avvia dopo la tua conferma. Una volta al giorno, all'avvio, un controllo silenzioso (si disattiva in *Impostazioni → Aggiornamenti*). Logica in `rad/aggiornamenti.pit`; test: `tests/prova_aggiornamenti.pit`, `tests/prova_aggiornamenti_ui.pit`.
+- Nuova pagina della guida «Aggiornamenti e librerie online».
+
 ## Novità della 1.33
 
 - **Debugger più completo**: punti di arresto **con condizione** (`i > 10`), **dal passaggio N** e **punti di registrazione** (scrivono un messaggio con `{variabili}` senza fermarsi), da un clic destro sul margine; scegliendo una riga della **pila delle chiamate** si vedono le variabili e le espressioni osservate di quella funzione; le espressioni osservate e i punti con condizione restano salvati con il progetto. Test: `tests/prova_debug_condizioni.pit`.

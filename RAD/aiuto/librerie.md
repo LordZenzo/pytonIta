@@ -53,6 +53,10 @@ Quando una libreria chiama un tuo metodo con un nome fisso, puoi usare il nome i
 | html.parser | `handle_starttag`, `handle_data` | `gestisci_tag_iniziale`, `gestisci_dati` |
 | json | `default` (nel codificatore) | `predefinito` |
 
+## Librerie online e aggiornamenti
+
+Le librerie nuove e le versioni più recenti si scaricano dal pannello **Librerie** (pulsanti **⟳ Novità**, **Installa / Aggiorna**): vedi la pagina «Aggiornamenti e librerie online».
+
 ## Elenco completo
 
 {{librerie}}

@@ -1,0 +1,99 @@
+"""Aggiornamenti di PitStudio: confronto di versione, scelta dell'installatore, download con controllo di dimensione e impronta (senza rete)."""
+importa sys, os, json, tempfile, hashlib, shutil
+da pathlib importa Path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa aggiornamenti come ag
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+verifica(ag.numeri("v1.34") == (1, 34), "numeri v1.34")
+verifica(ag.numeri("1.33.3.13") == (1, 33), "numeri completa")
+verifica(ag.numeri("boh") è Nessuno, "numeri senza versione")
+verifica(ag.numeri("v1.9") < ag.numeri("v1.10"), "1.9 < 1.10 (non come testo)")
+
+verifica(ag.url_fidato("https://github.com/x/y/releases/download/v1/a.exe"), "github https")
+verifica(ag.url_fidato("https://objects.githubusercontent.com/a"), "githubusercontent")
+verifica(non ag.url_fidato("http://github.com/a"), "http non va bene")
+verifica(non ag.url_fidato("https://github.com.evil.com/a"), "host che finge")
+verifica(non ag.url_fidato("https://evilgithub.com/a"), "suffisso senza punto")
+verifica(non ag.url_fidato("file:///c:/x.exe"), "file: senza variabile di prova")
+
+lavoro = tempfile.mkdtemp()
+exe = Path(lavoro) / "Installa_pytonIta.exe"
+exe.write_bytes(b"MZ" + bytes(range(256)) * 400)
+impronta = hashlib.sha256(exe.read_bytes()).hexdigest()
+release = {"tag_name": "v1.99", "html_url": "https://github.com/LordZenzo/pytonIta/releases/tag/v1.99", "body": "Novità di prova",
+           "assets": [{"name": "LEGGIMI.txt", "browser_download_url": "https://github.com/x/LEGGIMI.txt"},
+                      {"name": "Installa_pytonIta.exe", "size": exe.stat().st_size, "digest": "sha256:" + impronta,
+                       "browser_download_url": "https://github.com/LordZenzo/pytonIta/releases/download/v1.99/Installa_pytonIta.exe"}]}
+file_release = Path(lavoro) / "ultima.json"
+file_release.write_text(json.dumps(release), encoding="utf-8")
+os.environ[ag.VARIABILE_ULTIMA] = file_release.as_uri()
+
+info = ag.controlla("1.33")
+verifica(info["nuova"] e info["versione"] == "1.99", "doveva risultare nuova la 1.99")
+verifica(info["note"] == "Novità di prova", "note")
+verifica(info["url_installatore"] e info["url_installatore"].endswith("Installa_pytonIta.exe"), "url dell'installatore")
+verifica(info["impronta"] == impronta, "impronta dalla Release")
+verifica(non ag.controlla("1.99")["nuova"], "stessa versione: non nuova")
+verifica(non ag.controlla("2.0")["nuova"], "versione più recente della Release: non nuova")
+
+# un indirizzo di download non di GitHub viene scartato
+release["assets"][1]["browser_download_url"] = "https://example.com/Installa_pytonIta.exe"
+file_release.write_text(json.dumps(release), encoding="utf-8")
+verifica(ag.controlla("1.33")["url_installatore"] è Nessuno, "indirizzo non fidato scartato")
+
+# download (da file locale: ammesso solo con la variabile di prova)
+avanzamenti = []
+os.makedirs(os.path.join(lavoro, "scarica"))
+destinazione = ag.scarica(exe.as_uri(), os.path.join(lavoro, "scarica"), progresso=lambda f, t: avanzamenti.append((f, t)),
+                          dimensione=exe.stat().st_size, impronta=impronta)
+verifica(destinazione e os.path.getsize(destinazione) == exe.stat().st_size, "file scaricato intero")
+verifica(avanzamenti e avanzamenti[-1][0] == exe.stat().st_size, "avanzamento arriva al totale")
+verifica(non os.path.exists(destinazione + ".parte"), "niente file parziale")
+
+# impronta sbagliata, dimensione sbagliata, interruzione: nessun file lasciato
+per descrizione, argomenti in (("impronta", {"impronta": "0" * 64}), ("dimensione", {"dimensione": 5}), ("interruzione", {"fermata": lambda: Vero})):
+    cartella = os.path.join(lavoro, "s_" + descrizione)
+    os.makedirs(cartella)
+    sollevato = Falso
+    prova:
+        ag.scarica(exe.as_uri(), cartella, **argomenti)
+    eccetto ag.ErroreAggiornamenti:
+        sollevato = Vero
+    verifica(sollevato, f"con {descrizione} sbagliata doveva rifiutare")
+    verifica(os.listdir(cartella) == [], f"con {descrizione} sbagliata non deve restare niente: {os.listdir(cartella)}")
+
+# download da un indirizzo non fidato: rifiutato
+sollevato = Falso
+prova:
+    ag.scarica("https://example.com/a.exe", lavoro)
+eccetto ag.ErroreAggiornamenti:
+    sollevato = Vero
+verifica(sollevato, "download non fidato rifiutato")
+
+# nessuna Release / JSON rotto
+file_release.write_text("{}", encoding="utf-8")
+sollevato = Falso
+prova:
+    ag.controlla("1.33")
+eccetto ag.ErroreAggiornamenti:
+    sollevato = Vero
+verifica(sollevato, "release vuota: errore chiaro")
+file_release.write_text("non è json", encoding="utf-8")
+sollevato = Falso
+prova:
+    ag.controlla("1.33")
+eccetto ag.ErroreAggiornamenti:
+    sollevato = Vero
+verifica(sollevato, "json rotto: errore chiaro")
+
+shutil.rmtree(lavoro, ignore_errors=Vero)
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

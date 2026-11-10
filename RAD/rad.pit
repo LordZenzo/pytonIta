@@ -65,6 +65,7 @@ definisci principale(argomenti):
     app = Applicazione(radice, Configurazione())
     se lunghezza(argomenti) > 1 e os.path.isdir(argomenti[1]):
         app.apri_progetto(argomenti[1])
+    radice.after(6000, app.avvio_aggiornamenti)        # dopo l'avvio, senza rallentarlo
     radice.mainloop()
 
 

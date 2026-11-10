@@ -170,6 +170,11 @@
   "gruppo": "Programmare"
  },
  {
+  "id": "aggiornamenti",
+  "titolo": "Aggiornamenti e librerie online",
+  "gruppo": "Programmare"
+ },
+ {
   "id": "progettista",
   "titolo": "Il progettista di finestre",
   "gruppo": "Costruire senza scrivere codice"
