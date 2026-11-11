@@ -9,7 +9,7 @@ importa time
 importa tkinter come tk
 da tkinter importa ttk, messagebox, simpledialog, filedialog
 
-da rad importa form_modello, stile
+da rad importa form_modello, piattaforma, stile
 
 NOME_MANIFESTO = "progetto.rad.json"
 IGNORA = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules"}

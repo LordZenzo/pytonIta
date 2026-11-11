@@ -156,6 +156,28 @@ verifica(q.esito.cget("text").startswith("✖") e "La risposta giusta era" in q.
 verifica(all(r.cget("state") == "disabled" per r in q.radio), "dopo il controllo non si cambia risposta")
 q.avanti()
 verifica(q.indice == 1, "si passa alla seconda")
+# da tastiera: il numero sceglie, le frecce spostano
+q.var_scelta.set(-1)
+class_tasto = type("T", (), {})
+t1 = class_tasto()
+t1.char = "2"
+t1.keysym = "2"
+q._tasto(t1)
+verifica(q.var_scelta.get() == 1, "il tasto 2 sceglie la seconda risposta")
+t2 = class_tasto()
+t2.char = ""
+t2.keysym = "Down"
+q._tasto(t2)
+verifica(q.var_scelta.get() == 2, "freccia giù")
+t2.keysym = "Up"
+q._tasto(t2)
+q._tasto(t2)
+q._tasto(t2)
+verifica(q.var_scelta.get() == 0, "freccia su, fino alla prima")
+t1.char = "9"
+q._tasto(t1)
+verifica(q.var_scelta.get() == 0, "un numero oltre le risposte non fa niente")
+verifica(q.radio[0].cget("text").startswith("1"), "le risposte sono numerate")
 # le altre tutte giuste
 mentre q.indice < lunghezza(q.domande):
     p = q.domande[q.indice]

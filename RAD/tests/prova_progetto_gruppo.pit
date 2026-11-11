@@ -71,5 +71,7 @@ verifica('"MiaFinestra resta qui"' in principale, "le stringhe restano come sono
 verifica(p.leggi("altro.pit") == "MiaFinestra = 3\n", "un file che non importa la finestra non si tocca")
 verifica(p.principale == "bella.pit", "il file principale segue: " + str(p.principale))
 
+# «Mostra in Esplora risorse» usa il modulo piattaforma: deve essere importato
+verifica(hasattr(progetto, "piattaforma") e hasattr(progetto.piattaforma, "mostra_in_gestore_file"), "progetto importa piattaforma")
 shutil.rmtree(cart, ignore_errors=Vero)
 stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")
