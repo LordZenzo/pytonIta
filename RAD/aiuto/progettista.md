@@ -122,6 +122,12 @@ Di solito i componenti stanno dove li metti (**libero**). Con la **griglia** inv
 
 **Nel programma.** Il codice generato usa il file `griglia.pit` (che PitStudio mette nel progetto) e dispone i componenti con lo stesso calcolo del progettista: quello che vedi è quello che ottieni, anche ridimensionando la finestra. Le finestre già disegnate restano libere finché non scegli la griglia. Nell'esportazione in Python e nell'eseguibile la griglia funziona allo stesso modo.
 
+## La struttura (albero dei componenti)
+
+Sotto la palette, il pannello **STRUTTURA** mostra la gerarchia della finestra: la finestra, i componenti, i riquadri con quello che contengono e le pagine di ogni scheda. Serve soprattutto quando un componente è coperto da un altro o sta dentro un riquadro: un clic sulla riga lo seleziona, e la selezione resta la stessa nella finestra e nell'albero (anche con Maiusc e Ctrl per più componenti). Doppio clic: vai al gestore dell'evento. Clic destro: lo stesso menu della finestra.
+
+**Si può trascinare una riga**: rilasciata su un riquadro, su una pagina di schede o sulla riga della finestra, il componente passa in quel contenitore (la barra di stato dice dove finirà). Rilasciata su un componente normale, va nel contenitore di quel componente.
+
 ## Spostare un componente in un altro contenitore
 
 Trascina il componente e rilascialo dove vuoi: se lo rilasci **dentro un riquadro** (o una pagina di schede) ci entra, se lo rilasci **fuori** torna nella finestra. Mentre trascini, la barra di stato scrive dove finirà («Rilascia per spostarlo dentro «riquadro1»»). Il componente resta dove lo hai rilasciato; se il contenitore è a griglia va nella cella sotto il puntatore (o nella prima cella libera). Un riquadro non può finire dentro se stesso né dentro i suoi componenti. **Annulla** rimette tutto com'era. Vale anche per più componenti selezionati insieme.

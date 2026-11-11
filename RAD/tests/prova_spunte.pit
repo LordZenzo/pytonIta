@@ -53,5 +53,15 @@ per nome_tema in TEMI:
         se contrasto(acceso, spento) < 0.5:
             errori.append(nome_tema)
             stampa("ERRORE: tema", nome_tema, w.winfo_class(), "spunta poco visibile:", acceso, "su", spento)
+
+# configure dopo la creazione non deve rompere la casella
+cb.configure(selectcolor="#ff0000")
+se str(cb.cget("selectcolor")) != str(cb.cget("background")):
+    errori.append("selectcolor")
+    stampa("ERRORE: configure(selectcolor=...) ha cambiato il colore della casella spuntata")
+cb.configure(background="#123456")
+se str(cb.cget("selectcolor")) != "#123456":
+    errori.append("sfondo")
+    stampa("ERRORE: cambiando lo sfondo il colore selezionato non lo segue")
 radice.destroy()
 stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

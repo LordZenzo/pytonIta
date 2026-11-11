@@ -16,6 +16,12 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.44
+
+- **Albero dei componenti** nel progettista (pannello STRUTTURA sotto la palette): la gerarchia di finestra, riquadri e pagine di schede; si seleziona un componente anche se è coperto da altri, la selezione è la stessa nei due posti e si trascinano le righe per spostare un componente in un altro contenitore.
+- La lista dei componenti ha ora la barra di scorrimento.
+- **Corretto**: una casella di spunta cambiava colore da spuntata se un'altra parte del programma ne impostava `selectcolor`.
+
 ## Novità della 1.43
 
 - **Rettangolo di selezione**: trascinando il mouse su uno spazio vuoto si selezionano i componenti toccati (Maiusc = aggiungi), utile per allinearli.

@@ -104,9 +104,10 @@ definisci stila_scelta(w, bordo, riempimento, segno):
         acceso = _immagine_scelta(r, tipo_, Vero, bordo, riempimento, segno)
         fondo = w.cget("background")
         w._scelta_img = (spento, acceso)
-        w._scelta_tema = Vero
+        w._scelta_tema = Falso          # la prima volta il selectcolor va impostato: il filtro di configure parte dopo
         w.configure(indicatoron=Falso, image=spento, selectimage=acceso, compound="left", borderwidth=0, relief="flat", overrelief="flat",
                     offrelief="flat", selectcolor=fondo, activebackground=fondo, highlightthickness=0)
+        w._scelta_tema = Vero
     eccetto tkinter.TclError:
         passa
 
@@ -135,6 +136,18 @@ definisci installa_scelte(colori_correnti):
                 se colori_:
                     stila_scelta(se_stesso, *colori_)
         classe.__init__ = nuovo
+        originale_configura = classe.configure
+
+        definisci configura(se_stesso, cnf=Nessuno, **k):
+            # su una casella disegnata da noi il colore «selezionato» deve restare uguale allo sfondo (altrimenti la casella spuntata cambia colore)
+            se getattr(se_stesso, "_scelta_tema", Falso) e cnf è Nessuno e k:
+                k.pop("selectcolor", Nessuno)
+                se "background" in k o "bg" in k:
+                    k["selectcolor"] = k.get("background", k.get("bg"))
+                    k.setdefault("activebackground", k["selectcolor"])
+            ritorna originale_configura(se_stesso, cnf, **k)
+        classe.configure = configura
+        classe.config = configura
     avvolgi(tkinter.Checkbutton)
     avvolgi(tkinter.Radiobutton)
     tkinter._scelte_installate = Vero

@@ -527,15 +527,36 @@ classe Progettista(tk.Frame):
         palette = tk.Frame(corpo)
         se_stesso.palette = palette
         tk.Label(palette, text="COMPONENTI", anchor="w").pack(fill="x", padx=8, pady=(8, 2))
-        se_stesso.elenco_palette = tk.Listbox(palette, activestyle="none", exportselection=Falso, width=24, height=18, font=(FONT_MONO, 10))
+        cornice_palette = tk.Frame(palette)
+        cornice_palette.pack(fill="x", padx=6, pady=4)
+        se_stesso.elenco_palette = tk.Listbox(cornice_palette, activestyle="none", exportselection=Falso, width=24, height=12, font=(FONT_MONO, 10))
+        scorri_palette = ttk.Scrollbar(cornice_palette, orient="vertical", command=se_stesso.elenco_palette.yview)
+        se_stesso.elenco_palette.configure(yscrollcommand=scorri_palette.set)
+        scorri_palette.pack(side="right", fill="y")
         per t in ORDINE_PALETTE:
             se_stesso.elenco_palette.insert("end", f"{TIPI[t]['icona']:>3}   {t}")
-        se_stesso.elenco_palette.pack(fill="both", expand=Vero, padx=6, pady=4)
+        se_stesso.elenco_palette.pack(side="left", fill="x", expand=Vero)
         se_stesso.elenco_palette.bind("<<ListboxSelect>>", se_stesso._palette_scelta)
         se_stesso.elenco_palette.bind("<Double-Button-1>", se_stesso._palette_doppio)
         se_stesso.suggerimento = tk.Label(palette, wraplength=150, justify="left", anchor="nw",
                                           text="Scegli un componente e clicca sulla finestra, oppure fai doppio clic.")
         se_stesso.suggerimento.pack(fill="x", padx=8, pady=6)
+        # struttura: la gerarchia dei componenti (finestra, riquadri, pagine di schede); si seleziona e si trascina in un altro contenitore
+        tk.Label(palette, text="STRUTTURA", anchor="w").pack(fill="x", padx=8, pady=(4, 2))
+        cornice_albero = tk.Frame(palette)
+        cornice_albero.pack(fill="both", expand=Vero, padx=6, pady=(0, 6))
+        se_stesso.albero = ttk.Treeview(cornice_albero, show="tree", selectmode="extended", height=6)
+        scorri_albero = ttk.Scrollbar(cornice_albero, orient="vertical", command=se_stesso.albero.yview)
+        se_stesso.albero.configure(yscrollcommand=scorri_albero.set)
+        scorri_albero.pack(side="right", fill="y")
+        se_stesso.albero.pack(side="left", fill="both", expand=Vero)
+        se_stesso._albero_trascina = Nessuno
+        se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._albero_selezione)
+        se_stesso.albero.bind("<Double-Button-1>", se_stesso._albero_doppio)
+        se_stesso.albero.bind("<ButtonPress-1>", se_stesso._albero_premi, add="+")
+        se_stesso.albero.bind("<B1-Motion>", se_stesso._albero_muovi)
+        se_stesso.albero.bind("<ButtonRelease-1>", se_stesso._albero_rilascia)
+        se_stesso.albero.bind("<Button-3>", se_stesso._albero_menu)
         corpo.add(palette, minsize=150, width=200)
         # area di disegno scorrevole
         centro = tk.Frame(corpo)
@@ -629,8 +650,6 @@ classe Progettista(tk.Frame):
             altrimenti_se cl in ("Checkbutton", "Menubutton"):
                 w.configure(background=c["pannello"], foreground=c["primo_piano"],
                             activebackground=c["pannello"], activeforeground=c["primo_piano"])
-                se cl == "Checkbutton":
-                    w.configure(selectcolor=c["casella"])
         se_stesso._disegna_griglia()
         se_stesso._riempi_ispettore()
 
@@ -854,6 +873,160 @@ classe Progettista(tk.Frame):
         per c in form_modello.ordine_creazione(se_stesso.form):
             se_stesso._crea(c)
         se_stesso._aggiorna_maniglie()
+        se_stesso._aggiorna_albero()
+
+    # ------------------------------------------------------------ struttura (albero dei componenti)
+    definisci _aggiorna_albero(se_stesso):
+        """Ridisegna la gerarchia: finestra, componenti, riquadri con i loro figli, pagine di schede."""
+        a = getattr(se_stesso, "albero", Nessuno)
+        se a è Nessuno:
+            ritorna
+        prova:
+            a.delete(*a.get_children())
+            radice_ = a.insert("", "end", iid="__finestra__", text=f"▣  {se_stesso.form.nome}", open=Vero)
+            messi = set()
+
+            definisci aggiungi(chiave_padre, iid_padre):
+                per c in se_stesso.form.componenti:
+                    se c.genitore != chiave_padre o c.nome in messi:
+                        continua
+                    messi.add(c.nome)
+                    a.insert(iid_padre, "end", iid=c.nome, text=f"{TIPI[c.tipo]['icona']}  {c.nome}", open=Vero)
+                    se c.tipo == "Schede":
+                        titoli = lista(c.valori.get("pagine", []))
+                        per i, chiave in enumera(form_modello.pagine_di(c)):
+                            a.insert(c.nome, "end", iid=chiave, text="▤  " + (titoli[i] se i < lunghezza(titoli) altrimenti f"Pagina {i + 1}"), open=Vero)
+                            aggiungi(chiave, chiave)
+                    altrimenti_se e_contenitore(c.tipo):
+                        aggiungi(c.nome, c.nome)
+            aggiungi("", radice_)
+            per c in se_stesso.form.componenti:          # componenti il cui contenitore non esiste più: si vedono comunque
+                se c.nome non in messi:
+                    a.insert(radice_, "end", iid=c.nome, text=f"{TIPI[c.tipo]['icona']}  {c.nome}")
+        eccetto tk.TclError:
+            passa
+        se_stesso._sincronizza_albero()
+
+    definisci _sincronizza_albero(se_stesso):
+        a = getattr(se_stesso, "albero", Nessuno)
+        se a è Nessuno:
+            ritorna
+        prova:
+            presenti = [n per n in se_stesso.selezione_ se a.exists(n)]
+            se set(a.selection()) != set(presenti):
+                a.selection_set(presenti)
+            se presenti:
+                a.see(presenti[0])
+        eccetto tk.TclError:
+            passa
+
+    definisci _albero_selezione(se_stesso, ev=Nessuno):
+        scelti = [i per i in se_stesso.albero.selection() se se_stesso.form.trova(i)]
+        se set(scelti) != set(se_stesso.selezione_):
+            se_stesso.seleziona(scelti)
+
+    definisci _albero_doppio(se_stesso, ev):
+        i = se_stesso.albero.identify_row(ev.y)
+        se i e se_stesso.form.trova(i):
+            se_stesso._doppio(ev, i)
+        ritorna "break"
+
+    definisci _albero_menu(se_stesso, ev):
+        i = se_stesso.albero.identify_row(ev.y)
+        se i e se_stesso.form.trova(i):
+            se i non in se_stesso.selezione_:
+                se_stesso.seleziona([i])
+            se_stesso._menu(ev, i)
+        altrimenti_se i == "__finestra__":
+            se_stesso._menu(ev, Nessuno)
+
+    definisci _albero_premi(se_stesso, ev):
+        i = se_stesso.albero.identify_row(ev.y)
+        se_stesso._albero_trascina = {"item": i, "mosso": Falso} se i e se_stesso.form.trova(i) altrimenti Nessuno
+
+    definisci _chiave_contenitore(se_stesso, iid):
+        """Dove finisce un componente rilasciato sulla riga `iid` dell'albero: la finestra, un riquadro, una pagina; su un componente normale, il suo contenitore."""
+        se iid == "__finestra__":
+            ritorna ""
+        se "#" in iid:
+            ritorna iid
+        c = se_stesso.form.trova(iid)
+        se c è Nessuno:
+            ritorna Nessuno
+        se c.tipo == "Schede":
+            ritorna f"{iid}#0"
+        se e_contenitore(c.tipo):
+            ritorna iid
+        ritorna c.genitore
+
+    definisci _albero_muovi(se_stesso, ev):
+        d = se_stesso._albero_trascina
+        se non d:
+            ritorna
+        d["mosso"] = Vero
+        se_stesso.albero.configure(cursor="hand2")
+        chiave = se_stesso._chiave_contenitore(se_stesso.albero.identify_row(ev.y))
+        c = se_stesso.form.trova(d["item"])
+        se chiave è non Nessuno e c è non Nessuno e chiave != c.genitore:
+            se_stesso.stato.configure(text="Rilascia per spostarlo " + ("nella finestra" se chiave == "" altrimenti f"dentro «{chiave.split('#')[0]}»"))
+
+    definisci _albero_rilascia(se_stesso, ev):
+        d = se_stesso._albero_trascina
+        se_stesso._albero_trascina = Nessuno
+        se_stesso.albero.configure(cursor="")
+        se non d o non d["mosso"]:
+            ritorna
+        chiave = se_stesso._chiave_contenitore(se_stesso.albero.identify_row(ev.y))
+        se chiave è Nessuno:
+            ritorna
+        nomi = lista(se_stesso.selezione_) se d["item"] in se_stesso.selezione_ altrimenti [d["item"]]
+        se_stesso.sposta_in(nomi, chiave)
+
+    definisci _con_discendenti(se_stesso, nomi):
+        esclusi = set(nomi)
+        cambiato = Vero
+        mentre cambiato:
+            cambiato = Falso
+            per c in se_stesso.form.componenti:
+                se c.nome non in esclusi e c.genitore.split("#")[0] in esclusi:
+                    esclusi.add(c.nome)
+                    cambiato = Vero
+        ritorna esclusi
+
+    definisci sposta_in(se_stesso, nomi, chiave):
+        """Mette i componenti nel contenitore `chiave` ('' = finestra, 'riquadro1', 'schede1#0') tenendo, per quanto entra, la posizione che avevano
+        (se il contenitore è a griglia vanno nella prima cella libera). Ritorna Falso se non si può (un riquadro dentro se stesso)."""
+        f = se_stesso.form
+        se chiave.split("#")[0] in se_stesso._con_discendenti(nomi):
+            ritorna Falso
+        se chiave:
+            padre = f.trova(chiave.split("#")[0])
+            se padre è Nessuno:
+                ritorna Falso
+            L, H = padre.larghezza, padre.altezza
+            se padre.tipo == "Schede":
+                L, H = L - form_modello.AREA_PAGINA[0], H - form_modello.AREA_PAGINA[1]
+            altrimenti:
+                b = int(padre.valori.get("bordo", 0) o 0)
+                L, H = L - 2 * b, H - 2 * b
+        altrimenti:
+            L, H = f.larghezza, f.altezza
+        spostati = []
+        per n in nomi:
+            c = f.trova(n)
+            se c è Nessuno o c.genitore == chiave:
+                continua
+            c.genitore = chiave
+            c.x = max(0, min(c.x, L - c.larghezza))
+            c.y = max(0, min(c.y, H - c.altezza))
+            se_stesso._cella_nuova(c, Nessuno)
+            spostati.append(n)
+        se non spostati:
+            ritorna Falso
+        se_stesso.ricostruisci()
+        se_stesso.seleziona(spostati)
+        se_stesso._registra()
+        ritorna Vero
 
     definisci _padre_widget(se_stesso, c):
         """Il widget dentro cui sta il componente: la superficie, un riquadro o la pagina di una Schede."""
@@ -896,6 +1069,7 @@ classe Progettista(tk.Frame):
         se aggiungi:
             nomi = lista(dict.fromkeys(se_stesso.selezione_ + lista(nomi)))
         se_stesso.selezione_ = [n per n in nomi se se_stesso.form.trova(n)]
+        se_stesso._sincronizza_albero()
         se_stesso._aggiorna_maniglie()
         se_stesso._riempi_ispettore()
         se_stesso._aggiorna_stato()
@@ -1121,14 +1295,7 @@ classe Progettista(tk.Frame):
         s = se_stesso.superficie
         se non (s.winfo_rootx() <= e.x_root < s.winfo_rootx() + s.winfo_width() e s.winfo_rooty() <= e.y_root < s.winfo_rooty() + s.winfo_height()):
             ritorna Nessuno
-        esclusi = set(spostati)
-        cambiato = Vero
-        mentre cambiato:
-            cambiato = Falso
-            per c in se_stesso.form.componenti:
-                se c.nome non in esclusi e c.genitore.split("#")[0] in esclusi:
-                    esclusi.add(c.nome)
-                    cambiato = Vero
+        esclusi = se_stesso._con_discendenti(spostati)
         per c in reversed(form_modello.ordine_creazione(se_stesso.form)):
             w = se_stesso.widget.get(c.nome)
             se non e_contenitore(c.tipo) o c.nome in esclusi o w è Nessuno:
@@ -1313,6 +1480,7 @@ classe Progettista(tk.Frame):
             se_stesso.cronologia.pop(0)
         se_stesso.indice_cronologia = lunghezza(se_stesso.cronologia) - 1
         se_stesso._segna_modificato(Vero)
+        se_stesso._aggiorna_albero()
         se_stesso._anteprima_dal_vivo()
 
     definisci _anteprima_dal_vivo(se_stesso):
@@ -1353,6 +1521,7 @@ classe Progettista(tk.Frame):
         se_stesso.ricostruisci()
         se_stesso.seleziona([n per n in nomi se se_stesso.form.trova(n)])
         se_stesso._segna_modificato(Vero)
+        se_stesso._aggiorna_albero()
         se_stesso._anteprima_dal_vivo()
 
     definisci elimina_selezionati(se_stesso):
