@@ -78,10 +78,13 @@ classe DialogoQuiz(DialogoBase):
         se_stesso.radio = []
         se_stesso.var_scelta.set(-1)
         per i, o in enumera(p["opzioni"]):
+            # a pulsante (senza il pallino, che nel tema scuro non si distingueva da spento): la risposta scelta si colora per intero
             r = tk.Radiobutton(se_stesso.risposte, text=f"{i + 1}   {o['testo']}", variable=se_stesso.var_scelta, value=i, anchor="w", justify="left",
-                               wraplength=680, background=c["pannello"], foreground=c["primo_piano"], selectcolor=c["casella"],
-                               activebackground=c["pannello"], disabledforeground=c["primo_piano"], font=(FONT_MONO, 11) se p["codice"] altrimenti (FONT_UI, 11))
-            r.pack(fill="x", pady=2)
+                               indicatoron=Falso, relief="flat", borderwidth=0, padx=12, pady=6, cursor="hand2",
+                               wraplength=660, background=c["pulsante"], foreground=c["primo_piano"], selectcolor=c["selezione"],
+                               activebackground=c["pulsante_attivo"], activeforeground=c["primo_piano"],
+                               disabledforeground=c["primo_piano"], font=(FONT_MONO, 11) se p["codice"] altrimenti (FONT_UI, 11))
+            r.pack(fill="x", pady=3)
             se_stesso.radio.append(r)
         se_stesso.esito.configure(text="Scegli una risposta e premi «Controlla».", foreground=c["tenue"])
         se_stesso.pulsante.configure(text="Controlla")

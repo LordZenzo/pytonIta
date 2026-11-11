@@ -178,6 +178,8 @@ t1.char = "9"
 q._tasto(t1)
 verifica(q.var_scelta.get() == 0, "un numero oltre le risposte non fa niente")
 verifica(q.radio[0].cget("text").startswith("1"), "le risposte sono numerate")
+verifica(int(q.radio[0].cget("indicatoron")) == 0 e q.radio[0].cget("selectcolor") == app.colori["selezione"] e q.radio[0].cget("selectcolor") != q.radio[0].cget("background"),
+         "la risposta scelta si vede: pulsante con colore di selezione diverso dallo sfondo")
 # le altre tutte giuste
 mentre q.indice < lunghezza(q.domande):
     p = q.domande[q.indice]

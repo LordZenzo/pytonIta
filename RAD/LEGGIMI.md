@@ -22,7 +22,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 - **Lezioni con quiz**: *Aiuto → Lezioni (con quiz e professore)…* mostra le 16 lezioni con i progressi (✔ con almeno l'80%). Ogni lezione ha un quiz a risposte multiple (93 domande in tutto, 51 del tipo «Che cosa stampa?» con il codice verificato eseguendolo) con un indizio per ogni errore e la sezione da rileggere. Funziona anche senza AI.
 - **Barra**: nuovo pulsante «Console» accanto all'assistente, per mostrare e nascondere la console; come l'assistente è verde quando il pannello è aperto.
 - **Corretto**: «Mostra in Esplora risorse» nel menu del pannello Progetto dava un errore (modulo non importato).
-- **Quiz**: le risposte si scelgono anche da tastiera (tasti 1-9, frecce su/giù, Invio per controllare).
+- **Quiz**: ogni risposta è un pulsante e quella scelta si colora per intero (prima il pallino, nel tema scuro, non si vedeva); la giusta diventa verde e la sbagliata scelta rossa. Le risposte si scelgono anche da tastiera (tasti 1-9, frecce su/giù, Invio per controllare).
 - **Professore AI**: con l'AI configurata (Claude, Gemini o DeepSeek) la chat può fare da professore della lezione: spiega, fa domande, legge il codice dell'allievo e dà indizi, ma non scrive né modifica file. Senza AI la finestra delle lezioni porta alle Impostazioni → Assistente AI (si apre sulla pagina giusta).
 
 ## Novità della 1.39
