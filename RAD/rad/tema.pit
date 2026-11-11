@@ -10,7 +10,7 @@ TEMI = {
         "editor": "#1b1c1f", "editor_testo": "#d7dae0", "selezione": "#2f4f7f",
         "riga_corrente": "#26282c", "numeri_sfondo": "#1e1f22", "numeri": "#6b6e75",
         "cursore": "#ffffff", "pulsante": "#3a3d43", "pulsante_attivo": "#4a4e56",
-        "campo": "#26282c", "casella": "#15171a", "accento": "#4d8dee", "errore": "#f2706b", "ok": "#6cc070",
+        "campo": "#26282c", "casella": "#e8eaed", "accento": "#4d8dee", "errore": "#f2706b", "ok": "#6cc070",
         "avviso": "#e0b050",
         "parola_chiave": "#cc7832", "builtin": "#8888ff", "stringa": "#6a9955",
         "commento": "#7a7e85", "numero": "#6897bb", "definizione": "#ffc66d",

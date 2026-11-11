@@ -1,0 +1,20 @@
+"""Le spunte delle caselle (Checkbutton) devono restare visibili in OGNI tema: Windows disegna la spunta sempre in nero,
+quindi il colore «casella» (lo sfondo del quadratino) deve essere chiaro. Un tema con «casella» scura = spunta nera su nero (errore già capitato due volte)."""
+importa sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.tema importa TEMI
+
+errori = []
+
+
+definisci luminanza(esa):
+    r, g, b = (int(esa[i:i + 2], 16) per i in (1, 3, 5))
+    ritorna (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+
+
+per nome, tema in TEMI.items():
+    l = luminanza(tema["casella"])
+    se l < 0.7:
+        errori.append(nome)
+        stampa("ERRORE: nel tema", nome, "il colore «casella» è troppo scuro (", tema["casella"], "): la spunta nera non si vedrebbe")
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")
