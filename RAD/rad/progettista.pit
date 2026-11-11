@@ -1077,6 +1077,7 @@ classe Progettista(tk.Frame):
         se_stesso._trascinamento = {
             "x": e.x_root, "y": e.y_root,
             "inizio": {n: (se_stesso.form.trova(n).x, se_stesso.form.trova(n).y) per n in se_stesso.selezione_},
+            "schermo": {n: (se_stesso.widget[n].winfo_rootx(), se_stesso.widget[n].winfo_rooty()) per n in se_stesso.selezione_ se n in se_stesso.widget},
             "mosso": Falso}
         ritorna "break"
 
@@ -1099,6 +1100,7 @@ classe Progettista(tk.Frame):
             riga, colonna = se_stesso._cella_a(c.genitore, e.x_root - padre.winfo_rootx() - bordo, e.y_root - padre.winfo_rooty() - bordo)
             d["cella"] = (riga, colonna)
             se_stesso._evidenzia_cella(c.genitore, riga, colonna, padre)
+            se_stesso._suggerisci_rilascio(e, d)
             ritorna "break"
         per n, (x0, y0) in d["inizio"].items():
             c = se_stesso.form.trova(n)
@@ -1109,13 +1111,88 @@ classe Progettista(tk.Frame):
             se_stesso.widget[n].place_configure(x=c.x, y=c.y)
         se_stesso._riposiziona_maniglie()
         se_stesso._aggiorna_stato()
+        se_stesso._suggerisci_rilascio(e, d)
         ritorna "break"
+
+    # ------------------------------------------------------------ spostare un componente dentro o fuori da un contenitore
+    definisci _contenitore_sotto(se_stesso, e, spostati):
+        """Il contenitore sotto il puntatore: ('', widget) = la finestra, ('riquadro1', widget) = un riquadro, ('schede1#0', pagina) = una pagina di schede;
+        Nessuno se il puntatore è fuori dalla finestra. Non vale un componente che si sta spostando né quelli dentro di lui."""
+        s = se_stesso.superficie
+        se non (s.winfo_rootx() <= e.x_root < s.winfo_rootx() + s.winfo_width() e s.winfo_rooty() <= e.y_root < s.winfo_rooty() + s.winfo_height()):
+            ritorna Nessuno
+        esclusi = set(spostati)
+        cambiato = Vero
+        mentre cambiato:
+            cambiato = Falso
+            per c in se_stesso.form.componenti:
+                se c.nome non in esclusi e c.genitore.split("#")[0] in esclusi:
+                    esclusi.add(c.nome)
+                    cambiato = Vero
+        per c in reversed(form_modello.ordine_creazione(se_stesso.form)):
+            w = se_stesso.widget.get(c.nome)
+            se non e_contenitore(c.tipo) o c.nome in esclusi o w è Nessuno:
+                continua
+            chiave, area = c.nome, w
+            se c.tipo == "Schede":
+                pagine = getattr(w, "_pagine", [])
+                se non pagine:
+                    continua
+                prova:
+                    indice = min(w.index(w.select()), lunghezza(pagine) - 1)
+                eccetto tk.TclError:
+                    indice = 0
+                chiave, area = f"{c.nome}#{indice}", pagine[indice]
+            prova:
+                dentro = area.winfo_ismapped() e area.winfo_rootx() <= e.x_root < area.winfo_rootx() + area.winfo_width() e area.winfo_rooty() <= e.y_root < area.winfo_rooty() + area.winfo_height()
+            eccetto tk.TclError:
+                dentro = Falso
+            se dentro:
+                ritorna chiave, area
+        ritorna "", s
+
+    definisci _suggerisci_rilascio(se_stesso, e, d):
+        """Durante il trascinamento: nella barra di stato dice dove finirà il componente se cambia contenitore."""
+        c = se_stesso.form.trova(se_stesso.selezione_[0]) se se_stesso.selezione_ altrimenti Nessuno
+        bersaglio = se_stesso._contenitore_sotto(e, d["inizio"])
+        se c è non Nessuno e bersaglio è non Nessuno e bersaglio[0] != c.genitore:
+            se_stesso.stato.configure(text="Rilascia per spostarlo " + ("nella finestra" se bersaglio[0] == "" altrimenti f"dentro «{bersaglio[0].split('#')[0]}»"))
+
+    definisci sposta_in_contenitore(se_stesso, nomi, chiave, x_puntatore, y_puntatore, schermo, dx, dy):
+        """Mette i componenti nel contenitore `chiave` ('' = finestra, 'riquadro1', 'schede1#0'), mantenendoli dov'erano sullo schermo (o nella cella sotto il puntatore, se il contenitore è a griglia)."""
+        bersaglio = se_stesso.superficie se non chiave altrimenti (se_stesso.widget[chiave] se chiave in se_stesso.widget altrimenti Nessuno)
+        se "#" in chiave:
+            pagine = getattr(se_stesso.widget.get(chiave.split("#")[0]), "_pagine", [])
+            bersaglio = pagine[int(chiave.split("#")[1])] se pagine altrimenti Nessuno
+        se bersaglio è Nessuno:
+            ritorna Falso
+        prova:
+            bordo = 0 se non chiave altrimenti int(str(bersaglio.cget("borderwidth")))
+        eccetto (tk.TclError, ValueError):
+            bordo = 0
+        per n in nomi:
+            c = se_stesso.form.trova(n)
+            sx, sy = schermo.get(n, (bersaglio.winfo_rootx(), bersaglio.winfo_rooty()))
+            c.genitore = chiave
+            c.x = max(0, se_stesso._aggancia(sx + dx - bersaglio.winfo_rootx() - bordo))
+            c.y = max(0, se_stesso._aggancia(sy + dy - bersaglio.winfo_rooty() - bordo))
+            se_stesso._cella_nuova(c, x_puntatore - bersaglio.winfo_rootx() - bordo, y_puntatore - bersaglio.winfo_rooty() - bordo)
+        se_stesso.ricostruisci()
+        se_stesso.seleziona(lista(nomi))
+        se_stesso._registra()
+        ritorna Vero
 
     definisci _rilascia(se_stesso, e, nome):
         d = se_stesso._trascinamento
         se_stesso._trascinamento = Nessuno
         se_stesso._togli_evidenza()
         se d e d["mosso"]:
+            c_ = se_stesso.form.trova(nome)
+            bersaglio = se_stesso._contenitore_sotto(e, d["inizio"])
+            se c_ è non Nessuno e bersaglio è non Nessuno e bersaglio[0] != c_.genitore:
+                se_stesso.sposta_in_contenitore(lista(d["inizio"]), bersaglio[0], e.x_root, e.y_root, d["schermo"], e.x_root - d["x"], e.y_root - d["y"])
+                se_stesso._riempi_ispettore()
+                ritorna "break"
             se d.get("cella") e nome in getattr(se_stesso, "_rett", {}):
                 form_modello.imposta_cella(se_stesso.form.trova(nome), riga=d["cella"][0], colonna=d["cella"][1])
                 se_stesso._rilayout()

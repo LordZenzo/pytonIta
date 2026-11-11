@@ -18,6 +18,9 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Novità della 1.43
 
+- **Rettangolo di selezione**: trascinando il mouse su uno spazio vuoto si selezionano i componenti toccati (Maiusc = aggiungi), utile per allinearli.
+- **Spostare dentro e fuori da un riquadro** (o da una pagina di schede) trascinando il componente; la barra di stato dice dove finirà.
+- **Caselle di spunta e pulsanti di scelta leggibili in ogni tema** (in PitStudio, nei programmi e nell'anteprima): disegnati da PitStudio, sfondo scuro con scritta e spunta bianche nel tema scuro, chiaro con scritta nera nel tema chiaro.
 - **Disposizione a griglia** nel progettista: la finestra, un **Riquadro** o una pagina di **Schede** possono disporre i componenti in celle (riga, colonna, anche su più celle) con colonne e righe che si allargano con la finestra (*pesi*), margine, spazio e allineamento per ogni componente. Nell'ispettore si scelgono le celle; trascinando un componente si evidenzia la cella di arrivo, le frecce lo spostano di una cella. Si passa da *libero* a *griglia* e viceversa senza perdere le posizioni.
 - Il programma generato usa `griglia.pit` (messo nel progetto da PitStudio) con lo stesso calcolo del progettista: ciò che vedi è ciò che ottieni, anche ridimensionando. Funziona nell'esportazione in Python e nell'eseguibile. Le finestre esistenti restano libere.
 

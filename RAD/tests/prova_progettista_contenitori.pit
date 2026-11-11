@@ -1,0 +1,118 @@
+"""Il progettista: trascinando un componente lo si sposta dentro e fuori da un riquadro (libero o a griglia) e da una pagina di schede."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.form_modello importa Form
+da rad importa form_modello come fm
+da rad.progettista importa Progettista
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci apri_file(se_stesso, p): passa
+    definisci apri_file_a_funzione(se_stesso, p, f): passa
+    definisci esegui_file(se_stesso, p): passa
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+
+
+classe Ev:
+    definisci __init__(se_stesso, x, y, stato=0):
+        se_stesso.x_root = x
+        se_stesso.y_root = y
+        se_stesso.x = x
+        se_stesso.y = y
+        se_stesso.state = stato
+
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x650")
+configura_stile(radice, c)
+d = tempfile.mkdtemp()
+f = Form("Demo", "Demo")
+p = Progettista(radice, os.path.join(d, "demo.form.json"), f, c, cfg, Az())
+p.pack(fill="both", expand=Vero)
+applica(radice, c)
+radice.update()
+
+
+definisci trascina(nome, verso_x, verso_y):
+    """Prende il componente e lo rilascia nel punto (verso_x, verso_y) della superficie."""
+    w = p.widget[nome]
+    p._premi(Ev(w.winfo_rootx() + 3, w.winfo_rooty() + 3), nome)
+    sx, sy = p.superficie.winfo_rootx(), p.superficie.winfo_rooty()
+    e = Ev(sx + verso_x, sy + verso_y)
+    p._trascina(e, nome)
+    radice.update()
+    p._rilascia(e, nome)
+    radice.update()
+
+
+f.larghezza = 800
+f.altezza = 500
+p._disegna_griglia()
+radice.update()
+b = p.aggiungi_componente("Pulsante", 10, 10)
+rq = p.aggiungi_componente("Riquadro", 60, 120, larghezza=300, altezza=160)
+radice.update()
+
+# dentro il riquadro (libero)
+trascina(b.nome, 120, 170)
+verifica(f.trova(b.nome).genitore == rq.nome, "il pulsante è nel riquadro: " + repr(f.trova(b.nome).genitore))
+radice.update()
+w = p.widget[b.nome]
+verifica(w.master è p.widget[rq.nome], "e il widget è figlio del riquadro")
+verifica(60 <= w.winfo_rootx() - p.superficie.winfo_rootx() <= 330, "ed è dentro il riquadro sullo schermo")
+
+# spostamento dentro il riquadro: resta nel riquadro
+x_prima = f.trova(b.nome).x
+trascina(b.nome, 160, 200)
+verifica(f.trova(b.nome).genitore == rq.nome e f.trova(b.nome).x != x_prima, "dentro il riquadro si sposta soltanto")
+
+# fuori dal riquadro, nella finestra
+trascina(b.nome, 500, 60)
+verifica(f.trova(b.nome).genitore == "", "fuori dal riquadro: tornato nella finestra")
+verifica(p.widget[b.nome].master è p.superficie, "il widget è figlio della finestra")
+verifica(f.trova(b.nome).x > 300, "alla posizione dove l'ho rilasciato: " + str(f.trova(b.nome).x))
+
+# riquadro a griglia
+p.imposta_proprieta(rq.nome, "layout", "griglia")
+radice.update()
+trascina(b.nome, 120, 170)
+verifica(f.trova(b.nome).genitore == rq.nome, "dentro il riquadro a griglia")
+radice.update()
+verifica(b.nome in p._rett, "e ha una cella: " + str(fm.cella_di(f.trova(b.nome))))
+w = p.widget[b.nome]
+verifica((w.winfo_x() - int(str(p.widget[rq.nome].cget("borderwidth"))), w.winfo_y() - int(str(p.widget[rq.nome].cget("borderwidth")))) == tuple(p._rett[b.nome][:2]), "dove dice il calcolo della griglia")
+
+# un riquadro dentro un altro riquadro non può finire dentro se stesso
+trascina(rq.nome, 150, 200)
+verifica(f.trova(rq.nome).genitore == "", "un riquadro non finisce dentro se stesso")
+
+# schede: dentro la pagina corrente
+sc = p.aggiungi_componente("Schede", 400, 300, larghezza=250, altezza=150)
+radice.update()
+trascina(b.nome, 480, 360)
+verifica(f.trova(b.nome).genitore == sc.nome + "#0", "dentro la prima pagina di schede: " + repr(f.trova(b.nome).genitore))
+radice.update()
+verifica(p.widget[b.nome].master è p.widget[sc.nome]._pagine[0], "il widget sta nella pagina")
+
+# annulla riporta il pulsante dov'era
+p.annulla()
+verifica(p.form.trova(b.nome).genitore == rq.nome, "annulla: di nuovo nel riquadro, dov'era prima")
+
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")
