@@ -35,7 +35,7 @@ Il progettista ti fa costruire una finestra con il mouse. Non devi scrivere il c
 | **CasellaCombinata** | un menu a tendina |
 | **BarraProgresso** | una barra di avanzamento |
 | **Albero** | una tabella con colonne (anche gerarchica) |
-| **Stampa** | stampa o salva in PDF il contenuto di una tabella, un elenco, un testo o un grafico (non si vede nel programma) |
+| **Stampa** | stampa o salva in PDF il contenuto di una tabella, un elenco, un testo, un grafico, una tela o un'immagine (non si vede nel programma) |
 | **Grafico** | un grafico a barre, a linee o a torta, con i dati scritti o presi da una tabella |
 | **Tela** | un'area dove disegnare |
 | **Riquadro** | un contenitore decorativo con bordo |
@@ -126,7 +126,7 @@ Di solito i componenti stanno dove li metti (**libero**). Con la **griglia** inv
 
 ## Stampa e PDF
 
-Il componente **Stampa** (senza aspetto, come il Timer) stampa o salva in **PDF** il contenuto di un altro componente della finestra, senza librerie esterne: la tabella di un **Albero** (anche gerarchico), gli elementi di un **Elenco**, il testo di un'**AreaTesto** o un **Grafico**. Nell'ispettore scegli:
+Il componente **Stampa** (senza aspetto, come il Timer) stampa o salva in **PDF** il contenuto di un altro componente della finestra, senza librerie esterne: la tabella di un **Albero** (anche gerarchico), gli elementi di un **Elenco**, il testo di un'**AreaTesto** o di un'**Etichetta**, un **Grafico**, il disegno di una **Tela** (linee, rettangoli, ovali, poligoni, fette e testi, ridotto per entrare nella pagina) o un'**Immagine**. Nell'ispettore scegli:
 
 - **Cosa stampare**: il componente della finestra;
 - **Titolo** del documento, **Intestazione** di ogni pagina (in alto, con la data) e il **numero di pagina** in fondo («Pagina 2 di 5»);

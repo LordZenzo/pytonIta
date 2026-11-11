@@ -139,6 +139,7 @@ classe Documento:
         se_stesso.alto = margine + 16 se (intestazione o titolo) altrimenti margine          # lo spazio dell'intestazione
         se_stesso.basso = margine + 8
         se_stesso.pagine = []
+        se_stesso.immagini = []          # (larghezza, altezza, byte RGB) delle immagini del documento
         se_stesso.y = 0
         se_stesso._nuova_pagina()
 
@@ -352,6 +353,106 @@ classe Documento:
             se_stesso._scrivi(lx + 12, ly - 6, descrizione, 8)
             ly -= 15
 
+    definisci immagine(se_stesso, larghezza, altezza, rgb):
+        """Un'immagine (larghezza e altezza in pixel, `rgb` = 3 byte per pixel, riga per riga), ridotta se non entra nella pagina."""
+        l_pt = larghezza * 0.75
+        a_pt = altezza * 0.75
+        massima = se_stesso.altezza - se_stesso.alto - se_stesso.basso - 8
+        fattore = min(1.0, se_stesso.utile / l_pt, massima / a_pt)
+        l_pt *= fattore
+        a_pt *= fattore
+        se_stesso._serve(a_pt + 8)
+        se_stesso.y -= a_pt
+        se_stesso.immagini.append((larghezza, altezza, rgb))
+        se_stesso.pagine[-1].append(f"q {l_pt:.2f} 0 0 {a_pt:.2f} {se_stesso.margine:.2f} {se_stesso.y:.2f} cm /Im{lunghezza(se_stesso.immagini)} Do Q")
+        se_stesso.y -= 8
+
+    definisci _ovale(se_stesso, x1, y1, x2, y2, riempimento, bordo, spessore):
+        """Ellisse nel rettangolo (x1, y1)-(x2, y2) in coordinate della pagina, con quattro curve di Bézier."""
+        cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+        rx, ry = abs(x2 - x1) / 2, abs(y2 - y1) / 2
+        k = 0.5523
+        c = []
+        se riempimento:
+            c.append(f"{riempimento[0]:.3f} {riempimento[1]:.3f} {riempimento[2]:.3f} rg")
+        se bordo:
+            c.append(f"{bordo[0]:.3f} {bordo[1]:.3f} {bordo[2]:.3f} RG {spessore:.2f} w")
+        c.append(f"{cx + rx:.2f} {cy:.2f} m {cx + rx:.2f} {cy + k * ry:.2f} {cx + k * rx:.2f} {cy + ry:.2f} {cx:.2f} {cy + ry:.2f} c "
+                 f"{cx - k * rx:.2f} {cy + ry:.2f} {cx - rx:.2f} {cy + k * ry:.2f} {cx - rx:.2f} {cy:.2f} c "
+                 f"{cx - rx:.2f} {cy - k * ry:.2f} {cx - k * rx:.2f} {cy - ry:.2f} {cx:.2f} {cy - ry:.2f} c "
+                 f"{cx + k * rx:.2f} {cy - ry:.2f} {cx + rx:.2f} {cy - k * ry:.2f} {cx + rx:.2f} {cy:.2f} c h "
+                 + ("B" se riempimento e bordo altrimenti ("f" se riempimento altrimenti "S")))
+        se_stesso.pagine[-1].append(" ".join(c))
+
+    definisci tela(se_stesso, elementi, larghezza, altezza, sfondo=Nessuno):
+        """Un disegno (come quello di una Tela). `elementi` è una lista di dizionari: {"tipo": "line" | "rect" | "oval" | "poly" | "text", "punti": [x, y, ...] (in pixel
+        della tela), "riempimento": (r, g, b) o Nessuno, "bordo": (r, g, b) o Nessuno, "spessore": n, e per il testo "testo", "dimensione" (punti), "ancora", "grassetto"}.
+        larghezza e altezza sono la misura del disegno in pixel; si riduce per farlo entrare nella pagina."""
+        larghezza = max(1.0, float(larghezza))
+        altezza = max(1.0, float(altezza))
+        massima = se_stesso.altezza - se_stesso.alto - se_stesso.basso - 8
+        s = min(0.75, se_stesso.utile / larghezza, massima / altezza)
+        se_stesso._serve(altezza * s + 8)
+        alto = se_stesso.y
+        x0 = se_stesso.margine
+        se sfondo e sfondo != (1.0, 1.0, 1.0):
+            se_stesso._rettangolo(x0, alto - altezza * s, larghezza * s, altezza * s, riempimento=sfondo)
+        se_stesso._rettangolo(x0, alto - altezza * s, larghezza * s, altezza * s, bordo=(0.8, 0.82, 0.85), spessore=0.5)
+
+        definisci px(x):
+            ritorna x0 + x * s
+
+        definisci py(y):
+            ritorna alto - y * s
+        per e in elementi:
+            t = e.get("tipo")
+            p = e.get("punti") o []
+            r_, b_, sp = e.get("riempimento"), e.get("bordo"), max(0.3, float(e.get("spessore", 1)) * s)
+            se t == "line" e lunghezza(p) >= 4:
+                b_ = b_ o (0, 0, 0)
+                percorso = f"{px(p[0]):.2f} {py(p[1]):.2f} m " + " ".join(f"{px(p[i]):.2f} {py(p[i + 1]):.2f} l" per i in intervallo(2, lunghezza(p) - 1, 2))
+                se_stesso.pagine[-1].append(f"{b_[0]:.3f} {b_[1]:.3f} {b_[2]:.3f} RG {sp:.2f} w {percorso} S")
+            altrimenti_se t == "rect" e lunghezza(p) >= 4:
+                x1, y1, x2, y2 = px(min(p[0], p[2])), py(max(p[1], p[3])), px(max(p[0], p[2])), py(min(p[1], p[3]))
+                se r_ o b_:
+                    se_stesso._rettangolo(x1, y1, x2 - x1, y2 - y1, riempimento=r_, bordo=b_, spessore=sp)
+            altrimenti_se t == "oval" e lunghezza(p) >= 4:
+                se r_ o b_:
+                    se_stesso._ovale(px(p[0]), py(p[1]), px(p[2]), py(p[3]), r_, b_, sp)
+            altrimenti_se t == "poly" e lunghezza(p) >= 6:
+                percorso = f"{px(p[0]):.2f} {py(p[1]):.2f} m " + " ".join(f"{px(p[i]):.2f} {py(p[i + 1]):.2f} l" per i in intervallo(2, lunghezza(p) - 1, 2)) + " h"
+                c = []
+                se r_:
+                    c.append(f"{r_[0]:.3f} {r_[1]:.3f} {r_[2]:.3f} rg")
+                se b_:
+                    c.append(f"{b_[0]:.3f} {b_[1]:.3f} {b_[2]:.3f} RG {sp:.2f} w")
+                se r_ o b_:
+                    se_stesso.pagine[-1].append(" ".join(c) + f" {percorso} " + ("B" se r_ e b_ altrimenti ("f" se r_ altrimenti "S")))
+            altrimenti_se t == "text" e e.get("testo") e lunghezza(p) >= 2:
+                dimensione = max(4.0, float(e.get("dimensione", 10)) * s / 0.75)
+                grassetto = bool(e.get("grassetto"))
+                ancora = e.get("ancora") o "center"
+                colore = r_ o (0, 0, 0)
+                righe_t = e["testo"].split("\n")
+                alta = dimensione * 1.2 * lunghezza(righe_t)
+                yb = py(p[1])
+                se "n" in ancora:
+                    sopra = yb
+                altrimenti_se "s" in ancora:
+                    sopra = yb + alta
+                altrimenti:
+                    sopra = yb + alta / 2
+                per k, riga_t in enumera(righe_t):
+                    larga = larghezza_testo(riga_t, dimensione, grassetto)
+                    se "w" in ancora:
+                        xs = px(p[0])
+                    altrimenti_se "e" in ancora:
+                        xs = px(p[0]) - larga
+                    altrimenti:
+                        xs = px(p[0]) - larga / 2
+                    se_stesso._scrivi(xs, sopra - dimensione * (k + 1) * 1.2 + dimensione * 0.2, riga_t, dimensione, grassetto, colore)
+        se_stesso.y = alto - altezza * s - 10
+
     # ------------------------------------------------------------ salvataggio
     definisci pdf(se_stesso):
         """Il contenuto del file PDF, in byte."""
@@ -372,13 +473,19 @@ classe Documento:
             for_.append("\n".join(comandi + extra))
         oggetti = []                  # corpo di ogni oggetto, a partire dal numero 1
         oggetti.append(b"<< /Type /Catalog /Pages 2 0 R >>")
-        figli = " ".join(f"{5 + 2 * i} 0 R" per i in intervallo(totale))
+        n_img = lunghezza(se_stesso.immagini)
+        prima = 5 + n_img                       # numero dell'oggetto della prima pagina: dopo catalogo, pagine, due caratteri e le immagini
+        figli = " ".join(f"{prima + 2 * i} 0 R" per i in intervallo(totale))
         oggetti.append(f"<< /Type /Pages /Kids [{figli}] /Count {totale} >>".encode("latin-1"))
         oggetti.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")
         oggetti.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>")
+        per larg_i, alt_i, rgb in se_stesso.immagini:
+            dati = zlib.compress(bytes(rgb))
+            oggetti.append(f"<< /Type /XObject /Subtype /Image /Width {larg_i} /Height {alt_i} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {lunghezza(dati)} >>\nstream\n".encode("latin-1") + dati + b"\nendstream")
+        xoggetti = (" /XObject << " + " ".join(f"/Im{k + 1} {5 + k} 0 R" per k in intervallo(n_img)) + " >>") se n_img altrimenti ""
         per i, contenuto in enumera(for_):
             flusso = zlib.compress(contenuto.encode("latin-1", "replace"))
-            oggetti.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {se_stesso.larghezza:.2f} {se_stesso.altezza:.2f}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents {6 + 2 * i} 0 R >>".encode("latin-1"))
+            oggetti.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {se_stesso.larghezza:.2f} {se_stesso.altezza:.2f}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>{xoggetti} >> /Contents {prima + 1 + 2 * i} 0 R >>".encode("latin-1"))
             oggetti.append(f"<< /Length {lunghezza(flusso)} /Filter /FlateDecode >>\nstream\n".encode("latin-1") + flusso + b"\nendstream")
         uscita = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
         posizioni = []
@@ -421,6 +528,95 @@ definisci stampa_pdf(percorso):
     eccetto (OSError, subprocess.CalledProcessError, AttributeError):
         apri_pdf(percorso)
         ritorna Falso
+
+
+# ---------------------------------------------------------------- leggere un'immagine e una tela
+definisci _immagine_rgb(w, nome_immagine):
+    """(larghezza, altezza, byte RGB) dell'immagine di un componente (un'immagine di Tk), o Nessuno se non si legge."""
+    percorso = os.path.join(tempfile.mkdtemp(prefix="stampa_"), "immagine.ppm")
+    prova:
+        w.tk.call(nome_immagine, "write", percorso, "-format", "ppm")
+        con open(percorso, "rb") come f:
+            dati = f.read()
+    eccetto (OSError, Exception):
+        ritorna Nessuno
+    prova:
+        # formato PPM: «P6», larghezza, altezza, 255 e poi i pixel (i commenti con # si saltano)
+        pezzi = []
+        posizione = 0
+        mentre lunghezza(pezzi) < 4:
+            mentre dati[posizione:posizione + 1].isspace():
+                posizione += 1
+            se dati[posizione:posizione + 1] == b"#":
+                mentre dati[posizione:posizione + 1] != b"\n":
+                    posizione += 1
+                continua
+            inizio = posizione
+            mentre non dati[posizione:posizione + 1].isspace():
+                posizione += 1
+            pezzi.append(dati[inizio:posizione])
+        pixel = dati[posizione + 1:]
+        larghezza, altezza = int(pezzi[1]), int(pezzi[2])
+        se pezzi[0] != b"P6" o lunghezza(pixel) < larghezza * altezza * 3:
+            ritorna Nessuno
+        ritorna larghezza, altezza, pixel[:larghezza * altezza * 3]
+    eccetto (ValueError, IndexError):
+        ritorna Nessuno
+
+
+definisci _elementi_tela(w):
+    """(elementi, larghezza, altezza, sfondo) di una Tela, nel formato di Documento.tela."""
+    da tkinter importa font come carattere_tk
+
+    definisci colore(c):
+        se non c:
+            ritorna Nessuno
+        prova:
+            ritorna tuple(v / 65535 per v in w.winfo_rgb(c))
+        eccetto Exception:
+            ritorna Nessuno
+    elementi = []
+    sinistra, alto, destra, basso = 0, 0, max(1, w.winfo_width()), max(1, w.winfo_height())
+    per i in w.find_all():
+        t = w.type(i)
+        p = lista(w.coords(i))
+        spessore = float(w.itemcget(i, "width") o 1) se t != "text" altrimenti 1
+        se t == "line":
+            elementi.append({"tipo": "line", "punti": p, "bordo": colore(w.itemcget(i, "fill") o "#000000"), "spessore": spessore})
+        altrimenti_se t in ("rectangle", "oval"):
+            elementi.append({"tipo": "rect" se t == "rectangle" altrimenti "oval", "punti": p, "riempimento": colore(w.itemcget(i, "fill")),
+                             "bordo": colore(w.itemcget(i, "outline")), "spessore": spessore})
+        altrimenti_se t == "polygon":
+            elementi.append({"tipo": "poly", "punti": p, "riempimento": colore(w.itemcget(i, "fill")), "bordo": colore(w.itemcget(i, "outline")), "spessore": spessore})
+        altrimenti_se t == "arc" e lunghezza(p) >= 4:
+            # una fetta: poligono che segue l'arco (start ed extent in gradi, in senso antiorario)
+            cx, cy, rx, ry = (p[0] + p[2]) / 2, (p[1] + p[3]) / 2, abs(p[2] - p[0]) / 2, abs(p[3] - p[1]) / 2
+            inizio_a = float(w.itemcget(i, "start") o 0)
+            estensione = float(w.itemcget(i, "extent") o 90)
+            passi = max(4, int(abs(estensione) / 5))
+            punti = [cx, cy]
+            per k in intervallo(passi + 1):
+                a = math.radians(inizio_a + estensione * k / passi)
+                punti += [cx + rx * math.cos(a), cy - ry * math.sin(a)]
+            elementi.append({"tipo": "poly", "punti": punti, "riempimento": colore(w.itemcget(i, "fill")), "bordo": colore(w.itemcget(i, "outline")), "spessore": spessore})
+        altrimenti_se t == "text":
+            dimensione = 10.0
+            grassetto = Falso
+            prova:
+                f = carattere_tk.Font(root=w, font=w.itemcget(i, "font")).actual()
+                dimensione = float(f.get("size", 10))
+                dimensione = (-dimensione * 0.75) se dimensione < 0 altrimenti dimensione
+                grassetto = f.get("weight") == "bold"
+            eccetto Exception:
+                passa
+            elementi.append({"tipo": "text", "punti": p[:2], "testo": w.itemcget(i, "text"), "riempimento": colore(w.itemcget(i, "fill") o "#000000"), "dimensione": dimensione,
+                             "ancora": w.itemcget(i, "anchor"), "grassetto": grassetto})
+        se lunghezza(p) >= 2:
+            per k in intervallo(0, lunghezza(p) - 1, 2):
+                destra = max(destra, p[k] + 1)
+                basso = max(basso, p[k + 1] + 1)
+    sfondo = colore(w.cget("background"))
+    ritorna elementi, destra - sinistra, basso - alto, sfondo
 
 
 # ---------------------------------------------------------------- stampare un componente
@@ -476,6 +672,16 @@ classe Stampante:
             d.paragrafo(w.get("1.0", "end-1c"))
         altrimenti_se hasattr(w, "voci"):
             d.grafico(w.voci, getattr(w, "tipo", "barre"), getattr(w, "titolo", ""), mostra_valori=getattr(w, "mostra_valori", Vero))
+        altrimenti_se classe_ == "Canvas":
+            elementi, larg, alt, sfondo = _elementi_tela(w)
+            d.tela(elementi, larg, alt, sfondo)
+        altrimenti_se classe_ == "Label":
+            nome_immagine = str(w.cget("image"))
+            immagine_ = _immagine_rgb(w, nome_immagine) se nome_immagine altrimenti Nessuno
+            se immagine_:
+                d.immagine(*immagine_)
+            altrimenti:
+                d.paragrafo(w.cget("text"))
         altrimenti:
             d.paragrafo(testo(w))
         ritorna d

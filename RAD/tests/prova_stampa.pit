@@ -149,6 +149,64 @@ p3 = stampante_.stampa()
 verifica(chiamate[1] == ("stampa", p3) e os.path.isfile(p3), "stampa manda il PDF alla stampante")
 radice.destroy()
 
+# ---------------------------------------------------------------- Tela e Immagine
+radice = tk.Tk()
+radice.geometry("+20+20")
+tela = tk.Canvas(radice, width=300, height=200, background="#eef6ff")
+tela.create_rectangle(10, 10, 120, 80, fill="#ff0000", outline="#000000", width=2)
+tela.create_oval(140, 20, 220, 90, fill="#00aa00")
+tela.create_line(10, 150, 290, 150, 200, 190, fill="#0000ff", width=3)
+tela.create_polygon(30, 100, 80, 100, 55, 140, fill="#ffaa00", outline="#333333")
+tela.create_arc(220, 100, 290, 170, start=0, extent=120, fill="#aa00aa")
+tela.create_text(150, 110, text="Ciao Tela è", fill="#112233", font=("Segoe UI", 14, "bold"))
+radice.update()
+fin2 = Finestra()
+fin2.tela = tela
+d_t = stampante.Stampante(radice, fin2, "tela", titolo="Disegno").documento()
+t = "\n".join(contenuti(d_t.pdf()))
+verifica(struttura_ok(d_t.pdf())[0], "PDF con la tela: struttura")
+verifica(" re " in t e " c h " in t e " l S" in t e "1.000 0.000 0.000 rg" in t, "rettangolo rosso, ovale e linea nel PDF")
+verifica("(Ciao Tela \xe8) Tj" in t e "/F2 " in t, "il testo della tela (in grassetto) è nel PDF")
+verifica("0.667 0.000 0.667 rg" in t e "0.933 0.965 1.000 rg" in t, "fetta viola e sfondo azzurro")
+fuori = [m per m in re.finditer(r"([\d.]+) ([\d.]+) Td", t) se float(m.group(1)) > 600 o float(m.group(2)) > 850]
+verifica(non fuori, "nessun testo fuori pagina")
+# una tela grande si riduce per entrare
+grande = tk.Canvas(radice, width=2000, height=3000, background="#ffffff")
+grande.create_rectangle(0, 0, 1999, 2999, fill="#cccccc")
+radice.update()
+fin2.grande = grande
+dg = stampante.Stampante(radice, fin2, "grande").documento()
+verifica(lunghezza(dg.pagine) == 1, "una tela più grande della pagina si riduce e sta in una pagina: " + str(lunghezza(dg.pagine)))
+# immagine: 4x2 pixel colorati dentro un'etichetta
+foto = tk.PhotoImage(master=radice, width=4, height=2)
+foto.put("#ff0000", to=(0, 0, 2, 2))
+foto.put("#0000ff", to=(2, 0, 4, 2))
+etichetta = tk.Label(radice, image=foto)
+etichetta.image = foto
+radice.update()
+fin2.logo = etichetta
+d_i = stampante.Stampante(radice, fin2, "logo", titolo="Logo").documento()
+verifica(lunghezza(d_i.immagini) == 1 e d_i.immagini[0][:2] == (4, 2) e d_i.immagini[0][2][:3] == bytes([255, 0, 0]) e d_i.immagini[0][2][6:9] == bytes([0, 0, 255]), "immagine: dimensioni e pixel (rosso a sinistra, blu a destra): " + str(d_i.immagini[0][:2]) se d_i.immagini altrimenti "nessuna immagine")
+b_i = d_i.pdf()
+verifica(struttura_ok(b_i)[0] e b"/Subtype /Image" in b_i e b"/XObject" in b_i, "PDF con l'immagine: struttura e XObject")
+verifica(" Do Q" in "\n".join(contenuti(b_i)[-1:]) o any(" Do Q" in f per f in contenuti(b_i)), "l'immagine è disegnata nella pagina")
+# un'etichetta senza immagine stampa il suo testo
+fin2.testo_ = tk.Label(radice, text="Solo testo")
+t = "\n".join(contenuti(stampante.Stampante(radice, fin2, "testo_").documento().pdf()))
+verifica("(Solo testo) Tj" in t, "Etichetta di testo")
+# con una libreria vera: il PDF con immagine e disegni si legge
+python_ = shutil.which("python") o shutil.which("py")
+se python_:
+    p_img = os.path.join(tempfile.mkdtemp(), "img.pdf")
+    stampante.Stampante(radice, fin2, "logo").documento().salva(p_img)
+    p_tela = os.path.join(tempfile.mkdtemp(), "tela.pdf")
+    d_t.salva(p_tela)
+    u = subprocess.run([python_, "-c", "import sys\ntry:\n import pypdf\nexcept ImportError:\n print('nopypdf'); sys.exit(0)\nfor p in sys.argv[1:]:\n r = pypdf.PdfReader(p, strict=True)\n r.pages[0].extract_text()\n print(len(r.pages), 'ok')", p_img, p_tela],
+                       capture_output=Vero, text=Vero, encoding="utf-8", timeout=60)
+    se "nopypdf" non in u.stdout:
+        verifica(u.stdout.split() == ["1", "ok", "1", "ok"], "pypdf legge i PDF con immagine e tela: " + u.stdout.strip() + u.stderr[-200:])
+radice.destroy()
+
 # ---------------------------------------------------------------- il componente nel progettista e nel codice generato
 f = Form("Rapporto", "Rapporto")
 f.larghezza, f.altezza = 520, 340

@@ -18,7 +18,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Novità della 1.50
 
-- **Stampa e PDF**: il componente **Stampa** produce un PDF (A4, verticale o orizzontale) con il contenuto di un Albero, un Elenco, un'AreaTesto o un Grafico, con titolo, intestazione, data e «Pagina X di Y»; si può guardare (`anteprima()`), salvare (`salva_pdf()`) e stampare (`stampa()`). Le tabelle lunghe vanno su più pagine con l'intestazione ripetuta. Il PDF è scritto da PitStudio, senza librerie esterne (file `stampante.pit` nel progetto, con la classe `Documento` per i documenti fatti a mano); funziona anche nell'esportazione in Python e nell'eseguibile.
+- **Stampa e PDF**: il componente **Stampa** produce un PDF (A4, verticale o orizzontale) con il contenuto di un Albero, un Elenco, un'AreaTesto, un'Etichetta, un Grafico, una Tela (il disegno) o un'Immagine, con titolo, intestazione, data e «Pagina X di Y»; si può guardare (`anteprima()`), salvare (`salva_pdf()`) e stampare (`stampa()`). Le tabelle lunghe vanno su più pagine con l'intestazione ripetuta. Il PDF è scritto da PitStudio, senza librerie esterne (file `stampante.pit` nel progetto, con la classe `Documento` per i documenti fatti a mano); funziona anche nell'esportazione in Python e nell'eseguibile.
 
 ## Novità della 1.49
 

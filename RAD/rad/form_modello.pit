@@ -86,7 +86,7 @@ TIPI["Timer"] = dict(classe_tk="", modulo="tk", larghezza=110, altezza=24, icona
                                 "al_tempo": ("evento", "", "Evento: scade il tempo")})
 # stampa e PDF di un altro componente (Albero, Elenco, AreaTesto, Grafico): modelli_codice/stampante.pit
 TIPI["Stampa"] = dict(classe_tk="Stampante", modulo="stampante", larghezza=110, altezza=24, icona="🖨", visivo=Falso,
-                      proprieta={"sorgente": ("componente:Albero,Elenco,AreaTesto,Grafico", "", "Cosa stampare (un componente della finestra)"),
+                      proprieta={"sorgente": ("componente:Albero,Elenco,AreaTesto,Grafico,Tela,Immagine,Etichetta", "", "Cosa stampare (un componente della finestra)"),
                                  "titolo": ("testo", "", "Titolo del documento"),
                                  "intestazione": ("testo", "", "Intestazione di ogni pagina"),
                                  "orientamento": ("scelta:verticale,orizzontale", "verticale", "Orientamento della pagina"),
