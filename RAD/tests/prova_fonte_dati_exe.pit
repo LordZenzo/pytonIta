@@ -87,8 +87,174 @@ infine:
     altrimenti:
         os.environ["APPDATA"] = vecchio_appdata
 
-# ----------------------------------------------------------------- un progetto con la fonte dati vecchia la riceve nuova prima della costruzione
+# ----------------------------------------------------------------- versione portatile: i dati accanto all'exe (se la cartella è scrivibile)
 da rad importa crea_exe, form_modello
+pacchetto2 = os.path.join(base, "pacchetto2")
+os.makedirs(pacchetto2)
+crea_db(os.path.join(pacchetto2, "dati.db"), 2)
+verifica(fonte_dati.posizione_dati(pacchetto2) == "utente", "senza segno: dati dell'utente")
+crea_exe.scrivi_posizione_dati(pacchetto2, crea_exe.Opzioni("X", dati_accanto=Vero))
+verifica(fonte_dati.posizione_dati(pacchetto2) == "accanto", "con il segno nel pacchetto: accanto")
+crea_exe.scrivi_posizione_dati(pacchetto2, crea_exe.Opzioni("X", dati_accanto=Falso))
+verifica(fonte_dati.posizione_dati(pacchetto2) == "utente" e non os.path.exists(os.path.join(pacchetto2, "dati_posizione.json")), "tolto il segno: di nuovo dati dell'utente")
+crea_exe.scrivi_posizione_dati(pacchetto2, crea_exe.Opzioni("X", dati_accanto=Vero))
+cartella_exe = os.path.join(base, "Programmi", "Portatile")
+os.makedirs(cartella_exe)
+os.environ["APPDATA"] = os.path.join(base, "AppData2")
+sys.executable = os.path.join(cartella_exe, "Portatile.exe")
+sys.frozen = Vero
+prova:
+    pa = fonte_dati.percorso_database(pacchetto2, "dati.db")
+    verifica(pa == os.path.join(cartella_exe, "dati.db") e conta(pa) == 2, "versione portatile: il database sta accanto all'exe: " + pa)
+    verifica(non os.path.exists(os.path.join(base, "AppData2", "Portatile")), "e non si crea la cartella dei dati dell'utente")
+    # cartella dove non si può scrivere (qui: il «percorso» dell'exe passa per un file): si ripiega sui dati dell'utente
+    file_qualunque = os.path.join(base, "unfile.txt")
+    open(file_qualunque, "w").write("x")
+    sys.executable = os.path.join(file_qualunque, "App.exe")
+    pb = fonte_dati.percorso_database(pacchetto2, "dati.db")
+    verifica(pb == os.path.join(base, "AppData2", "App", "dati.db") e conta(pb) == 2, "se accanto non si può scrivere, si usano i dati dell'utente: " + pb)
+infine:
+    elimina sys.frozen
+    sys.executable = vecchio_exe
+    se vecchio_appdata è Nessuno:
+        os.environ.pop("APPDATA", Nessuno)
+    altrimenti:
+        os.environ["APPDATA"] = vecchio_appdata
+
+# ----------------------------------------------------------------- copia di sicurezza e ripristino (FonteDati)
+cartella_db = os.path.join(base, "viva")
+os.makedirs(cartella_db)
+db_vivo = os.path.join(cartella_db, "clienti.db")
+crea_db(db_vivo, 3)
+fonte = fonte_dati.FonteDati.sqlite(db_vivo, "t")
+verifica(fonte.percorso == os.path.abspath(db_vivo) e fonte.cartella_dati() == os.path.abspath(cartella_db), "la fonte conosce il suo file: " + fonte.percorso)
+copia = os.path.join(base, "copie", "copia1.db")
+os.makedirs(os.path.dirname(copia))
+fonte.copia_di_sicurezza(copia)
+verifica(conta(copia) == 3, "la copia contiene i dati")
+sollevato = Falso
+prova:
+    fonte.copia_di_sicurezza(db_vivo)
+eccetto fonte_dati.ErroreDati:
+    sollevato = Vero
+verifica(sollevato, "la copia non può sovrascrivere il database")
+# si modifica il database vivo, poi si ripristina la copia
+fonte.conn.execute("INSERT INTO t VALUES (100)")
+fonte.conn.execute("DELETE FROM t WHERE n = 1")
+fonte.conn.commit()
+verifica(conta(db_vivo) == 3, "il database vivo è cambiato (3 righe, ma diverse)")
+fonte.controlla_copia(copia)
+automatica = fonte.copia_automatica()
+verifica(os.path.dirname(automatica) == os.path.abspath(cartella_db) e "_prima_del_ripristino_" in automatica e os.path.exists(automatica), "copia automatica accanto al database: " + automatica)
+fonte.ripristina_da(copia)
+righe = sorted(r[0] per r in fonte.conn.execute("SELECT n FROM t").fetchall())
+verifica(righe == [1, 2, 3], "dopo il ripristino i dati sono quelli della copia: " + testo(righe))
+verifica(sorted(r[0] per r in sqlite3.connect(automatica).execute("SELECT n FROM t").fetchall()) == [2, 3, 100], "e quella automatica ha i dati di prima")
+# controlli
+altra = os.path.join(base, "altra.db")
+c = sqlite3.connect(altra)
+c.execute("CREATE TABLE altro (x TEXT)")
+c.commit()
+c.close()
+senza_colonna = os.path.join(base, "senza_colonna.db")
+c = sqlite3.connect(senza_colonna)
+c.execute("CREATE TABLE t (m TEXT)")
+c.commit()
+c.close()
+rotto = os.path.join(base, "rotto.db")
+open(rotto, "wb").write(b"questo non e' un database sqlite" * 10)
+per nome_prova, file_, atteso in (("altra tabella", altra, "non contiene la tabella"), ("colonne diverse", senza_colonna, "non ha le colonne"), ("non è sqlite", rotto, "non è una copia"),
+                                  ("non esiste", os.path.join(base, "no.db"), "non esiste")):
+    sollevato = ""
+    prova:
+        fonte.controlla_copia(file_)
+    eccetto fonte_dati.ErroreDati come e:
+        sollevato = testo(e)
+    verifica(atteso in sollevato, f"controlla_copia ({nome_prova}): {sollevato!r}")
+# modifiche non confermate: niente copia né ripristino
+fonte.in_sospeso = 2
+per azione in (lambda: fonte.copia_di_sicurezza(os.path.join(base, "x.db")), lambda: fonte.ripristina_da(copia)):
+    sollevato = Falso
+    prova:
+        azione()
+    eccetto fonte_dati.ErroreDati come e:
+        sollevato = "non confermate" in testo(e)
+    verifica(sollevato, "con modifiche in sospeso si rifiuta")
+fonte.in_sospeso = 0
+
+# ----------------------------------------------------------------- il menu «Dati» della barra
+importa tkinter come tk
+da tkinter importa filedialog, messagebox
+radice = tk.Tk()
+verifica(fonte_dati.BarraDati(radice).menu_dati è Nessuno, "da script (non exe) il menu Dati non compare")
+verifica(fonte_dati.BarraDati(radice, dati=Falso).menu_dati è Nessuno, "con dati=Falso non compare mai")
+fonte_dati.BarraDati.SOLO_NEL_PROGRAMMA = Falso
+barra = fonte_dati.BarraDati(radice)
+barra.pack()
+radice.update()
+verifica(barra.menu_dati è non Nessuno e barra.pulsante_dati.cget("text").startswith("Dati"), "il menu Dati compare (nel programma costruito)")
+verifica(fonte_dati.BarraDati(radice, dati=Falso).menu_dati è Nessuno, "e si può togliere")
+barra._aggiorna_menu_dati()
+verifica("Nessun database" in barra.menu_dati.entrycget(0, "label") e barra.menu_dati.entrycget(2, "state") == "disabled", "senza fonte: voci spente")
+
+
+classe CollegamentoFinto:
+    definisci __inizializza__(se_stesso, fonte):
+        se_stesso.fonte = fonte
+        se_stesso.ricaricato = 0
+
+    definisci ricarica(se_stesso, seleziona=Nessuno):
+        se_stesso.ricaricato += 1
+
+
+colleg = CollegamentoFinto(fonte)
+barra.collegamento = colleg
+barra._aggiorna_menu_dati()
+verifica(barra.menu_dati.entrycget(0, "label") == "Dati in: " + fonte.percorso e barra.menu_dati.entrycget(3, "state") == "normal", "la prima riga dice dove sono i dati: " + barra.menu_dati.entrycget(0, "label"))
+aperte = []
+fonte_dati.apri_cartella = aperte.append
+barra._apri_cartella_dati()
+verifica(aperte == [fonte.cartella_dati()], "«Apri la cartella dei dati»: " + testo(aperte))
+messaggi = []
+messagebox.showinfo = lambda *a, **k: messaggi.append(("info", a))
+messagebox.showerror = lambda *a, **k: messaggi.append(("errore", a))
+risposte = []
+messagebox.askyesno = lambda *a, **k: risposte.pop(0)
+scelto_salva = os.path.join(base, "copie", "dal_menu.db")
+filedialog.asksaveasfilename = lambda **k: scelto_salva
+barra._copia_di_sicurezza()
+verifica(conta(scelto_salva) == 3 e messaggi[-1][0] == "info" e "Copia salvata" in messaggi[-1][1][1], "«Crea una copia di sicurezza»: " + testo(messaggi[-1]))
+filedialog.asksaveasfilename = lambda **k: ""
+n = lunghezza(messaggi)
+barra._copia_di_sicurezza()
+verifica(lunghezza(messaggi) == n, "annullando la scelta del file non succede niente")
+# ripristino dal menu: si cambiano i dati, si ripristina la copia fatta dal menu
+fonte.conn.execute("DELETE FROM t")
+fonte.conn.commit()
+filedialog.askopenfilename = lambda **k: scelto_salva
+risposte.append(Falso)
+barra._ripristina()
+verifica(conta(db_vivo) == 0 e colleg.ricaricato == 0, "rispondendo No non cambia niente")
+risposte.append(Vero)
+barra._ripristina()
+verifica(conta(db_vivo) == 3 e colleg.ricaricato == 1 e messaggi[-1][0] == "info" e "Dati ripristinati" in messaggi[-1][1][1], "ripristino dal menu: i dati tornano e la maschera si ricarica: " + testo(messaggi[-1]))
+filedialog.askopenfilename = lambda **k: rotto
+barra._ripristina()
+verifica(messaggi[-1][0] == "errore" e "non è una copia" in messaggi[-1][1][1], "un file sbagliato dà un messaggio chiaro e non cambia niente: " + testo(messaggi[-1]))
+verifica(conta(db_vivo) == 3, "dati ancora a posto")
+radice.destroy()
+fonte.chiudi()
+
+# ----------------------------------------------------------------- la proprietà della barra nel progettista
+f = form_modello.Form("Elenco")
+f.aggiungi("FonteDati", 10, 10, nome="fonte1", dialetto="sqlite", database="dati.db", tabella="t")
+f.aggiungi("BarraNavigazione", 10, 40, nome="barra1", fonte="fonte1")
+codice = form_modello.genera_ui(f)
+verifica("dati.BarraDati(" in codice e "dati=Falso" non in codice, "di norma il menu Dati c'è: " + [r per r in codice.split(chr(10)) se "BarraDati(" in r][0][:140])
+f.trova("barra1").valori["dati"] = Falso
+verifica("dati=Falso" in form_modello.genera_ui(f), "spento nel progettista: dati=Falso nel codice")
+
+# ----------------------------------------------------------------- un progetto con la fonte dati vecchia la riceve nuova prima della costruzione
 vecchio = os.path.join(base, "ProgettoVecchio")
 os.makedirs(vecchio)
 open(os.path.join(vecchio, "fonte_dati.pit"), "w", encoding="utf-8").write("# versione vecchia, senza la copia nei dati dell'utente" + chr(10))
@@ -138,4 +304,18 @@ se os.environ.get("RAD_PROVA_EXE") == "1":
         r = subprocess.run([esito["exe"]], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120, env=ambiente_b)
         verifica(r.stdout.strip().startswith("righe prima: 1"), "un altro utente riparte dal database del pacchetto: " + r.stdout.strip())
 
+se os.environ.get("RAD_PROVA_EXE") == "1":
+    # versione portatile: il database sta accanto all'exe
+    righe = []
+    esito2 = crea_exe.costruisci(progetto, crea_exe.Opzioni("AppPortatile", un_file=Vero, senza_console=Falso, dati_accanto=Vero), righe.append)
+    verifica(esito2["ok"], "exe portatile costruito: " + testo(righe[-5:]))
+    se esito2["ok"]:
+        ambiente_c = dict(os.environ, APPDATA=os.path.join(base, "DatiUtenteC"))
+        uscite2 = []
+        per _ in intervallo(2):
+            r = subprocess.run([esito2["exe"]], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120, env=ambiente_c)
+            uscite2.append(r.stdout.strip())
+        verifica(uscite2[0].startswith("righe prima: 1") e uscite2[1].startswith("righe prima: 2"), "portatile: le modifiche restano: " + testo(uscite2))
+        verifica(os.path.exists(os.path.join(os.path.dirname(esito2["exe"]), "dati.db")) e uscite2[0].endswith(os.path.join(os.path.dirname(esito2["exe"]), "dati.db")), "il database sta accanto all'exe: " + uscite2[0])
+        verifica(non os.path.exists(os.path.join(base, "DatiUtenteC")), "e non nella cartella dell'utente")
 stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

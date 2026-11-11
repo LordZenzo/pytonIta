@@ -42,6 +42,8 @@ Il componente mostra il valore del record corrente e, quando salvi, il suo conte
 
 Una barra con i pulsanti che scegli tu, uno per uno, nell'ispettore: **primo**, **precedente**, **successivo**, **ultimo**, **nuovo**, **salva**, **elimina**, **annulla** (e, con la transazione, **conferma** e **annulla tutto**), più la scritta «3 / 25» e, se vuoi, una **casella di ricerca** (cerca in tutte le colonne). Si collega con la proprietà *Fonte dati*. I pulsanti si spengono quando non servono (per esempio «successivo» sull'ultimo record); mentre scrivi un record nuovo, «primo», «precedente» e «ultimo» riportano ai record salvati.
 
+**Il menu «Dati»**: nei programmi costruiti (exe) la barra mostra anche **Dati ▾**, con *Dati in: …* (dove sta il database), *Apri la cartella dei dati*, *Crea una copia di sicurezza…* e *Ripristina da una copia…*. Serve a chi usa il programma e non sa dove il database sta. Nel progettista non si vede: si spegne con la proprietà **Menu «Dati»**. Vedi anche [Creare un eseguibile](#crea-exe).
+
 ## Griglia modificabile
 
 Sull'**Albero** legato a una fonte, la proprietà **Modificabile** permette di scrivere direttamente nelle celle: **doppio clic** (o **F2**) su una cella, scrivi, **Invio** conferma, **Tab** passa alla cella dopo, **Esc** rinuncia. **Insert** aggiunge una riga vuota in fondo: compila le celle (il record entra nel database appena ci sono i campi obbligatori), **Canc** elimina la riga scelta. Le colonne che il database riempie da solo (come `id`) non si scrivono.

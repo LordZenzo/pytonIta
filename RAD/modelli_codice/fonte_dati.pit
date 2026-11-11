@@ -6,12 +6,15 @@
 
 Questo file è stato creato da PitStudio (Database > Crea una maschera dalla tabella) e si può usare anche con finestre disegnate a mano.
 """
+importa datetime
+importa json
 importa os
 importa shutil
 importa sqlite3
+importa subprocess
 importa sys
 importa tkinter come tk
-da tkinter importa messagebox, simpledialog
+da tkinter importa filedialog, messagebox, simpledialog
 
 TIPI_INTERI = ("INT",)
 TIPI_DECIMALI = ("REAL", "DOUBLE", "FLOAT", "DECIMAL", "NUMERIC")
@@ -29,21 +32,52 @@ definisci cartella_dati_utente():
     ritorna os.path.join(base, nome)
 
 
+definisci posizione_dati(cartella):
+    """Dove tiene i dati il programma costruito: «utente» (la cartella dei dati dell'utente, predefinito) o «accanto» (accanto all'exe, versione portatile):
+    lo sceglie chi costruisce l'exe, e PitStudio lo scrive nel pacchetto (file dati_posizione.json)."""
+    prova:
+        con open(os.path.join(cartella, "dati_posizione.json"), encoding="utf-8") come f:
+            ritorna json.load(f).get("posizione", "utente")
+    eccetto (OSError, ValueError, AttributeError):
+        ritorna "utente"
+
+
 definisci percorso_database(cartella, database):
     """Il file del database SQLite da aprire. Nel progetto (e negli script) è quello accanto al programma. In un programma costruito con PitStudio (exe)
     i file stanno dentro il pacchetto, che a file singolo si scompatta in una cartella temporanea e si cancella alla chiusura: lì le modifiche andrebbero perse.
-    Per questo alla prima apertura il database si copia nella cartella dei dati dell'utente e da quel momento si usa la copia (quello del pacchetto resta
-    il punto di partenza)."""
+    Per questo alla prima apertura il database si copia nella cartella dei dati dell'utente (o accanto all'exe, se chi ha costruito il programma ha scelto la versione
+    portatile e la cartella è scrivibile) e da quel momento si usa la copia: quello del pacchetto resta il punto di partenza."""
     se os.path.isabs(database):
         ritorna database
     originale = os.path.join(cartella, database)
     se non getattr(sys, "frozen", Falso):
         ritorna originale
-    copia = os.path.join(cartella_dati_utente(), database)
-    se non os.path.exists(copia) e os.path.exists(originale):
-        os.makedirs(os.path.dirname(copia), exist_ok=Vero)
-        shutil.copy2(originale, copia)
-    ritorna copia
+    candidati = [os.path.join(cartella_dati_utente(), database)]
+    se posizione_dati(cartella) == "accanto":
+        candidati.insert(0, os.path.join(os.path.dirname(os.path.abspath(sys.executable)), database))
+    per copia in candidati:
+        prova:
+            se non os.path.exists(copia) e os.path.exists(originale):
+                os.makedirs(os.path.dirname(copia), exist_ok=Vero)
+                shutil.copy2(originale, copia)
+            se os.path.exists(copia):
+                ritorna copia
+        eccetto OSError:
+            continua            # cartella non scrivibile: si prova la successiva
+    ritorna candidati[-1]
+
+
+definisci apri_cartella(percorso):
+    """Mostra una cartella in Esplora risorse (o nel gestore file del sistema)."""
+    prova:
+        se os.name == "nt":
+            os.startfile(percorso)
+        altrimenti_se sys.platform == "darwin":
+            subprocess.Popen(["open", percorso])
+        altrimenti:
+            subprocess.Popen(["xdg-open", percorso])
+    eccetto Exception:
+        passa
 
 
 classe ErroreObbligatorio(ErroreDati):
@@ -66,6 +100,7 @@ classe FonteDati:
         se_stesso.obbligatorie = []     # colonne NOT NULL senza valore predefinito: vanno compilate
         se_stesso.transazione = Falso   # Vero: le modifiche restano in sospeso finché non si chiama conferma()
         se_stesso.in_sospeso = 0        # quante modifiche aspettano la conferma
+        se_stesso.percorso = ""         # il file del database (SQLite)
         se_stesso._leggi_struttura()
 
     @staticmethod
@@ -74,7 +109,9 @@ classe FonteDati:
             conn = sqlite3.connect(percorso)
         eccetto sqlite3.Error come e:
             solleva ErroreDati(f"Non riesco ad aprire il database: {e}")
-        ritorna FonteDati(conn, tabella)
+        fonte = FonteDati(conn, tabella)
+        fonte.percorso = os.path.abspath(percorso)
+        ritorna fonte
 
     @staticmethod
     definisci con_mysql(server, porta, utente, password, database, tabella):
@@ -236,6 +273,69 @@ classe FonteDati:
             solleva ErroreDati(testo(problema))
         se_stesso.in_sospeso = 0
 
+    # ------------------------------------------------------------ copia di sicurezza e ripristino (solo SQLite)
+    definisci cartella_dati(se_stesso):
+        """La cartella che contiene il file del database."""
+        ritorna os.path.dirname(se_stesso.percorso) se se_stesso.percorso altrimenti ""
+
+    definisci _senza_sospese(se_stesso):
+        se se_stesso.in_sospeso:
+            solleva ErroreDati("Ci sono modifiche non confermate: confermale o annullale, poi riprova.")
+
+    definisci copia_di_sicurezza(se_stesso, destinazione):
+        """Salva una copia completa e coerente del database (anche se il programma lo sta usando)."""
+        se se_stesso.è_mysql:
+            solleva ErroreDati("La copia di sicurezza riguarda i database SQLite.")
+        se_stesso._senza_sospese()
+        se os.path.abspath(destinazione) == se_stesso.percorso:
+            solleva ErroreDati("La copia deve avere un nome diverso dal database.")
+        prova:
+            copia = sqlite3.connect(destinazione)
+            prova:
+                se_stesso.conn.backup(copia)
+            infine:
+                copia.close()
+        eccetto sqlite3.Error come e:
+            solleva ErroreDati(f"Non riesco a fare la copia: {e}")
+        ritorna destinazione
+
+    definisci copia_automatica(se_stesso):
+        """Una copia accanto al database, con la data nel nome: si fa prima di un ripristino, per poter tornare indietro."""
+        radice, estensione = os.path.splitext(se_stesso.percorso)
+        ritorna se_stesso.copia_di_sicurezza(f"{radice}_prima_del_ripristino_{datetime.datetime.now():%Y%m%d_%H%M%S}{estensione o '.db'}")
+
+    definisci controlla_copia(se_stesso, percorso):
+        """Solleva ErroreDati se il file non è una copia di questo database (stessa tabella, colonne compatibili)."""
+        se non os.path.exists(percorso):
+            solleva ErroreDati("Il file non esiste.")
+        prova:
+            c = sqlite3.connect("file:" + percorso.replace("\\", "/") + "?mode=ro", uri=Vero)
+            prova:
+                se c.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                    solleva ErroreDati("Il file è danneggiato.")
+                colonne = [r[1] per r in c.execute(f"PRAGMA table_info({se_stesso._n(se_stesso.tabella)})").fetchall()]
+            infine:
+                c.close()
+        eccetto sqlite3.Error:
+            solleva ErroreDati("Questo file non è una copia di un database valida.")
+        se non colonne:
+            solleva ErroreDati(f"La copia non contiene la tabella «{se_stesso.tabella}»: non è una copia di questi dati.")
+        mancanti = [x per x in se_stesso.colonne se x non in colonne]
+        se mancanti:
+            solleva ErroreDati("La copia non ha le colonne " + ", ".join(mancanti) + ": viene da un'altra versione del programma.")
+
+    definisci ripristina_da(se_stesso, percorso):
+        """Sostituisce il contenuto del database con quello della copia. Prima va chiamato controlla_copia()."""
+        se_stesso._senza_sospese()
+        prova:
+            origine = sqlite3.connect(percorso)
+            prova:
+                origine.backup(se_stesso.conn)
+            infine:
+                origine.close()
+        eccetto sqlite3.Error come e:
+            solleva ErroreDati(f"Ripristino non riuscito: {e}")
+
     definisci chiudi(se_stesso):
         prova:
             se_stesso.conn.close()
@@ -355,12 +455,24 @@ classe BarraDati(tk.Frame):
     TESTI = {"primo": "|◀", "precedente": "◀", "successivo": "▶", "ultimo": "▶|", "nuovo": "Nuovo", "salva": "Salva", "elimina": "Elimina", "annulla": "Annulla",
              "conferma": "Conferma", "annulla_tutto": "Annulla tutto"}
     AIUTI = {"primo": "Primo record", "precedente": "Record precedente", "successivo": "Record successivo", "ultimo": "Ultimo record"}
+    SOLO_NEL_PROGRAMMA = Vero       # il menu «Dati» compare nei programmi costruiti (exe), dove l'utente non sa dove sta il database
 
-    definisci __inizializza__(se_stesso, genitore, pulsanti=("primo", "precedente", "successivo", "ultimo", "nuovo", "salva", "elimina", "annulla"), posizione=Vero, cerca=Falso, **opzioni):
+    definisci __inizializza__(se_stesso, genitore, pulsanti=("primo", "precedente", "successivo", "ultimo", "nuovo", "salva", "elimina", "annulla"), posizione=Vero, cerca=Falso, dati=Vero, **opzioni):
         tk.Frame.__init__(se_stesso, genitore, **opzioni)
         se_stesso.collegamento = Nessuno
         se_stesso.pulsanti = {}
         se_stesso.campo_cerca = Nessuno
+        se_stesso.menu_dati = Nessuno
+        se dati e (getattr(sys, "frozen", Falso) o non se_stesso.SOLO_NEL_PROGRAMMA):
+            se_stesso.pulsante_dati = tk.Menubutton(se_stesso, text="Dati ▾", relief="raised", padx=8, pady=3, direction="below")
+            se_stesso.menu_dati = tk.Menu(se_stesso.pulsante_dati, tearoff=0, postcommand=se_stesso._aggiorna_menu_dati)
+            se_stesso.pulsante_dati.configure(menu=se_stesso.menu_dati)
+            se_stesso.pulsante_dati.pack(side="right", padx=(4, 0))
+            se_stesso.menu_dati.add_command(label="", state="disabled")
+            se_stesso.menu_dati.add_separator()
+            se_stesso.menu_dati.add_command(label="Apri la cartella dei dati", command=se_stesso._apri_cartella_dati)
+            se_stesso.menu_dati.add_command(label="Crea una copia di sicurezza…", command=se_stesso._copia_di_sicurezza)
+            se_stesso.menu_dati.add_command(label="Ripristina da una copia…", command=se_stesso._ripristina)
         se cerca:             # (la ricerca si impacchetta per prima: se la barra è stretta si accorciano gli altri pulsanti, non lei)
             se_stesso.pulsante_tutti = tk.Button(se_stesso, text="Tutti", command=lambda: se_stesso._cerca(""), padx=8, pady=3)
             se_stesso.pulsante_tutti.pack(side="right", padx=(4, 0))
@@ -379,6 +491,66 @@ classe BarraDati(tk.Frame):
         se posizione:
             se_stesso.etichetta = tk.Label(se_stesso, text="", anchor="w")
             se_stesso.etichetta.pack(side="left", padx=(6, 6))
+
+    # ------------------------------------------------------------ il menu «Dati»
+    definisci _fonte_sqlite(se_stesso):
+        c = se_stesso.collegamento
+        f = c.fonte se c altrimenti Nessuno
+        ritorna f se (f e non f.è_mysql e f.percorso) altrimenti Nessuno
+
+    definisci _aggiorna_menu_dati(se_stesso):
+        f = se_stesso._fonte_sqlite()
+        m = se_stesso.menu_dati
+        m.entryconfigure(0, label=("Dati in: " + f.percorso) se f altrimenti "Nessun database SQLite collegato")
+        per i in (2, 3, 4):
+            m.entryconfigure(i, state="normal" se f altrimenti "disabled")
+
+    definisci _apri_cartella_dati(se_stesso):
+        f = se_stesso._fonte_sqlite()
+        se f:
+            apri_cartella(f.cartella_dati())
+
+    definisci _copia_di_sicurezza(se_stesso):
+        f = se_stesso._fonte_sqlite()
+        se non f:
+            ritorna
+        nome, estensione = os.path.splitext(os.path.basename(f.percorso))
+        scelto = filedialog.asksaveasfilename(parent=se_stesso, title="Salva la copia di sicurezza", defaultextension=estensione o ".db",
+                                              initialfile=f"{nome}_copia_{datetime.date.today().isoformat()}{estensione o '.db'}",
+                                              filetypes=[("Database", "*.db *.sqlite *.sqlite3"), ("Tutti i file", "*.*")])
+        se non scelto:
+            ritorna
+        prova:
+            f.copia_di_sicurezza(scelto)
+        eccetto ErroreDati come errore:
+            messagebox.showerror("Copia di sicurezza", testo(errore), parent=se_stesso)
+            ritorna
+        messagebox.showinfo("Copia di sicurezza", "Copia salvata:\n" + scelto + "\n\nPer tornare a questi dati usa «Ripristina da una copia…».", parent=se_stesso)
+
+    definisci _ripristina(se_stesso):
+        f = se_stesso._fonte_sqlite()
+        se non f:
+            ritorna
+        scelto = filedialog.askopenfilename(parent=se_stesso, title="Scegli la copia da ripristinare", filetypes=[("Database", "*.db *.sqlite *.sqlite3"), ("Tutti i file", "*.*")])
+        se non scelto:
+            ritorna
+        prova:
+            f.controlla_copia(scelto)
+        eccetto ErroreDati come errore:
+            messagebox.showerror("Ripristino", testo(errore), parent=se_stesso)
+            ritorna
+        se non messagebox.askyesno("Ripristina da una copia", "I dati attuali verranno sostituiti con quelli della copia.\n\nPrima di sostituirli salvo una copia automatica dei dati di adesso "
+                                   "accanto al database, così puoi tornare indietro. Procedo?", parent=se_stesso, icon="warning"):
+            ritorna
+        prova:
+            automatica = f.copia_automatica()
+            f.ripristina_da(scelto)
+        eccetto ErroreDati come errore:
+            messagebox.showerror("Ripristino", testo(errore), parent=se_stesso)
+            ritorna
+        se se_stesso.collegamento:
+            se_stesso.collegamento.ricarica()
+        messagebox.showinfo("Ripristino", "Dati ripristinati.\n\nLa copia dei dati di prima è in:\n" + automatica, parent=se_stesso)
 
     definisci _cerca(se_stesso, testo_cercato):
         se se_stesso.collegamento:

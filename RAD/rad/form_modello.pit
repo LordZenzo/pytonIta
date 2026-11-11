@@ -108,7 +108,8 @@ TIPI["BarraNavigazione"] = dict(classe_tk="", modulo="", larghezza=620, altezza=
                                            "conferma": ("si_no", Falso, "Pulsante «conferma» (commit, con la transazione)"),
                                            "annulla_tutto": ("si_no", Falso, "Pulsante «annulla tutto» (rollback, con la transazione)"),
                                            "posizione": ("si_no", Vero, "Mostra «3 / 25»"),
-                                           "cerca": ("si_no", Falso, "Casella di ricerca")})
+                                           "cerca": ("si_no", Falso, "Casella di ricerca"),
+                                           "dati": ("si_no", Vero, "Menu «Dati» nel programma costruito (exe): apri la cartella, copia di sicurezza, ripristino")})
 PULSANTI_BARRA = ("primo", "precedente", "successivo", "ultimo", "nuovo", "salva", "elimina", "annulla", "conferma", "annulla_tutto")
 PULSANTI_FACOLTATIVI = ("conferma", "annulla_tutto")          # spenti finché non li scegli (servono solo con la transazione)
 TESTI_BARRA = {"primo": "|◀", "precedente": "◀", "successivo": "▶", "ultimo": "▶|", "nuovo": "Nuovo", "salva": "Salva", "elimina": "Elimina", "annulla": "Annulla",
@@ -813,7 +814,7 @@ definisci _codice_componente(c, form=Nessuno):
         ritorna r                     # si crea in fondo (_codice_dati), quando i componenti legati esistono
     altrimenti_se c.tipo == "BarraNavigazione":
         pulsanti = tuple(k per k in PULSANTI_BARRA se v.get(k, k non in PULSANTI_FACOLTATIVI))
-        r.append(f"{ind}{nome_att} = dati.BarraDati(radice, pulsanti={_lit(pulsanti)}, posizione={_lit(bool(v.get('posizione', Vero)))}, cerca={_lit(bool(v.get('cerca')))})")
+        r.append(f"{ind}{nome_att} = dati.BarraDati(radice, pulsanti={_lit(pulsanti)}, posizione={_lit(bool(v.get('posizione', Vero)))}, cerca={_lit(bool(v.get('cerca')))}{'' se v.get('dati', Vero) altrimenti ', dati=Falso'})")
     r.append(f"{ind}{nome_att}.posiziona({_geometria(c, form)})")
     se c.genitore:
         padre = padre_codice(c)

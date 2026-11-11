@@ -30,10 +30,13 @@ NASCONDI_CONSOLE = 0x08000000 se os.name == "nt" altrimenti 0          # CREATE_
 FILE_NON_DATI = ("requirements.txt", "installa_librerie.bat", "installa_librerie.sh", "LEGGIMI.txt", "CONVERSIONE.md")
 
 
+VOCI_DATI = ("nella cartella dell'utente (consigliato)", "accanto al programma (versione portatile)")
+
+
 classe Opzioni:
     """Come costruire l'eseguibile."""
 
-    definisci __inizializza__(se_stesso, nome, un_file=Vero, senza_console=Vero, icona="", versione="1.0.0", autore="", descrizione="", crea_setup=Falso, firma=Nessuno):
+    definisci __inizializza__(se_stesso, nome, un_file=Vero, senza_console=Vero, icona="", versione="1.0.0", autore="", descrizione="", crea_setup=Falso, firma=Nessuno, dati_accanto=Falso):
         se_stesso.nome = nome
         se_stesso.un_file = un_file
         se_stesso.senza_console = senza_console
@@ -43,6 +46,7 @@ classe Opzioni:
         se_stesso.descrizione = descrizione
         se_stesso.crea_setup = crea_setup
         se_stesso.firma = firma                  # Nessuno oppure {"pfx": file, "password": testo, "soggetto": nome del certificato, "marca": url}
+        se_stesso.dati_accanto = dati_accanto    # database: Falso = nella cartella dei dati dell'utente (consigliato), Vero = accanto all'exe (versione portatile)
 
 
 # ---------------------------------------------------------------- informazioni di versione (Windows)
@@ -256,6 +260,18 @@ definisci aggiorna_fonte_dati(origine, scrivi):
     ritorna bool(scritti)
 
 
+definisci scrivi_posizione_dati(sorgente, opzioni, scrivi=Nessuno):
+    """Scrive nel pacchetto dove il programma tiene i database (modelli_codice/fonte_dati.pit: posizione_dati). Con «utente», il predefinito, non scrive niente."""
+    percorso = os.path.join(sorgente, "dati_posizione.json")
+    se opzioni.dati_accanto:
+        con open(percorso, "w", encoding="utf-8") come f:
+            json.dump({"posizione": "accanto"}, f)
+        se scrivi:
+            scrivi("     i database stanno accanto al programma (versione portatile).")
+    altrimenti_se os.path.exists(percorso):
+        os.remove(percorso)
+
+
 definisci nome_sicuro(nome):
     """Un nome adatto a un nome di file e di voce di registro."""
     ritorna "".join(c per c in nome se c.isalnum() o c in "_-") o "programma"
@@ -319,6 +335,7 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
             risultato["errore"] = "Alcuni file non si convertono in Python:\n" + "\n".join(f"  {f}: {e}" per f, e in r["errori"][:5])
             ritorna risultato
         scrivi(f"     {r['file_python']} file Python, {r['altri_file']} altri file.")
+        scrivi_posizione_dati(sorgente, opzioni, scrivi)
         principale = os.path.join(sorgente, r["principale"])
         se non os.path.exists(principale):
             risultato["errore"] = f"Non trovo il file principale ({r['principale']})."
@@ -396,7 +413,7 @@ classe DialogoEseguibile(DialogoBase):
     """Opzioni e avanzamento della creazione dell'eseguibile."""
 
     definisci __inizializza__(se_stesso, genitore, colori, origine):
-        DialogoBase.__init__(se_stesso, genitore, "Crea l'eseguibile (.exe)", colori, 780, 760)
+        DialogoBase.__init__(se_stesso, genitore, "Crea l'eseguibile (.exe)", colori, 780, 800)
         se_stesso.resizable(Vero, Vero)
         se_stesso.origine = origine
         se_stesso.coda = queue.Queue()
@@ -414,11 +431,12 @@ classe DialogoEseguibile(DialogoBase):
         se_stesso.var_autore = tk.StringVar(value=salvate.get("autore", ""))
         se_stesso.var_descrizione = tk.StringVar(value=salvate.get("descrizione", ""))
         se_stesso.var_setup = tk.BooleanVar(value=bool(salvate.get("setup", Falso)))
+        se_stesso.var_dati = tk.StringVar(value=VOCI_DATI[1] se salvate.get("dati_accanto") altrimenti VOCI_DATI[0])
         se_stesso.var_firma = tk.BooleanVar(value=Falso)
         se_stesso.var_pfx = tk.StringVar(value=salvate.get("pfx", ""))
         se_stesso.var_password = tk.StringVar()
         se_stesso.grid_columnconfigure(1, weight=1)
-        se_stesso.grid_rowconfigure(13, weight=1)
+        se_stesso.grid_rowconfigure(14, weight=1)
         tk.Label(se_stesso, text="Il programma viene convertito in Python e impacchettato con PyInstaller: chi lo riceve non ha bisogno di Python.",
                  background=c["pannello"], foreground=c["tenue"], anchor="w", wraplength=720, justify="left").grid(row=0, column=0, columnspan=3, sticky="we", padx=14, pady=(12, 6))
         se_stesso.riga("Nome del programma:", se_stesso.campo(se_stesso.var_nome, 28), 1)
@@ -439,39 +457,43 @@ classe DialogoEseguibile(DialogoBase):
                                                     variable=se_stesso.var_senza_console, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
                                                     selectcolor=c["casella"], anchor="w")
         se_stesso.casella_console.grid(row=7, column=0, columnspan=3, sticky="we", padx=14)
+        scelta_dati = ttk.Combobox(se_stesso, textvariable=se_stesso.var_dati, values=lista(VOCI_DATI), state="readonly", width=46)
+        se_stesso.riga("Database SQLite del programma:", lambda p: scelta_dati, 8)
+        suggerisci(scelta_dati, "Dove il programma costruito tiene il suo database: nella cartella dell'utente (%APPDATA%) non si perde reinstallando; accanto al programma "
+                                "si porta con una chiavetta (serve una cartella dove si può scrivere). Il programma ha comunque il menu «Dati» per trovare, copiare e ripristinare i dati", c)
         se_stesso.casella_setup = tk.Checkbutton(se_stesso, text="Crea anche il programma di installazione (Setup_<nome>.exe): installa, crea i collegamenti e si disinstalla da «App» di Windows",
                                                  variable=se_stesso.var_setup, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
                                                  selectcolor=c["casella"], anchor="w", justify="left", wraplength=720)
-        se_stesso.casella_setup.grid(row=8, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.casella_setup.grid(row=9, column=0, columnspan=3, sticky="we", padx=14)
         se_stesso.casella_firma = tk.Checkbutton(se_stesso, text="Firma i file con un certificato di firma del codice (facoltativo: toglie l'avviso «editore sconosciuto»)",
                                                  variable=se_stesso.var_firma, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
                                                  selectcolor=c["casella"], anchor="w", justify="left", wraplength=720)
-        se_stesso.casella_firma.grid(row=9, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.casella_firma.grid(row=10, column=0, columnspan=3, sticky="we", padx=14)
         riga_pfx = tk.Frame(se_stesso, background=c["pannello"])
         se_stesso.campo(se_stesso.var_pfx, 40)(riga_pfx).pack(side="left", fill="x", expand=Vero)
         b_pfx = tk.Button(riga_pfx, text="Sfoglia…", command=se_stesso._sfoglia_certificato, relief="flat", background=c["pulsante"], foreground=c["primo_piano"])
         b_pfx.pack(side="left", padx=(6, 0))
-        se_stesso.riga("   Certificato (.pfx):", lambda p: riga_pfx, 10)
-        se_stesso.campo_password = se_stesso.riga("   Password del certificato:", se_stesso.campo(se_stesso.var_password, 28), 11)
+        se_stesso.riga("   Certificato (.pfx):", lambda p: riga_pfx, 11)
+        se_stesso.campo_password = se_stesso.riga("   Password del certificato:", se_stesso.campo(se_stesso.var_password, 28), 12)
         se_stesso.campo_password.configure(show="•")
         se_stesso.nota_firma = tk.Label(se_stesso, anchor="w", justify="left", wraplength=740, background=c["pannello"], foreground=c["tenue"])
-        se_stesso.nota_firma.grid(row=12, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.nota_firma.grid(row=13, column=0, columnspan=3, sticky="we", padx=14)
         se_stesso._nota_firma()
         suggerisci(se_stesso.casella_setup, "Un unico file da spedire: chi lo apre sceglie la cartella e preme Installa (non servono i permessi di amministratore)", c)
         suggerisci(se_stesso.casella_firma, "Serve il file del certificato (.pfx) e signtool.exe del Windows SDK. La password non viene salvata", c)
         suggerisci(se_stesso.casella_un_file, "Con la spunta: un unico file; senza: una cartella con l'.exe e i suoi file", c)
         suggerisci(se_stesso.casella_console, "Per i programmi che usano input()/print() lascia la finestra nera (togli la spunta)", c)
         corpo = tk.Frame(se_stesso, background=c["pannello"])
-        corpo.grid(row=13, column=0, columnspan=3, sticky="nsew", padx=14, pady=8)
+        corpo.grid(row=14, column=0, columnspan=3, sticky="nsew", padx=14, pady=8)
         se_stesso.registro = tk.Text(corpo, height=14, font=(FONT_MONO, 9), background=c["editor"], foreground=c["primo_piano"], relief="flat", state="disabled", wrap="none")
         barra = ttk.Scrollbar(corpo, orient="vertical", command=se_stesso.registro.yview)
         se_stesso.registro.configure(yscrollcommand=barra.set)
         barra.pack(side="right", fill="y")
         se_stesso.registro.pack(side="left", fill="both", expand=Vero)
         se_stesso.progresso = ttk.Progressbar(se_stesso, mode="indeterminate")
-        se_stesso.progresso.grid(row=14, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.progresso.grid(row=15, column=0, columnspan=3, sticky="we", padx=14)
         fondo = tk.Frame(se_stesso, background=c["pannello"])
-        fondo.grid(row=15, column=0, columnspan=3, sticky="e", padx=14, pady=10)
+        fondo.grid(row=16, column=0, columnspan=3, sticky="e", padx=14, pady=10)
         se_stesso.pulsante_chiudi = tk.Button(fondo, text="Chiudi", command=se_stesso._chiudi, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12)
         se_stesso.pulsante_chiudi.pack(side="right", padx=4)
         se_stesso.pulsante_cartella = tk.Button(fondo, text="Apri la cartella", command=se_stesso._apri_cartella, background=c["pulsante"], foreground=c["primo_piano"],
@@ -519,7 +541,7 @@ classe DialogoEseguibile(DialogoBase):
             firma = {"pfx": se_stesso.var_pfx.get().strip(), "password": se_stesso.var_password.get(), "marca": URL_MARCA_TEMPORALE}
         ritorna Opzioni(nome, se_stesso.var_un_file.get(), se_stesso.var_senza_console.get(), se_stesso.var_icona.get().strip(),
                         se_stesso.var_versione.get().strip() o "1.0.0", se_stesso.var_autore.get().strip(), se_stesso.var_descrizione.get().strip(),
-                        se_stesso.var_setup.get(), firma)
+                        se_stesso.var_setup.get(), firma, se_stesso.var_dati.get() == VOCI_DATI[1])
 
     definisci _avvia(se_stesso):
         se se_stesso.thread è non Nessuno e se_stesso.thread.is_alive():
@@ -527,7 +549,7 @@ classe DialogoEseguibile(DialogoBase):
         opzioni = se_stesso.opzioni()
         # si ricordano le scelte (non la password) nel manifesto del progetto
         salva_impostazioni(se_stesso.origine, {"versione": opzioni.versione, "autore": opzioni.autore, "descrizione": opzioni.descrizione,
-                                               "setup": opzioni.crea_setup, "pfx": se_stesso.var_pfx.get().strip()})
+                                               "setup": opzioni.crea_setup, "pfx": se_stesso.var_pfx.get().strip(), "dati_accanto": opzioni.dati_accanto})
         se_stesso.ferma_richiesto = Falso
         se_stesso.esito = Nessuno
         se_stesso.registro.configure(state="normal")
