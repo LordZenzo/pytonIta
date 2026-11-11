@@ -16,7 +16,9 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
-## Novità della 1.51 (controllo prima dell'esecuzione)
+## Novità della 2.0 (controllo prima dell'esecuzione e nuovi nomi)
+
+> **Attenzione: la 2.0 non è compatibile con i programmi scritti con la 1.x.** Cambiano i nomi delle funzioni predefinite (`testo`→`tipo_testo`, `lunghezza`→`lunghezza_di`, `leggi`→`leggi_tastiera`, `genitore`→`classe_base`…), `e` e `o` non sono più ammessi come nomi di variabile e il controllo blocca i programmi con errori gravi. L'elenco completo dei nomi è in `pitonit/NOMI.md`.
 
 - L'interprete controlla ogni programma `.pit` (e ogni modulo `.pit` importato) **prima di eseguirlo** e lo blocca se trova un errore grave: una parola chiave usata come nome (`pass`, `classe = ...`, `definisci f(da, a)`) oppure una funzione predefinita nascosta da una variabile e poi richiamata (`testo = "a"` ... `testo(5)`).
 - `pitonit -m _controlla programma.pit` mostra anche gli avvisi (nomi inglesi come `print`, nomi non definiti). `# controlla: ok` salta una riga, `# controlla: ignora-file` un file, `PITONIT_SENZA_CONTROLLO=1` il controllo.
