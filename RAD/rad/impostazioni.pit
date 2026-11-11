@@ -5,6 +5,7 @@ da tkinter importa ttk, colorchooser, messagebox
 
 da rad.tema importa TEMI
 da rad.dialoghi importa DialogoBase
+da rad.piattaforma importa lega_rotella
 
 SCHEDE = [
     ("Editor", [
@@ -88,6 +89,7 @@ classe Impostazioni(DialogoBase):
         se_stesso.config_ = config
         se_stesso.var = {}
         se_stesso.var_colori = {}
+        se_stesso._tele = {}              # pagina -> tela che la fa scorrere
         c = colori
         se_stesso.grid_columnconfigure(0, weight=1)
         se_stesso.grid_rowconfigure(0, weight=1)
@@ -97,6 +99,7 @@ classe Impostazioni(DialogoBase):
         se_stesso._scheda_tema(blocco)
         per titolo, campi in SCHEDE:
             se_stesso._scheda(blocco, titolo, campi)
+        lega_rotella(se_stesso, se_stesso._rotella)
         pulsanti = tk.Frame(se_stesso, background=c["pannello"])
         pulsanti.grid(row=1, column=0, sticky="e", padx=10, pady=(0, 10))
         tk.Button(pulsanti, text="Annulla", command=se_stesso.destroy, background=c["pulsante"],
@@ -108,10 +111,34 @@ classe Impostazioni(DialogoBase):
 
     # --- schede
     definisci _pagina(se_stesso, blocco, titolo):
-        cornice = tk.Frame(blocco, background=se_stesso.colori["pannello"])
-        blocco.add(cornice, text=f" {titolo} ")
+        """Una pagina che scorre in verticale quando le voci non ci stanno (rotella, barra a destra)."""
+        sfondo = se_stesso.colori["pannello"]
+        esterno = tk.Frame(blocco, background=sfondo)
+        blocco.add(esterno, text=f" {titolo} ")
+        tela = tk.Canvas(esterno, highlightthickness=0, background=sfondo, yscrollincrement=30)
+        barra = ttk.Scrollbar(esterno, orient="vertical", command=tela.yview)
+        tela.configure(yscrollcommand=barra.set)
+        barra.pack(side="right", fill="y")
+        tela.pack(side="left", fill="both", expand=Vero)
+        cornice = tk.Frame(tela, background=sfondo)
+        finestra_id = tela.create_window(0, 0, window=cornice, anchor="nw")
+        cornice.bind("<Configure>", lambda e: tela.configure(scrollregion=tela.bbox("all")))
+        tela.bind("<Configure>", lambda e: tela.itemconfigure(finestra_id, width=e.width))
         cornice.grid_columnconfigure(1, weight=1)
+        se_stesso._tele[testo(esterno)] = tela
         ritorna cornice
+
+    definisci _rotella(se_stesso, e):
+        """La rotella fa scorrere la pagina aperta (non dove c'è già un campo di testo che scorre da solo)."""
+        se e.widget.winfo_class() in ("Text", "Listbox", "TCombobox"):
+            ritorna
+        prova:
+            tela = se_stesso._tele.get(testo(se_stesso.blocco.nametowidget(se_stesso.blocco.select())))
+        eccetto (tk.TclError, KeyError):
+            ritorna
+        se tela è Nessuno o tela.yview() == (0.0, 1.0):
+            ritorna
+        tela.yview_scroll(-1 se e.delta > 0 altrimenti 1, "units")
 
     definisci _scheda(se_stesso, blocco, titolo, campi):
         pagina = se_stesso._pagina(blocco, titolo)

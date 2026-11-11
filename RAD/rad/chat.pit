@@ -75,7 +75,7 @@ classe PannelloChat(tk.Frame):
         se_stesso.casella_contesto = tk.Checkbutton(opzioni, text="Includi file attivo e selezione",
                                                     variable=se_stesso.var_contesto, anchor="w")
         se_stesso.casella_contesto.pack(side="left", padx=6)
-        se_stesso.var_economico = tk.BooleanVar(value=Falso)
+        se_stesso.var_economico = tk.BooleanVar(value=Vero)
         se_stesso.casella_economico = tk.Checkbutton(opzioni, text="⚡ economico", variable=se_stesso.var_economico, anchor="w")
         se_stesso.casella_economico.pack(side="left", padx=2)
         se_stesso.stato = tk.Label(opzioni, text="", anchor="e")

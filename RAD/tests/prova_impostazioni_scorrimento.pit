@@ -1,0 +1,56 @@
+"""Impostazioni: ogni pagina scorre quando le voci non ci stanno (Assistente AI è lunga); la casella «economico» della chat parte attiva."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.impostazioni importa Impostazioni
+da rad.finestra importa Applicazione
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+r = tk.Tk()
+d = Impostazioni(r, cfg, colori(cfg))
+r.update()
+titoli = [d.blocco.tab(t, "text").strip() per t in d.blocco.tabs()]
+d.blocco.select(titoli.index("Assistente AI"))
+r.update()
+tela = d._tele[testo(d.blocco.nametowidget(d.blocco.select()))]
+regione = [int(x) per x in tela.cget("scrollregion").split()]
+verifica(regione[3] > tela.winfo_height(), f"la pagina è più alta dello spazio visibile: {regione} contro {tela.winfo_height()}")
+verifica(tela.yview()[0] == 0.0 e tela.yview()[1] < 1.0, "all'inizio si vede solo la parte alta")
+
+
+classe Rotella:
+    delta = -120
+    widget = tela
+
+
+d._rotella(Rotella())
+verifica(tela.yview()[0] > 0.0, "la rotella fa scorrere verso il basso")
+tela.yview_moveto(1.0)
+r.update()
+ultima = [w per w in d._tele.values()][0]
+verifica(tela.yview()[1] == 1.0, "si arriva in fondo")
+# una pagina corta non scorre
+d.blocco.select(titoli.index("Aggiornamenti"))
+r.update()
+corta = d._tele[testo(d.blocco.nametowidget(d.blocco.select()))]
+verifica(corta.yview() == (0.0, 1.0), "una pagina che ci sta non scorre")
+# i campi dei fornitori ci sono tutti
+verifica(tutti(k in d.var per k in ("ai.fornitore", "ai.chiave_gemini", "ai.modello_gemini", "ai.chiave_deepseek", "ai.modello_deepseek")), "campi dei fornitori")
+d.destroy()
+
+app = Applicazione(r, cfg)
+r.update()
+verifica(app.chat.var_economico.get() == Vero, "«⚡ economico» parte attivo")
+r.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")
