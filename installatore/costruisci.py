@@ -56,7 +56,7 @@ def versione_base():
 
 def versione_completa():
     """1.1.<versione di Python di pitonit>, es. 1.1.3.13.18"""
-    r = subprocess.run([os.path.join(PITONIT, "pitonit.exe"), "-c", "importa sys; stampa('.'.join(testo(x) per x in sys.version_info[:3]))"],
+    r = subprocess.run([os.path.join(PITONIT, "pitonit.exe"), "-c", "importa sys; stampa('.'.join(tipo_testo(x) per x in sys.version_info[:3]))"],
                        capture_output=True, text=True, encoding="utf-8")
     return versione_base() + "." + r.stdout.strip()
 
