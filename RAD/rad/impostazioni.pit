@@ -28,9 +28,16 @@ SCHEDE = [
         ("esecuzione.pulisci_console", "Pulisci la console a ogni esecuzione", "si_no", Nessuno),
     ]),
     ("Assistente AI", [
-        ("ai.chiave_api", "Chiave API Anthropic", "segreto", Nessuno),
-        ("ai.modello", "Modello", "testo", Nessuno),
-        ("ai.modello_economico", "Modello economico (casella «⚡ economico» e «Spiega»)", "testo", Nessuno),
+        ("ai.fornitore", "Fornitore dell'assistente", "scelta:claude,gemini,deepseek", Nessuno),
+        ("ai.chiave_api", "Chiave API Anthropic (Claude)", "segreto", Nessuno),
+        ("ai.modello", "Modello Claude", "testo", Nessuno),
+        ("ai.modello_economico", "Modello Claude economico (casella «⚡ economico» e «Spiega»)", "testo", Nessuno),
+        ("ai.chiave_gemini", "Chiave API Google (Gemini)", "segreto", Nessuno),
+        ("ai.modello_gemini", "Modello Gemini", "testo", Nessuno),
+        ("ai.modello_economico_gemini", "Modello Gemini economico", "testo", Nessuno),
+        ("ai.chiave_deepseek", "Chiave API DeepSeek", "segreto", Nessuno),
+        ("ai.modello_deepseek", "Modello DeepSeek", "testo", Nessuno),
+        ("ai.modello_economico_deepseek", "Modello DeepSeek economico", "testo", Nessuno),
         ("ai.max_token", "Lunghezza massima della risposta (token)", "numero", (256, 64000)),
         ("ai.passi_massimi", "Passi massimi per richiesta", "numero", (1, 100)),
         ("ai.conferma_scrittura", "Chiedi conferma prima di scrivere file", "si_no", Nessuno),
@@ -126,6 +133,9 @@ classe Impostazioni(DialogoBase):
                 var = tk.StringVar(value=valore)
                 famiglie = sorted(set(tkfont.families()))
                 w = ttk.Combobox(pagina, textvariable=var, values=famiglie, width=30)
+            altrimenti_se tipo_.startswith("scelta:"):
+                var = tk.StringVar(value=testo(valore))
+                w = ttk.Combobox(pagina, textvariable=var, values=tipo_.split(":", 1)[1].split(","), state="readonly", width=20)
             altrimenti_se tipo_ == "lungo":
                 var = tk.StringVar(value=valore)
                 w = tk.Text(pagina, width=40, height=6, wrap="word", background=c["campo"], foreground=c["primo_piano"],
@@ -139,7 +149,7 @@ classe Impostazioni(DialogoBase):
                              insertbackground=c["cursore"], relief="flat", highlightthickness=1,
                              highlightbackground=c["bordo"], highlightcolor=c["accento"],
                              show="•" se tipo_ == "segreto" altrimenti "")
-            w.grid(row=riga, column=1, sticky="we" se tipo_ non in ("si_no", "numero") altrimenti "w", padx=12, pady=5)
+            w.grid(row=riga, column=1, sticky="we" se non (tipo_ in ("si_no", "numero") o tipo_.startswith("scelta:")) altrimenti "w", padx=12, pady=5)
             se_stesso.var[percorso] = (var, w, tipo_, valore)
 
     definisci _scheda_tema(se_stesso, blocco):

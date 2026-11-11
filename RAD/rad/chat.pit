@@ -57,9 +57,9 @@ classe PannelloChat(tk.Frame):
         se_stesso.pulsante_claude = tk.Button(testata, text="⌨ Claude Code", command=lambda: se_stesso.ambiente.apri_claude_code())
         se_stesso.pulsante_claude.pack(side="right", padx=3, pady=3)
         suggerisci(se_stesso.pulsante_claude, "Apre Claude Code in un terminale nella cartella del progetto")
-        se_stesso.var_modello = tk.StringVar(value=se_stesso.config_.ottieni("ai.modello"))
+        se_stesso.var_modello = tk.StringVar(value=se_stesso.config_.ottieni(ai.chiave_modello(se_stesso.config_)))
         se_stesso.selettore = ttk.Combobox(testata, textvariable=se_stesso.var_modello, width=15,
-                                           values=se_stesso.config_.ottieni("ai.modelli", []))
+                                           values=ai.modelli_di(se_stesso.config_))
         se_stesso.selettore.pack(side="right", padx=3)
         se_stesso.selettore.bind("<<ComboboxSelected>>", se_stesso._cambia_modello)
         se_stesso.selettore.bind("<Return>", se_stesso._cambia_modello)
@@ -218,14 +218,14 @@ classe PannelloChat(tk.Frame):
         se_stesso._scrivi("Posso leggere e scrivere i file del progetto, eseguire i programmi, controllare la sintassi "
                           "e disegnare finestre nel progettista. Chiedimi quello che ti serve.\n", "ai")
         se non se_stesso.cliente_pronto():
-            se_stesso._scrivi("\nPer iniziare inserisci la chiave API in Impostazioni → Assistente AI.\n", "info")
+            se_stesso._scrivi(f"\nPer iniziare inserisci la chiave API di {ai.crea_cliente(se_stesso.config_).nome} in Impostazioni → Assistente AI.\n", "info")
 
     definisci cliente_pronto(se_stesso):
-        ritorna bool(ai.ClienteClaude(se_stesso.config_).chiave())
+        ritorna bool(ai.crea_cliente(se_stesso.config_).chiave())
 
     # ------------------------------------------------------------ invio e agente
     definisci _cambia_modello(se_stesso, e=Nessuno):
-        se_stesso.config_.imposta("ai.modello", se_stesso.var_modello.get().strip())
+        se_stesso.config_.imposta(ai.chiave_modello(se_stesso.config_), se_stesso.var_modello.get().strip())
         se_stesso.config_.salva()
 
     definisci contesto_ide(se_stesso):
@@ -253,10 +253,10 @@ classe PannelloChat(tk.Frame):
         se_stesso.messaggi.append({"role": "user", "content": contenuto})
         se_stesso._scrivi("Assistente\n", "etichetta_ai")
         se_stesso._imposta_occupato(Vero)
-        cliente = ai.ClienteClaude(se_stesso.config_)
+        cliente = ai.crea_cliente(se_stesso.config_)
         # modello economico: per spiegazioni e piccole correzioni costa molto meno
         se (se_stesso.var_economico.get() se economico è Nessuno altrimenti economico):
-            cliente.modello_forzato = se_stesso.config_.ottieni("ai.modello_economico", "claude-haiku-5-5")
+            cliente.modello_forzato = cliente.modello_economico()
             se_stesso._scrivi(f"(modello economico: {cliente.modello_forzato})\n", "info")
         strumenti = ai.Strumenti(se_stesso.ambiente, se_stesso.config_, se_stesso.ponte)
         se se_stesso.config_.ottieni("ai.storia", Vero):
@@ -268,7 +268,7 @@ classe PannelloChat(tk.Frame):
         id_richiesta = uuid.uuid4().hex[:8]
         strumenti.registro = se_stesso.agente.registro = registro
         strumenti.id_richiesta = se_stesso.agente.id_richiesta = id_richiesta
-        registro.scrivi("richiesta", richiesta=id_richiesta, modello=se_stesso.config_.ottieni("ai.modello", ""),
+        registro.scrivi("richiesta", richiesta=id_richiesta, modello=cliente.modello(),
                         domanda=domanda[:80], con_contesto=lunghezza(contenuto) > 1)
         sistema = se_stesso.ponte.esegui(lambda: ai.prompt_di_sistema(se_stesso.config_, se_stesso.ambiente.progetto))
         se_stesso.lavoro = threading.Thread(target=se_stesso._lavora, args=(sistema,), daemon=Vero)

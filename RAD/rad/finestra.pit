@@ -12,6 +12,7 @@ da tkinter importa ttk, messagebox, filedialog, simpledialog
 da rad importa NOME, VERSIONE, VERSIONE_BASE, tema, form_modello, esecuzione, dialoghi, stile
 da rad.config importa Configurazione
 da rad.editor importa Editor, linguaggio_di
+da rad importa ai
 da rad importa registro_ai
 da rad.storia importa Storia
 da rad importa claude_code
@@ -534,8 +535,8 @@ classe Applicazione:
         se percorso in ("*",) o percorso.startswith("scorciatoie"):
             se_stesso._associa_scorciatoie()
         se percorso in ("*",) o percorso.startswith("ai"):
-            se_stesso.chat.var_modello.set(se_stesso.config_.ottieni("ai.modello"))
-            se_stesso.chat.selettore.configure(values=se_stesso.config_.ottieni("ai.modelli", []))
+            se_stesso.chat.var_modello.set(se_stesso.config_.ottieni(ai.chiave_modello(se_stesso.config_)))
+            se_stesso.chat.selettore.configure(values=ai.modelli_di(se_stesso.config_))
 
     definisci impostazioni(se_stesso):
         Impostazioni(se_stesso.radice, se_stesso.config_, se_stesso.colori).mostra()

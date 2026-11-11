@@ -37,6 +37,17 @@ PREDEFINITI = {
         "modello": "claude-sonnet-5-5",
         "modello_economico": "claude-haiku-5-5",      # per spiegazioni e piccole correzioni (casella «economico» della chat)
         "modelli": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-fable-5-1"],
+        "fornitore": "claude",           # claude | gemini | deepseek
+        "chiave_gemini": "",
+        "modello_gemini": "gemini-2.5-flash",
+        "modello_economico_gemini": "gemini-2.5-flash-lite",
+        "modelli_gemini": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
+        "url_gemini": "https://generativelanguage.googleapis.com/v1beta",
+        "chiave_deepseek": "",
+        "modello_deepseek": "deepseek-chat",
+        "modello_economico_deepseek": "deepseek-chat",
+        "modelli_deepseek": ["deepseek-chat", "deepseek-reasoner"],
+        "url_deepseek": "https://api.deepseek.com",
         "max_token": 4096,
         "conferma_scrittura": Vero,
         "conferma_esecuzione": Vero,

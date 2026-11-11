@@ -1,8 +1,12 @@
-"""Assistente AI (Claude): client dell'API Messages, strumenti che agiscono sull'ambiente, ciclo dell'agente."""
+"""Assistente AI (Claude, Gemini, DeepSeek): client delle API, strumenti che agiscono sull'ambiente, ciclo dell'agente.
+
+La conversazione ha sempre il formato dell'API Messages di Anthropic (blocchi text, tool_use, tool_result): ogni cliente la traduce
+nel formato del proprio fornitore e traduce la risposta di nuovo in quel formato, così l'agente e gli strumenti non cambiano."""
 importa json
 importa os
 importa threading
 importa time
+importa uuid
 importa urllib.request
 importa urllib.error
 
@@ -157,35 +161,49 @@ definisci con_cache(messaggi):
     ritorna copia
 
 
-classe ClienteClaude:
-    """Client minimale dell'API Messages di Anthropic (urllib, nessuna dipendenza)."""
+FORNITORI = {"claude": "Claude (Anthropic)", "gemini": "Gemini (Google)", "deepseek": "DeepSeek"}
+
+
+classe ClienteBase:
+    """Parte comune dei clienti: scelta del modello e della chiave, invio della richiesta HTTP. Le sottoclassi traducono il formato."""
+    nome = ""
+    chiave_config = ""                 # dove sta la chiave nella configurazione
+    variabili_ambiente = ()            # alternative: variabili d'ambiente con la chiave
+    chiave_modello = ""                # dove sta il modello scelto
+    chiave_economico = ""
+    modello_predefinito = ""
+    economico_predefinito = ""
 
     definisci __inizializza__(se_stesso, config):
         se_stesso.config_ = config
-        se_stesso.modello_forzato = Nessuno       # se impostato vale al posto di ai.modello (modello economico)
+        se_stesso.modello_forzato = Nessuno       # se impostato vale al posto del modello scelto (modello economico)
 
     definisci modello(se_stesso):
-        ritorna se_stesso.modello_forzato o se_stesso.config_.ottieni("ai.modello", "claude-sonnet-5-5")
+        ritorna se_stesso.modello_forzato o se_stesso.config_.ottieni(se_stesso.chiave_modello, se_stesso.modello_predefinito)
+
+    definisci modello_economico(se_stesso):
+        ritorna se_stesso.config_.ottieni(se_stesso.chiave_economico, se_stesso.economico_predefinito) o se_stesso.modello_predefinito
 
     definisci chiave(se_stesso):
-        ritorna (se_stesso.config_.ottieni("ai.chiave_api", "") o os.environ.get("ANTHROPIC_API_KEY", "")).strip()
+        k = (se_stesso.config_.ottieni(se_stesso.chiave_config, "") o "").strip()
+        per v in se_stesso.variabili_ambiente:
+            se k:
+                interrompi
+            k = os.environ.get(v, "").strip()
+        ritorna k
 
-    definisci chiama(se_stesso, messaggi, sistema, strumenti):
-        chiave = se_stesso.chiave()
-        se non chiave:
-            solleva ErroreAI("Manca la chiave API. Inseriscila in Impostazioni → Assistente AI "
-                             "(oppure nella variabile d'ambiente ANTHROPIC_API_KEY).")
-        se se_stesso.config_.ottieni("ai.cache_cronologia", Vero):
-            messaggi = con_cache(messaggi)
-        corpo = {"model": se_stesso.modello(),
-                 "max_tokens": int(se_stesso.config_.ottieni("ai.max_token", 4096)),
-                 "system": [{"type": "text", "text": sistema, "cache_control": {"type": "ephemeral"}}],
-                 "messages": messaggi, "tools": strumenti}
-        richiesta = urllib.request.Request(
-            se_stesso.config_.ottieni("ai.url", "https://api.anthropic.com/v1/messages"),
-            data=json.dumps(corpo).encode("utf-8"), method="POST",
-            headers={"content-type": "application/json", "x-api-key": chiave,
-                     "anthropic-version": se_stesso.config_.ottieni("ai.versione_api", "2023-06-01")})
+    definisci _chiave_o_errore(se_stesso):
+        k = se_stesso.chiave()
+        se non k:
+            ambiente = " o ".join(se_stesso.variabili_ambiente)
+            solleva ErroreAI(f"Manca la chiave API di {se_stesso.nome}. Inseriscila in Impostazioni → Assistente AI"
+                             + (f" (oppure nella variabile d'ambiente {ambiente})." se ambiente altrimenti "."))
+        ritorna k
+
+    definisci _invia(se_stesso, url, corpo, intestazioni):
+        """Spedisce la richiesta JSON e ritorna la risposta già letta; gli errori diventano ErroreAI."""
+        richiesta = urllib.request.Request(url, data=json.dumps(corpo).encode("utf-8"), method="POST",
+                                           headers=dict(intestazioni, **{"content-type": "application/json"}))
         prova:
             con urllib.request.urlopen(richiesta, timeout=180) come r:
                 ritorna json.loads(r.read().decode("utf-8"))
@@ -199,6 +217,266 @@ classe ClienteClaude:
             solleva ErroreAI(f"Connessione non riuscita: {e.reason}")
         eccetto (TimeoutError, OSError) come e:
             solleva ErroreAI(f"Errore di rete: {e}")
+
+
+classe ClienteClaude(ClienteBase):
+    """Client minimale dell'API Messages di Anthropic (urllib, nessuna dipendenza)."""
+    nome = "Claude"
+    chiave_config = "ai.chiave_api"
+    variabili_ambiente = ("ANTHROPIC_API_KEY",)
+    chiave_modello = "ai.modello"
+    chiave_economico = "ai.modello_economico"
+    modello_predefinito = "claude-sonnet-5-5"
+    economico_predefinito = "claude-haiku-5-5"
+
+    definisci chiama(se_stesso, messaggi, sistema, strumenti):
+        chiave = se_stesso._chiave_o_errore()
+        se se_stesso.config_.ottieni("ai.cache_cronologia", Vero):
+            messaggi = con_cache(messaggi)
+        corpo = {"model": se_stesso.modello(),
+                 "max_tokens": int(se_stesso.config_.ottieni("ai.max_token", 4096)),
+                 "system": [{"type": "text", "text": sistema, "cache_control": {"type": "ephemeral"}}],
+                 "messages": messaggi, "tools": strumenti}
+        ritorna se_stesso._invia(se_stesso.config_.ottieni("ai.url", "https://api.anthropic.com/v1/messages"), corpo,
+                                 {"x-api-key": chiave, "anthropic-version": se_stesso.config_.ottieni("ai.versione_api", "2023-06-01")})
+
+
+# ---------------------------------------------------------------- DeepSeek (formato «chat completions», come OpenAI)
+definisci messaggi_a_openai(messaggi, sistema):
+    """La conversazione interna nel formato chat completions: system, user, assistant (con tool_calls) e tool."""
+    r = [{"role": "system", "content": sistema}]
+    per m in messaggi:
+        c = m.get("content")
+        se isinstance(c, testo):
+            c = [{"type": "text", "text": c}]
+        se m.get("role") == "assistant":
+            testi = [b["text"] per b in c se b.get("type") == "text"]
+            ragionamenti = [b["text"] per b in c se b.get("type") == "ragionamento"]
+            chiamate = [{"id": b["id"], "type": "function", "function": {"name": b["name"], "arguments": json.dumps(b.get("input", {}), ensure_ascii=Falso)}}
+                        per b in c se b.get("type") == "tool_use"]
+            voce = {"role": "assistant", "content": "\n".join(testi) se (testi o non chiamate) altrimenti Nessuno}
+            se chiamate:
+                voce["tool_calls"] = chiamate
+            se ragionamenti:
+                voce["reasoning_content"] = "\n".join(ragionamenti)
+            r.append(voce)
+        altrimenti:
+            per b in c:
+                se b.get("type") == "tool_result":
+                    esito = b.get("content")
+                    r.append({"role": "tool", "tool_call_id": b["tool_use_id"],
+                              "content": esito se isinstance(esito, testo) altrimenti json.dumps(esito, ensure_ascii=Falso)})
+            testi = [b["text"] per b in c se b.get("type") == "text"]
+            se testi:
+                r.append({"role": "user", "content": "\n".join(testi)})
+    ritorna r
+
+
+definisci risposta_da_openai(r):
+    """La risposta di chat completions nel formato interno (content, stop_reason, usage)."""
+    scelte = r.get("choices") o []
+    se non scelte:
+        solleva ErroreAI("Risposta vuota dall'API.")
+    m = scelte[0].get("message") o {}
+    blocchi = []
+    se m.get("reasoning_content"):
+        blocchi.append({"type": "ragionamento", "text": m["reasoning_content"]})
+    se (m.get("content") o "").strip():
+        blocchi.append({"type": "text", "text": m["content"]})
+    chiamate = 0
+    per t in (m.get("tool_calls") o []):
+        funzione = t.get("function") o {}
+        prova:
+            argomenti = json.loads(funzione.get("arguments") o "{}")
+        eccetto ValueError:
+            argomenti = {}
+        blocchi.append({"type": "tool_use", "id": t.get("id") o ("ds_" + uuid.uuid4().hex[:10]), "name": funzione.get("name", ""),
+                        "input": argomenti se isinstance(argomenti, dict) altrimenti {}})
+        chiamate += 1
+    fine = scelte[0].get("finish_reason")
+    stop = "tool_use" se chiamate altrimenti ("max_tokens" se fine == "length" altrimenti "end_turn")
+    u = r.get("usage") o {}
+    letti = u.get("prompt_cache_hit_tokens", 0) o 0
+    nuovi = u.get("prompt_cache_miss_tokens")
+    se nuovi è Nessuno:
+        nuovi = max(0, (u.get("prompt_tokens", 0) o 0) - letti)
+    ritorna {"content": blocchi, "stop_reason": stop,
+             "usage": {"input_tokens": nuovi, "output_tokens": u.get("completion_tokens", 0) o 0, "cache_read_input_tokens": letti}}
+
+
+classe ClienteDeepSeek(ClienteBase):
+    """DeepSeek (API compatibile con chat completions)."""
+    nome = "DeepSeek"
+    chiave_config = "ai.chiave_deepseek"
+    variabili_ambiente = ("DEEPSEEK_API_KEY",)
+    chiave_modello = "ai.modello_deepseek"
+    chiave_economico = "ai.modello_economico_deepseek"
+    modello_predefinito = "deepseek-chat"
+    economico_predefinito = "deepseek-chat"
+
+    definisci chiama(se_stesso, messaggi, sistema, strumenti):
+        chiave = se_stesso._chiave_o_errore()
+        massimo = int(se_stesso.config_.ottieni("ai.max_token", 4096))
+        se "reasoner" non in se_stesso.modello():
+            massimo = min(massimo, 8192)          # tetto di deepseek-chat
+        corpo = {"model": se_stesso.modello(), "max_tokens": massimo, "messages": messaggi_a_openai(messaggi, sistema),
+                 "tools": [{"type": "function", "function": {"name": s["name"], "description": s.get("description", ""), "parameters": s["input_schema"]}}
+                           per s in strumenti]}
+        base = se_stesso.config_.ottieni("ai.url_deepseek", "https://api.deepseek.com").rstrip("/")
+        ritorna risposta_da_openai(se_stesso._invia(base + "/chat/completions", corpo, {"authorization": "Bearer " + chiave}))
+
+
+# ---------------------------------------------------------------- Gemini (generateContent)
+definisci strumenti_a_gemini(strumenti):
+    """Le dichiarazioni delle funzioni per Gemini. Gemini non accetta un «object» senza campi: quei parametri diventano testo JSON.
+    Ritorna (dichiarazioni, {strumento: [parametri da rileggere come JSON]})."""
+    dichiarazioni = []
+    da_json = {}
+    per s in strumenti:
+        schema = s.get("input_schema") o {}
+        proprieta = {}
+        per nome_p, p in (schema.get("properties") o {}).items():
+            p = dict(p)
+            se p.get("type") == "object" e non p.get("properties"):
+                p["type"] = "string"
+                p["description"] = (p.get("description", "") + " Scrivi un oggetto JSON come testo.").strip()
+                da_json.setdefault(s["name"], []).append(nome_p)
+            proprieta[nome_p] = p
+        d = {"name": s["name"], "description": s.get("description", "")}
+        se proprieta:
+            d["parameters"] = {"type": "object", "properties": proprieta}
+            se schema.get("required"):
+                d["parameters"]["required"] = schema["required"]
+        dichiarazioni.append(d)
+    ritorna dichiarazioni, da_json
+
+
+definisci messaggi_a_gemini(messaggi):
+    """La conversazione interna nel formato di Gemini (contents con parts). Le firme del ragionamento (thoughtSignature) tornano indietro."""
+    nomi = {}
+    contenuti = []
+    per m in messaggi:
+        c = m.get("content")
+        se isinstance(c, testo):
+            c = [{"type": "text", "text": c}]
+        parti = []
+        per b in c:
+            t = b.get("type")
+            se t == "text":
+                p = {"text": b["text"]}
+                se b.get("firma"):
+                    p["thoughtSignature"] = b["firma"]
+                parti.append(p)
+            altrimenti_se t == "tool_use":
+                nomi[b["id"]] = b["name"]
+                p = {"functionCall": {"name": b["name"], "args": b.get("input", {})}}
+                se b.get("firma"):
+                    p["thoughtSignature"] = b["firma"]
+                parti.append(p)
+            altrimenti_se t == "tool_result":
+                esito = b.get("content")
+                se non isinstance(esito, testo):
+                    esito = json.dumps(esito, ensure_ascii=Falso)
+                parti.append({"functionResponse": {"name": nomi.get(b["tool_use_id"], "strumento"),
+                                                   "response": {("error" se b.get("is_error") altrimenti "result"): esito}}})
+        se non parti:
+            continua
+        ruolo = "model" se m.get("role") == "assistant" altrimenti "user"
+        se contenuti e contenuti[-1]["role"] == ruolo:
+            contenuti[-1]["parts"] += parti
+        altrimenti:
+            contenuti.append({"role": ruolo, "parts": parti})
+    ritorna contenuti
+
+
+definisci risposta_da_gemini(r, da_json=Nessuno):
+    """La risposta di generateContent nel formato interno (content, stop_reason, usage)."""
+    da_json = da_json o {}
+    candidati = r.get("candidates") o []
+    se non candidati:
+        motivo = (r.get("promptFeedback") o {}).get("blockReason", "")
+        solleva ErroreAI("Gemini non ha risposto" + (f" (richiesta bloccata: {motivo})." se motivo altrimenti "."))
+    parti = (candidati[0].get("content") o {}).get("parts") o []
+    blocchi = []
+    chiamate = 0
+    per p in parti:
+        se "functionCall" in p:
+            f = p["functionCall"]
+            argomenti = dict(f.get("args") o {})
+            per nome_p in da_json.get(f.get("name"), []):
+                se isinstance(argomenti.get(nome_p), testo):
+                    prova:
+                        argomenti[nome_p] = json.loads(argomenti[nome_p])
+                    eccetto ValueError:
+                        passa
+            b = {"type": "tool_use", "id": "gem_" + uuid.uuid4().hex[:10], "name": f.get("name", ""), "input": argomenti}
+            se p.get("thoughtSignature"):
+                b["firma"] = p["thoughtSignature"]
+            blocchi.append(b)
+            chiamate += 1
+        altrimenti_se p.get("thought"):
+            continua                                # riassunto del ragionamento: non è la risposta
+        altrimenti_se (p.get("text") o "").strip():
+            b = {"type": "text", "text": p["text"]}
+            se p.get("thoughtSignature"):
+                b["firma"] = p["thoughtSignature"]
+            blocchi.append(b)
+    fine = candidati[0].get("finishReason", "")
+    se non blocchi:
+        solleva ErroreAI(f"Risposta vuota da Gemini (motivo: {fine o 'sconosciuto'}).")
+    u = r.get("usageMetadata") o {}
+    letti = u.get("cachedContentTokenCount", 0) o 0
+    ritorna {"content": blocchi,
+             "stop_reason": "tool_use" se chiamate altrimenti ("max_tokens" se fine == "MAX_TOKENS" altrimenti "end_turn"),
+             "usage": {"input_tokens": max(0, (u.get("promptTokenCount", 0) o 0) - letti),
+                       "output_tokens": (u.get("candidatesTokenCount", 0) o 0) + (u.get("thoughtsTokenCount", 0) o 0),
+                       "cache_read_input_tokens": letti}}
+
+
+classe ClienteGemini(ClienteBase):
+    """Gemini di Google (API generateContent)."""
+    nome = "Gemini"
+    chiave_config = "ai.chiave_gemini"
+    variabili_ambiente = ("GEMINI_API_KEY", "GOOGLE_API_KEY")
+    chiave_modello = "ai.modello_gemini"
+    chiave_economico = "ai.modello_economico_gemini"
+    modello_predefinito = "gemini-2.5-flash"
+    economico_predefinito = "gemini-2.5-flash-lite"
+
+    definisci chiama(se_stesso, messaggi, sistema, strumenti):
+        chiave = se_stesso._chiave_o_errore()
+        dichiarazioni, da_json = strumenti_a_gemini(strumenti)
+        corpo = {"systemInstruction": {"parts": [{"text": sistema}]}, "contents": messaggi_a_gemini(messaggi),
+                 "tools": [{"functionDeclarations": dichiarazioni}],
+                 "generationConfig": {"maxOutputTokens": int(se_stesso.config_.ottieni("ai.max_token", 4096))}}
+        base = se_stesso.config_.ottieni("ai.url_gemini", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+        ritorna risposta_da_gemini(se_stesso._invia(f"{base}/models/{se_stesso.modello()}:generateContent", corpo, {"x-goog-api-key": chiave}), da_json)
+
+
+CLIENTI = {"claude": ClienteClaude, "gemini": ClienteGemini, "deepseek": ClienteDeepSeek}
+
+
+definisci fornitore_di(config):
+    """Il fornitore scelto nelle Impostazioni (claude se manca o non è valido)."""
+    f = config.ottieni("ai.fornitore", "claude")
+    ritorna f se f in CLIENTI altrimenti "claude"
+
+
+definisci crea_cliente(config):
+    """Il cliente del fornitore scelto nelle Impostazioni."""
+    ritorna CLIENTI[fornitore_di(config)](config)
+
+
+definisci chiave_modello(config):
+    """Dove sta, nella configurazione, il modello del fornitore scelto («ai.modello» per Claude)."""
+    ritorna CLIENTI[fornitore_di(config)].chiave_modello
+
+
+definisci modelli_di(config):
+    """I modelli suggeriti per il fornitore scelto (elenco della casella nella chat)."""
+    f = fornitore_di(config)
+    chiave = {"claude": "ai.modelli", "gemini": "ai.modelli_gemini", "deepseek": "ai.modelli_deepseek"}[f]
+    ritorna config.ottieni(chiave, [])
 
 
 definisci _tronca(testo_, limite=LIMITE_RISULTATO):

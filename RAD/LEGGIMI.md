@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.39
+
+- **Assistente AI con più fornitori**: oltre a Claude (che resta il predefinito) si possono usare **Gemini** (Google) e **DeepSeek**. In *Impostazioni → Assistente AI* si sceglie il fornitore e si mette la sua chiave API (o la variabile `GEMINI_API_KEY` / `DEEPSEEK_API_KEY`). Ogni fornitore ha il suo modello e il suo modello economico; la casella dei modelli nella chat segue il fornitore. L'assistente usa gli stessi strumenti con tutti e tre. La cache dei prompt è solo di Claude, e la stima dei costi si calcola solo per i modelli di cui si conosce il prezzo.
+
 ## Novità della 1.38
 
 - **Progetto**: una finestra disegnata è un solo nodo dell'albero (🪟 nome) che si apre sui suoi tre file (`<nome>.form.json`, `<nome>_ui.pit`, `<nome>.pit`). Doppio clic sul nodo apre il progettista. *Elimina* sul nodo mostra una finestra con tre spunte (tutte attive) per scegliere quali file togliere; *Rinomina* sul nodo rinomina i tre file e aggiorna il nome della finestra, le classi e le importazioni. Su un singolo file dentro il nodo, Elimina e Rinomina agiscono solo su quel file.
