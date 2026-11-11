@@ -1,0 +1,187 @@
+"""Controllo delle variabili omonime: lo stesso nome usato per cose diverse è un errore che si nota tardi.
+Il controllo non blocca nulla: l'editor evidenzia con uno sfondo colorato la parola nel punto in cui il nome viene (ri)definito.
+
+Cosa segnala (una volta per nome e per funzione):
+  • un nome locale o un parametro che nasconde un nome del modulo o della funzione che lo contiene («totale» globale e «totale» dentro una funzione);
+  • una variabile con lo stesso nome di una funzione o di una classe dello stesso ambito (lista = lista(x));
+  • un nome che coincide con una funzione del linguaggio (lista, stampa, max, id, type...) quando quella funzione viene chiamata nello stesso ambito
+    (lista = lista(x)); se non la chiami mai, avere una variabile «lista» o «carattere» non fa danni e non si segnala.
+Cosa NON segnala: lo stesso nome in due funzioni separate (i, x, risultato), i nomi che iniziano con «_», se_stesso, e le variabili del blocco «se __nome__ == "__main__"» (sono dello script, non del modulo).
+"""
+importa ast
+importa builtins
+importa re
+
+IGNORATI = {"_", "se_stesso", "self", "cls", "__nome__", "__name__"}
+# parole di aiuto della console di Python: nessuno le usa come funzioni, ma qualcuno le usa come nomi di variabile senza problemi
+TRASCURATI = {"copyright", "credits", "license", "exit", "quit", "help"}
+
+
+definisci _nomi_del_linguaggio():
+    nomi = {n per n in dir(builtins) se non n.startswith("_") e non n[0].isupper()} - TRASCURATI
+    prova:
+        importa _italiano
+        nomi |= set(_italiano.FUNZIONI.values())
+    eccetto Exception:
+        passa
+    ritorna nomi - TRASCURATI
+
+
+NOMI_LINGUAGGIO = _nomi_del_linguaggio()
+
+
+classe _Ambito:
+    definisci __inizializza__(se_stesso, tipo_, nome, genitore):
+        se_stesso.tipo = tipo_          # "modulo", "funzione", "classe", "script" (il blocco se __nome__ == "__main__")
+        se_stesso.nome = nome
+        se_stesso.genitore = genitore
+        se_stesso.legami = {}           # nome -> [(riga, colonna_inizio, colonna_fine, genere)]
+        se_stesso.esterni = set()       # nomi dichiarati global / nonlocal
+        se_stesso.chiamate = set()      # nomi usati come funzione in questo ambito: nome(...)
+        se_stesso.figli = []
+
+    definisci chiamato(se_stesso, nome):
+        """Vero se `nome` viene chiamato come funzione in questo ambito o in uno più interno."""
+        ritorna nome in se_stesso.chiamate o any(f.chiamato(nome) per f in se_stesso.figli)
+
+    definisci lega(se_stesso, nome, sito, genere):
+        se_stesso.legami.setdefault(nome, []).append((sito[0], sito[1], sito[2], genere))
+
+    definisci cerca_fuori(se_stesso, nome):
+        """Dove è definito `nome` fuori da questo ambito (le funzioni non vedono l'ambito di una classe e nemmeno il blocco dello script)."""
+        a = se_stesso.genitore
+        mentre a è non Nessuno:
+            se a.tipo in ("modulo", "funzione") e nome in a.legami:
+                riga = a.legami[nome][0][0]
+                ritorna riga, ("nel modulo" se a.tipo == "modulo" altrimenti f"nella funzione «{a.nome}»")
+            a = a.genitore
+        ritorna Nessuno
+
+
+definisci _principale(n):
+    """Vero per il blocco  se __nome__ == "__main__":"""
+    ritorna (isinstance(n, ast.If) e isinstance(n.test, ast.Compare) e isinstance(n.test.left, ast.Name) e n.test.left.id in ("__name__", "__nome__"))
+
+
+classe _Raccolta:
+    definisci __inizializza__(se_stesso, righe):
+        se_stesso.righe = righe
+        se_stesso.ambiti = []
+
+    definisci colonna(se_stesso, riga, colonna_byte):
+        """Le colonne dell'albero sono in byte (UTF-8): le riporta a caratteri."""
+        r = se_stesso.righe[riga - 1] se 0 < riga <= lunghezza(se_stesso.righe) altrimenti ""
+        ritorna lunghezza(r.encode("utf-8")[:colonna_byte].decode("utf-8", "ignore"))
+
+    definisci sito(se_stesso, n):
+        ritorna (n.lineno, se_stesso.colonna(n.lineno, n.col_offset), se_stesso.colonna(n.lineno, n.end_col_offset))
+
+    definisci sito_nome(se_stesso, n, nome, prima=""):
+        """Dove sta scritto `nome` nella riga di n (a partire dalla colonna di n; con `prima` = parola che lo precede, per «come nome»)."""
+        r = se_stesso.righe[n.lineno - 1] se 0 < n.lineno <= lunghezza(se_stesso.righe) altrimenti ""
+        inizio = se_stesso.colonna(n.lineno, n.col_offset)
+        schema = (r"\b(?:" + prima + r")\s+(" + re.escape(nome) + r")\b") se prima altrimenti (r"\b(" + re.escape(nome) + r")\b")
+        m = re.compile(schema).search(r, inizio)
+        se m:
+            ritorna (n.lineno, m.start(1), m.end(1))
+        ritorna (n.lineno, inizio, inizio + lunghezza(nome))
+
+    definisci nuovo_ambito(se_stesso, tipo_, nome, genitore):
+        a = _Ambito(tipo_, nome, genitore)
+        se genitore è non Nessuno:
+            genitore.figli.append(a)
+        se_stesso.ambiti.append(a)
+        ritorna a
+
+    definisci visita(se_stesso, n, ambito):
+        se isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            ambito.lega(n.name, se_stesso.sito_nome(n, n.name), "funzione")
+            f = se_stesso.nuovo_ambito("funzione", n.name, ambito)
+            argomenti = n.args
+            per a in lista(argomenti.posonlyargs) + lista(argomenti.args) + lista(argomenti.kwonlyargs) + [x per x in (argomenti.vararg, argomenti.kwarg) se x è non Nessuno]:
+                f.lega(a.arg, se_stesso.sito(a), "parametro")
+            per s in n.body:
+                se_stesso.visita(s, f)
+            ritorna
+        se isinstance(n, ast.ClassDef):
+            ambito.lega(n.name, se_stesso.sito_nome(n, n.name), "classe")
+            c = se_stesso.nuovo_ambito("classe", n.name, ambito)
+            per s in n.body:
+                se_stesso.visita(s, c)
+            ritorna
+        se isinstance(n, (ast.Lambda, ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            per sotto in ast.walk(n):          # non ne leggiamo i nomi, ma le chiamate sì
+                se isinstance(sotto, ast.Call) e isinstance(sotto.func, ast.Name):
+                    ambito.chiamate.add(sotto.func.id)
+            ritorna
+        se isinstance(n, ast.Call) e isinstance(n.func, ast.Name):
+            ambito.chiamate.add(n.func.id)
+        se isinstance(n, (ast.Global, ast.Nonlocal)):
+            ambito.esterni.update(n.names)
+            ritorna
+        se isinstance(n, ast.Name) e isinstance(n.ctx, ast.Store):
+            ambito.lega(n.id, se_stesso.sito(n), "variabile")
+            ritorna
+        se isinstance(n, ast.ExceptHandler) e n.name:
+            ambito.lega(n.name, se_stesso.sito_nome(n, n.name, "come|as"), "variabile")
+        se isinstance(n, (ast.Import, ast.ImportFrom)):
+            per a in n.names:
+                nome = a.asname o a.name.split(".")[0]
+                se nome != "*":
+                    ambito.lega(nome, se_stesso.sito(a) se hasattr(a, "lineno") altrimenti se_stesso.sito_nome(n, nome), "importa")
+            ritorna
+        se _principale(n) e ambito.tipo == "modulo":
+            script = se_stesso.nuovo_ambito("script", "", ambito)
+            per s in n.body + n.orelse:
+                se_stesso.visita(s, script)
+            ritorna
+        per figlio in ast.iter_child_nodes(n):
+            se_stesso.visita(figlio, ambito)
+
+
+definisci albero_di(sorgente, linguaggio="pit"):
+    """L'albero sintattico del codice (.pit o .py), oppure Nessuno se non si legge."""
+    prova:
+        se linguaggio == "py":
+            ritorna compile(sorgente, "<editor>", "exec", ast.PyCF_ONLY_AST, Vero)
+        ritorna compile(sorgente, "<editor>", "exec", ast.PyCF_ONLY_AST)
+    eccetto (SyntaxError, ValueError, ErroreDiValore, RecursionError, MemoryError):
+        ritorna Nessuno
+
+
+definisci trova(sorgente, linguaggio="pit"):
+    """Elenco dei punti da evidenziare: [{"riga", "da", "a", "nome", "genere", "motivo"}] (riga da 1, colonne in caratteri da 0, «a» escluso)."""
+    albero = albero_di(sorgente, linguaggio)
+    se albero è Nessuno:
+        ritorna []
+    raccolta = _Raccolta(sorgente.split(chr(10)))
+    modulo = raccolta.nuovo_ambito("modulo", "", Nessuno)
+    per s in albero.body:
+        raccolta.visita(s, modulo)
+    trovati = []
+    per a in raccolta.ambiti:
+        per nome, siti in a.legami.items():
+            se nome in IGNORATI o nome.startswith("_") o nome in a.esterni:
+                continua
+            propri = [s per s in siti se s[3] != "importa"]
+            se non propri:
+                continua
+            motivo = Nessuno
+            sito = Nessuno
+            se nome in NOMI_LINGUAGGIO e a.chiamato(nome):
+                sito = propri[0]
+                motivo = f"«{nome}» è anche il nome di una funzione del linguaggio e qui la chiami: così la funzione del linguaggio non si può più usare."
+            altrimenti:
+                esterno = a.cerca_fuori(nome) se a.tipo == "funzione" altrimenti Nessuno
+                generi = {s[3] per s in siti}
+                se esterno è non Nessuno:
+                    sito = propri[0]
+                    motivo = f"«{nome}» è già definito {esterno[1]} (riga {esterno[0]}): qui è un'altra cosa con lo stesso nome."
+                altrimenti_se generi & {"funzione", "classe"} e generi & {"variabile", "parametro"}:
+                    definizione = [s per s in siti se s[3] in ("funzione", "classe")][0]
+                    sito = [s per s in siti se s[3] in ("variabile", "parametro")][0]
+                    motivo = f"«{nome}» è anche una {'funzione' se definizione[3] == 'funzione' altrimenti 'classe'} definita alla riga {definizione[0]}."
+            se motivo:
+                trovati.append({"riga": sito[0], "da": sito[1], "a": sito[2], "nome": nome, "genere": sito[3], "motivo": motivo})
+    trovati.sort(key=lambda t: (t["riga"], t["da"]))
+    ritorna trovati

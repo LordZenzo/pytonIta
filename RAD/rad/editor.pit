@@ -55,6 +55,7 @@ classe Editor(tk.Frame):
         se_stesso.sul_cursore = sul_cursore
         se_stesso.cartelle_progetto = cartelle_progetto
         se_stesso.linguaggio = linguaggio_di(percorso) o "pit"
+        se_stesso._omonimi = []             # punti evidenziati dal controllo delle variabili omonime (rad/omonimi.pit)
         se_stesso.modificato = Falso
         se_stesso._lavoro_evidenzia = Nessuno
         se_stesso._lavoro_suggerimenti = Nessuno
@@ -190,6 +191,7 @@ classe Editor(tk.Frame):
         t.tag_configure("costante", foreground=c["costante"], font=grassetto)
         t.tag_configure("riga_corrente", background=c["riga_corrente"])
         t.tag_configure("trova", background=c["avviso"], foreground="#000000")
+        t.tag_configure("omonimo", background="#44395f" se c["editor"] < "#808080" altrimenti "#e8e0ff")
         t.tag_configure("errore_riga", background="#5a2a2a" se c["editor"] < "#808080" altrimenti "#fadada")
         t.tag_configure("riga_debug", background="#5b4b10" se c["editor"] < "#808080" altrimenti "#fff1a8")
         t.tag_configure("parentesi", background=c["selezione"])
@@ -250,7 +252,7 @@ classe Editor(tk.Frame):
 
     definisci _movimento_mouse(se_stesso, e):
         se_stesso._nascondi_doc()
-        se se_stesso.fornitore_doc è Nessuno:
+        se se_stesso.fornitore_doc è Nessuno e non se_stesso._omonimi:
             ritorna
         se_stesso._lavoro_doc = se_stesso.after(650, lambda: se_stesso._mostra_doc(e.x, e.y))
 
@@ -258,9 +260,12 @@ classe Editor(tk.Frame):
         se_stesso._lavoro_doc = Nessuno
         prova:
             nome = se_stesso.parola_a_indice(f"@{x},{y}")
-            testo_ = se_stesso.fornitore_doc(se_stesso, nome) se nome altrimenti Nessuno
+            testo_ = se_stesso.fornitore_doc(se_stesso, nome) se nome e se_stesso.fornitore_doc altrimenti Nessuno
+            avviso = se_stesso.messaggio_omonimo(f"@{x},{y}")
         eccetto (tk.TclError, ValueError):
             ritorna
+        se avviso:
+            testo_ = "⚠ " + avviso + ("\n\n" + testo_ se testo_ altrimenti "")
         se testo_:
             se_stesso._fumetto = stile.crea_fumetto(se_stesso.t, testo_, se_stesso.colori)
 
@@ -999,6 +1004,34 @@ classe Editor(tk.Frame):
         se_stesso._righe_errore[riga] = messaggio
         se_stesso.t.tag_add("errore_riga", f"{riga}.0", f"{riga}.end+1c")
         se_stesso._ridisegna_numeri()
+
+    # ------------------------------------------------------------ variabili omonime
+    definisci segna_omonimi(se_stesso, punti):
+        """Evidenzia (sfondo colorato) le parole indicate da rad.omonimi.trova: [{"riga", "da", "a", "nome", "motivo"}]."""
+        se_stesso.t.tag_remove("omonimo", "1.0", "end")
+        se_stesso._omonimi = lista(punti)
+        per p in se_stesso._omonimi:
+            prova:
+                se_stesso.t.tag_add("omonimo", f"{p['riga']}.{p['da']}", f"{p['riga']}.{p['a']}")
+            eccetto tk.TclError:
+                passa
+        se_stesso.t.tag_lower("omonimo", "sel")
+
+    definisci cancella_omonimi(se_stesso):
+        se_stesso._omonimi = []
+        se_stesso.t.tag_remove("omonimo", "1.0", "end")
+
+    definisci messaggio_omonimo(se_stesso, indice):
+        """Il motivo per cui la parola sotto il mouse è evidenziata come omonima, oppure Nessuno. Si cerca per nome e riga più vicina: le righe possono essersi spostate scrivendo."""
+        t = se_stesso.t
+        se "omonimo" non in t.tag_names(indice):
+            ritorna Nessuno
+        parola = se_stesso.parola_a_indice(indice)
+        riga = int(t.index(indice).split(".")[0])
+        candidati = [p per p in se_stesso._omonimi se p["nome"] == parola]
+        se non candidati:
+            ritorna Nessuno
+        ritorna min(candidati, key=lambda p: abs(p["riga"] - riga))["motivo"]
 
     definisci cancella_errori(se_stesso):
         se_stesso._righe_errore = {}

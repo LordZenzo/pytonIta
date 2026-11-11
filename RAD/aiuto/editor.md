@@ -46,6 +46,17 @@ Scrivi la parola e premi **Tab**: si espande in un blocco pronto. Il cursore si 
 - **Ctrl+F** apre Trova/Sostituisci (con conteggio dei risultati); **Ctrl+G** salta a una riga; **Ctrl+Z / Ctrl+Y** annullano e ripetono senza limite.
 - Il salvataggio automatico si attiva nelle [impostazioni](#impostazioni).
 
+## Variabili omonime
+
+Usare lo stesso nome per due cose diverse è un errore che si scopre tardi. Quando il file si legge senza errori di sintassi, PitStudio **evidenzia con uno sfondo viola chiaro** la parola nel punto in cui il nome viene definito di nuovo; passandoci sopra il mouse il suggerimento spiega cosa nasconde e dov'è definito l'altro.
+
+Viene segnalato:
+- un **parametro o una variabile locale che nasconde un nome del modulo** (o della funzione che la contiene): `totale` globale e `totale` dentro una funzione;
+- una **variabile con lo stesso nome di una funzione o classe** dello stesso ambito;
+- un nome che coincide con una **funzione del linguaggio che poi chiami** nello stesso ambito (`lista = lista(x)`).
+
+Non viene segnalato lo stesso nome in due funzioni separate (`i`, `x`, `risultato`), i nomi che iniziano con `_`, `se_stesso` e le variabili del blocco `se __nome__ == "__main__":`. Non blocca nulla, e si spegne in [Impostazioni](#impostazioni) → Editor. Se rinomini con **F2** un nome evidenziato come omonimo, la conferma ti avvisa che il cambio tocca tutte le cose che hanno quel nome.
+
 ## Recupero dopo una chiusura improvvisa
 
 Se il computer si blocca o PitStudio viene terminato mentre hai modifiche non salvate, non le perdi: ogni 30 secondi PitStudio fa una **copia di sicurezza** dei file modificati (editor, finestre del progettista) in `~\.radecupero`. Alla prossima apertura ti chiede se **ripristinarle**: i file si riaprono con il contenuto copiato, segnati come «modificati», e li salvi tu. Rispondendo *No* le copie vengono scartate, con *Annulla* restano per la volta dopo. Le copie spariscono da sole quando salvi o chiudi la scheda, e all'uscita normale.

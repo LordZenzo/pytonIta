@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.47
+
+- **Controllo delle variabili omonime**: l'editor evidenzia con uno sfondo colorato la parola dove un nome ne nasconde un altro (parametro o variabile locale con lo stesso nome di una del modulo o della funzione che la contiene, variabile con lo stesso nome di una funzione o classe, nome di una funzione del linguaggio che poi chiami). Il suggerimento al passaggio del mouse dice cosa nasconde. Non blocca nulla e si spegne in Impostazioni → Editor. **F2** avvisa quando rinomini un nome omonimo.
+
 ## Novità della 1.46
 
 - **Salvataggio di sicurezza**: ogni 30 secondi PitStudio copia in `~\.radecupero` i file con modifiche non salvate (editor e finestre del progettista, senza toccare i file). Dopo una chiusura improvvisa, alla riapertura propone di ripristinarli. Le copie spariscono quando salvi o chiudi la scheda. Si regola in Impostazioni → Editor.

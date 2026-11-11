@@ -17,6 +17,7 @@ PREDEFINITI = {
         "numeri_riga": Vero,
         "a_capo": Falso,
         "salvataggio_automatico": 0,
+        "omonimi": Vero,                 # evidenzia con uno sfondo colorato le variabili omonime (stesso nome per cose diverse)
         "suggerimenti": Vero,
         "ritardo_suggerimenti_ms": 200,
         "evidenzia_riga": Vero,

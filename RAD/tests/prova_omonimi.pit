@@ -1,0 +1,101 @@
+"""Controllo delle variabili omonime: quali casi segnala, quali no, e come si vede nell'editor (sfondo sulla parola, suggerimento, impostazione)."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa omonimi
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci nomi(src):
+    ritorna [(t["riga"], t["nome"]) per t in omonimi.trova(src)]
+
+
+# ---------------------------------------------------------------- cosa segnala
+verifica(nomi("totale = 0\ndefinisci f(totale):\n    ritorna totale\n") == [(2, "totale")], "un parametro che nasconde un nome del modulo")
+verifica(nomi("totale = 0\ndefinisci f():\n    totale = 3\n    ritorna totale\n") == [(3, "totale")], "una variabile locale che nasconde un nome del modulo")
+verifica(nomi("definisci esterna(x):\n    definisci interna(x):\n        ritorna x\n    ritorna interna(x)\n") == [(2, "x")], "una funzione dentro un'altra con lo stesso parametro")
+verifica(nomi("lista = [1]\nx = lista(2)\n") == [(1, "lista")], "un nome del linguaggio che poi si chiama (lista)")
+verifica(nomi("lista = [1]\n") == [], "una variabile con il nome di una funzione del linguaggio che non si chiama mai: nessun danno")
+verifica(nomi("definisci f(testo):\n    ritorna testo\n") == [], "parametro «testo» senza chiamare testo(): niente")
+verifica(nomi("definisci f(id):\n    ritorna id(3)\n") == [(1, "id")], "un parametro con il nome di una funzione del linguaggio, chiamata nella funzione")
+verifica(nomi("lista = [1]\ndefinisci g():\n    ritorna lista(2)\n") == [(1, "lista")], "chiamata in una funzione interna")
+verifica(nomi("lista = [1]\nx = [lista(i) per i in [1]]\n") == [(1, "lista")], "chiamata dentro una comprensione")
+verifica(nomi("definisci conta():\n    ritorna 1\nconta = 3\n") == [(3, "conta")], "variabile e funzione con lo stesso nome nello stesso ambito")
+verifica(nomi("classe A:\n    passa\nA = 1\n") == [(3, "A")], "variabile e classe con lo stesso nome")
+verifica(nomi("x = 1\ndefinisci f():\n    prova:\n        passa\n    eccetto ValueError come x:\n        passa\n") == [(5, "x")], "il nome di un'eccezione «come x»")
+verifica(nomi("x = 1\nx = 2\n") == [], "lo stesso nome assegnato due volte nello stesso ambito non è omonimia")
+
+# ---------------------------------------------------------------- cosa NON segnala
+verifica(nomi("definisci a():\n    i = 1\n    ritorna i\n\n\ndefinisci b():\n    i = 2\n    ritorna i\n") == [], "lo stesso nome in due funzioni separate")
+verifica(nomi("definisci f(valori):\n    ritorna [i per i in valori]\n\ni = 3\n") == [], "le variabili delle comprensioni sono locali: niente")
+verifica(nomi("x = 1\ndefinisci f(_):\n    _ = 2\n    ritorna _\n") == [], "il trattino basso")
+verifica(nomi("classe A:\n    definisci m(se_stesso):\n        ritorna 1\n\nse_stesso = 1\n") == [], "se_stesso")
+verifica(nomi("se __nome__ == \"__main__\":\n    radice = 1\n\ndefinisci f(radice):\n    ritorna radice\n") == [], "le variabili del blocco principale non contano come nomi del modulo")
+verifica(nomi("x = 1\ndefinisci f():\n    globale = 2\n    global x\n    x = 5\n") == [], "una variabile dichiarata global è proprio quella del modulo")
+verifica(nomi("classe A:\n    nome = 1\n    definisci m(se_stesso):\n        nome = 2\n        ritorna nome\n") == [], "un nome nel corpo di una classe non si confonde con quello di un metodo")
+verifica(nomi("importa os\ndefinisci f(os):\n    ritorna os\n") == [(2, "os")], "un parametro che nasconde un modulo importato")
+verifica(nomi("definisci f(:\n    x = \n") == [], "codice con errori di sintassi: niente")
+verifica(nomi("") == [], "vuoto")
+
+# posizioni e messaggi
+t = omonimi.trova("totale = 0\ndefinisci calcola(valori, totale):\n    ritorna totale\n")[0]
+verifica((t["riga"], t["da"], t["a"]) == (2, 26, 32), "colonne: " + str((t["riga"], t["da"], t["a"])))
+verifica("riga 1" in t["motivo"] e "modulo" in t["motivo"], "il motivo dice dove è l'altro: " + t["motivo"])
+t = omonimi.trova("è = 1\ndefinisci f():\n    è = 2\n")
+verifica(lunghezza(t) == 1 e t[0]["da"] == 4, "caratteri accentati: colonne in caratteri, non in byte")
+verifica(lunghezza(omonimi.trova("def f(x):\n    return x\nx = 1\n", "py")) == 1, "anche in Python classico")
+
+# ---------------------------------------------------------------- nell'editor
+cartella = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+codice = os.path.join(cartella, "prova.pit")
+open(codice, "w", encoding="utf-8").write("totale = 0\n\n\ndefinisci calcola(valori, totale):\n    ritorna totale\n\n\ndefinisci altra(x):\n    ritorna x\n")
+w = app.apri_file(codice)
+radice.update()
+app._controlla(w)
+radice.update()
+intervalli = w.t.tag_ranges("omonimo")
+verifica(lunghezza(intervalli) == 2 e testo(intervalli[0]) == "4.26", "la parola «totale» (parametro) è evidenziata: " + str([testo(i) per i in intervalli]))
+verifica(w.t.get("4.26", "4.32") == "totale", "proprio quella parola")
+verifica("riga 1" in (w.messaggio_omonimo("4.28") o ""), "il suggerimento dice cosa nasconde")
+verifica(w.messaggio_omonimo("5.12") è Nessuno, "sulle altre parole niente suggerimento")
+
+# modificando il codice il segno segue il testo; un errore di sintassi non lo cancella a metà
+w.t.insert("1.0", "# nuova riga\n")
+verifica(w.t.get("5.26", "5.32") == "totale" e "omonimo" in w.t.tag_names("5.26"), "scrivendo sopra, il segno segue la parola")
+
+# impostazione spenta: sparisce
+cfg.imposta("editor.omonimi", Falso, notifica=Falso)
+app._controlla(w)
+verifica(lunghezza(w.t.tag_ranges("omonimo")) == 0 e w._omonimi == [], "con l'impostazione spenta nessuna evidenziazione")
+cfg.imposta("editor.omonimi", Vero, notifica=Falso)
+app._controlla(w)
+verifica(lunghezza(w.t.tag_ranges("omonimo")) == 2, "riaccesa, torna")
+
+# F2: la conferma avvisa se il nome è omonimo
+domande = []
+messagebox.askyesno = lambda titolo, messaggio, **k: domande.append(messaggio) o Falso
+w.t.mark_set("insert", "6.12")
+app.rinomina_simbolo(w, "somma_totale")
+verifica(lunghezza(domande) == 1 e "ATTENZIONE" in domande[0] e "omonimo" in domande[0], "F2 su un nome omonimo avvisa: " + (domande[0][:80] se domande altrimenti "nessuna domanda"))
+domande.clear()
+w.t.mark_set("insert", "9.12")
+app.rinomina_simbolo(w, "altra_funzione")
+verifica(lunghezza(domande) == 1 e "ATTENZIONE" non in domande[0], "su un nome normale nessun avviso")
+
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

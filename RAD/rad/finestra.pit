@@ -19,6 +19,7 @@ da rad importa claude_code
 da rad importa converti_progetto
 da rad importa modelli_finestra
 da rad importa recupero
+da rad importa omonimi
 da rad importa esporta_python
 da rad importa navigazione
 da rad importa esempi
@@ -1099,6 +1100,14 @@ classe Applicazione:
             ritorna
         widget.cancella_errori()
         errore = esecuzione.controlla_sintassi(widget.contenuto(), p, widget.linguaggio)
+        se non errore:
+            se se_stesso.config_.ottieni("editor.omonimi", Vero):
+                prova:
+                    widget.segna_omonimi(omonimi.trova(widget.contenuto(), widget.linguaggio))
+                eccetto Exception:
+                    widget.cancella_omonimi()
+            altrimenti:
+                widget.cancella_omonimi()
         se errore:
             riga, colonna, messaggio = errore
             widget.segna_errore(riga, messaggio)
@@ -1417,12 +1426,15 @@ classe Applicazione:
             ritorna Nessuno
         cartella = se_stesso._cartella_di_lavoro(ed)
         cambi = navigazione.rinomina_nel_progetto(cartella, vecchio, nuovo_nome, se_stesso._testi_aperti())
+        omonimo = [p per p in getattr(ed, "_omonimi", []) se p["nome"] == vecchio]
         se non cambi:
             se_stesso.info(f"«{vecchio}» non compare nel progetto.")
             ritorna Nessuno
         totale = sum(n per _, n in cambi.values())
         elenco = "\n".join(f"  {os.path.relpath(p, cartella)}: {n}" per p, (_, n) in sorted(cambi.items())[:12])
-        se non messagebox.askyesno("Rinomina in tutto il progetto", f"Cambio «{vecchio}» in «{nuovo_nome}»: {totale} punti in {lunghezza(cambi)} file.\n\n{elenco}\n\n"
+        avviso = (f"ATTENZIONE: «{vecchio}» è usato per cose diverse (è evidenziato come omonimo, per esempio alla riga {omonimo[0]['riga']}): "
+                  "il cambio le rinomina tutte insieme.\n\n") se omonimo altrimenti ""
+        se non messagebox.askyesno("Rinomina in tutto il progetto", f"Cambio «{vecchio}» in «{nuovo_nome}»: {totale} punti in {lunghezza(cambi)} file.\n\n{avviso}{elenco}\n\n"
                                    "Nei file aperti si può annullare con Ctrl+Z; negli altri il cambio viene scritto subito sul disco. Procedo?", parent=se_stesso.radice):
             ritorna Nessuno
         aperti = {os.path.abspath(p): w per p, w in se_stesso.schede.items() se isinstance(w, Editor)}
