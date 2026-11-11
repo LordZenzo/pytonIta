@@ -27,4 +27,23 @@ prova:
     verifica("print(f\"Ciao, {nome}!\", len(nome))" in open(os.path.join(base, "src", "principale.py"), encoding="utf-8").read(), "il codice Python è convertito bene")
 infine:
     os.__file__ = salvato
+# una variabile che si chiama «e» (come la «e» che vuol dire «and») dopo «in», «per» e «come» non va scambiata per l'operatore
+origine2 = os.path.join(base, "NomeE")
+os.makedirs(origine2)
+open(os.path.join(origine2, "progetto.rad.json"), "w", encoding="utf-8").write(json.dumps({"nome": "NomeE", "principale": "principale.pit"}))
+open(os.path.join(origine2, "principale.pit"), "w", encoding="utf-8").write(chr(10).join([
+    'e = {"a": [1, 2]}',
+    'per x in e["a"]:',
+    '    stampa(x)',
+    'quadrati = [y * y per y in e["a"] se y > 1]',
+    'stampa(quadrati, 1 e 2)',
+    'prova:',
+    '    intero("no")',
+    'eccetto ErroreDiValore come e:',
+    '    stampa("errore")',
+    '']))
+r2 = esporta_python.esporta(origine2, os.path.join(base, "src2"))
+verifica(r2["errori"] == [] e r2["file_python"] == 1, "esportazione con una variabile «e»: " + testo(r2))
+codice = open(os.path.join(base, "src2", "principale.py"), encoding="utf-8").read()
+verifica('for x in e["a"]:' in codice e 'for y in e["a"] if y > 1' in codice e "1 and 2" in codice, "«e» resta un nome dopo in, e vale «and» tra due operandi: " + codice)
 stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

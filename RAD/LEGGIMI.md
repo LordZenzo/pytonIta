@@ -19,6 +19,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 ## Novità della 1.42
 
 - **Corretto**: «Crea l'eseguibile» e «Esporta come Python» da PitStudio.exe si fermavano subito con «module 'os' has no attribute '__file__'» (l'interprete incorporato non ha quel dato): ora usano `sysconfig`. L'autotest di PitStudio.exe prova anche l'esportazione, e con `RAD_PROVA_EXE=1` la costruzione vera dell'exe e del Setup.
+- **Corretto**: l'esportazione in Python scambiava per l'operatore «e» (and) una variabile che si chiama `e` scritta dopo `in` (`per x in e["a"]`), e il programma non si convertiva.
 - **Spunte e pulsanti di scelta nel tema scuro**: prima la spunta ✓ era quasi invisibile (grigio chiaro su grigio chiaro), adesso si vede in tutta l'applicazione.
 - **Distribuzione dei programmi** (*Crea l'eseguibile*): le **informazioni di versione** (nome, versione, autore, descrizione, © autore) finiscono nell'`.exe` e si vedono in *Proprietà → Dettagli*; la spunta **Crea anche il programma di installazione** produce `Setup_<nome>.exe` (scelta della cartella, collegamenti, voce in *App* di Windows e disinstallazione, senza permessi di amministratore, fatto con PyInstaller: nessuno strumento esterno); la **firma facoltativa** con signtool (certificato `.pfx`, password mai salvata né scritta nel registro, marca temporale). La guida spiega anche i limiti dei certificati e l'avviso SmartScreen.
 

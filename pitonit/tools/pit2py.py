@@ -13,6 +13,7 @@ Cosa fa, restando fedele al testo (commenti, righe e rientri non cambiano):
 
 Tutto cio' che non e' italiano resta com'e'. Il rapporto elenca i punti da guardare a mano.
 """
+import keyword
 import ast
 import io
 import os
@@ -109,6 +110,8 @@ def _prev_inizio_espr(prev):
 
 def _prev_fine_operando(prev):
     if prev.parola is None and prev.tipo in FINE_OPERANDO:
+        if prev.tipo == "NAME" and keyword.iskeyword(prev.s) and prev.s not in ("True", "False", "None"):
+            return False        # «in», «lambda»...: parole chiave scritte uguali in italiano; dopo di loro serve un operando (per x in e["a"]: «e» è un nome)
         return True
     if prev.tipo == "OP" and prev.s in (")", "]", "}", "..."):
         return True
