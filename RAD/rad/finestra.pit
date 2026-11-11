@@ -174,6 +174,7 @@ classe Applicazione:
             se_stesso.centro.forget(se_stesso.console)
         se non se_stesso.config_.ottieni("finestra.progetti_visibile", Vero):
             se_stesso.corpo.forget(se_stesso.sinistra)
+        se_stesso._colora_pulsanti_stato()
         se_stesso._aggiorna_stato_ai()
 
     # ================================================================== barra degli strumenti personalizzabile
@@ -218,16 +219,27 @@ classe Applicazione:
             se_stesso.pulsanti_barra.append(b)
             se_stesso.pulsanti_per_id[x] = b
         se_stesso.pulsante_chat = se_stesso.pulsanti_per_id.get("Visualizza/Assistente AI")
-        se_stesso._colora_pulsante_chat()
+        se_stesso.pulsante_console = se_stesso.pulsanti_per_id.get("Visualizza/Console")
+        se_stesso._colora_pulsanti_stato()
 
     definisci _chat_visibile(se_stesso):
         ritorna hasattr(se_stesso, "chat") e testo(se_stesso.chat) in [testo(x) per x in se_stesso.corpo.panes()]
 
+    definisci _console_visibile(se_stesso):
+        ritorna hasattr(se_stesso, "console") e testo(se_stesso.console) in [testo(x) per x in se_stesso.centro.panes()]
+
+    definisci _colora_pulsanti_stato(se_stesso):
+        """I pulsanti della barra che mostrano/nascondono un pannello (assistente e console) sono verdi quando il pannello è aperto,
+        del colore normale (nero nel tema chiaro) quando è chiuso."""
+        se non hasattr(se_stesso, "corpo"):
+            ritorna
+        per nome, aperto in (("pulsante_chat", se_stesso._chat_visibile), ("pulsante_console", se_stesso._console_visibile)):
+            b = getattr(se_stesso, nome, Nessuno)
+            se b è non Nessuno:
+                b.imposta_colore_testo(COLORE_CHAT_APERTA se aperto() altrimenti Nessuno)
+
     definisci _colora_pulsante_chat(se_stesso):
-        """Il pulsante dell'assistente nella barra è verde quando la chat è aperta, del colore normale (nero nel tema chiaro) quando è chiusa."""
-        b = getattr(se_stesso, "pulsante_chat", Nessuno)
-        se b è non Nessuno e hasattr(se_stesso, "corpo"):
-            b.imposta_colore_testo(COLORE_CHAT_APERTA se se_stesso._chat_visibile() altrimenti Nessuno)
+        se_stesso._colora_pulsanti_stato()
 
     definisci personalizza_barra(se_stesso):
         """Apre «Personalizza barra»: aggiungere, togliere e riordinare i comandi dei menu nella barra."""
@@ -573,6 +585,7 @@ classe Applicazione:
                 se_stesso.centro.forget(se_stesso.console)
             altrimenti:
                 se_stesso.centro.add(se_stesso.console, minsize=90, height=se_stesso.config_.ottieni("finestra.console_altezza", 190))
+            se_stesso._colora_pulsanti_stato()
         altrimenti_se cosa == "progetti":
             se testo(se_stesso.sinistra) in [testo(x) per x in se_stesso.corpo.panes()]:
                 se_stesso.corpo.forget(se_stesso.sinistra)

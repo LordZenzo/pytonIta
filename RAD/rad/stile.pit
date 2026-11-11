@@ -20,12 +20,13 @@ ICONE = {
 }
 # se il carattere non c'è si ripiega su simboli di Unicode
 ICONE["debug"] = chr(0xEBE8)
+ICONE["console"] = chr(0xE756)          # «prompt dei comandi» di Segoe Fluent Icons / MDL2
 RIPIEGO = {
     "debug": "🐞", "apri": "📁", "nuovo": "＋", "salva": "💾", "esegui": "▶", "ferma": "■", "finestra": "🪟", "mattonelle": "▦",
     "cerca": "🔍", "chat": "💬", "impostazioni": "⚙", "aiuto": "?", "annulla": "↶", "ripeti": "↷",
     "zoom_piu": "＋", "zoom_meno": "－", "codice": "‹›", "cartella": "📁", "file": "📄", "elimina": "🗑",
     "aggiorna": "⟳", "chiudi": "✕", "info": "ⓘ", "casa": "⌂", "foto": "🖼", "tastiera": "⌨", "libro": "📖",
-    "modulo": "⚙", "funzione": "ƒ", "duplica": "⧉", "stella": "★",
+    "modulo": "⚙", "funzione": "ƒ", "duplica": "⧉", "stella": "★", "console": "▤",
 }
 _famiglia = [Nessuno]
 

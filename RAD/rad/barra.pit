@@ -29,6 +29,7 @@ DECORAZIONI = {
     "Progetto/Aggiorna l'albero": ("aggiorna", "", "Aggiorna l'albero del progetto", Falso),
     "Visualizza/Ingrandisci il testo": ("zoom_piu", "", "Ingrandisci il testo  (Ctrl++)", Falso),
     "Visualizza/Riduci il testo": ("zoom_meno", "", "Riduci il testo  (Ctrl+-)", Falso),
+    "Visualizza/Console": ("console", "Console", "Mostra/nascondi la console", Falso),
     "Visualizza/Assistente AI": ("chat", "Assistente", "Mostra/nascondi l'assistente AI  (Ctrl+J)", Falso),
     "Strumenti/Impostazioni…": ("impostazioni", "", "Impostazioni", Falso),
     "Aiuto/Guida di PitStudio": ("aiuto", "", "Guida  (F1)", Falso),
@@ -40,7 +41,7 @@ PREDEFINITA = [
     "Esegui/Esegui il file principale", "Esegui/Ferma", "Esegui/Debug: avvia passo passo dalla prima riga", SEPARATORE,
     "File/Nuova finestra (progettista)…", "File/Nuovo programma a mattonelle…", "Progetto/Cerca nel progetto…",
     SPAZIO,
-    "Visualizza/Assistente AI", "Aiuto/Guida di PitStudio", "Strumenti/Impostazioni…",
+    "Visualizza/Console", "Visualizza/Assistente AI", "Aiuto/Guida di PitStudio", "Strumenti/Impostazioni…",
 ]
 
 
