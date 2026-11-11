@@ -1,0 +1,234 @@
+"""Stampa e PDF: lo scrittore di PDF (struttura, testo, tabelle, grafici, pagine), la stampa del contenuto dei componenti e il componente Stampa."""
+importa sys, os, re, zlib, tempfile, importlib, subprocess, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa ttk
+da rad importa form_modello, esporta_python
+da rad.form_modello importa Form
+importa stampante
+importa grafico
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci contenuti(b):
+    """I flussi di contenuto (decompressi) delle pagine di un PDF."""
+    ritorna [zlib.decompress(m.group(1)).decode("latin-1") per m in re.finditer(rb"stream\n(.*?)\nendstream", b, re.S)]
+
+
+definisci struttura_ok(b):
+    """Controlla l'intestazione, la tabella xref (ogni oggetto sta dove dice) e il trailer. Ritorna (vero/falso, messaggio)."""
+    se non b.startswith(b"%PDF-1.4") o non b.rstrip().endswith(b"%%EOF"):
+        ritorna Falso, "intestazione o fine"
+    inizio = int(re.search(rb"startxref\n(\d+)\n%%EOF", b).group(1))
+    se b[inizio:inizio + 4] != b"xref":
+        ritorna Falso, "startxref non punta a xref"
+    righe = b[inizio:].split(b"\n")
+    n = int(righe[1].split()[1])
+    per i in intervallo(1, n):
+        offset = int(righe[2 + i].split()[0])
+        se non b[offset:].startswith(f"{i} 0 obj".encode()):
+            ritorna Falso, f"l'oggetto {i} non sta a {offset}"
+    ritorna Vero, "ok"
+
+
+# ---------------------------------------------------------------- misure e testo
+verifica(abs(stampante.larghezza_testo("Hello", 10) - 22.78) < 0.01, "larghezza di «Hello» in Helvetica 10: " + str(stampante.larghezza_testo("Hello", 10)))
+verifica(stampante.larghezza_testo("è", 10) == stampante.larghezza_testo("e", 10), "una lettera accentata vale come la sua base")
+verifica(stampante.larghezza_testo("Hello", 10, Vero) > stampante.larghezza_testo("Hello", 10), "il grassetto è più largo")
+verifica(stampante._pdf_testo("a(b)\\c") == "a\\(b\\)\\\\c", "protezione di parentesi e barra: " + stampante._pdf_testo("a(b)\\c"))
+verifica(stampante._pdf_testo("è").encode("latin-1") == b"\xe8", "è nella codifica di Windows")
+verifica(stampante._pdf_testo("€") == chr(128) e stampante._pdf_testo("日") == "?", "euro sì, ideogrammi come «?»")
+righe = stampante.a_capo("uno due tre quattro cinque sei sette otto nove dieci", 60, 10)
+verifica(lunghezza(righe) > 3 e all(stampante.larghezza_testo(r, 10) <= 60.01 per r in righe), "a capo: tutte le righe entrano: " + str(righe))
+verifica(stampante.a_capo("a\n\nb", 100, 10) == ["a", "", "b"], "gli a capo del testo si rispettano")
+lunga = stampante.a_capo("Supercalifragilistichespiralidoso", 50, 10)
+verifica(lunghezza(lunga) >= 2 e all(stampante.larghezza_testo(r, 10) <= 50.01 per r in lunga), "una parola troppo lunga si spezza: " + str(lunga))
+verifica(stampante.a_capo("", 100, 10) == [""], "testo vuoto")
+
+# ---------------------------------------------------------------- il documento
+d = stampante.Documento(titolo="Prova", intestazione="Studio Rossi")
+d.titolo("Elenco città")
+d.paragrafo("Un paragrafo con (parentesi) e àèé.")
+righe_t = [[f"Cliente {i}", ["Roma", "Milano"][i % 2], f"{i * 1.5:.2f}"] per i in intervallo(1, 120)]
+d.tabella(["Nome", "Città", "Totale"], righe_t, allineamenti=["w", "w", "e"])
+verifica(lunghezza(d.pagine) >= 3, "120 righe di tabella occupano più pagine: " + str(lunghezza(d.pagine)))
+d.grafico([("Gen", 12), ("Feb", 19), ("Mar", -4)], "barre", "Vendite")
+d.grafico([("Gen", 12), ("Feb", 19)], "linee", "Andamento")
+d.grafico([("Mele", 40), ("Pere", 25)], "torta", "Quote")
+d.grafico([], "barre", "Vuoto")
+b = d.pdf()
+ok, msg = struttura_ok(b)
+verifica(ok, "struttura del PDF: " + msg)
+flussi = contenuti(b)
+verifica(lunghezza(flussi) == lunghezza(d.pagine), "un flusso per pagina")
+tutto = "\n".join(flussi)
+verifica("(Elenco citt\xe0) Tj" in tutto e "(Un paragrafo con \\(parentesi\\) e \xe0\xe8\xe9.) Tj" in tutto, "il testo (accentato e con le parentesi protette) è nel PDF")
+verifica(tutto.count("(Nome) Tj") >= 3, "l'intestazione della tabella si ripete a ogni pagina: " + str(tutto.count("(Nome) Tj")))
+verifica("Pagina 1 di " + str(lunghezza(d.pagine)) in tutto e "(Studio Rossi) Tj" in tutto, "numeri di pagina e intestazione")
+verifica("(Quote) Tj" in tutto e "Nessun dato" in tutto, "titoli dei grafici e grafico vuoto")
+verifica(tutto.count(" m ") > 0 e " re " in tutto, "disegni (linee e rettangoli)")
+# i testi non escono dalla pagina: tutte le coordinate di Td stanno dentro A4
+fuori = [m per m in re.finditer(r"([\d.]+) ([\d.]+) Td", tutto) se float(m.group(1)) > 600 o float(m.group(2)) > 850 o float(m.group(1)) < 0 o float(m.group(2)) < 0]
+verifica(non fuori, "nessun testo fuori pagina: " + str(fuori[:3]))
+# orizzontale
+dh = stampante.Documento(orientamento="orizzontale")
+verifica(dh.larghezza > dh.altezza, "pagina orizzontale")
+dh.paragrafo("x")
+verifica(b"/MediaBox [0 0 841.89 595.28]" in dh.pdf(), "MediaBox orizzontale")
+# salvataggio
+percorso = os.path.join(tempfile.mkdtemp(), "doc.pdf")
+d.salva(percorso)
+verifica(os.path.getsize(percorso) == lunghezza(b) o struttura_ok(open(percorso, "rb").read())[0], "salvato")
+# con una libreria vera (se c'è): il PDF si legge e il testo si estrae
+python_ = shutil.which("python") o shutil.which("py")
+se python_:
+    u = subprocess.run([python_, "-c", "import sys\ntry:\n import pypdf\nexcept ImportError:\n print('nopypdf'); sys.exit(0)\nr = pypdf.PdfReader(sys.argv[1], strict=True)\nt = r.pages[0].extract_text()\nprint(len(r.pages), 'ok' if 'citt\\u00e0' in t and 'Un paragrafo' in t else 'testo mancante')", percorso],
+                       capture_output=Vero, text=Vero, encoding="utf-8", timeout=60)
+    se "nopypdf" non in u.stdout:
+        verifica(u.stdout.split() == [testo(lunghezza(d.pagine)), "ok"], "pypdf legge il PDF (modo rigoroso): " + u.stdout.strip() + u.stderr[-200:])
+
+# ---------------------------------------------------------------- stampare i componenti
+radice = tk.Tk()
+radice.geometry("+20+20")
+
+
+classe Finestra:
+    passa
+
+
+fin = Finestra()
+fin.albero = ttk.Treeview(radice, columns=["Nome", "Importo"], show="headings")
+fin.albero.heading("Nome", text="Nome")
+fin.albero.heading("Importo", text="Importo")
+fin.albero.column("Importo", anchor="e")
+per i in intervallo(5):
+    fin.albero.insert("", "end", values=(f"Voce {i}", f"{i * 10},50"))
+fin.elenco = tk.Listbox(radice)
+per v in ("uno", "due", "tre"):
+    fin.elenco.insert("end", v)
+fin.area = tk.Text(radice)
+fin.area.insert("1.0", "Riga uno\nRiga due con è")
+fin.grafico = grafico.Grafico(radice, tipo="torta", titolo="Quote", dati=["A=3", "B=1"])
+fin.gerarchia = ttk.Treeview(radice)
+fin.gerarchia.insert("", "end", iid="r", text="Radice")
+fin.gerarchia.insert("r", "end", text="Figlio")
+
+stampante_ = stampante.Stampante(radice, fin, "albero", titolo="Importi", intestazione="Ufficio", orientamento="orizzontale")
+doc = stampante_.documento()
+t = "\n".join(contenuti(doc.pdf()))
+verifica(doc.larghezza > doc.altezza, "orientamento orizzontale")
+verifica("(Voce 3) Tj" in t e "(30,50) Tj" in t e "(Importo) Tj" in t e "(Importi) Tj" in t, "Albero: intestazioni e righe nel PDF")
+verifica(struttura_ok(doc.pdf())[0], "struttura")
+t = "\n".join(contenuti(stampante.Stampante(radice, fin, "elenco").documento().pdf()))
+verifica("(due) Tj" in t e "(Elementi) Tj" in t, "Elenco")
+t = "\n".join(contenuti(stampante.Stampante(radice, fin, "area").documento().pdf()))
+verifica("(Riga uno) Tj" in t e "(Riga due con \xe8) Tj" in t, "AreaTesto")
+t = "\n".join(contenuti(stampante.Stampante(radice, fin, "grafico").documento().pdf()))
+verifica("(Quote) Tj" in t e "(A  3 (75%)) Tj" in t.replace("\\(", "(").replace("\\)", ")"), "Grafico (torta): " + t[t.find("Quote") - 30:t.find("Quote") + 60].replace(chr(10), " ") se "Quote" in t altrimenti "senza titolo")
+t = "\n".join(contenuti(stampante.Stampante(radice, fin, "gerarchia").documento().pdf()))
+verifica("(Radice) Tj" in t e "(  Figlio) Tj" in t, "Albero gerarchico senza colonne")
+t = "\n".join(contenuti(stampante.Stampante(radice, fin, "non_esiste").documento().pdf()))
+verifica("il componente non esiste" in t, "un componente che non c'è non rompe la stampa")
+
+# salvataggio, anteprima e stampa (senza aprire niente davvero)
+chiamate = []
+stampante.apri_pdf = lambda p: chiamate.append(("apri", p))
+stampante.stampa_pdf = lambda p: chiamate.append(("stampa", p)) o Vero
+p1 = stampante_.salva_pdf(os.path.join(tempfile.mkdtemp(), "importi.pdf"))
+verifica(os.path.isfile(p1) e struttura_ok(open(p1, "rb").read())[0], "salva_pdf scrive il file")
+p2 = stampante_.anteprima()
+verifica(chiamate[0] == ("apri", p2) e os.path.isfile(p2) e p2.endswith("Importi.pdf"), "anteprima apre il PDF: " + str(chiamate[:1]))
+p3 = stampante_.stampa()
+verifica(chiamate[1] == ("stampa", p3) e os.path.isfile(p3), "stampa manda il PDF alla stampante")
+radice.destroy()
+
+# ---------------------------------------------------------------- il componente nel progettista e nel codice generato
+f = Form("Rapporto", "Rapporto")
+f.larghezza, f.altezza = 520, 340
+alb = f.aggiungi("Albero", 10, 10, nome="clienti", larghezza=400, altezza=200, colonne=["Nome", "Citta"])
+st = f.aggiungi("Stampa", 420, 10, nome="stampa1", sorgente="clienti", titolo="Clienti", intestazione="Studio Rossi", orientamento="orizzontale")
+verifica("Stampa" in form_modello.ORDINE_PALETTE e form_modello.usa_stampa(f) e non form_modello.e_visivo("Stampa"), "tipo Stampa: palette, non visivo")
+verifica(f.problemi() == [], "nessun avviso: " + str(f.problemi()))
+ui = form_modello.genera_ui(f)
+verifica("importa stampante" in ui e "stampante.Stampante(radice, se_stesso, 'clienti', titolo='Clienti', intestazione='Studio Rossi', orientamento='orizzontale', numeri_pagina=Vero)" in ui, "il codice generato")
+f.aggiungi("Stampa", 420, 50, nome="stampa2")
+verifica(any("scegli cosa stampare" in x per x in f.problemi()), "avviso se non si sceglie cosa stampare")
+f.rimuovi("stampa2")
+f.rinomina("clienti", "elenco_clienti")
+verifica(f.trova("stampa1").valori["sorgente"] == "elenco_clienti", "rinominando il componente la Stampa lo segue")
+f.rimuovi("elenco_clienti")
+verifica(f.trova("stampa1").valori["sorgente"] == "" e any("scegli cosa stampare" in x per x in f.problemi()), "eliminandolo la Stampa resta senza sorgente")
+f.aggiungi("Albero", 10, 10, nome="clienti", larghezza=400, altezza=200, colonne=["Nome", "Citta"])
+f.trova("stampa1").valori["sorgente"] = "clienti"
+cartella = tempfile.mkdtemp()
+form_modello.salva_form(f, cartella)
+verifica(os.path.exists(os.path.join(cartella, "stampante.pit")), "stampante.pit copiato nel progetto")
+sys.path.insert(0, cartella)
+m = importlib.import_module("rapporto")
+radice = tk.Tk()
+radice.geometry("+30+30")
+w = m.Rapporto(radice)
+radice.update()
+w.clienti.insert("", "end", values=("Anna", "Roma"))
+w.clienti.insert("", "end", values=("Marco", "Milano"))
+stampante.apri_pdf = lambda p: Nessuno
+percorso = w.stampa1.salva_pdf(os.path.join(tempfile.mkdtemp(), "clienti.pdf"))
+t = "\n".join(contenuti(open(percorso, "rb").read()))
+verifica("(Anna) Tj" in t e "(Milano) Tj" in t e "(Clienti) Tj" in t, "dalla finestra vera: il PDF ha la tabella")
+radice.destroy()
+
+# progettista
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.progettista importa Progettista
+
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci apri_file(se_stesso, p): passa
+    definisci apri_file_a_funzione(se_stesso, p, f): passa
+    definisci esegui_file(se_stesso, p): passa
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+col = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x650")
+configura_stile(radice, col)
+f3 = Form("Demo", "Demo")
+p = Progettista(radice, os.path.join(tempfile.mkdtemp(), "demo.form.json"), f3, col, cfg, Az())
+p.pack(fill="both", expand=Vero)
+applica(radice, col)
+radice.update()
+a1 = p.aggiungi_componente("Albero", 20, 20)
+s1 = p.aggiungi_componente("Stampa", 300, 20)
+radice.update()
+verifica(p.widget[s1.nome].winfo_class() == "Label" e "stampa1" in p.widget[s1.nome].cget("text"), "la Stampa si vede come componente senza aspetto")
+p.seleziona([s1.nome])
+radice.update()
+combo = [w_ per w_ in p.righe_ispettore.winfo_children() se w_.winfo_class() == "TCombobox"]
+verifica(any(a1.nome in lista(c["values"]) per c in combo), "l'ispettore propone i componenti stampabili: " + str([lista(c["values"]) per c in combo]))
+p.imposta_proprieta(s1.nome, "sorgente", a1.nome)
+verifica(f3.problemi() == [] o all("scegli" non in x per x in f3.problemi()), "scelta la sorgente non ci sono avvisi")
+radice.destroy()
+
+# ---------------------------------------------------------------- esportato in Python
+dest = os.path.join(tempfile.mkdtemp(), "e")
+e = esporta_python.esporta(cartella, dest)
+verifica(e["errori"] == [] e os.path.exists(os.path.join(dest, "stampante.py")), "esportazione: " + str(e))
+se python_:
+    open(os.path.join(dest, "p.py"), "w", encoding="utf-8").write("import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport rapporto\nr = tk.Tk(); a = rapporto.Rapporto(r); r.update()\na.clienti.insert('', 'end', values=('Anna', 'Roma'))\nprint(a.stampa1.salva_pdf(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'x.pdf')))\nr.destroy()\n")
+    u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "p.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
+    verifica(u.returncode == 0 e os.path.isfile(os.path.join(dest, "x.pdf")) e struttura_ok(open(os.path.join(dest, "x.pdf"), "rb").read())[0], "con Python normale: crea un PDF valido: " + u.stdout.strip() + u.stderr[-300:])
+
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

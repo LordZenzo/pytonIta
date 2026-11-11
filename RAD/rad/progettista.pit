@@ -2121,6 +2121,18 @@ classe Progettista(tk.Frame):
                 n = se_stesso._numero(v, valore)
                 se_stesso._modifica(c, chiave, max(minimo, min(massimo, n)))
             ritorna se_stesso._spin(genitore, valore, cambia, minimo, massimo)
+        se tipo_.startswith("componente:"):
+            tipi_ = tipo_.split(":", 1)[1].split(",")
+            cb = ttk.Combobox(genitore, width=12, state="readonly")
+            cb.set(valore o "")
+
+            definisci riempi():
+                cb["values"] = [""] + [x.nome per x in se_stesso.form.componenti se x.tipo in tipi_]
+            riempi()
+            cb.configure(postcommand=riempi)
+            cb.bind("<<ComboboxSelected>>", lambda ev: se_stesso._modifica(c, chiave, cb.get()))
+            stile_suggerisci(cb, "Il componente della finestra di cui si stampa il contenuto", c_)
+            ritorna cb
         se tipo_ in ("fonte", "campo", "tabella", "campo_fonte"):
             ritorna se_stesso._combo_dati(genitore, c, chiave, tipo_)
         se tipo_ == "database":

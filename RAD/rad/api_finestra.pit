@@ -48,6 +48,7 @@ METODI = {
     "CasellaCombinata": [("ottieni", "ottieni()  — il valore"), ("imposta", "imposta(\"valore\")")],
     "BarraProgresso": [("avvia", "avvia()"), ("ferma", "ferma()")],
     "Albero": [("inserisci", "inserisci(\"\", \"end\", values=(…))"), ("cancella", "cancella(elemento)"), ("seleziona", "seleziona(elemento)"), ("mostra", "mostra(elemento)")],
+    "Stampa": [("anteprima", "anteprima()  — apre il PDF"), ("salva_pdf", "salva_pdf()  — chiede dove, o salva_pdf(\"file.pdf\")"), ("stampa", "stampa()  — alla stampante")],
     "Grafico": [("imposta_dati", "imposta_dati([(\"Gen\", 12), (\"Feb\", 19)])  — o [\"Gen=12\", …]"), ("imposta_tipo", "imposta_tipo(\"barre\")  — barre, linee, torta"),
                 ("imposta_titolo", "imposta_titolo(\"…\")"), ("ridisegna", "ridisegna()")],
     "Tela": [("crea_linea", "crea_linea(x1, y1, x2, y2)"), ("crea_rettangolo", "crea_rettangolo(x1, y1, x2, y2)"), ("crea_ovale", "crea_ovale(x1, y1, x2, y2)"),

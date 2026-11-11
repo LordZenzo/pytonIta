@@ -35,6 +35,7 @@ Il progettista ti fa costruire una finestra con il mouse. Non devi scrivere il c
 | **CasellaCombinata** | un menu a tendina |
 | **BarraProgresso** | una barra di avanzamento |
 | **Albero** | una tabella con colonne (anche gerarchica) |
+| **Stampa** | stampa o salva in PDF il contenuto di una tabella, un elenco, un testo o un grafico (non si vede nel programma) |
 | **Grafico** | un grafico a barre, a linee o a torta, con i dati scritti o presi da una tabella |
 | **Tela** | un'area dove disegnare |
 | **Riquadro** | un contenitore decorativo con bordo |
@@ -122,6 +123,33 @@ Di solito i componenti stanno dove li metti (**libero**). Con la **griglia** inv
 **Con il mouse e la tastiera.** Trascinando un componente si evidenzia la cella di arrivo e, rilasciando, ci va. Oltre l'ultima riga o colonna si crea una riga o colonna nuova. Le frecce spostano di una cella. Un componente nuovo va nella cella sotto il puntatore, se è libera, altrimenti nella prima cella libera.
 
 **Nel programma.** Il codice generato usa il file `griglia.pit` (che PitStudio mette nel progetto) e dispone i componenti con lo stesso calcolo del progettista: quello che vedi è quello che ottieni, anche ridimensionando la finestra. Le finestre già disegnate restano libere finché non scegli la griglia. Nell'esportazione in Python e nell'eseguibile la griglia funziona allo stesso modo.
+
+## Stampa e PDF
+
+Il componente **Stampa** (senza aspetto, come il Timer) stampa o salva in **PDF** il contenuto di un altro componente della finestra, senza librerie esterne: la tabella di un **Albero** (anche gerarchico), gli elementi di un **Elenco**, il testo di un'**AreaTesto** o un **Grafico**. Nell'ispettore scegli:
+
+- **Cosa stampare**: il componente della finestra;
+- **Titolo** del documento, **Intestazione** di ogni pagina (in alto, con la data) e il **numero di pagina** in fondo («Pagina 2 di 5»);
+- **Orientamento**: verticale o orizzontale (A4).
+
+Poi, per esempio nel gestore di un pulsante:
+
+    se_stesso.stampa1.anteprima()      # apre il PDF nel programma predefinito: da lì si guarda, si salva e si stampa
+    se_stesso.stampa1.salva_pdf()      # chiede dove salvarlo (o salva_pdf("clienti.pdf"))
+    se_stesso.stampa1.stampa()         # lo manda alla stampante
+
+Le tabelle lunghe vanno su più pagine con l'intestazione ripetuta, le celle troppo lunghe vanno a capo. In `stampa()` Windows usa il programma che apre i PDF; se non sa stampare il PDF viene aperto e si stampa da lì.
+
+Per un documento fatto a mano (titoli, paragrafi, tabelle e grafici) usa direttamente il file `stampante.pit` che PitStudio mette nel progetto:
+
+    da stampante importa Documento
+    d = Documento(titolo="Clienti", intestazione="Studio Rossi")
+    d.titolo("Elenco clienti")
+    d.tabella(["Nome", "Città"], [["Anna", "Roma"], ["Marco", "Milano"]])
+    d.grafico([("Gen", 12), ("Feb", 19)], tipo="barre", titolo="Vendite")
+    d.salva("clienti.pdf")
+
+Funziona anche nell'esportazione in Python e nell'eseguibile.
 
 ## Il grafico
 

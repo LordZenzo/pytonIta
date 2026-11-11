@@ -84,6 +84,13 @@ TIPI["Timer"] = dict(classe_tk="", modulo="tk", larghezza=110, altezza=24, icona
                      proprieta={"intervallo": ("numero", 1000, "Intervallo (millisecondi)"),
                                 "attivo": ("si_no", Vero, "Parte da solo"),
                                 "al_tempo": ("evento", "", "Evento: scade il tempo")})
+# stampa e PDF di un altro componente (Albero, Elenco, AreaTesto, Grafico): modelli_codice/stampante.pit
+TIPI["Stampa"] = dict(classe_tk="Stampante", modulo="stampante", larghezza=110, altezza=24, icona="🖨", visivo=Falso,
+                      proprieta={"sorgente": ("componente:Albero,Elenco,AreaTesto,Grafico", "", "Cosa stampare (un componente della finestra)"),
+                                 "titolo": ("testo", "", "Titolo del documento"),
+                                 "intestazione": ("testo", "", "Intestazione di ogni pagina"),
+                                 "orientamento": ("scelta:verticale,orizzontale", "verticale", "Orientamento della pagina"),
+                                 "numeri_pagina": ("si_no", Vero, "Numero di pagina in fondo")})
 TIPI["Schede"] = dict(classe_tk="Schede", modulo="tema", larghezza=320, altezza=200, icona="▭", contenitore=Vero,
                       proprieta={"pagine": ("elenco", ["Pagina 1", "Pagina 2"], "Pagine (schede)")})
 TIPI["Riquadro"]["contenitore"] = Vero
@@ -158,7 +165,7 @@ per _tipo, _serve_campo in COLLEGABILI.items():
         TIPI[_tipo]["proprieta"]["campo"] = ("campo", "", "Campo della tabella")
 ORDINE_PALETTE = ["Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione",
                   "PulsanteOpzione", "Cursore", "CasellaCombinata", "BarraProgresso", "Albero", "Grafico",
-                  "Tela", "Riquadro", "Schede", "Immagine", "Separatore", "BarraMenu", "Timer",
+                  "Tela", "Riquadro", "Schede", "Immagine", "Separatore", "BarraMenu", "Timer", "Stampa",
                   "FonteDati", "BarraNavigazione"]
 # Pulsante: apre un'altra finestra del progetto
 TIPI["Pulsante"]["proprieta"]["apre"] = ("finestra", "", "Apre la finestra")
@@ -308,6 +315,8 @@ classe Form:
                 c.valori["fonte"] = ""
                 se "campo" in c.valori:
                     c.valori["campo"] = ""
+            se c.tipo == "Stampa" e c.valori.get("sorgente") in via:
+                c.valori["sorgente"] = ""
 
     definisci fonti(se_stesso):
         """I componenti FonteDati della finestra."""
@@ -330,6 +339,8 @@ classe Form:
                 f.genitore = nuovo + f.genitore[lunghezza(vecchio):]
             se c.tipo == "FonteDati" e f.valori.get("fonte") == vecchio:
                 f.valori["fonte"] = nuovo
+            se f.tipo == "Stampa" e f.valori.get("sorgente") == vecchio:
+                f.valori["sorgente"] = nuovo
         ritorna Vero
 
     # --- serializzazione
@@ -400,6 +411,12 @@ classe Form:
                     p.append(f"{c.nome}.{k}: nome di funzione non valido")
             se c.tipo == "FonteDati" e non (c.valori.get("tabella") o "").strip():
                 p.append(f"{c.nome}: scegli la tabella")
+            se c.tipo == "Stampa":
+                sorgente_ = (c.valori.get("sorgente") o "").strip()
+                se non sorgente_:
+                    p.append(f"{c.nome}: scegli cosa stampare")
+                altrimenti_se se_stesso.trova(sorgente_) è Nessuno:
+                    p.append(f"{c.nome}: il componente «{sorgente_}» non esiste")
             se c.tipo != "FonteDati" e c.valori.get("fonte"):
                 f = se_stesso.fonte_di(c)
                 se f è Nessuno:
@@ -594,6 +611,11 @@ definisci _lit(valore):
     ritorna repr(valore)
 
 
+definisci usa_stampa(form):
+    """True se la finestra ha un componente Stampa (serve stampante.pit nel progetto)."""
+    ritorna any(c.tipo == "Stampa" per c in form.componenti)
+
+
 definisci usa_grafico(form):
     """True se la finestra ha un Grafico (serve grafico.pit nel progetto)."""
     ritorna any(c.tipo == "Grafico" per c in form.componenti)
@@ -671,6 +693,8 @@ definisci genera_ui(form):
         r.append("importa griglia")
     se usa_grafico(form):
         r.append("importa grafico")
+    se usa_stampa(form):
+        r.append("importa stampante")
     r.append("")
     r.append("")
     r.append(f"classe {cl}UI:")
@@ -1038,6 +1062,11 @@ definisci _codice_componente(c, form=Nessuno):
         se v.get("attivo"):
             r.append(f"{ind}se_stesso.{n}_avvia()")
         ritorna r
+    altrimenti_se c.tipo == "Stampa":
+        o = [f"se_stesso", f"{_lit((v.get('sorgente') o '').strip())}", f"titolo={_lit(v.get('titolo') o '')}", f"intestazione={_lit(v.get('intestazione') o '')}",
+             f"orientamento={_lit(v.get('orientamento') o 'verticale')}", f"numeri_pagina={_lit(bool(v.get('numeri_pagina', Vero)))}"]
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})          # {n}.anteprima(), {n}.salva_pdf(), {n}.stampa()")
+        ritorna r
     altrimenti_se c.tipo == "FonteDati":
         ritorna r                     # si crea in fondo (_codice_dati), quando i componenti legati esistono
     altrimenti_se c.tipo == "BarraNavigazione":
@@ -1178,6 +1207,28 @@ definisci copia_grafico(cartella, scritti=Nessuno):
         scritti.append(destinazione)
 
 
+MODELLO_STAMPANTE = os.path.join(CARTELLA_MODELLI, "stampante.pit")
+
+
+definisci copia_stampante(cartella, scritti=Nessuno):
+    """Mette nel progetto stampante.pit (stampa e PDF); se la copia è diversa da quella di PitStudio la rinnova (la vecchia resta come .bak)."""
+    destinazione = os.path.join(cartella, "stampante.pit")
+    se non os.path.exists(MODELLO_STAMPANTE):
+        ritorna
+    con open(MODELLO_STAMPANTE, encoding="utf-8", newline="") come f:
+        nuova = f.read().replace(chr(13) + chr(10), chr(10))
+    se os.path.exists(destinazione):
+        con open(destinazione, encoding="utf-8", newline="") come f:
+            vecchia = f.read().replace(chr(13) + chr(10), chr(10))
+        se vecchia == nuova:
+            ritorna
+        shutil.copyfile(destinazione, destinazione + ".bak")
+    con open(destinazione, "w", encoding="utf-8", newline=chr(10)) come f:
+        f.write(nuova)
+    se scritti è non Nessuno:
+        scritti.append(destinazione)
+
+
 MODELLO_GRIGLIA = os.path.join(CARTELLA_MODELLI, "griglia.pit")
 
 
@@ -1241,6 +1292,8 @@ definisci salva_form(form, cartella):
         copia_griglia(cartella, scritti)
     se usa_grafico(form):
         copia_grafico(cartella, scritti)
+    se usa_stampa(form):
+        copia_stampante(cartella, scritti)
     se os.path.exists(p["logica"]):
         con open(p["logica"], encoding="utf-8") come f:
             attuale = f.read()
