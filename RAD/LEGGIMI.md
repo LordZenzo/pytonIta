@@ -18,6 +18,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Novità della 1.41
 
+- **Barra**: chi aveva già una barra personalizzata riceve una volta sola il pulsante «Console» accanto all'assistente (se poi lo toglie, non ricompare).
 - **Debug didattico**: quando il programma è fermo, il pannello mostra in blu **come si calcola la riga** che sta per essere eseguita, un passo alla volta (`a + b * 2 → 3 + 8 → 11`, con Vero/Falso in italiano), senza eseguire le tue funzioni. Variabili ed espressioni **cambiate dall'ultima sosta** sono in arancione.
 - **Watchpoint**: doppio clic su una espressione osservata (compare 👁) e **Continua** si ferma appena il suo valore cambia («totale è cambiata: 0 → 10 (dopo la riga 4)»), anche quando la variabile viene creata o la funzione finisce. I punti di arresto valgono comunque.
 

@@ -178,10 +178,29 @@ classe Applicazione:
         se_stesso._aggiorna_stato_ai()
 
     # ================================================================== barra degli strumenti personalizzabile
+    definisci _proponi_nuovi_pulsanti(se_stesso, salvati):
+        """Una barra personalizzata prima di un nuovo pulsante non lo conterrebbe mai: lo si aggiunge una volta sola (poi si può togliere)."""
+        proposti = lista(se_stesso.config_.ottieni("finestra.barra_proposti", []) o [])
+        cambiato = Falso
+        per nuovo, prima_di in barra_mod.NUOVI_PULSANTI.items():
+            se nuovo in proposti:
+                continua
+            proposti.append(nuovo)
+            cambiato = Vero
+            se nuovo non in salvati e prima_di in salvati e nuovo in se_stesso.comandi_menu:
+                salvati = lista(salvati)
+                salvati.insert(salvati.index(prima_di), nuovo)
+                se_stesso.config_.imposta("finestra.barra", salvati, notifica=Falso)
+        se cambiato:
+            se_stesso.config_.imposta("finestra.barra_proposti", proposti, notifica=Falso)
+            se_stesso.config_.salva()
+        ritorna salvati
+
     definisci elementi_barra(se_stesso):
         """Gli elementi scelti dall'utente (id dei comandi, separatori, spazio), o quelli predefiniti."""
         salvati = se_stesso.config_.ottieni("finestra.barra", Nessuno)
         se isinstance(salvati, lista) e salvati:
+            salvati = se_stesso._proponi_nuovi_pulsanti(salvati)
             ritorna [x per x in salvati se x in (barra_mod.SEPARATORE, barra_mod.SPAZIO) o x in se_stesso.comandi_menu]
         ritorna [x per x in barra_mod.PREDEFINITA se x in (barra_mod.SEPARATORE, barra_mod.SPAZIO) o x in se_stesso.comandi_menu]
 

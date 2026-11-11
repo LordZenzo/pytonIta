@@ -35,6 +35,9 @@ DECORAZIONI = {
     "Aiuto/Guida di PitStudio": ("aiuto", "", "Guida  (F1)", Falso),
 }
 
+# pulsanti aggiunti dopo: a chi ha una barra già salvata si propongono una volta sola, prima del pulsante indicato
+NUOVI_PULSANTI = {"Visualizza/Console": "Visualizza/Assistente AI"}
+
 PREDEFINITA = [
     "File/Apri progetto…", "File/Nuovo progetto…", SEPARATORE,
     "File/Salva", SEPARATORE,
