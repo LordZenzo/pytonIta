@@ -257,7 +257,9 @@ classe PannelloChat(tk.Frame):
         # modello economico: per spiegazioni e piccole correzioni costa molto meno
         se (se_stesso.var_economico.get() se economico è Nessuno altrimenti economico):
             cliente.modello_forzato = cliente.modello_economico()
-            se_stesso._scrivi(f"(modello economico: {cliente.modello_forzato})\n", "info")
+            se_stesso._scrivi(f"(modello economico: {cliente.modello()})\n", "info")
+        altrimenti:
+            se_stesso._scrivi(f"(modello: {cliente.modello()})\n", "info")
         strumenti = ai.Strumenti(se_stesso.ambiente, se_stesso.config_, se_stesso.ponte)
         se se_stesso.config_.ottieni("ai.storia", Vero):
             strumenti.storia = getattr(se_stesso.ambiente, "storia", Nessuno)

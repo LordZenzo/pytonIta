@@ -121,6 +121,18 @@ mentre time.time() - t0 < 1.0:
     radice.update()
     time.sleep(0.02)
 stampa("errore API mostrato:", "chiave non valida" in app.chat.t.get("1.0", "end"))
+# la chat dice sempre il modello usato: «economico» (acceso di partenza) oppure quello normale
+se "(modello economico: claude-haiku-5-5)" non in app.chat.t.get("1.0", "end"):
+    stampa("ERRORE: la chat deve mostrare il modello economico usato")
+app.chat.var_economico.set(Falso)
+app.chat.invia("seconda prova")
+t0 = time.time()
+mentre app.chat.lavoro.is_alive() e time.time() - t0 < 10:
+    radice.update()
+    time.sleep(0.02)
+radice.update()
+se "(modello: claude-sonnet-5-5)" non in app.chat.t.get("1.0", "end"):
+    stampa("ERRORE: la chat deve mostrare anche il modello normale")
 app.chat.salva_cronologia()
 stampa("cronologia salvata:", os.path.exists(os.path.join(cart, ".rad", "chat.json")))
 server.shutdown()
