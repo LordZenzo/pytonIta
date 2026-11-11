@@ -254,6 +254,57 @@ verifica("dati.BarraDati(" in codice e "dati=Falso" non in codice, "di norma il 
 f.trova("barra1").valori["dati"] = Falso
 verifica("dati=Falso" in form_modello.genera_ui(f), "spento nel progettista: dati=Falso nel codice")
 
+# ----------------------------------------------------------------- il database spostato in «risorse» (o in una sottocartella) si trova lo stesso
+spostato = os.path.join(base, "Spostato")
+os.makedirs(os.path.join(spostato, "risorse"))
+crea_db(os.path.join(spostato, "risorse", "dati.db"), 4)
+verifica(fonte_dati.cerca_database(spostato, "dati.db") == os.path.join(spostato, "risorse", "dati.db"), "trovato in risorse/")
+verifica(fonte_dati.percorso_database(spostato, "dati.db") == os.path.join(spostato, "risorse", "dati.db"), "dal progetto si usa quello trovato in risorse/")
+profondo = os.path.join(base, "Profondo", "a", "b")
+os.makedirs(profondo)
+crea_db(os.path.join(profondo, "vecchio.db"))
+verifica(fonte_dati.cerca_database(os.path.join(base, "Profondo"), "vecchio.db") == os.path.join(profondo, "vecchio.db"), "trovato in una sottocartella")
+troppo = os.path.join(base, "Troppo", "a", "b", "c", "d")
+os.makedirs(troppo)
+crea_db(os.path.join(troppo, "lontano.db"))
+verifica(fonte_dati.cerca_database(os.path.join(base, "Troppo"), "lontano.db") è Nessuno, "oltre 3 livelli non si cerca")
+verifica(fonte_dati.cerca_database(spostato, "manca.db") è Nessuno, "se non c'è: Nessuno")
+verifica(fonte_dati.percorso_database(spostato, "manca.db") == os.path.join(spostato, "manca.db"), "se non c'è si ritorna il percorso atteso (e crea() dirà che non esiste)")
+os.environ["APPDATA"] = os.path.join(base, "AppData3")
+sys.executable = os.path.join(base, "Spostato.exe")
+sys.frozen = Vero
+prova:
+    ps = fonte_dati.percorso_database(spostato, "dati.db")
+    verifica(ps == os.path.join(base, "AppData3", "Spostato", "dati.db") e conta(ps) == 4, "nell'exe si copia quello trovato in risorse/: " + ps)
+infine:
+    elimina sys.frozen
+    sys.executable = vecchio_exe
+    se vecchio_appdata è Nessuno:
+        os.environ.pop("APPDATA", Nessuno)
+    altrimenti:
+        os.environ["APPDATA"] = vecchio_appdata
+# avviso prima di costruire
+da rad importa crea_exe
+progetto_con = os.path.join(base, "ConFinestra")
+os.makedirs(os.path.join(progetto_con, "risorse"))
+crea_db(os.path.join(progetto_con, "risorse", "dati.db"))
+crea_db(os.path.join(progetto_con, "presente.db"))
+
+
+definisci finestra_con(database, dialetto="sqlite"):
+    json.dump({"nome": "F", "componenti": [{"tipo": "FonteDati", "nome": "fonte1", "valori": {"dialetto": dialetto, "database": database, "tabella": "t"}}]},
+              open(os.path.join(progetto_con, database.replace("/", "_").replace(":", "_").replace("\\", "_") + ".form.json"), "w", encoding="utf-8"))
+
+
+per nome_db in ("presente.db", "dati.db", "sparito.db"):
+    finestra_con(nome_db)
+finestra_con("c:" + chr(92) + "altrove" + chr(92) + "x.db")
+finestra_con("server", dialetto="mysql")
+registro_db = []
+avvisi_db = crea_exe.controlla_database(progetto_con, registro_db.append)
+verifica(lunghezza(avvisi_db) == 1 e "sparito.db" in avvisi_db[0], "avviso solo per il database che non si trova: " + testo(avvisi_db))
+verifica(lunghezza(registro_db) == 1 e "«dati.db» è in «risorse/dati.db»" in registro_db[0], "il registro dice dove lo ha trovato: " + testo(registro_db))
+
 # ----------------------------------------------------------------- un progetto con la fonte dati vecchia la riceve nuova prima della costruzione
 vecchio = os.path.join(base, "ProgettoVecchio")
 os.makedirs(vecchio)

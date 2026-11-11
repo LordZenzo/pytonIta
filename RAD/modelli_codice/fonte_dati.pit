@@ -42,6 +42,23 @@ definisci posizione_dati(cartella):
         ritorna "utente"
 
 
+definisci cerca_database(cartella, database):
+    """Se il database non sta dove la finestra lo cerca (accanto al programma), lo cerca nella cartella «risorse» e poi nelle sottocartelle (fino a 3 livelli):
+    capita quando il file è stato spostato dopo aver scelto la fonte dati. Ritorna il percorso, o Nessuno."""
+    nome = os.path.basename(database)
+    diretto = os.path.join(cartella, "risorse", nome)
+    se os.path.isfile(diretto):
+        ritorna diretto
+    base = os.path.abspath(cartella)
+    per radice, cartelle, files in os.walk(base):
+        cartelle[:] = sorted(c per c in cartelle se c non in (".rad", ".git", "__pycache__", "dist", "build", "venv", ".venv"))
+        se radice[len(base):].count(os.sep) >= 3:
+            cartelle[:] = []
+        se nome in files:
+            ritorna os.path.join(radice, nome)
+    ritorna Nessuno
+
+
 definisci percorso_database(cartella, database):
     """Il file del database SQLite da aprire. Nel progetto (e negli script) è quello accanto al programma. In un programma costruito con PitStudio (exe)
     i file stanno dentro il pacchetto, che a file singolo si scompatta in una cartella temporanea e si cancella alla chiusura: lì le modifiche andrebbero perse.
@@ -50,6 +67,8 @@ definisci percorso_database(cartella, database):
     se os.path.isabs(database):
         ritorna database
     originale = os.path.join(cartella, database)
+    se non os.path.exists(originale):
+        originale = cerca_database(cartella, database) o originale
     se non getattr(sys, "frozen", Falso):
         ritorna originale
     candidati = [os.path.join(cartella_dati_utente(), database)]

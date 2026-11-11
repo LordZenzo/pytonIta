@@ -260,6 +260,42 @@ definisci aggiorna_fonte_dati(origine, scrivi):
     ritorna bool(scritti)
 
 
+definisci controlla_database(origine, scrivi):
+    """Dice nel registro dove sono i database SQLite delle finestre e avvisa se uno non si trova (il programma costruito mostrerebbe «il database non esiste»).
+    Ritorna l'elenco degli avvisi."""
+    avvisi = []
+    viste = set()
+    prova:
+        nomi = sorted(f per f in os.listdir(origine) se f.endswith(".form.json"))
+    eccetto OSError:
+        ritorna avvisi
+    per f in nomi:
+        prova:
+            con open(os.path.join(origine, f), encoding="utf-8") come fp:
+                componenti = json.load(fp).get("componenti", [])
+        eccetto (OSError, ValueError):
+            continua
+        per c in componenti:
+            v = c.get("valori") o {}
+            se c.get("tipo") != "FonteDati" o v.get("dialetto", "sqlite") != "sqlite" o non v.get("database") o os.path.isabs(v["database"]) o v["database"] in viste:
+                continua
+            viste.add(v["database"])
+            diretto = os.path.join(origine, v["database"])
+            se os.path.exists(diretto):
+                continua
+            sposta = Nessuno
+            per radice, cartelle, files in os.walk(origine):
+                cartelle[:] = [d per d in cartelle se d non in (".rad", ".git", "__pycache__", "dist")]
+                se os.path.basename(v["database"]) in files:
+                    sposta = os.path.relpath(os.path.join(radice, os.path.basename(v["database"])), origine).replace("\\", "/")
+                    interrompi
+            se sposta:
+                scrivi(f"     il database «{v['database']}» è in «{sposta}»: il programma lo cerca anche lì.")
+            altrimenti:
+                avvisi.append(f"Il database «{v['database']}» (finestra {f[:-len('.form.json')]}) non è nella cartella del progetto: il programma mostrerebbe «il database non esiste».")
+    ritorna avvisi
+
+
 definisci scrivi_posizione_dati(sorgente, opzioni, scrivi=Nessuno):
     """Scrive nel pacchetto dove il programma tiene i database (modelli_codice/fonte_dati.pit: posizione_dati). Con «utente», il predefinito, non scrive niente."""
     percorso = os.path.join(sorgente, "dati_posizione.json")
@@ -336,6 +372,9 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
             ritorna risultato
         scrivi(f"     {r['file_python']} file Python, {r['altri_file']} altri file.")
         scrivi_posizione_dati(sorgente, opzioni, scrivi)
+        per avviso in controlla_database(origine, scrivi):
+            risultato["avvisi"].append(avviso)
+            scrivi("     ⚠ " + avviso)
         principale = os.path.join(sorgente, r["principale"])
         se non os.path.exists(principale):
             risultato["errore"] = f"Non trovo il file principale ({r['principale']})."
