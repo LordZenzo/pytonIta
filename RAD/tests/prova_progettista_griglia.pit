@@ -206,5 +206,17 @@ p.seleziona([rq.nome])
 testi = [w.cget("text") per w in p.righe_ispettore.winfo_children() se w.winfo_class() == "Label"]
 verifica(non any("Colonne" in t per t in testi), "libero: i campi della griglia spariscono")
 
+# rettangolo di selezione sullo spazio vuoto
+p.seleziona([])
+p.focus_set()
+p._clic_superficie(Ev(1, f.altezza - 2))
+p._trascina_lazo(Ev(f.larghezza - 1, 2))
+verifica(lunghezza(p.selezione_) >= 3, "il rettangolo seleziona i componenti toccati: " + str(p.selezione_))
+p._fine_lazo()
+verifica(p.superficie.find_withtag("lazo") == (), "rettangolo tolto")
+p._clic_superficie(Ev(f.larghezza - 2, f.altezza - 2))
+p._trascina_lazo(Ev(f.larghezza - 1, f.altezza - 1))
+verifica(p.selezione_ == [], "un rettangolo vuoto non seleziona nulla")
+p._fine_lazo()
 radice.destroy()
 stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

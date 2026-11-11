@@ -563,6 +563,9 @@ classe Progettista(tk.Frame):
         se_stesso.superficie._anteprima = Vero      # i colori del tema di PitStudio non la toccano
         se_stesso.finestra_superficie = se_stesso.area.create_window(30, 30, anchor="nw", window=se_stesso.superficie)
         se_stesso.superficie.bind("<ButtonPress-1>", se_stesso._clic_superficie)
+        se_stesso.superficie.bind("<B1-Motion>", se_stesso._trascina_lazo)
+        se_stesso.superficie.bind("<ButtonRelease-1>", se_stesso._fine_lazo)
+        se_stesso._lazo = Nessuno
         se_stesso.superficie.bind("<Button-3>", lambda e: se_stesso._menu(e, Nessuno))
         corpo.add(centro, minsize=300, stretch="always")
         # ispettore
@@ -1025,7 +1028,36 @@ classe Progettista(tk.Frame):
             se_stesso.aggiungi_componente(se_stesso.da_aggiungere, e.x, e.y)
             se_stesso._annulla_aggiunta()
         altrimenti:
-            se_stesso.seleziona([])
+            base = lista(se_stesso.selezione_) se e.state & 0x1 altrimenti []       # Maiusc: il rettangolo si aggiunge alla selezione
+            se non base:
+                se_stesso.seleziona([])
+            se_stesso._lazo = {"x": e.x, "y": e.y, "base": base, "ultimi": Nessuno}
+
+    definisci _trascina_lazo(se_stesso, e):
+        """Rettangolo di selezione: trascinando su uno spazio vuoto si selezionano i componenti (della finestra) che il rettangolo tocca."""
+        z = se_stesso._lazo
+        se non z:
+            ritorna
+        s = se_stesso.superficie
+        s.delete("lazo")
+        s.create_rectangle(z["x"], z["y"], e.x, e.y, outline=se_stesso.colori["accento"], dash=(3, 3), tags="lazo")
+        x0, x1 = sorted((z["x"], e.x))
+        y0, y1 = sorted((z["y"], e.y))
+        toccati = []
+        per c in se_stesso.form.componenti:
+            se c.genitore o c.nome non in se_stesso.widget:
+                continua
+            x, y, l, a = se_stesso._geom(c)
+            se x < x1 e x + l > x0 e y < y1 e y + a > y0:
+                toccati.append(c.nome)
+        nuovi = lista(dict.fromkeys(z["base"] + toccati))
+        se nuovi != z["ultimi"]:
+            z["ultimi"] = nuovi
+            se_stesso.seleziona(nuovi)
+
+    definisci _fine_lazo(se_stesso, e=Nessuno):
+        se_stesso.superficie.delete("lazo")
+        se_stesso._lazo = Nessuno
 
     definisci _premi(se_stesso, e, nome):
         se_stesso.focus_set()
