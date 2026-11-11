@@ -7,7 +7,9 @@
 Questo file è stato creato da PitStudio (Database > Crea una maschera dalla tabella) e si può usare anche con finestre disegnate a mano.
 """
 importa os
+importa shutil
 importa sqlite3
+importa sys
 importa tkinter come tk
 da tkinter importa messagebox, simpledialog
 
@@ -18,6 +20,30 @@ MASSIMO_RECORD = 2000
 
 classe ErroreDati(Exception):
     """Un errore del database, con un messaggio leggibile."""
+
+
+definisci cartella_dati_utente():
+    """Dove un programma installato (exe) tiene i dati dell'utente: la cartella «<nome del programma>» dentro %APPDATA% (su Linux e macOS in ~/.local/share)."""
+    nome = os.path.splitext(os.path.basename(sys.executable))[0] o "programma"
+    base = os.environ.get("APPDATA") o os.path.join(os.path.expanduser("~"), ".local", "share")
+    ritorna os.path.join(base, nome)
+
+
+definisci percorso_database(cartella, database):
+    """Il file del database SQLite da aprire. Nel progetto (e negli script) è quello accanto al programma. In un programma costruito con PitStudio (exe)
+    i file stanno dentro il pacchetto, che a file singolo si scompatta in una cartella temporanea e si cancella alla chiusura: lì le modifiche andrebbero perse.
+    Per questo alla prima apertura il database si copia nella cartella dei dati dell'utente e da quel momento si usa la copia (quello del pacchetto resta
+    il punto di partenza)."""
+    se os.path.isabs(database):
+        ritorna database
+    originale = os.path.join(cartella, database)
+    se non getattr(sys, "frozen", Falso):
+        ritorna originale
+    copia = os.path.join(cartella_dati_utente(), database)
+    se non os.path.exists(copia) e os.path.exists(originale):
+        os.makedirs(os.path.dirname(copia), exist_ok=Vero)
+        shutil.copy2(originale, copia)
+    ritorna copia
 
 
 classe ErroreObbligatorio(ErroreDati):
@@ -444,7 +470,7 @@ classe Collegamento:
             altrimenti:
                 se non database:
                     solleva ErroreDati("Nessun database scelto: scegli «Database» nelle proprietà della fonte dati.")
-                percorso = database se os.path.isabs(database) altrimenti os.path.join(cartella, database)
+                percorso = percorso_database(cartella, database)
                 se non os.path.exists(percorso):
                     solleva ErroreDati(f"Il database «{database}» non esiste.")
                 fonte = FonteDati.sqlite(percorso, tabella)

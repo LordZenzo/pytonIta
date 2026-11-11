@@ -1,0 +1,141 @@
+"""Database nei programmi costruiti (exe): il file .db sta nel pacchetto, che a file singolo si cancella alla chiusura; alla prima apertura si copia nella cartella dei dati
+dell'utente e le modifiche restano. La costruzione vera dell'exe solo con RAD_PROVA_EXE=1 (lenta, serve internet la prima volta)."""
+importa sys, os, tempfile, sqlite3, json, shutil, subprocess
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice"))
+importa fonte_dati
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci crea_db(percorso, righe=1):
+    c = sqlite3.connect(percorso)
+    c.execute("CREATE TABLE t (n INTEGER)")
+    per i in intervallo(righe):
+        c.execute("INSERT INTO t VALUES (?)", (i + 1,))
+    c.commit()
+    c.close()
+
+
+definisci conta(percorso):
+    c = sqlite3.connect(percorso)
+    n = c.execute("SELECT COUNT(*) FROM t").fetchone()[0]
+    c.close()
+    ritorna n
+
+
+base = tempfile.mkdtemp()
+programma = os.path.join(base, "pacchetto")
+os.makedirs(programma)
+originale = os.path.join(programma, "dati.db")
+crea_db(originale)
+
+# ----------------------------------------------------------------- nel progetto (non congelato): il file accanto al programma
+verifica(non getattr(sys, "frozen", Falso), "i test girano da script")
+verifica(fonte_dati.percorso_database(programma, "dati.db") == originale, "da script si apre il file accanto al programma")
+verifica(fonte_dati.percorso_database(programma, os.path.join(base, "altro.db")) == os.path.join(base, "altro.db"), "un percorso assoluto resta com'è")
+
+# ----------------------------------------------------------------- simulando un programma costruito (sys.frozen)
+appdata = os.path.join(base, "AppData")
+os.makedirs(appdata)
+vecchio_appdata = os.environ.get("APPDATA")
+vecchio_exe = sys.executable
+os.environ["APPDATA"] = appdata
+sys.executable = os.path.join(base, "MioProgramma.exe")
+sys.frozen = Vero
+prova:
+    verifica(fonte_dati.cartella_dati_utente() == os.path.join(appdata, "MioProgramma"), "cartella dei dati: " + fonte_dati.cartella_dati_utente())
+    copia = os.path.join(appdata, "MioProgramma", "dati.db")
+    verifica(non os.path.exists(copia), "prima dell'apertura non c'è la copia")
+    p1 = fonte_dati.percorso_database(programma, "dati.db")
+    verifica(p1 == copia e os.path.exists(copia) e conta(copia) == 1, "alla prima apertura si copia nei dati dell'utente: " + p1)
+    # il programma scrive nel suo database
+    c = sqlite3.connect(p1)
+    c.execute("INSERT INTO t VALUES (99)")
+    c.commit()
+    c.close()
+    # chiuso e riaperto (il pacchetto si è riscompattato da capo: l'originale è com'era)
+    shutil.rmtree(programma)
+    os.makedirs(programma)
+    crea_db(originale)
+    p2 = fonte_dati.percorso_database(programma, "dati.db")
+    verifica(p2 == copia e conta(p2) == 2, "alla riapertura le modifiche ci sono ancora: " + testo(conta(p2)))
+    verifica(conta(originale) == 1, "il database del pacchetto non viene toccato")
+    # nuovo utente (altra cartella dei dati): riparte dall'originale
+    os.environ["APPDATA"] = os.path.join(base, "AltroUtente")
+    p3 = fonte_dati.percorso_database(programma, "dati.db")
+    verifica(conta(p3) == 1 e p3 != copia, "un altro utente parte dal database originale")
+    # sottocartelle
+    os.makedirs(os.path.join(programma, "dati"))
+    crea_db(os.path.join(programma, "dati", "clienti.db"), 3)
+    p4 = fonte_dati.percorso_database(programma, os.path.join("dati", "clienti.db"))
+    verifica(conta(p4) == 3 e p4.endswith(os.path.join("MioProgramma", "dati", "clienti.db")), "database in una sottocartella: " + p4)
+    # database che non esiste nel pacchetto: si ritorna il percorso, e crea() lo dirà con un messaggio chiaro
+    p5 = fonte_dati.percorso_database(programma, "manca.db")
+    verifica(non os.path.exists(p5), "database mancante: nessuna copia inventata")
+infine:
+    elimina sys.frozen
+    sys.executable = vecchio_exe
+    se vecchio_appdata è Nessuno:
+        os.environ.pop("APPDATA", Nessuno)
+    altrimenti:
+        os.environ["APPDATA"] = vecchio_appdata
+
+# ----------------------------------------------------------------- un progetto con la fonte dati vecchia la riceve nuova prima della costruzione
+da rad importa crea_exe, form_modello
+vecchio = os.path.join(base, "ProgettoVecchio")
+os.makedirs(vecchio)
+open(os.path.join(vecchio, "fonte_dati.pit"), "w", encoding="utf-8").write("# versione vecchia, senza la copia nei dati dell'utente" + chr(10))
+messaggi = []
+verifica(crea_exe.aggiorna_fonte_dati(vecchio, messaggi.append), "la copia vecchia viene sostituita")
+verifica("percorso_database" in open(os.path.join(vecchio, "fonte_dati.pit"), encoding="utf-8").read() e os.path.exists(os.path.join(vecchio, "fonte_dati.pit.bak")), "ora ha la copia nei dati dell'utente, e la vecchia è salvata")
+verifica(lunghezza(messaggi) == 1 e "aggiornato" in messaggi[0], "lo dice nel registro: " + testo(messaggi))
+verifica(non crea_exe.aggiorna_fonte_dati(vecchio, messaggi.append) e lunghezza(messaggi) == 1, "la seconda volta non c'è niente da fare")
+senza = os.path.join(base, "SenzaDati")
+os.makedirs(senza)
+verifica(non crea_exe.aggiorna_fonte_dati(senza, messaggi.append) e non os.path.exists(os.path.join(senza, "fonte_dati.pit")), "senza fonte dati non si inventa niente")
+
+# ----------------------------------------------------------------- costruzione vera (lenta)
+se os.environ.get("RAD_PROVA_EXE") == "1":
+    progetto = os.path.join(base, "AppConDati")
+    os.makedirs(progetto)
+    open(os.path.join(progetto, "progetto.rad.json"), "w", encoding="utf-8").write(json.dumps({"nome": "AppConDati", "principale": "principale.pit"}))
+    shutil.copy2(form_modello.MODELLO_FONTE_DATI, os.path.join(progetto, "fonte_dati.pit"))
+    crea_db(os.path.join(progetto, "dati.db"))
+    open(os.path.join(progetto, "principale.pit"), "w", encoding="utf-8").write(chr(10).join([
+        "importa os, sqlite3",
+        "importa fonte_dati",
+        "cartella = os.path.dirname(os.path.abspath(__file__))",
+        'p = fonte_dati.percorso_database(cartella, "dati.db")',
+        "c = sqlite3.connect(p)",
+        'n = c.execute("SELECT COUNT(*) FROM t").fetchone()[0]',
+        'c.execute("INSERT INTO t VALUES (?)", (n + 1,))',
+        "c.commit()",
+        "c.close()",
+        'stampa("righe prima:", n, "| file:", p)',
+        ""]))
+    righe = []
+    esito = crea_exe.costruisci(progetto, crea_exe.Opzioni("AppConDati", un_file=Vero, senza_console=Falso), righe.append)
+    stampa("costruzione:", esito["ok"], esito["errore"])
+    verifica(esito["ok"], "exe costruito: " + testo(righe[-5:]))
+    se esito["ok"]:
+        dati_a = os.path.join(base, "DatiUtenteA")
+        os.makedirs(dati_a)
+        ambiente = dict(os.environ, APPDATA=dati_a)
+        uscite = []
+        per _ in intervallo(3):
+            r = subprocess.run([esito["exe"]], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120, env=ambiente)
+            uscite.append((r.returncode, r.stdout.strip(), r.stderr.strip()[-120:]))
+        verifica([u[1].split("|")[0].strip() per u in uscite] == ["righe prima: 1", "righe prima: 2", "righe prima: 3"], "nell'exe le modifiche restano da un avvio all'altro: " + testo(uscite))
+        verifica("DatiUtenteA" in uscite[0][1] e "AppConDati" in uscite[0][1], "la copia sta nei dati dell'utente: " + uscite[0][1])
+        ambiente_b = dict(os.environ, APPDATA=os.path.join(base, "DatiUtenteB"))
+        r = subprocess.run([esito["exe"]], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120, env=ambiente_b)
+        verifica(r.stdout.strip().startswith("righe prima: 1"), "un altro utente riparte dal database del pacchetto: " + r.stdout.strip())
+
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

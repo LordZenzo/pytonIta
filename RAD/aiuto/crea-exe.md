@@ -17,6 +17,15 @@ Un programma pytonIta gira dentro PitStudio. Per darlo a chi **non ha né PitStu
 
 Il risultato è nella cartella **`dist`** del progetto.
 
+## Se il programma usa un database
+
+Un programma con una **fonte dati SQLite** (maschere collegate a un `.db`) porta il database dentro il pacchetto. Con l'exe a file singolo il pacchetto si scompatta in una cartella temporanea a ogni avvio e si cancella alla chiusura, quindi PitStudio fa così: **alla prima apertura copia il database nella cartella dei dati dell'utente** (`%APPDATA%\<nome del programma>\`) e da quel momento usa la copia. Le modifiche restano da un avvio all'altro, e ogni utente di Windows ha i suoi dati. Il database del pacchetto resta com'era, come punto di partenza. Nel progetto dentro PitStudio non cambia niente: si usa il file del progetto.
+
+- Per **ripartire da zero** basta cancellare la cartella dei dati.
+- Il database è quello della **prima installazione**: una nuova versione del programma con tabelle cambiate non aggiorna da sola il database già copiato.
+- Se la copia di `fonte_dati.pit` del progetto è vecchia, PitStudio la rinnova prima di costruire (la vecchia resta come `fonte_dati.pit.bak`).
+- MySQL non è toccato: i dati stanno sul server.
+
 ## Il programma di installazione (Setup)
 
 Con la spunta **Crea anche il programma di installazione** ottieni, oltre all'`.exe`, un secondo file **`Setup_<nome>.exe`**: è quello da spedire. Chi lo apre vede una finestra con il nome e la versione del programma, sceglie la cartella (di solito `%LOCALAPPDATA%\Programs\<nome>`), decide se creare i collegamenti sul desktop e nel menu Start e preme **Installa**. Non servono i permessi di amministratore.

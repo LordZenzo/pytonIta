@@ -17,7 +17,7 @@ importa zipfile
 importa tkinter come tk
 da tkinter importa ttk, messagebox, filedialog
 
-da rad importa esporta_python
+da rad importa esporta_python, form_modello
 da rad.dialoghi importa DialogoBase
 da rad.stile importa suggerisci
 da rad.piattaforma importa FONT_MONO
@@ -244,6 +244,18 @@ definisci _esegui(comando, scrivi, cwd, fermato, nascondi=()):
     ritorna processo.returncode
 
 
+definisci aggiorna_fonte_dati(origine, scrivi):
+    """Se il progetto ha una copia di fonte_dati.pit più vecchia di quella di PitStudio la rinnova (la vecchia resta come .bak): le versioni
+    precedenti, in un exe, perdevano le modifiche al database a ogni chiusura. Ritorna True se l'ha sostituita."""
+    se non os.path.exists(os.path.join(origine, "fonte_dati.pit")):
+        ritorna Falso
+    scritti = []
+    form_modello.copia_fonte_dati(origine, scritti)
+    se scritti:
+        scrivi("     fonte_dati.pit aggiornato all'ultima versione (la copia vecchia resta come fonte_dati.pit.bak).")
+    ritorna bool(scritti)
+
+
 definisci nome_sicuro(nome):
     """Un nome adatto a un nome di file e di voce di registro."""
     ritorna "".join(c per c in nome se c.isalnum() o c in "_-") o "programma"
@@ -297,6 +309,7 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
             ritorna risultato
         build = cartella_build(origine)
         sorgente = os.path.join(build, "sorgente")
+        aggiorna_fonte_dati(origine, scrivi)
         scrivi("1/4  Converto il progetto in Python…")
         se os.path.exists(sorgente):
             shutil.rmtree(sorgente, ignore_errors=Vero)
