@@ -1,0 +1,98 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "x = 5\nx = x + 1\nstampa(x)",
+   "giusta": "6",
+   "sbagliate": [
+    {
+     "testo": "5",
+     "indizio": "Dopo x = x + 1 il valore di x è cambiato."
+    },
+    "51",
+    "x + 1"
+   ],
+   "spiegazione": "x = x + 1 calcola 5 + 1 e lo salva di nuovo in x.",
+   "sezione": "Che cos'è una variabile"
+  },
+  {
+   "domanda": "Quale di questi è un nome di variabile valido?",
+   "giusta": "eta_anni",
+   "sbagliate": [
+    {
+     "testo": "2anni",
+     "indizio": "Un nome non può cominciare con una cifra."
+    },
+    {
+     "testo": "mio nome",
+     "indizio": "Gli spazi non sono ammessi: usa il trattino basso."
+    },
+    {
+     "testo": "nome-utente",
+     "indizio": "Il trattino è il segno meno: sarebbe una sottrazione."
+    }
+   ],
+   "spiegazione": "I nomi usano lettere, cifre e _ , e non cominciano con una cifra.",
+   "sezione": "I nomi delle variabili"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(\"3\" + \"4\")",
+   "giusta": "34",
+   "sbagliate": [
+    {
+     "testo": "7",
+     "indizio": "Tra virgolette sono testi: + li incolla uno dopo l'altro."
+    },
+    "3 + 4",
+    "'7'"
+   ],
+   "spiegazione": "Con i testi + li unisce: «3» e «4» diventano «34».",
+   "sezione": "Unire testi e numeri"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "nome = \"Anna\"\nstampa(f\"Ciao {nome}!\")",
+   "giusta": "Ciao Anna!",
+   "sbagliate": [
+    "Ciao {nome}!",
+    "Ciao nome!",
+    "Ciao Anna"
+   ],
+   "spiegazione": "Nel f-testo ciò che sta tra graffe viene sostituito dal valore della variabile.",
+   "sezione": "Unire testi e numeri"
+  },
+  {
+   "domanda": "Quale istruzione trasforma il testo \"12\" nel numero 12?",
+   "giusta": "intero(\"12\")",
+   "sbagliate": [
+    {
+     "testo": "testo(\"12\")",
+     "indizio": "testo(...) fa l'opposto: trasforma in testo."
+    },
+    {
+     "testo": "lunghezza(\"12\")",
+     "indizio": "lunghezza conta i caratteri: darebbe 2."
+    },
+    "Vero(\"12\")"
+   ],
+   "spiegazione": "intero(...) converte un testo che contiene un numero intero in un numero.",
+   "sezione": "Convertire"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(arrotonda(3.14159, 2))",
+   "giusta": "3.14",
+   "sbagliate": [
+    "3",
+    "3.1",
+    {
+     "testo": "3.15",
+     "indizio": "arrotonda taglia alla cifra più vicina: la terza cifra è 1, quindi resta 3.14."
+    }
+   ],
+   "spiegazione": "arrotonda(numero, 2) lascia due cifre dopo la virgola.",
+   "sezione": "Convertire"
+  }
+ ]
+}

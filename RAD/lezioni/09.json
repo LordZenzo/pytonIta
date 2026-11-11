@@ -1,0 +1,75 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "definisci doppio(n):\n    ritorna n * 2\nstampa(doppio(4))",
+   "giusta": "8",
+   "sbagliate": [
+    "4",
+    "doppio(4)",
+    "Nessuno"
+   ],
+   "spiegazione": "La funzione ritorna 4 * 2 = 8.",
+   "sezione": "Restituire un valore: ritorna"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "definisci saluta(nome, volte=1):\n    per _ in intervallo(volte):\n        stampa(\"Ciao\", nome)\nsaluta(\"Anna\")\nsaluta(\"Luca\", 2)",
+   "giusta": "Ciao Anna\nCiao Luca\nCiao Luca",
+   "sbagliate": [
+    "Ciao Anna\nCiao Anna\nCiao Luca",
+    "Ciao Anna\nCiao Luca",
+    "Ciao Anna\nCiao Luca\nCiao Luca\nCiao Luca"
+   ],
+   "spiegazione": "Senza il secondo argomento volte vale 1; con saluta(\"Luca\", 2) il saluto viene stampato due volte.",
+   "sezione": "Parametri"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "definisci f():\n    x = 1\nf()\nstampa(\"fine\")",
+   "giusta": "fine",
+   "sbagliate": [
+    "1",
+    "1\nfine",
+    "Errore"
+   ],
+   "spiegazione": "x è una variabile locale: esiste solo dentro la funzione; qui non si stampa nulla di essa.",
+   "sezione": "Variabili locali"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "definisci quadrato(n):\n    ritorna n * n\nstampa(quadrato(3) + quadrato(4))",
+   "giusta": "25",
+   "sbagliate": [
+    "7",
+    "49",
+    "14"
+   ],
+   "spiegazione": "9 + 16 = 25: una funzione può usare i risultati di altre chiamate.",
+   "sezione": "Funzioni che usano altre funzioni"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "definisci fatt(n):\n    se n <= 1:\n        ritorna 1\n    ritorna n * fatt(n - 1)\nstampa(fatt(4))",
+   "giusta": "24",
+   "sbagliate": [
+    "10",
+    "16",
+    "4"
+   ],
+   "spiegazione": "4 * 3 * 2 * 1 = 24: la funzione chiama se stessa finché n arriva a 1.",
+   "sezione": "Una funzione che chiama se stessa"
+  },
+  {
+   "domanda": "Che cosa restituisce una funzione che non ha ritorna?",
+   "giusta": "Nessuno",
+   "sbagliate": [
+    "0",
+    "Il testo vuoto",
+    "Falso"
+   ],
+   "spiegazione": "Senza ritorna una funzione dà Nessuno, cioè «niente».",
+   "sezione": "Restituire un valore: ritorna"
+  }
+ ]
+}

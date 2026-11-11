@@ -1,0 +1,62 @@
+{
+ "domande": [
+  {
+   "domanda": "Quale riga mantiene aperta la finestra e aspetta i clic?",
+   "giusta": "finestra.ciclo_principale()",
+   "sbagliate": [
+    "finestra.mostra()",
+    "finestra.apri()",
+    "finestra.stampa()"
+   ],
+   "spiegazione": "ciclo_principale() tiene viva la finestra finché non viene chiusa.",
+   "sezione": "La finestra più piccola"
+  },
+  {
+   "domanda": "Come si passa a un pulsante la funzione da eseguire al clic?",
+   "giusta": "comando=incrementa",
+   "sbagliate": [
+    {
+     "testo": "comando=incrementa()",
+     "indizio": "Con le parentesi la funzione verrebbe eseguita subito, non al clic."
+    },
+    "azione=incrementa",
+    "clic=incrementa"
+   ],
+   "spiegazione": "Si passa il nome della funzione senza parentesi: la esegue il pulsante quando lo clicchi.",
+   "sezione": "Un pulsante che fa qualcosa"
+  },
+  {
+   "domanda": "Quale riga mette un'etichetta con un testo nella finestra?",
+   "giusta": "tk.Etichetta(finestra, testo=\"Ciao\")",
+   "sbagliate": [
+    "tk.Testo(finestra, \"Ciao\")",
+    "finestra.scrivi(\"Ciao\")",
+    "tk.Pulsante(finestra, etichetta=\"Ciao\")"
+   ],
+   "spiegazione": "Etichetta mostra un testo; poi con impacchetta() la si colloca nella finestra.",
+   "sezione": "La finestra più piccola"
+  },
+  {
+   "domanda": "Come si legge ciò che l'utente ha scritto in una casella di testo?",
+   "giusta": "casella.get()",
+   "sbagliate": [
+    "casella.testo",
+    "leggi(casella)",
+    "casella.valore()"
+   ],
+   "spiegazione": ".get() ritorna il testo scritto nella casella (sempre un testo).",
+   "sezione": "Leggere cosa ha scritto l'utente"
+  },
+  {
+   "domanda": "A cosa serve il progettista di finestre di PitStudio?",
+   "giusta": "A disegnare la finestra trascinando i componenti, senza scrivere a mano la parte grafica",
+   "sbagliate": [
+    "A scrivere i programmi a console",
+    "A correggere gli errori",
+    "A salvare i file"
+   ],
+   "spiegazione": "Il progettista genera il codice della finestra e lascia a te la logica.",
+   "sezione": "Il progettista di finestre di PitStudio"
+  }
+ ]
+}

@@ -11,6 +11,15 @@ Questo percorso ti porta da zero a un programma completo, **scrivendo codice in 
 
 > Prima di cominciare crea un progetto: *File → Nuovo progetto…*, modello **Programma da console**. Per questo corso va benissimo un unico file `lezioni.pit` che riscrivi lezione dopo lezione.
 
+## Il quiz e il professore
+
+Dal menu *Aiuto → Lezioni (con quiz e professore)…* (o dalla finestra che compare all'avvio, scegliendo «Iniziare una lezione») trovi l'elenco delle 16 lezioni con i tuoi progressi.
+
+- **Leggi la lezione**: apre la guida su quella lezione.
+- **Fai il quiz**: da 4 a 7 domande a risposte multiple, una alla volta, anche del tipo «Che cosa stampa questo programma?». Se sbagli ti dice perché e quale sezione rileggere. Con almeno l'80% di risposte giuste la lezione è superata (✔) e ti consiglia la successiva. Il quiz funziona **senza AI**.
+- **Esercizi guidati**: scrivi il codice e PitStudio lo controlla.
+- **Chiedi al professore**: se hai configurato l'assistente AI (Claude, Gemini o DeepSeek), la chat diventa il *professore* della lezione: spiega con parole semplici, ti fa domande, legge il tuo codice e ti dà un indizio alla volta, **senza scrivere il programma al posto tuo**. Per uscire c'è il pulsante «Esci dal professore» nella chat. Senza AI il pulsante ti porta alle Impostazioni.
+
 ## Le lezioni
 
 | # | Argomento | Cosa impari |

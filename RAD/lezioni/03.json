@@ -1,0 +1,78 @@
+{
+ "domande": [
+  {
+   "domanda": "Che cosa restituisce leggi() quando l'utente scrive 12?",
+   "giusta": "Il testo «12»",
+   "sbagliate": [
+    {
+     "testo": "Il numero 12",
+     "indizio": "leggi restituisce sempre un testo, anche se sono cifre."
+    },
+    "Vero",
+    "Niente: serve intero() per leggere"
+   ],
+   "spiegazione": "leggi restituisce sempre un testo: per fare calcoli va convertito con intero() o decimale().",
+   "sezione": "Attenzione: leggi restituisce sempre testo"
+  },
+  {
+   "domanda": "Quale riga legge un'età come numero intero?",
+   "giusta": "eta = intero(leggi(\"Età? \"))",
+   "sbagliate": [
+    {
+     "testo": "eta = leggi(intero(\"Età? \"))",
+     "indizio": "intero va applicato al risultato di leggi, non alla domanda."
+    },
+    {
+     "testo": "eta = numero(leggi(\"Età? \"))",
+     "indizio": "numero non esiste: la conversione si chiama intero (o decimale)."
+    },
+    {
+     "testo": "eta = leggi(\"Età? \") + 1",
+     "indizio": "Il risultato di leggi è un testo: sommarci 1 dà errore."
+    }
+   ],
+   "spiegazione": "intero(leggi(...)): prima leggi il testo, poi lo converti.",
+   "sezione": "Attenzione: leggi restituisce sempre testo"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "risposta = \"12\"\nstampa(risposta + risposta)",
+   "giusta": "1212",
+   "sbagliate": [
+    {
+     "testo": "24",
+     "indizio": "È un testo: + incolla, non somma."
+    },
+    "12 12",
+    "12"
+   ],
+   "spiegazione": "Con i testi + li unisce: «12» e «12» diventano «1212».",
+   "sezione": "Attenzione: leggi restituisce sempre testo"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "risposta = \"12\"\nstampa(intero(risposta) + 10)",
+   "giusta": "22",
+   "sbagliate": [
+    "1210",
+    "12",
+    {
+     "testo": "Errore",
+     "indizio": "intero(\"12\") funziona: è un testo fatto di cifre."
+    }
+   ],
+   "spiegazione": "Dopo la conversione è un numero: 12 + 10 = 22.",
+   "sezione": "Attenzione: leggi restituisce sempre testo"
+  },
+  {
+   "domanda": "Nella console di PitStudio, come risponde l'utente a leggi()?",
+   "giusta": "Scrive nella riga in basso e preme Invio",
+   "sbagliate": [
+    "Clicca sul pulsante OK",
+    "Modifica la riga del programma e preme F5"
+   ],
+   "spiegazione": "La console ha una riga di ingresso in basso: la risposta si scrive lì e si conferma con Invio.",
+   "sezione": "leggi: chiedere un valore"
+  }
+ ]
+}

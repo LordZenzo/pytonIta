@@ -1,0 +1,77 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "frutta = [\"mela\", \"pera\"]\nfrutta.aggiungi(\"kiwi\")\nstampa(lunghezza(frutta))",
+   "giusta": "3",
+   "sbagliate": [
+    "2",
+    "1",
+    "\"kiwi\""
+   ],
+   "spiegazione": "aggiungi mette l'elemento in fondo: ora la lista ha tre elementi.",
+   "sezione": "Modificare"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "l = [10, 20, 30]\nstampa(l[0], l[-1])",
+   "giusta": "10 30",
+   "sbagliate": [
+    "10 20",
+    {
+     "testo": "20 30",
+     "indizio": "Il primo elemento ha indice 0; -1 è l'ultimo."
+    },
+    "0 2"
+   ],
+   "spiegazione": "Gli indici partono da 0, e -1 indica l'ultimo elemento.",
+   "sezione": "Leggere un elemento"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "l = [3, 1, 2]\nl.ordina()\nstampa(l)",
+   "giusta": "[1, 2, 3]",
+   "sbagliate": [
+    "[3, 1, 2]",
+    "[3, 2, 1]",
+    "Nessuno"
+   ],
+   "spiegazione": ".ordina() ordina la lista sul posto, dal più piccolo al più grande.",
+   "sezione": "Ordinare e cercare"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(ordinato([3, 1, 2]), somma([3, 1, 2]))",
+   "giusta": "[1, 2, 3] 6",
+   "sbagliate": [
+    "[3, 1, 2] 6",
+    "[1, 2, 3] 3",
+    "[1, 2, 3] 5"
+   ],
+   "spiegazione": "ordinato(...) dà una copia ordinata, somma(...) addiziona gli elementi: 3+1+2 = 6.",
+   "sezione": "Ordinare e cercare"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "numeri = [2, 4, 6]\nper n in numeri:\n    stampa(n * 2)",
+   "giusta": "4\n8\n12",
+   "sbagliate": [
+    "2\n4\n6",
+    "12",
+    "4 8 12"
+   ],
+   "spiegazione": "Il ciclo prende un elemento alla volta e ne stampa il doppio.",
+   "sezione": "Scorrere una lista"
+  },
+  {
+   "domanda": "Qual è l'indice del primo elemento di una lista?",
+   "giusta": "0",
+   "sbagliate": [
+    "1",
+    "-1"
+   ],
+   "spiegazione": "In pytonIta (come in Python) si comincia a contare da 0.",
+   "sezione": "Leggere un elemento"
+  }
+ ]
+}

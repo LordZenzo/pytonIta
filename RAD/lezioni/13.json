@@ -1,0 +1,73 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "classe Contatore:\n    definisci __inizializza__(se_stesso):\n        se_stesso.valore = 0\n    definisci incrementa(se_stesso):\n        se_stesso.valore += 1\nc = Contatore()\nc.incrementa()\nc.incrementa()\nstampa(c.valore)",
+   "giusta": "2",
+   "sbagliate": [
+    "0",
+    "1",
+    "Contatore"
+   ],
+   "spiegazione": "Il valore parte da 0 e incrementa lo aumenta di uno a ogni chiamata.",
+   "sezione": "La prima classe"
+  },
+  {
+   "domanda": "Quale metodo viene eseguito quando crei un oggetto?",
+   "giusta": "__inizializza__",
+   "sbagliate": [
+    "__crea__",
+    "__avvia__",
+    "inizio"
+   ],
+   "spiegazione": "__inizializza__ prepara l'oggetto appena creato (i suoi dati iniziali).",
+   "sezione": "La prima classe"
+  },
+  {
+   "domanda": "A che cosa si riferisce se_stesso dentro un metodo?",
+   "giusta": "All'oggetto su cui il metodo sta lavorando",
+   "sbagliate": [
+    "Alla classe in generale",
+    "Al programma principale",
+    "A una variabile qualunque"
+   ],
+   "spiegazione": "se_stesso permette di leggere e cambiare i dati di quell'oggetto.",
+   "sezione": "La prima classe"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "classe Punto:\n    definisci __inizializza__(se_stesso, x):\n        se_stesso.x = x\na = Punto(1)\nb = Punto(2)\nb.x += 10\nstampa(a.x, b.x)",
+   "giusta": "1 12",
+   "sbagliate": [
+    "11 12",
+    "1 2",
+    "12 12"
+   ],
+   "spiegazione": "Ogni oggetto ha i propri dati: cambiare b non tocca a.",
+   "sezione": "La prima classe"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "classe Animale:\n    definisci parla(se_stesso):\n        stampa(\"...\")\nclasse Cane(Animale):\n    definisci parla(se_stesso):\n        stampa(\"Bau\")\nCane().parla()",
+   "giusta": "Bau",
+   "sbagliate": [
+    "...",
+    "...\nBau",
+    "Errore"
+   ],
+   "spiegazione": "Cane ridefinisce parla, e la sua versione ha la precedenza su quella di Animale.",
+   "sezione": "Ereditarietà"
+  },
+  {
+   "domanda": "Che cosa significa classe Cane(Animale)?",
+   "giusta": "Cane eredita i dati e i metodi di Animale",
+   "sbagliate": [
+    "Cane contiene un Animale",
+    "Animale eredita da Cane",
+    "Sono due classi senza legame"
+   ],
+   "spiegazione": "Tra parentesi c'è la classe da cui si eredita.",
+   "sezione": "Ereditarietà"
+  }
+ ]
+}

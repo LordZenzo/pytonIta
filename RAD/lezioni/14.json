@@ -1,0 +1,72 @@
+{
+ "domande": [
+  {
+   "domanda": "Quale riga porta nel programma la libreria matematica?",
+   "giusta": "importa matematica",
+   "sbagliate": [
+    "usa matematica",
+    "matematica importa",
+    "da importa matematica"
+   ],
+   "spiegazione": "importa nome apre la libreria; poi si usa matematica.qualcosa.",
+   "sezione": "importa"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa matematica\nstampa(matematica.radice_quadrata(16))",
+   "giusta": "4.0",
+   "sbagliate": [
+    "16",
+    "8",
+    "4"
+   ],
+   "spiegazione": "La radice quadrata di 16 è 4 (un numero con la virgola: 4.0).",
+   "sezione": "importa"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "da matematica importa pi\nstampa(arrotonda(pi, 2))",
+   "giusta": "3.14",
+   "sbagliate": [
+    "3.1",
+    "3.142",
+    "3"
+   ],
+   "spiegazione": "pi vale 3.14159…: arrotondato a due cifre è 3.14.",
+   "sezione": "Altri modi di importare"
+  },
+  {
+   "domanda": "Che cosa fa «importa matematica come m»?",
+   "giusta": "Usa la libreria con il nome più corto m",
+   "sbagliate": [
+    "Cambia il nome della libreria sul disco",
+    "Importa solo la lettera m",
+    "Importa la libreria due volte"
+   ],
+   "spiegazione": "Dopo, si scrive m.radice_quadrata(...) al posto di matematica.radice_quadrata(...).",
+   "sezione": "Altri modi di importare"
+  },
+  {
+   "domanda": "Dopo «da matematica importa pi», come si usa pi?",
+   "giusta": "Direttamente, scrivendo pi",
+   "sbagliate": [
+    "Come matematica.pi",
+    "Come importa.pi",
+    "Non si può usare"
+   ],
+   "spiegazione": "Con da ... importa il nome si usa senza prefisso.",
+   "sezione": "Altri modi di importare"
+  },
+  {
+   "domanda": "Che cosa succede spuntando una libreria nel pannello Librerie?",
+   "giusta": "La libreria si attiva nel progetto e i suoi nomi compaiono tra i suggerimenti",
+   "sbagliate": [
+    "Il programma si avvia",
+    "La libreria viene cancellata",
+    "Si apre un nuovo progetto"
+   ],
+   "spiegazione": "L'attivazione serve a trovarla facilmente mentre scrivi.",
+   "sezione": "Il pannello Librerie di PitStudio"
+  }
+ ]
+}

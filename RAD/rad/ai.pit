@@ -96,6 +96,10 @@ DEFINIZIONI = [
 ]
 
 
+# il professore guarda, legge ed esegue, ma non scrive al posto dell'allievo
+NOMI_PROFESSORE = ("stato_ide", "elenca_file", "leggi_file", "cerca_nel_progetto", "controlla_sintassi", "esegui_programma", "apri_file", "membri_modulo")
+DEFINIZIONI_PROFESSORE = [d per d in DEFINIZIONI se d["name"] in NOMI_PROFESSORE]
+
 # strumenti che possono cambiare i file del progetto: prima del primo di questi si fotografa lo stato (annullabile)
 STRUMENTI_CHE_MODIFICANO = {"scrivi_file", "modifica_file", "elimina_file", "imposta_form", "imposta_mattonelle",
                             "converti_in_mattonelle", "esegui_programma"}
@@ -520,6 +524,7 @@ definisci _tronca(testo_, limite=LIMITE_RISULTATO):
 
 classe Strumenti:
     """Esegue gli strumenti richiesti dall'AI. Le azioni sull'interfaccia passano dal ponte UI."""
+    nomi_ammessi = Nessuno                # se è una lista, solo quegli strumenti (modalità professore)
 
     definisci __inizializza__(se_stesso, ambiente, config, ponte):
         se_stesso.ambiente = ambiente
@@ -545,6 +550,8 @@ classe Strumenti:
 
     definisci esegui(se_stesso, nome, parametri):
         """Ritorna (testo_risultato, è_errore)."""
+        se se_stesso.nomi_ammessi è non Nessuno e nome non in se_stesso.nomi_ammessi:
+            ritorna f"Lo strumento «{nome}» non è disponibile nella modalità professore: guida l'allievo a scrivere il codice da solo.", Vero
         funzione = getattr(se_stesso, "s_" + nome, Nessuno)
         se funzione è Nessuno:
             ritorna f"Strumento sconosciuto: {nome}", Vero
@@ -775,6 +782,7 @@ classe Strumenti:
 
 classe Agente:
     """Ciclo: messaggio → (strumenti → risultati)* → risposta finale."""
+    definizioni = Nessuno                 # elenco degli strumenti offerti all'AI (DEFINIZIONI se Nessuno)
 
     definisci __inizializza__(se_stesso, cliente, strumenti, config, su_evento):
         se_stesso.cliente = cliente
@@ -822,7 +830,7 @@ classe Agente:
                 se_stesso.su_evento("info", f"Conversazione lunga: accorciati i vecchi risultati (circa {risparmiati // 4} token in meno).")
                 se se_stesso.registro:
                     se_stesso.registro.scrivi("compattazione", richiesta=se_stesso.id_richiesta, token_risparmiati=risparmiati // 4)
-            risposta = se_stesso.cliente.chiama(messaggi, sistema, DEFINIZIONI)
+            risposta = se_stesso.cliente.chiama(messaggi, sistema, se_stesso.definizioni o DEFINIZIONI)
             se_stesso._passi = passo + 1
             blocchi = risposta.get("content", [])
             messaggi.append({"role": "assistant", "content": blocchi})
@@ -878,3 +886,25 @@ definisci prompt_di_sistema(config, progetto):
     se extra:
         info += "\n## Istruzioni dell'utente\n" + extra + "\n"
     ritorna manuale + info
+
+
+definisci prompt_professore(config, progetto, lezione):
+    """Il prompt di sistema del professore: l'assistente di sempre, ma che insegna la lezione dell'allievo senza fargli i compiti."""
+    lezione_testo = (lezione.get("testo") o "")[:14000]
+    ritorna (prompt_di_sistema(config, progetto) + f"""
+
+## MODALITÀ PROFESSORE
+Adesso sei il PROFESSORE di programmazione di un allievo che sta studiando la lezione {lezione.get('numero')} «{lezione.get('titolo')}» del percorso di PitStudio.
+Regole:
+- Rispondi sempre in italiano, con parole semplici, frasi brevi, un passo alla volta. L'allievo è un principiante.
+- Spiega con piccoli esempi (al massimo 5-6 righe) scritti in pytonIta, con le parole chiave italiane. Non usare Python inglese.
+- NON scrivere la soluzione completa degli esercizi e non riscrivere il programma dell'allievo: dai un indizio alla volta, fai domande per farlo ragionare («cosa pensi che stampi questa riga?»), e solo se è bloccato da molto mostra un frammento.
+- Puoi leggere i file dell'allievo (leggi_file, stato_ide), controllare la sintassi, eseguire il programma e aprire un file nell'editor. Non puoi scrivere né modificare file: lo fa l'allievo.
+- Se c'è un errore, spiega cosa significa il messaggio e dove guardare, non correggerlo al posto suo.
+- Resta sull'argomento della lezione; se l'allievo chiede altro, rispondi in breve e riporta il discorso alla lezione.
+- Incoraggia: sbagliare serve a imparare.
+
+Il testo della lezione che l'allievo sta studiando:
+
+{lezione_testo}
+""")

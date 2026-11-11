@@ -1,0 +1,165 @@
+"""Lezioni e quiz: l'elenco delle lezioni (aiuto/lezione-NN.md), i quiz a risposte multiple (lezioni/NN.json) e i progressi dell'allievo.
+Solo logica, senza interfaccia. Funziona senza AI: è il «professore» di base; con l'AI si aggiunge il professore che risponde alle domande.
+
+Un quiz è un file JSON: {"domande": [ ... ]}. Ogni domanda:
+  {"domanda": "testo", "codice": "facoltativo, mostrato sotto la domanda",
+   "giusta": "la risposta esatta",
+   "sbagliate": ["testo", {"testo": "altra risposta", "indizio": "perché non va"}, ...],
+   "spiegazione": "perché quella giusta è giusta", "sezione": "titolo della sezione della lezione da rileggere"}
+Per le domande «Che cosa stampa?» si scrive "tipo": "stampa", "codice" e "giusta" (l'output esatto): un test esegue il codice e controlla."""
+importa json
+importa os
+importa random
+importa re
+
+RADICE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CARTELLA_AIUTO = os.path.join(RADICE, "aiuto")
+CARTELLA_QUIZ = os.path.join(RADICE, "lezioni")
+SOGLIA = 0.8                   # con almeno l'80% di risposte giuste la lezione è superata
+
+
+# ---------------------------------------------------------------- le lezioni
+definisci elenco_lezioni():
+    """[{numero, id, titolo, obiettivo}] in ordine, dai file della guida."""
+    voci = []
+    per nome in sorted(os.listdir(CARTELLA_AIUTO)):
+        m = re.match(r"lezione-(\d+)\.md$", nome)
+        se non m:
+            continua
+        numero = int(m.group(1))
+        titolo, obiettivo = f"Lezione {numero}", ""
+        prova:
+            con open(os.path.join(CARTELLA_AIUTO, nome), encoding="utf-8") come f:
+                righe_file = f.read().split("\n")
+        eccetto OSError:
+            righe_file = []
+        per riga in righe_file[:12]:
+            t = re.match(r"#\s*Lezione\s+\d+\s*[·\-:]\s*(.+)", riga)
+            se t:
+                titolo = t.group(1).strip()
+            se riga.startswith("**Obiettivo:**"):
+                obiettivo = riga[len("**Obiettivo:**"):].strip()
+        voci.append({"numero": numero, "id": f"lezione-{numero:02d}", "titolo": titolo, "obiettivo": obiettivo})
+    ritorna sorted(voci, key=lambda v: v["numero"])
+
+
+definisci testo_lezione(numero):
+    prova:
+        con open(os.path.join(CARTELLA_AIUTO, f"lezione-{numero:02d}.md"), encoding="utf-8") come f:
+            ritorna f.read()
+    eccetto OSError:
+        ritorna ""
+
+
+# ---------------------------------------------------------------- i quiz
+definisci _opzione(x):
+    """Una risposta sbagliata come dizionario {testo, indizio}."""
+    se isinstance(x, testo):
+        ritorna {"testo": x, "indizio": ""}
+    ritorna {"testo": testo(x.get("testo", "")), "indizio": testo(x.get("indizio", ""))}
+
+
+definisci domanda_valida(d):
+    """Vero se la domanda ha tutto il necessario: testo (o codice), una risposta giusta e almeno due sbagliate diverse."""
+    se non isinstance(d, dict) o non d.get("giusta") o non isinstance(d.get("sbagliate"), lista):
+        ritorna Falso
+    se non (d.get("domanda") o d.get("tipo") == "stampa"):
+        ritorna Falso
+    testi = [testo(d["giusta"])] + [_opzione(x)["testo"] per x in d["sbagliate"]]
+    ritorna lunghezza(d["sbagliate"]) >= 2 e lunghezza(set(testi)) == lunghezza(testi) e tutti(t.strip() per t in testi)
+
+
+definisci carica_quiz(numero, cartella=Nessuno):
+    """Le domande valide del quiz della lezione (lista vuota se non c'è)."""
+    percorso = os.path.join(cartella o CARTELLA_QUIZ, f"{numero:02d}.json")
+    prova:
+        con open(percorso, encoding="utf-8") come f:
+            d = json.load(f)
+    eccetto (OSError, ValueError):
+        ritorna []
+    se non isinstance(d, dict):
+        ritorna []
+    ritorna [q per q in d.get("domande", []) se domanda_valida(q)]
+
+
+definisci prepara(d, caso=Nessuno):
+    """La domanda pronta da mostrare: risposte mescolate, con l'indizio di ciascuna."""
+    caso = caso o random
+    opzioni = [{"testo": testo(d["giusta"]), "giusta": Vero, "indizio": ""}]
+    per x in d["sbagliate"]:
+        o = _opzione(x)
+        o["giusta"] = Falso
+        opzioni.append(o)
+    caso.shuffle(opzioni)
+    ritorna {"domanda": d.get("domanda") o ("Che cosa stampa questo programma?" se d.get("tipo") == "stampa" altrimenti ""),
+             "codice": d.get("codice", ""), "opzioni": opzioni, "spiegazione": d.get("spiegazione", ""),
+             "sezione": d.get("sezione", "")}
+
+
+definisci valuta(p, indice):
+    """(giusta?, messaggio) per la risposta scelta."""
+    scelta = p["opzioni"][indice]
+    giusta = [o per o in p["opzioni"] se o["giusta"]][0]
+    se scelta["giusta"]:
+        ritorna Vero, "Giusto! " + p["spiegazione"]
+    messaggio = "Non è questa. " + (scelta["indizio"] o "")
+    messaggio += f"\nLa risposta giusta era: {giusta['testo']}"
+    se p["spiegazione"]:
+        messaggio += "\n" + p["spiegazione"]
+    ritorna Falso, messaggio.strip()
+
+
+# ---------------------------------------------------------------- progressi
+definisci progressi(config):
+    ritorna dict(config.ottieni("lezioni.progressi", {}) o {})
+
+
+definisci registra(config, numero, punti, su):
+    """Salva il risultato di un quiz. Ritorna True se la lezione è superata (almeno l'80%)."""
+    tutti_ = progressi(config)
+    r = dict(tutti_.get(testo(numero), {}))
+    superata = su > 0 e punti / su >= SOGLIA
+    r.update({"ultimo": punti, "su": su, "migliore": max(r.get("migliore", 0), punti), "tentativi": r.get("tentativi", 0) + 1,
+              "completata": bool(r.get("completata", Falso) o superata)})
+    tutti_[testo(numero)] = r
+    config.imposta("lezioni.progressi", tutti_, notifica=Falso)
+    config.imposta("lezioni.ultima", numero, notifica=Falso)
+    config.salva()
+    ritorna superata
+
+
+definisci stato(config, numero):
+    """'' se mai fatta, altrimenti '✔ 4/5' (superata) o '· 2/5' (da ripassare)."""
+    r = progressi(config).get(testo(numero))
+    se non r:
+        ritorna ""
+    ritorna ("✔ " se r.get("completata") altrimenti "· ") + f"{r.get('migliore', 0)}/{r.get('su', 0)}"
+
+
+definisci prossima(config, lezioni):
+    """Il numero della lezione da fare adesso: la prima non superata, altrimenti l'ultima della lista."""
+    fatte = progressi(config)
+    per v in lezioni:
+        se non fatte.get(testo(v["numero"]), {}).get("completata"):
+            ritorna v["numero"]
+    ritorna lezioni[-1]["numero"] se lezioni altrimenti 1
+
+
+definisci consiglio(punti, su, sezioni, ultima=Falso):
+    """Il commento finale del professore dopo il quiz."""
+    se su == 0:
+        ritorna "Questa lezione non ha ancora un quiz."
+    se punti == su:
+        testo_ = "Perfetto: nemmeno un errore!"
+    altrimenti_se punti / su >= SOGLIA:
+        testo_ = "Bene, lezione superata."
+    altrimenti_se punti / su >= 0.5:
+        testo_ = "Ci sei quasi: ripassa e riprova."
+    altrimenti:
+        testo_ = "Meglio rileggere la lezione con calma e provare gli esempi, poi rifare il quiz."
+    sezioni = [s per s in dict.fromkeys(sezioni) se s]
+    se sezioni e punti < su:
+        testo_ += "\nDa rileggere: " + ", ".join(f"«{s}»" per s in sezioni) + "."
+    se punti / su >= SOGLIA:
+        testo_ += "\n" + ("Hai finito il percorso: complimenti!" se ultima altrimenti "Puoi passare alla lezione successiva.")
+    ritorna testo_

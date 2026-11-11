@@ -48,6 +48,13 @@ classe PannelloChat(tk.Frame):
         se_stesso.testata = testata
         se_stesso.titolo = tk.Label(testata, text="ASSISTENTE", anchor="w")
         se_stesso.titolo.pack(side="left", padx=8, pady=4)
+        se_stesso.professore = Nessuno           # lezione in corso quando la chat fa da professore ({numero, titolo, testo})
+        # banda sotto l'intestazione, visibile solo con il professore: dice la lezione e permette di uscirne
+        se_stesso.banda_professore = tk.Frame(se_stesso)
+        se_stesso.etichetta_professore = tk.Label(se_stesso.banda_professore, anchor="w")
+        se_stesso.etichetta_professore.pack(side="left", padx=8, pady=3)
+        se_stesso.pulsante_professore = tk.Button(se_stesso.banda_professore, text="Esci dal professore", command=se_stesso.esci_dal_professore, relief="flat")
+        se_stesso.pulsante_professore.pack(side="right", padx=6, pady=3)
         b = tk.Button(testata, text="Nuova chat", command=se_stesso.nuova_chat)
         b.pack(side="right", padx=3, pady=3)
         suggerisci(b, "Inizia una nuova conversazione con l'assistente")
@@ -123,6 +130,9 @@ classe PannelloChat(tk.Frame):
         per w in (se_stesso, se_stesso.testata, se_stesso.basso, se_stesso.opzioni, se_stesso.riga, se_stesso.colonna):
             w.configure(background=c["pannello"])
         se_stesso.titolo.configure(background=c["pannello"], foreground=c["tenue"])
+        se_stesso.banda_professore.configure(background=c["accento"])
+        se_stesso.etichetta_professore.configure(background=c["accento"], foreground="#ffffff")
+        se_stesso.pulsante_professore.configure(background=c["pulsante"], foreground=c["primo_piano"])
         se_stesso.stato.configure(background=c["pannello"], foreground=c["tenue"])
         per casella in (se_stesso.casella_contesto, se_stesso.casella_economico):
             casella.configure(background=c["pannello"], foreground=c["tenue"], activebackground=c["pannello"],
@@ -272,7 +282,13 @@ classe PannelloChat(tk.Frame):
         strumenti.id_richiesta = se_stesso.agente.id_richiesta = id_richiesta
         registro.scrivi("richiesta", richiesta=id_richiesta, modello=cliente.modello(),
                         domanda=domanda[:80], con_contesto=lunghezza(contenuto) > 1)
-        sistema = se_stesso.ponte.esegui(lambda: ai.prompt_di_sistema(se_stesso.config_, se_stesso.ambiente.progetto))
+        se se_stesso.professore:
+            lezione = se_stesso.professore
+            sistema = se_stesso.ponte.esegui(lambda: ai.prompt_professore(se_stesso.config_, se_stesso.ambiente.progetto, lezione))
+            se_stesso.agente.definizioni = ai.DEFINIZIONI_PROFESSORE
+            strumenti.nomi_ammessi = ai.NOMI_PROFESSORE
+        altrimenti:
+            sistema = se_stesso.ponte.esegui(lambda: ai.prompt_di_sistema(se_stesso.config_, se_stesso.ambiente.progetto))
         se_stesso.lavoro = threading.Thread(target=se_stesso._lavora, args=(sistema,), daemon=Vero)
         se_stesso.lavoro.start()
 
@@ -375,6 +391,27 @@ classe PannelloChat(tk.Frame):
         ritorna "  ".join(pezzi)
 
     # ------------------------------------------------------------ conversazioni
+    definisci avvia_professore(se_stesso, lezione):
+        """Comincia una conversazione in cui l'assistente fa da professore della lezione (numero, titolo, testo)."""
+        se se_stesso.lavoro e se_stesso.lavoro.is_alive():
+            ritorna Falso
+        se_stesso.nuova_chat()
+        se_stesso.professore = dict(lezione)
+        se_stesso.etichetta_professore.configure(text=f"🎓 Professore · lezione {lezione.get('numero')}: {lezione.get('titolo')}")
+        se_stesso.banda_professore.pack(fill="x", after=se_stesso.testata)
+        se_stesso.applica_colori(se_stesso.colori)
+        se_stesso._scrivi(f"Sono il tuo professore per la lezione {lezione.get('numero')}: {lezione.get('titolo')}.\n", "ai", "grassetto")
+        se_stesso._scrivi("Chiedimi quello che non ti è chiaro, oppure scrivimi cosa stai provando a fare e dove sei bloccato: "
+                          "ti guido un passo alla volta, senza darti subito la soluzione.\n", "ai")
+        ritorna Vero
+
+    definisci esci_dal_professore(se_stesso):
+        se se_stesso.lavoro e se_stesso.lavoro.is_alive():
+            ritorna
+        se_stesso.professore = Nessuno
+        se_stesso.banda_professore.pack_forget()
+        se_stesso.nuova_chat()
+
     definisci nuova_chat(se_stesso):
         se se_stesso.lavoro e se_stesso.lavoro.is_alive():
             ritorna

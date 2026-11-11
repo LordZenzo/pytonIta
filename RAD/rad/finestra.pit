@@ -57,7 +57,7 @@ COLORE_CHAT_APERTA = "#1e9e3a"       # verde del pulsante dell'assistente quando
 classe Applicazione:
     """Coordina tutti i pannelli. Fa anche da 'ambiente' per l'assistente AI."""
 
-    definisci __inizializza__(se_stesso, radice, config=Nessuno):
+    definisci __inizializza__(se_stesso, radice, config=Nessuno, chiedi_avvio=Falso):
         se_stesso.radice = radice
         se_stesso.config_ = config o Configurazione()
         se_stesso.colori = tema.colori(se_stesso.config_)
@@ -77,7 +77,10 @@ classe Applicazione:
         se_stesso.config_.quando_cambia(se_stesso._config_cambiata)
         radice.protocol("WM_DELETE_WINDOW", se_stesso.esci)
         se_stesso._associa_scorciatoie()
-        se_stesso.ripristina_ultimo_progetto()
+        se chiedi_avvio e se_stesso.config_.ottieni("avvio.chiedi", Vero):
+            radice.after(250, se_stesso.mostra_avvio)           # la finestra d'avvio compare sopra la finestra già disegnata
+        altrimenti:
+            se_stesso.ripristina_ultimo_progetto()
 
     # ================================================================== struttura
     definisci _costruisci(se_stesso):
@@ -255,6 +258,7 @@ classe Applicazione:
         r.configure(menu=barra)
 
         file = tk.Menu(barra, tearoff=0)
+        file.add_command(label="Finestra di avvio…", command=lambda: se_stesso.mostra_avvio())
         file.add_command(label="Nuovo progetto…", command=se_stesso.nuovo_progetto)
         file.add_command(label="Apri progetto…", command=se_stesso.apri_progetto, accelerator="Ctrl+O")
         se_stesso.menu_recenti = tk.Menu(file, tearoff=0)
@@ -362,6 +366,7 @@ classe Applicazione:
         aiuto = tk.Menu(barra, tearoff=0)
         aiuto.add_command(label="Guida di PitStudio", command=lambda: se_stesso.apri_aiuto(), accelerator="F1")
         aiuto.add_command(label="Galleria di esempi…", command=lambda: se_stesso.apri_galleria())
+        aiuto.add_command(label="Lezioni (con quiz e professore)…", command=lambda: se_stesso.apri_lezioni())
         aiuto.add_command(label="Esercizi guidati…", command=lambda: se_stesso.apri_esercizi())
         aiuto.add_command(label="Primi passi", command=lambda: se_stesso.apri_aiuto("primi-passi"))
         aiuto.add_command(label="Scorciatoie da tastiera", command=lambda: se_stesso.apri_aiuto("scorciatoie"))
@@ -550,8 +555,8 @@ classe Applicazione:
             se_stesso.chat.var_modello.set(se_stesso.config_.ottieni(ai.chiave_modello(se_stesso.config_)))
             se_stesso.chat.selettore.configure(values=ai.modelli_di(se_stesso.config_))
 
-    definisci impostazioni(se_stesso):
-        Impostazioni(se_stesso.radice, se_stesso.config_, se_stesso.colori).mostra()
+    definisci impostazioni(se_stesso, pagina=Nessuno):
+        Impostazioni(se_stesso.radice, se_stesso.config_, se_stesso.colori, pagina).mostra()
 
     definisci commuta_tema(se_stesso):
         se_stesso.config_.imposta("tema", "chiaro" se se_stesso.config_.ottieni("tema") == "scuro" altrimenti "scuro")
@@ -584,6 +589,54 @@ classe Applicazione:
         se_stesso._colora_pulsante_chat()
 
     # ================================================================== progetti
+    # ================================================================== avvio e lezioni
+    definisci mostra_avvio(se_stesso):
+        """La finestra d'avvio: aprire l'ultimo lavoro, iniziare un progetto nuovo o una lezione. Ricorda «non chiedere più»."""
+        da rad.avvio importa DialogoAvvio
+        da rad importa quiz
+        cfg = se_stesso.config_
+        ultima = cfg.ottieni("lezioni.ultima", 0) o Nessuno
+        d = DialogoAvvio(se_stesso.radice, se_stesso.colori, cfg.ottieni("recenti", []), ultima, cfg.ottieni("avvio.chiedi", Vero))
+        scelta = d.mostra()
+        non_chiedere = d.non_chiedere_piu()
+        se non_chiedere != (non cfg.ottieni("avvio.chiedi", Vero)):
+            cfg.imposta("avvio.chiedi", non non_chiedere, notifica=Falso)
+            cfg.salva()
+        ritorna se_stesso.esegui_scelta_avvio(scelta)
+
+    definisci esegui_scelta_avvio(se_stesso, scelta):
+        se non scelta:
+            ritorna Nessuno
+        se scelta[0] == "ultimo":
+            se_stesso.ripristina_ultimo_progetto()
+        altrimenti_se scelta[0] == "progetto":
+            se_stesso.apri_progetto(scelta[1])
+        altrimenti_se scelta[0] == "nuovo":
+            se_stesso.nuovo_progetto()
+        altrimenti_se scelta[0] == "lezione":
+            se_stesso.apri_lezioni()
+        ritorna scelta
+
+    definisci apri_lezioni(se_stesso):
+        """La finestra delle lezioni (una sola): leggere, fare il quiz e gli esercizi, chiedere al professore."""
+        da rad.lezioni_ui importa FinestraLezioni
+        f = getattr(se_stesso, "_finestra_lezioni", Nessuno)
+        se f è Nessuno o non f.winfo_exists():
+            f = FinestraLezioni(se_stesso)
+            se_stesso._finestra_lezioni = f
+        f.deiconify()
+        f.lift()
+        ritorna f
+
+    definisci chiedi_al_professore(se_stesso, lezione):
+        """Apre la chat in modalità professore sulla lezione (dict con numero e titolo)."""
+        da rad importa quiz
+        se testo(se_stesso.chat) non in [testo(x) per x in se_stesso.corpo.panes()]:
+            se_stesso.mostra_chat()
+        ok = se_stesso.chat.avvia_professore({"numero": lezione["numero"], "titolo": lezione["titolo"], "testo": quiz.testo_lezione(lezione["numero"])})
+        se_stesso.chat.ingresso.focus_set()
+        ritorna ok
+
     definisci ripristina_ultimo_progetto(se_stesso):
         recenti = se_stesso.config_.ottieni("recenti", [])
         se recenti e os.path.exists(os.path.join(recenti[0], "progetto.rad.json")):

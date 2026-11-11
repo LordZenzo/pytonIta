@@ -1,0 +1,51 @@
+{
+ "domande": [
+  {
+   "domanda": "Nel gioco «Indovina il numero» quale costrutto ripete i tentativi?",
+   "giusta": "mentre",
+   "sbagliate": [
+    {
+     "testo": "definisci",
+     "indizio": "definisci crea una funzione, non ripete."
+    },
+    "importa",
+    "classe"
+   ],
+   "spiegazione": "Si ripete finché il giocatore non indovina: è un ciclo mentre.",
+   "sezione": "Progetto 1 · Indovina il numero"
+  },
+  {
+   "domanda": "Come fa il programma a scegliere un numero a caso?",
+   "giusta": "Usa la libreria casuale",
+   "sbagliate": [
+    "Lo chiede all'utente",
+    "Usa sempre lo stesso numero",
+    "Lo legge da un file"
+   ],
+   "spiegazione": "Dopo importa casuale si chiede un numero a caso.",
+   "sezione": "Progetto 1 · Indovina il numero"
+  },
+  {
+   "domanda": "Perché la rubrica usa un dizionario?",
+   "giusta": "Per associare a ogni nome il suo numero di telefono",
+   "sbagliate": [
+    "Perché i dizionari sono più veloci dei file",
+    "Perché le liste non esistono",
+    "Per ordinare i numeri"
+   ],
+   "spiegazione": "Il dizionario collega una chiave (il nome) a un valore (il telefono).",
+   "sezione": "Progetto 2 · Rubrica telefonica"
+  },
+  {
+   "domanda": "Come si ritrovano i contatti la volta dopo?",
+   "giusta": "Salvandoli in un file (per esempio JSON) e rileggendolo all'avvio",
+   "sbagliate": [
+    "Sono già nella memoria del computer",
+    "Li riscrive l'utente",
+    "Non è possibile"
+   ],
+   "spiegazione": "I dati in memoria spariscono alla chiusura: vanno scritti su disco.",
+   "sezione": "Progetto 2 · Rubrica telefonica"
+  }
+ ]
+}

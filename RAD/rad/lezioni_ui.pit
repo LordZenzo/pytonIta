@@ -1,0 +1,282 @@
+"""Finestra delle lezioni (elenco con i progressi, lettura, quiz, esercizi, professore AI) e finestra del quiz."""
+importa tkinter come tk
+da tkinter importa ttk
+
+da rad importa ai, quiz
+da rad.dialoghi importa DialogoBase
+da rad.piattaforma importa FONT_MONO, FONT_UI, semi
+
+VERDE = "#1e9e3a"
+
+
+classe DialogoQuiz(DialogoBase):
+    """Un quiz a risposte multiple: una domanda alla volta, con l'indizio giusto se sbagli. Funziona senza AI."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, lezione, domande, config, ultima=Falso, caso=Nessuno):
+        DialogoBase.__init__(se_stesso, genitore, f"Quiz · lezione {lezione['numero']}: {lezione['titolo']}", colori, 760, 600)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.lezione = lezione
+        se_stesso.config_ = config
+        se_stesso.ultima = ultima
+        se_stesso.caso = caso
+        se_stesso.domande = [quiz.prepara(d, caso) per d in domande]
+        se_stesso.indice = 0
+        se_stesso.punti = 0
+        se_stesso.sezioni_sbagliate = []
+        se_stesso.controllata = Falso
+        se_stesso.fatto = Falso
+        c = colori
+        se_stesso.grid_columnconfigure(0, weight=1)
+        se_stesso.grid_rowconfigure(2, weight=1)
+        se_stesso.avanzamento = tk.Label(se_stesso, anchor="w", background=c["pannello"], foreground=c["tenue"], font=semi(9))
+        se_stesso.avanzamento.grid(row=0, column=0, sticky="we", padx=16, pady=(12, 0))
+        se_stesso.testo_domanda = tk.Label(se_stesso, anchor="w", justify="left", wraplength=700, background=c["pannello"],
+                                           foreground=c["primo_piano"], font=semi(12))
+        se_stesso.testo_domanda.grid(row=1, column=0, sticky="we", padx=16, pady=(4, 6))
+        corpo = tk.Frame(se_stesso, background=c["pannello"])
+        corpo.grid(row=2, column=0, sticky="nsew", padx=16)
+        se_stesso.codice = tk.Text(corpo, height=7, font=(FONT_MONO, 11), relief="flat", wrap="none", state="disabled",
+                                   background=c["editor"], foreground=c["editor_testo"], highlightthickness=1, highlightbackground=c["bordo"])
+        se_stesso.risposte = tk.Frame(corpo, background=c["pannello"])
+        se_stesso.risposte.pack(side="top", fill="x", pady=(8, 0))
+        se_stesso.var_scelta = tk.IntVar(value=-1)
+        se_stesso.radio = []
+        se_stesso.esito = tk.Label(se_stesso, anchor="w", justify="left", wraplength=700, background=c["pannello"], foreground=c["tenue"])
+        se_stesso.esito.grid(row=3, column=0, sticky="we", padx=16, pady=6)
+        fondo = tk.Frame(se_stesso, background=c["pannello"])
+        fondo.grid(row=4, column=0, sticky="e", padx=16, pady=(0, 12))
+        se_stesso.pulsante_chiudi = tk.Button(fondo, text="Chiudi", command=se_stesso.destroy, background=c["pulsante"],
+                                              foreground=c["primo_piano"], relief="flat", padx=12)
+        se_stesso.pulsante_chiudi.pack(side="right", padx=4)
+        se_stesso.pulsante_ripeti = tk.Button(fondo, text="Rifai il quiz", command=se_stesso.ricomincia, background=c["pulsante"],
+                                              foreground=c["primo_piano"], relief="flat", padx=12)
+        se_stesso.pulsante = tk.Button(fondo, text="Controlla", command=se_stesso.avanti, background=c["accento"],
+                                       foreground="#ffffff", relief="flat", padx=16)
+        se_stesso.pulsante.pack(side="right", padx=4)
+        se_stesso.bind("<Return>", lambda e: se_stesso.avanti())
+        se_stesso._mostra()
+
+    # ---- una domanda
+    definisci _mostra(se_stesso):
+        c = se_stesso.colori
+        p = se_stesso.domande[se_stesso.indice]
+        se_stesso.controllata = Falso
+        se_stesso.avanzamento.configure(text=f"Domanda {se_stesso.indice + 1} di {lunghezza(se_stesso.domande)}")
+        se_stesso.testo_domanda.configure(text=p["domanda"])
+        se_stesso.codice.configure(state="normal")
+        se_stesso.codice.delete("1.0", "end")
+        se p["codice"]:
+            se_stesso.codice.insert("1.0", p["codice"].rstrip("\n"))
+            se_stesso.codice.configure(height=min(12, max(2, p["codice"].rstrip("\n").count("\n") + 1)))
+            se_stesso.codice.pack(side="top", fill="x", before=se_stesso.risposte)
+        altrimenti:
+            se_stesso.codice.pack_forget()
+        se_stesso.codice.configure(state="disabled")
+        per r in se_stesso.radio:
+            r.destroy()
+        se_stesso.radio = []
+        se_stesso.var_scelta.set(-1)
+        per i, o in enumera(p["opzioni"]):
+            r = tk.Radiobutton(se_stesso.risposte, text=o["testo"], variable=se_stesso.var_scelta, value=i, anchor="w", justify="left",
+                               wraplength=680, background=c["pannello"], foreground=c["primo_piano"], selectcolor=c["casella"],
+                               activebackground=c["pannello"], disabledforeground=c["primo_piano"], font=(FONT_MONO, 11) se p["codice"] altrimenti (FONT_UI, 11))
+            r.pack(fill="x", pady=2)
+            se_stesso.radio.append(r)
+        se_stesso.esito.configure(text="Scegli una risposta e premi «Controlla».", foreground=c["tenue"])
+        se_stesso.pulsante.configure(text="Controlla")
+
+    definisci avanti(se_stesso):
+        """«Controlla» → mostra se è giusta; poi «Avanti» alla domanda dopo (o al risultato)."""
+        se se_stesso.fatto:
+            ritorna
+        c = se_stesso.colori
+        p = se_stesso.domande[se_stesso.indice]
+        se non se_stesso.controllata:
+            i = se_stesso.var_scelta.get()
+            se i < 0:
+                se_stesso.esito.configure(text="Scegli prima una risposta.", foreground=c["errore"])
+                ritorna
+            giusta, messaggio = quiz.valuta(p, i)
+            se_stesso.controllata = Vero
+            se giusta:
+                se_stesso.punti += 1
+            altrimenti:
+                se_stesso.sezioni_sbagliate.append(p["sezione"])
+            per k, r in enumera(se_stesso.radio):
+                # dopo il controllo le risposte non si cambiano: la giusta diventa verde, quella sbagliata scelta rossa
+                r.configure(state="disabled", disabledforeground=(VERDE se p["opzioni"][k]["giusta"] altrimenti c["errore"] se k == i altrimenti c["primo_piano"]))
+            se_stesso.esito.configure(text=("✔ " se giusta altrimenti "✖ ") + messaggio, foreground=VERDE se giusta altrimenti c["errore"])
+            ultimo = se_stesso.indice == lunghezza(se_stesso.domande) - 1
+            se_stesso.pulsante.configure(text="Vedi il risultato" se ultimo altrimenti "Avanti")
+            ritorna
+        se_stesso.indice += 1
+        se se_stesso.indice >= lunghezza(se_stesso.domande):
+            se_stesso._finale()
+        altrimenti:
+            se_stesso._mostra()
+
+    definisci _finale(se_stesso):
+        c = se_stesso.colori
+        su = lunghezza(se_stesso.domande)
+        superata = quiz.registra(se_stesso.config_, se_stesso.lezione["numero"], se_stesso.punti, su)
+        se_stesso.risultato = (se_stesso.punti, su, superata)
+        se_stesso.fatto = Vero
+        se_stesso.avanzamento.configure(text="Risultato")
+        se_stesso.testo_domanda.configure(text=f"Hai risposto bene a {se_stesso.punti} domande su {su}.")
+        se_stesso.codice.pack_forget()
+        per r in se_stesso.radio:
+            r.destroy()
+        se_stesso.radio = []
+        se_stesso.esito.configure(text=quiz.consiglio(se_stesso.punti, su, se_stesso.sezioni_sbagliate, se_stesso.ultima),
+                                  foreground=VERDE se superata altrimenti c["primo_piano"])
+        se_stesso.pulsante.pack_forget()
+        se_stesso.pulsante_ripeti.pack(side="right", padx=4)
+
+    definisci ricomincia(se_stesso):
+        se_stesso.domande = [quiz.prepara(d, se_stesso.caso) per d in se_stesso._originali()]
+        se_stesso.indice = 0
+        se_stesso.punti = 0
+        se_stesso.sezioni_sbagliate = []
+        se_stesso.fatto = Falso
+        se_stesso.pulsante_ripeti.pack_forget()
+        se_stesso.pulsante.pack(side="right", padx=4)
+        se_stesso._mostra()
+
+    definisci _originali(se_stesso):
+        ritorna quiz.carica_quiz(se_stesso.lezione["numero"])
+
+
+classe FinestraLezioni(tk.Toplevel):
+    """Il percorso di 16 lezioni: si sceglie una lezione, si legge, si fa il quiz e gli esercizi; con l'AI si può anche chiedere al professore."""
+
+    definisci __inizializza__(se_stesso, app):
+        tk.Toplevel.__init__(se_stesso, app.radice)
+        se_stesso.app = app
+        se_stesso.title("Lezioni")
+        se_stesso.geometry("820x540")
+        se_stesso.minsize(640, 420)
+        se_stesso.lezioni = quiz.elenco_lezioni()
+        c = app.colori
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.grid_columnconfigure(1, weight=1)
+        se_stesso.grid_rowconfigure(0, weight=1)
+        se_stesso.elenco = ttk.Treeview(se_stesso, columns=("stato",), show="tree", selectmode="browse", height=16)
+        se_stesso.elenco.column("#0", width=270)
+        se_stesso.elenco.column("stato", width=60, anchor="e")
+        se_stesso.elenco.grid(row=0, column=0, sticky="nsw", padx=(12, 6), pady=12)
+        se_stesso.elenco.bind("<<TreeviewSelect>>", se_stesso._scelta)
+        se_stesso.elenco.bind("<Double-1>", lambda e: se_stesso.leggi())
+        destra = tk.Frame(se_stesso, background=c["pannello"])
+        destra.grid(row=0, column=1, sticky="nsew", padx=(6, 12), pady=12)
+        destra.grid_columnconfigure(0, weight=1)
+        se_stesso.titolo = tk.Label(destra, anchor="w", justify="left", wraplength=470, background=c["pannello"], foreground=c["primo_piano"], font=semi(14))
+        se_stesso.titolo.grid(row=0, column=0, sticky="we")
+        se_stesso.obiettivo = tk.Label(destra, anchor="w", justify="left", wraplength=470, background=c["pannello"], foreground=c["tenue"], font=(FONT_UI, 10))
+        se_stesso.obiettivo.grid(row=1, column=0, sticky="we", pady=(2, 10))
+        se_stesso.stato_lezione = tk.Label(destra, anchor="w", justify="left", wraplength=470, background=c["pannello"], foreground=c["primo_piano"])
+        se_stesso.stato_lezione.grid(row=2, column=0, sticky="we", pady=(0, 10))
+        se_stesso.pulsanti = {}
+        per riga, (chiave, testo_, comando) in enumera((("leggi", "📖  Leggi la lezione", se_stesso.leggi),
+                                                       ("quiz", "❓  Fai il quiz", se_stesso.fai_quiz),
+                                                       ("esercizi", "✍  Esercizi guidati", se_stesso.esercizi),
+                                                       ("professore", "🎓  Chiedi al professore (AI)", se_stesso.professore))):
+            b = tk.Button(destra, text=testo_, command=comando, anchor="w", relief="flat", padx=14, pady=6,
+                          background=c["pulsante"], foreground=c["primo_piano"], font=(FONT_UI, 11))
+            b.grid(row=3 + riga, column=0, sticky="we", pady=3)
+            se_stesso.pulsanti[chiave] = b
+        se_stesso.nota_ai = tk.Label(destra, anchor="w", justify="left", wraplength=470, background=c["pannello"], foreground=c["tenue"])
+        se_stesso.nota_ai.grid(row=7, column=0, sticky="we", pady=(8, 0))
+        se_stesso.configura_ai = tk.Button(destra, text="Configura l'AI…", command=se_stesso.apri_impostazioni_ai, relief="flat", padx=12,
+                                           background=c["accento"], foreground="#ffffff")
+        se_stesso.progresso = tk.Label(se_stesso, anchor="w", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.progresso.grid(row=1, column=0, columnspan=2, sticky="we", padx=14, pady=(0, 10))
+        se_stesso.riempi()
+        se_stesso.seleziona(quiz.prossima(app.config_, se_stesso.lezioni))
+
+    # ---- elenco
+    definisci riempi(se_stesso):
+        corrente = se_stesso.numero_scelto()
+        se_stesso.elenco.delete(*se_stesso.elenco.get_children())
+        per v in se_stesso.lezioni:
+            se_stesso.elenco.insert("", "end", iid=testo(v["numero"]), text=f"  {v['numero']}. {v['titolo']}",
+                                    values=(quiz.stato(se_stesso.app.config_, v["numero"]),))
+        fatte = sum(1 per v in se_stesso.lezioni se quiz.progressi(se_stesso.app.config_).get(testo(v["numero"]), {}).get("completata"))
+        se_stesso.progresso.configure(text=f"Lezioni superate: {fatte} su {lunghezza(se_stesso.lezioni)}   ·   ✔ = quiz superato (almeno l'80%)")
+        se corrente:
+            se_stesso.seleziona(corrente)
+
+    definisci numero_scelto(se_stesso):
+        sel = se_stesso.elenco.selection()
+        ritorna int(sel[0]) se sel altrimenti Nessuno
+
+    definisci seleziona(se_stesso, numero):
+        se se_stesso.elenco.exists(testo(numero)):
+            se_stesso.elenco.selection_set(testo(numero))
+            se_stesso.elenco.focus(testo(numero))
+            se_stesso.elenco.see(testo(numero))
+        se_stesso._scelta()
+
+    definisci lezione_scelta(se_stesso):
+        n = se_stesso.numero_scelto()
+        ritorna ([v per v in se_stesso.lezioni se v["numero"] == n] o [Nessuno])[0] se n altrimenti Nessuno
+
+    definisci _scelta(se_stesso, e=Nessuno):
+        v = se_stesso.lezione_scelta()
+        se v è Nessuno:
+            ritorna
+        domande = quiz.carica_quiz(v["numero"])
+        se_stesso.titolo.configure(text=f"Lezione {v['numero']} · {v['titolo']}")
+        se_stesso.obiettivo.configure(text="Obiettivo: " + v["obiettivo"] se v["obiettivo"] altrimenti "")
+        s = quiz.stato(se_stesso.app.config_, v["numero"])
+        se_stesso.stato_lezione.configure(text=(f"Il tuo risultato migliore: {s}" se s altrimenti "Non hai ancora fatto il quiz di questa lezione.")
+                                          + (f"   ({lunghezza(domande)} domande)" se domande altrimenti "   (questa lezione non ha un quiz)"))
+        se_stesso.pulsanti["quiz"].configure(state="normal" se domande altrimenti "disabled")
+        pronta = se_stesso.ai_pronta()
+        se_stesso.pulsanti["professore"].configure(text="🎓  Chiedi al professore (AI)" se pronta altrimenti "🎓  Chiedi al professore (serve l'AI)")
+        se pronta:
+            se_stesso.nota_ai.configure(text="Il professore AI risponde alle tue domande su questa lezione e ti guida negli esercizi, senza darti subito la soluzione.")
+            se_stesso.configura_ai.grid_forget()
+        altrimenti:
+            se_stesso.nota_ai.configure(text="Per avere un professore che risponde alle tue domande serve configurare l'assistente AI (Claude, Gemini o DeepSeek). "
+                                             "Il quiz e gli esercizi funzionano anche senza.")
+            se_stesso.configura_ai.grid(row=8, column=0, sticky="w", pady=6)
+
+    # ---- azioni
+    definisci ai_pronta(se_stesso):
+        prova:
+            ritorna bool(ai.crea_cliente(se_stesso.app.config_).chiave())
+        eccetto Exception:
+            ritorna Falso
+
+    definisci leggi(se_stesso):
+        v = se_stesso.lezione_scelta()
+        se v:
+            se_stesso.app.apri_aiuto(v["id"])
+
+    definisci fai_quiz(se_stesso):
+        v = se_stesso.lezione_scelta()
+        domande = quiz.carica_quiz(v["numero"]) se v altrimenti []
+        se non domande:
+            ritorna Nessuno
+        ultima = v["numero"] == se_stesso.lezioni[-1]["numero"]
+        d = DialogoQuiz(se_stesso, se_stesso.colori, v, domande, se_stesso.app.config_, ultima)
+        d.mostra()
+        se_stesso.riempi()
+        ritorna d
+
+    definisci esercizi(se_stesso):
+        se_stesso.app.apri_esercizi()
+
+    definisci professore(se_stesso):
+        v = se_stesso.lezione_scelta()
+        se v è Nessuno:
+            ritorna
+        se non se_stesso.ai_pronta():
+            se_stesso.apri_impostazioni_ai()
+            ritorna
+        se_stesso.app.chiedi_al_professore(v)
+
+    definisci apri_impostazioni_ai(se_stesso):
+        se_stesso.app.impostazioni("Assistente AI")
+        se_stesso._scelta()

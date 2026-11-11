@@ -1,0 +1,91 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "stampa(\"ciao\".maiuscolo())",
+   "giusta": "CIAO",
+   "sbagliate": [
+    "Ciao",
+    "ciao",
+    "CIAO!"
+   ],
+   "spiegazione": ".maiuscolo() trasforma tutte le lettere in maiuscole.",
+   "sezione": "Metodi utili"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(lunghezza(\"Pit Studio\"))",
+   "giusta": "10",
+   "sbagliate": [
+    {
+     "testo": "9",
+     "indizio": "Lo spazio conta come carattere."
+    },
+    "2",
+    "10 caratteri, spazio escluso"
+   ],
+   "spiegazione": "lunghezza conta tutti i caratteri, spazi compresi: 3 + 1 + 6 = 10.",
+   "sezione": "Un testo è una sequenza di caratteri"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "parole = \"uno due tre\".separa()\nstampa(parole[1])",
+   "giusta": "due",
+   "sbagliate": [
+    "uno",
+    "tre",
+    "uno due tre"
+   ],
+   "spiegazione": ".separa() divide il testo nelle parole: la posizione 1 è la seconda, «due».",
+   "sezione": "Dividere e unire"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(\"-\".unisci([\"a\", \"b\", \"c\"]))",
+   "giusta": "a-b-c",
+   "sbagliate": [
+    "abc",
+    "a b c",
+    "-a-b-c"
+   ],
+   "spiegazione": "unisci mette il testo che lo precede tra un elemento e l'altro.",
+   "sezione": "Dividere e unire"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(\"a,b,c\".sostituisci(\",\", \" \"))",
+   "giusta": "a b c",
+   "sbagliate": [
+    "a,b,c",
+    "abc",
+    "a b c "
+   ],
+   "spiegazione": ".sostituisci cambia ogni virgola con uno spazio.",
+   "sezione": "Metodi utili"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "nome = \"Anna\"\neta = 30\nstampa(f\"{nome} ha {eta} anni\")",
+   "giusta": "Anna ha 30 anni",
+   "sbagliate": [
+    "nome ha eta anni",
+    "{nome} ha {eta} anni",
+    "Anna ha 30"
+   ],
+   "spiegazione": "Nel f-testo le graffe vengono sostituite dai valori.",
+   "sezione": "Formattare con gli f-testi"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(\"banana\".conta(\"a\"))",
+   "giusta": "3",
+   "sbagliate": [
+    "1",
+    "2",
+    "6"
+   ],
+   "spiegazione": ".conta dice quante volte compare «a»: ban-a-n-a-n-a, tre volte.",
+   "sezione": "Metodi utili"
+  }
+ ]
+}

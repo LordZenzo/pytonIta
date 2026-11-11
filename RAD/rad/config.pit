@@ -65,6 +65,13 @@ PREDEFINITI = {
         "storia": Vero,                  # copie di sicurezza per annullare le modifiche dell'assistente (.rad/storia)
         "registro": Vero,                # registro locale di token e codice generato (.rad/ai_registro.jsonl)
     },
+    "avvio": {
+        "chiedi": Vero,                  # all'avvio la finestra «Aprire l'ultimo / nuovo progetto / lezione»; se Falso si riapre subito l'ultimo lavoro
+    },
+    "lezioni": {
+        "progressi": {},                 # {"8": {"migliore": 4, "su": 5, "completata": true, ...}}
+        "ultima": 0,                     # l'ultima lezione su cui si è fatto il quiz
+    },
     "aggiornamenti": {
         "controlla_all_avvio": Vero,     # una volta al giorno controlla se ci sono una versione nuova di PitStudio e librerie nuove
         "ultimo_controllo": "",          # data (AAAA-MM-GG) dell'ultimo controllo automatico

@@ -1,0 +1,98 @@
+"""Lezioni e quiz (senza AI): elenco, quiz validi, codice delle domande «Che cosa stampa?» eseguito davvero, sezioni che esistono, progressi."""
+importa sys, os, re, json, tempfile, subprocess, random
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+da rad importa quiz
+da rad.config importa Configurazione
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+lezioni = quiz.elenco_lezioni()
+verifica(lunghezza(lezioni) == 16 e [v["numero"] per v in lezioni] == lista(intervallo(1, 17)), "16 lezioni in ordine: " + str(lunghezza(lezioni)))
+verifica(lezioni[7]["titolo"] == "I dizionari" e lezioni[7]["id"] == "lezione-08" e lezioni[7]["obiettivo"], "titolo e obiettivo della lezione 8: " + str(lezioni[7]))
+verifica("dizionario" in quiz.testo_lezione(8), "testo della lezione")
+
+# ogni lezione ha un quiz con domande tutte valide, i cui testi e le cui sezioni esistono
+totale = 0
+eseguite = 0
+per v in lezioni:
+    n = v["numero"]
+    percorso = os.path.join(quiz.CARTELLA_QUIZ, f"{n:02d}.json")
+    verifica(os.path.exists(percorso), f"manca il quiz della lezione {n}")
+    se non os.path.exists(percorso):
+        continua
+    con open(percorso, encoding="utf-8") come f:
+        grezze = json.load(f)["domande"]
+    valide = quiz.carica_quiz(n)
+    verifica(lunghezza(valide) == lunghezza(grezze), f"lezione {n}: {lunghezza(grezze) - lunghezza(valide)} domande non valide")
+    verifica(4 <= lunghezza(valide) <= 8, f"lezione {n}: numero di domande {lunghezza(valide)}")
+    titoli = {riga[3:].strip() per riga in quiz.testo_lezione(n).split("\n") se riga.startswith("## ")}
+    per d in valide:
+        totale += 1
+        verifica(d.get("sezione") in titoli, f"lezione {n}: la sezione «{d.get('sezione')}» non esiste nella lezione")
+        verifica(d.get("spiegazione", "").strip() != "", f"lezione {n}: manca la spiegazione di «{(d.get('domanda') o d.get('codice'))[:40]}»")
+        se d.get("tipo") == "stampa":
+            cartella = tempfile.mkdtemp()
+            file_ = os.path.join(cartella, "q.pit")
+            con open(file_, "w", encoding="utf-8", newline="\n") come f:
+                f.write(d["codice"] + "\n")
+            r = subprocess.run([sys.executable, "-u", file_], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella, timeout=30)
+            eseguite += 1
+            verifica(r.returncode == 0 e r.stdout.replace("\r\n", "\n").rstrip("\n") == d["giusta"],
+                     f"lezione {n}: il codice non stampa «{d['giusta']}»: {r.stdout!r} {r.stderr[-120:]}")
+stampa("domande:", totale, "| con codice eseguito:", eseguite)
+verifica(totale >= 80 e eseguite >= 40, "abbastanza domande e abbastanza prove di codice")
+
+# domande non valide si scartano
+verifica(non quiz.domanda_valida({"domanda": "x", "giusta": "a", "sbagliate": ["b"]}), "servono due sbagliate")
+verifica(non quiz.domanda_valida({"domanda": "x", "giusta": "a", "sbagliate": ["a", "b"]}), "la giusta non può ripetersi")
+verifica(non quiz.domanda_valida({"giusta": "a", "sbagliate": ["b", "c"]}), "serve il testo della domanda")
+verifica(quiz.domanda_valida({"tipo": "stampa", "codice": "stampa(1)", "giusta": "1", "sbagliate": ["2", "3"]}), "una «stampa» valida")
+verifica(quiz.carica_quiz(99) == [], "senza file niente domande")
+
+# preparazione e valutazione
+d = {"domanda": "Quanto fa 1+1?", "giusta": "2", "sbagliate": [{"testo": "3", "indizio": "Hai sommato due volte."}, "11"], "spiegazione": "Uno più uno fa due.", "sezione": "S"}
+visti = set()
+per seme in intervallo(30):
+    p = quiz.prepara(d, random.Random(seme))
+    verifica(sum(1 per o in p["opzioni"] se o["giusta"]) == 1 e lunghezza(p["opzioni"]) == 3, "una sola giusta")
+    visti.add(tuple(o["testo"] per o in p["opzioni"]))
+verifica(lunghezza(visti) > 1, "le risposte si mescolano")
+p = quiz.prepara(d, random.Random(1))
+i_giusta = [i per i, o in enumera(p["opzioni"]) se o["giusta"]][0]
+i_tre = [i per i, o in enumera(p["opzioni"]) se o["testo"] == "3"][0]
+i_undici = [i per i, o in enumera(p["opzioni"]) se o["testo"] == "11"][0]
+ok, m = quiz.valuta(p, i_giusta)
+verifica(ok e m.startswith("Giusto!") e "Uno più uno" in m, "risposta giusta: " + m)
+ok, m = quiz.valuta(p, i_tre)
+verifica(non ok e "Hai sommato due volte." in m e "La risposta giusta era: 2" in m, "indizio specifico: " + m)
+ok, m = quiz.valuta(p, i_undici)
+verifica(non ok e "La risposta giusta era: 2" in m e "Uno più uno" in m, "senza indizio dà la giusta e la spiegazione: " + m)
+p2 = quiz.prepara({"tipo": "stampa", "codice": "stampa(1)", "giusta": "1", "sbagliate": ["2", "3"]}, random.Random(2))
+verifica(p2["domanda"] == "Che cosa stampa questo programma?" e p2["codice"] == "stampa(1)", "domanda automatica per «stampa»")
+
+# progressi
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+verifica(quiz.stato(cfg, 3) == "" e quiz.prossima(cfg, lezioni) == 1, "all'inizio: niente fatto, si parte dalla 1")
+verifica(quiz.registra(cfg, 1, 3, 6) == Falso, "3 su 6 non supera")
+verifica(quiz.stato(cfg, 1) == "· 3/6" e quiz.prossima(cfg, lezioni) == 1, "da ripassare: " + quiz.stato(cfg, 1))
+verifica(quiz.registra(cfg, 1, 5, 6) == Vero e quiz.stato(cfg, 1) == "✔ 5/6" e quiz.prossima(cfg, lezioni) == 2, "5 su 6 supera (83%): " + quiz.stato(cfg, 1))
+verifica(quiz.registra(cfg, 1, 2, 6) == Falso e quiz.stato(cfg, 1) == "✔ 5/6", "un risultato peggiore non toglie il ✔ né il migliore: " + quiz.stato(cfg, 1))
+verifica(quiz.progressi(cfg)["1"]["tentativi"] == 3, "conta i tentativi")
+verifica(cfg.ottieni("lezioni.ultima") == 1, "ricorda l'ultima lezione")
+per n in intervallo(2, 17):
+    quiz.registra(cfg, n, 4, 5)
+verifica(quiz.prossima(cfg, lezioni) == 16, "finite tutte: resta l'ultima")
+c1 = quiz.consiglio(5, 5, [])
+c2 = quiz.consiglio(2, 5, ["Metodi utili", "Metodi utili", "Dividere e unire"])
+c3 = quiz.consiglio(4, 5, ["Metodi utili"], ultima=Vero)
+verifica("Perfetto" in c1 e "successiva" in c1, "consiglio perfetto: " + c1)
+verifica("Meglio rileggere" in c2 e c2.count("«Metodi utili»") == 1 e "«Dividere e unire»" in c2, "consiglio con le sezioni (senza doppioni): " + c2)
+verifica("superata" in c3 e "complimenti" in c3 e "successiva" non in c3, "consiglio all'ultima lezione: " + c3)
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

@@ -83,7 +83,7 @@ COLORI_MODIFICABILI = [
 
 
 classe Impostazioni(DialogoBase):
-    definisci __inizializza__(se_stesso, genitore, config, colori):
+    definisci __inizializza__(se_stesso, genitore, config, colori, pagina=Nessuno):
         DialogoBase.__init__(se_stesso, genitore, "Impostazioni", colori, 640, 560)
         se_stesso.resizable(Vero, Vero)
         se_stesso.config_ = config
@@ -100,6 +100,10 @@ classe Impostazioni(DialogoBase):
         per titolo, campi in SCHEDE:
             se_stesso._scheda(blocco, titolo, campi)
         lega_rotella(se_stesso, se_stesso._rotella)
+        se pagina:
+            titoli = [blocco.tab(t, "text").strip() per t in blocco.tabs()]
+            se pagina in titoli:
+                blocco.select(titoli.index(pagina))
         pulsanti = tk.Frame(se_stesso, background=c["pannello"])
         pulsanti.grid(row=1, column=0, sticky="e", padx=10, pady=(0, 10))
         tk.Button(pulsanti, text="Annulla", command=se_stesso.destroy, background=c["pulsante"],

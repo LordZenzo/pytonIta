@@ -1,0 +1,89 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "eta = 17\nse eta >= 18:\n    stampa(\"maggiorenne\")\naltrimenti:\n    stampa(\"minorenne\")",
+   "giusta": "minorenne",
+   "sbagliate": [
+    "maggiorenne",
+    {
+     "testo": "maggiorenne\nminorenne",
+     "indizio": "Si esegue un solo blocco: o se o altrimenti."
+    },
+    "Errore"
+   ],
+   "spiegazione": "17 non è >= 18, quindi la condizione è falsa e si esegue il blocco altrimenti.",
+   "sezione": "altrimenti"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "voto = 6\nse voto >= 9:\n    stampa(\"ottimo\")\naltrimenti_se voto >= 6:\n    stampa(\"sufficiente\")\naltrimenti:\n    stampa(\"insufficiente\")",
+   "giusta": "sufficiente",
+   "sbagliate": [
+    {
+     "testo": "ottimo",
+     "indizio": "6 non è >= 9: il primo blocco non si esegue."
+    },
+    {
+     "testo": "insufficiente",
+     "indizio": "La seconda condizione 6 >= 6 è vera, quindi si ferma lì."
+    },
+    "sufficiente\ninsufficiente"
+   ],
+   "spiegazione": "Si prova ogni condizione in ordine e si esegue il primo blocco vero; gli altri si saltano.",
+   "sezione": "altrimenti_se: più casi"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "n = 5\nse n > 3 e n < 10:\n    stampa(\"dentro\")\naltrimenti:\n    stampa(\"fuori\")",
+   "giusta": "dentro",
+   "sbagliate": [
+    "fuori",
+    {
+     "testo": "dentro\nfuori",
+     "indizio": "Un solo blocco si esegue."
+    }
+   ],
+   "spiegazione": "Con e servono entrambe le condizioni: 5 > 3 è vero e 5 < 10 è vero.",
+   "sezione": "Combinare condizioni: e, o, non"
+  },
+  {
+   "domanda": "Quale operatore chiede se due valori sono uguali?",
+   "giusta": "==",
+   "sbagliate": [
+    {
+     "testo": "=",
+     "indizio": "Un solo = assegna un valore a una variabile."
+    },
+    "=>",
+    "!="
+   ],
+   "spiegazione": "== confronta, = assegna.",
+   "sezione": "I confronti"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(7 % 2 == 1)",
+   "giusta": "Vero",
+   "sbagliate": [
+    "Falso",
+    "1",
+    "7"
+   ],
+   "spiegazione": "7 % 2 dà il resto 1, e il confronto 1 == 1 è vero.",
+   "sezione": "I confronti"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(non Vero)",
+   "giusta": "Falso",
+   "sbagliate": [
+    "Vero",
+    "non Vero",
+    "Errore"
+   ],
+   "spiegazione": "non rovescia il valore: il contrario di Vero è Falso.",
+   "sezione": "Combinare condizioni: e, o, non"
+  }
+ ]
+}

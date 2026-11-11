@@ -1,0 +1,76 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "prova:\n    stampa(10 / 0)\neccetto DivisionePerZero:\n    stampa(\"non si divide per zero\")",
+   "giusta": "non si divide per zero",
+   "sbagliate": [
+    "Errore",
+    "Falso",
+    "0"
+   ],
+   "spiegazione": "Il blocco prova fallisce, e si esegue quello di eccetto invece di far fermare il programma.",
+   "sezione": "Gestire gli errori: prova / eccetto"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "prova:\n    n = intero(\"ciao\")\neccetto ErroreDiValore:\n    n = 0\nstampa(n)",
+   "giusta": "0",
+   "sbagliate": [
+    "ciao",
+    "Errore",
+    "Nessuno"
+   ],
+   "spiegazione": "intero(\"ciao\") dà ErroreDiValore; eccetto lo cattura e n diventa 0.",
+   "sezione": "Gestire gli errori: prova / eccetto"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "prova:\n    stampa(\"a\")\ninfine:\n    stampa(\"b\")",
+   "giusta": "a\nb",
+   "sbagliate": [
+    "a",
+    "b\na",
+    "a\nb\nb"
+   ],
+   "spiegazione": "infine gira sempre, dopo il blocco prova.",
+   "sezione": "Gestire gli errori: prova / eccetto"
+  },
+  {
+   "domanda": "Quale errore dà intero(\"ciao\")?",
+   "giusta": "ErroreDiValore",
+   "sbagliate": [
+    {
+     "testo": "ErroreDiTipo",
+     "indizio": "ErroreDiTipo è per operazioni tra tipi incompatibili; qui il tipo è giusto ma il valore no."
+    },
+    "DivisionePerZero",
+    "ErroreDiIndice"
+   ],
+   "spiegazione": "Il testo è del tipo giusto, ma il suo valore non si può convertire: ErroreDiValore.",
+   "sezione": "Gli errori più comuni"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "prova:\n    solleva ErroreDiValore(\"no\")\neccetto ErroreDiValore come e:\n    stampa(\"preso:\", e)",
+   "giusta": "preso: no",
+   "sbagliate": [
+    "preso: ErroreDiValore",
+    "no",
+    "Errore"
+   ],
+   "spiegazione": "solleva crea un errore, e eccetto ... come e lo cattura: e contiene il messaggio.",
+   "sezione": "Sollevare un errore"
+  },
+  {
+   "domanda": "Quando viene eseguito il blocco infine?",
+   "giusta": "Sempre, anche se c'è stato un errore",
+   "sbagliate": [
+    "Solo se c'è stato un errore",
+    "Solo se tutto è andato bene"
+   ],
+   "spiegazione": "infine serve per le operazioni da fare comunque, come chiudere un file.",
+   "sezione": "Gestire gli errori: prova / eccetto"
+  }
+ ]
+}

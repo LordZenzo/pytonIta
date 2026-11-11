@@ -62,8 +62,9 @@ definisci principale(argomenti):
         passa
     radice = tk.Tk()
     radice.report_callback_exception = registra_errore
-    app = Applicazione(radice, Configurazione())
-    se lunghezza(argomenti) > 1 e os.path.isdir(argomenti[1]):
+    con_cartella = lunghezza(argomenti) > 1 e os.path.isdir(argomenti[1])
+    app = Applicazione(radice, Configurazione(), chiedi_avvio=non con_cartella)       # con una cartella sulla riga di comando si apre quella
+    se con_cartella:
         app.apri_progetto(argomenti[1])
     radice.after(6000, app.avvio_aggiornamenti)        # dopo l'avvio, senza rallentarlo
     radice.mainloop()

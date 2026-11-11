@@ -16,6 +16,12 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.40
+
+- **Finestra d'avvio**: all'apertura di PitStudio compare «Che cosa vuoi fare?»: aprire l'ultimo lavoro, iniziare un nuovo progetto o iniziare una lezione di apprendimento, più l'elenco dei progetti recenti. La casella «Non chiedere più» riporta il comportamento di prima (si riapre subito l'ultimo lavoro); la finestra si riapre da *File → Finestra di avvio…*. Con una cartella sulla riga di comando si apre quella e basta.
+- **Lezioni con quiz**: *Aiuto → Lezioni (con quiz e professore)…* mostra le 16 lezioni con i progressi (✔ con almeno l'80%). Ogni lezione ha un quiz a risposte multiple (93 domande in tutto, 51 del tipo «Che cosa stampa?» con il codice verificato eseguendolo) con un indizio per ogni errore e la sezione da rileggere. Funziona anche senza AI.
+- **Professore AI**: con l'AI configurata (Claude, Gemini o DeepSeek) la chat può fare da professore della lezione: spiega, fa domande, legge il codice dell'allievo e dà indizi, ma non scrive né modifica file. Senza AI la finestra delle lezioni porta alle Impostazioni → Assistente AI (si apre sulla pagina giusta).
+
 ## Novità della 1.39
 
 - **Assistente AI con più fornitori**: oltre a Claude (che resta il predefinito) si possono usare **Gemini** (Google) e **DeepSeek**. In *Impostazioni → Assistente AI* si sceglie il fornitore e si mette la sua chiave API (o la variabile `GEMINI_API_KEY` / `DEEPSEEK_API_KEY`). Ogni fornitore ha il suo modello e il suo modello economico; la casella dei modelli nella chat segue il fornitore. L'assistente usa gli stessi strumenti con tutti e tre. La cache dei prompt è solo di Claude, e la stima dei costi si calcola solo per i modelli di cui si conosce il prezzo.

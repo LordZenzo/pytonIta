@@ -1,0 +1,73 @@
+"""La finestra d'avvio: aprire l'ultimo lavoro, iniziare un nuovo progetto o iniziare una lezione."""
+importa os
+importa tkinter come tk
+da tkinter importa ttk
+
+da rad.dialoghi importa DialogoBase
+da rad.piattaforma importa FONT_UI, semi
+
+
+classe DialogoAvvio(DialogoBase):
+    """Tre scelte grandi e l'elenco dei progetti recenti. `risultato` è ("ultimo",), ("nuovo",), ("lezione",), ("progetto", cartella) o Nessuno.
+    La casella «Non chiedere più» rende l'avvio diretto (si riapre l'ultimo lavoro); si cambia in File → Finestra di avvio."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, recenti, ultima_lezione=Nessuno, chiedi=Vero):
+        DialogoBase.__init__(se_stesso, genitore, "Benvenuto in PitStudio", colori, 640, 520)
+        c = colori
+        se_stesso.recenti = [r per r in recenti se os.path.exists(os.path.join(r, "progetto.rad.json"))][:6]
+        se_stesso.grid_columnconfigure(0, weight=1)
+        tk.Label(se_stesso, text="Che cosa vuoi fare?", anchor="w", background=c["pannello"], foreground=c["primo_piano"], font=semi(16)).grid(
+            row=0, column=0, sticky="we", padx=24, pady=(20, 10))
+        ultimo = se_stesso.recenti[0] se se_stesso.recenti altrimenti Nessuno
+        se_stesso.pulsante_ultimo = se_stesso._scelta(1, "📂  Aprire l'ultimo lavoro",
+                                                      (f"Riprendi «{os.path.basename(ultimo)}»" se ultimo altrimenti "Non c'è ancora un lavoro da riprendere"),
+                                                      ("ultimo",), abilitato=ultimo è non Nessuno)
+        se_stesso._scelta(2, "✨  Iniziare un nuovo progetto", "Programma da console, con finestre, a mattonelle…", ("nuovo",))
+        se_stesso._scelta(3, "🎓  Iniziare una lezione di apprendimento",
+                          ("Riprendi dalla lezione " + testo(ultima_lezione) + ", con quiz ed esercizi" se ultima_lezione
+                           altrimenti "Impara a programmare in italiano, passo passo, con quiz ed esercizi"), ("lezione",))
+        se se_stesso.recenti[1:]:
+            tk.Label(se_stesso, text="Altri progetti recenti", anchor="w", background=c["pannello"], foreground=c["tenue"], font=(FONT_UI, 9)).grid(
+                row=4, column=0, sticky="we", padx=24, pady=(14, 2))
+            se_stesso.elenco = tk.Listbox(se_stesso, height=min(4, lunghezza(se_stesso.recenti) - 1), activestyle="none", relief="flat", highlightthickness=1,
+                                          highlightbackground=c["bordo"], background=c["campo"], foreground=c["primo_piano"], selectbackground=c["accento"],
+                                          selectforeground="#ffffff", font=(FONT_UI, 10))
+            per r in se_stesso.recenti[1:]:
+                se_stesso.elenco.insert("end", f"{os.path.basename(r)}   —   {r}")
+            se_stesso.elenco.grid(row=5, column=0, sticky="we", padx=24)
+            se_stesso.elenco.bind("<Double-1>", se_stesso._apri_recente)
+            se_stesso.elenco.bind("<Return>", se_stesso._apri_recente)
+        se_stesso.var_non_chiedere = tk.BooleanVar(value=non chiedi)
+        tk.Checkbutton(se_stesso, text="Non chiedere più: all'avvio apri subito l'ultimo lavoro (la finestra si riapre da File → Finestra di avvio)",
+                       variable=se_stesso.var_non_chiedere, anchor="w", justify="left", wraplength=560, background=c["pannello"], foreground=c["primo_piano"],
+                       selectcolor=c["casella"], activebackground=c["pannello"]).grid(row=6, column=0, sticky="we", padx=20, pady=(14, 4))
+        tk.Button(se_stesso, text="Chiudi", command=se_stesso.destroy, relief="flat", padx=14, background=c["pulsante"], foreground=c["primo_piano"]).grid(
+            row=7, column=0, sticky="e", padx=24, pady=(4, 14))
+        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+
+    definisci _scelta(se_stesso, riga, titolo, descrizione, risultato, abilitato=Vero):
+        c = se_stesso.colori
+        cornice = tk.Frame(se_stesso, background=c["pulsante"], cursor="hand2" se abilitato altrimenti "arrow", highlightthickness=1, highlightbackground=c["bordo"])
+        cornice.grid(row=riga, column=0, sticky="we", padx=24, pady=5)
+        t = tk.Label(cornice, text=titolo, anchor="w", background=c["pulsante"], foreground=c["primo_piano"] se abilitato altrimenti c["tenue"], font=semi(13))
+        t.pack(fill="x", padx=16, pady=(10, 0))
+        d = tk.Label(cornice, text=descrizione, anchor="w", background=c["pulsante"], foreground=c["tenue"], font=(FONT_UI, 10))
+        d.pack(fill="x", padx=16, pady=(0, 10))
+        se abilitato:
+            per w in (cornice, t, d):
+                w.bind("<Button-1>", lambda e, r=risultato: se_stesso._scegli(r))
+                w.bind("<Enter>", lambda e: [x.configure(background=c["pulsante_attivo"]) per x in (cornice, t, d)])
+                w.bind("<Leave>", lambda e: [x.configure(background=c["pulsante"]) per x in (cornice, t, d)])
+        ritorna cornice
+
+    definisci _scegli(se_stesso, risultato):
+        se_stesso.risultato = risultato
+        se_stesso.destroy()
+
+    definisci _apri_recente(se_stesso, e=Nessuno):
+        sel = se_stesso.elenco.curselection()
+        se sel:
+            se_stesso._scegli(("progetto", se_stesso.recenti[1 + sel[0]]))
+
+    definisci non_chiedere_piu(se_stesso):
+        ritorna bool(se_stesso.var_non_chiedere.get())

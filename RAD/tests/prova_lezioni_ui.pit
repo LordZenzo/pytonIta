@@ -1,0 +1,227 @@
+"""Finestra d'avvio, finestra delle lezioni, quiz e professore AI (solo strumenti di lettura): tutto senza rete, con un server finto."""
+importa sys, os, tempfile, json, threading, time, random
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da http.server importa BaseHTTPRequestHandler, HTTPServer
+importa tkinter come tk
+da tkinter importa messagebox
+messagebox.showwarning = lambda *a, **k: Nessuno
+messagebox.showerror = lambda *a, **k: Nessuno
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.avvio importa DialogoAvvio
+da rad.lezioni_ui importa DialogoQuiz, FinestraLezioni
+da rad importa quiz, ai
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ---------------------------------------------------------------- un server che finge di essere l'API di Claude
+ricevute = []
+
+
+classe Finto(BaseHTTPRequestHandler):
+    definisci log_message(se_stesso, *a):
+        passa
+
+    definisci do_POST(se_stesso):
+        ricevute.append(json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])).decode("utf-8")))
+        dati = json.dumps({"content": [{"type": "text", "text": "Proviamo insieme: cosa pensi che stampi quella riga?"}], "stop_reason": "end_turn",
+                           "usage": {"input_tokens": 5, "output_tokens": 5}}).encode("utf-8")
+        se_stesso.send_response(200)
+        se_stesso.send_header("Content-Type", "application/json")
+        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+
+server = HTTPServer(("127.0.0.1", 0), Finto)
+threading.Thread(target=server.serve_forever, daemon=Vero).start()
+
+# ---------------------------------------------------------------- avvio e finestra delle lezioni
+cart = tempfile.mkdtemp()
+progetti = []
+per nome in ("uno", "due", "tre"):
+    p = Progetto.nuovo(os.path.join(cart, nome), nome, "console")
+    progetti.append(p.cartella)
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+cfg.imposta("recenti", progetti, notifica=Falso)
+cfg.imposta("ai.url", f"http://127.0.0.1:{server.server_port}/v1/messages", notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+
+# senza «chiedi_avvio» (come nei test e con una cartella sulla riga di comando) si riapre l'ultimo lavoro
+app = Applicazione(radice, cfg)
+radice.update()
+verifica(app.progetto è non Nessuno e app.progetto.cartella == progetti[0], "senza finestra d'avvio si riapre l'ultimo progetto")
+app.chiudi_tutte_le_schede()
+
+# il dialogo
+d = DialogoAvvio(radice, app.colori, cfg.ottieni("recenti"), 5, Vero)
+radice.update()
+verifica(d.title() == "Benvenuto in PitStudio", "titolo")
+verifica(lunghezza(d.recenti) == 3 e d.elenco.size() == 2, "recenti: l'ultimo ha il suo pulsante, gli altri stanno nell'elenco")
+verifica(non d.non_chiedere_piu(), "la casella «Non chiedere più» parte spenta")
+d.elenco.selection_set(1)
+d._apri_recente()
+verifica(d.risultato == ("progetto", progetti[2]), "doppio clic su un recente: " + testo(d.risultato))
+d2 = DialogoAvvio(radice, app.colori, [], Nessuno, Vero)
+radice.update()
+verifica(d2.recenti == [] e d2.pulsante_ultimo.cget("cursor") == "arrow", "senza lavori recenti «ultimo» è spento")
+d2._scegli(("lezione",))
+verifica(d2.risultato == ("lezione",), "scelta lezione")
+d3 = DialogoAvvio(radice, app.colori, ["/non/esiste"], Nessuno, Falso)
+radice.update()
+verifica(d3.recenti == [] e d3.non_chiedere_piu(), "progetti spariti non compaiono; «non chiedere» ricordato")
+per x in (d, d2, d3):
+    x.destroy()
+
+# le scelte
+verifica(app.esegui_scelta_avvio(Nessuno) è Nessuno, "chiusa senza scegliere: niente")
+app.esegui_scelta_avvio(("progetto", progetti[1]))
+verifica(app.progetto.cartella == progetti[1], "si apre il progetto scelto")
+app.esegui_scelta_avvio(("ultimo",))
+verifica(app.progetto.cartella == cfg.ottieni("recenti")[0], "«ultimo» riapre il primo dei recenti")
+finestra = app.esegui_scelta_avvio(("lezione",))
+verifica(getattr(app, "_finestra_lezioni", Nessuno) è non Nessuno, "«lezione» apre la finestra delle lezioni")
+
+# con chiedi_avvio la finestra compare dopo l'avvio; se spenta in config si apre subito l'ultimo
+chiamate = []
+originale = Applicazione.mostra_avvio
+Applicazione.mostra_avvio = lambda se_stesso: chiamate.append(1)
+r2 = tk.Toplevel(radice)
+cfg2 = Configurazione(os.path.join(tempfile.mkdtemp(), "c2.json"))
+cfg2.imposta("recenti", progetti, notifica=Falso)
+app2 = Applicazione(r2, cfg2, chiedi_avvio=Vero)
+verifica(app2.progetto è Nessuno, "con la finestra d'avvio non si apre nulla da soli")
+t0 = time.time()
+mentre time.time() - t0 < 0.6:
+    r2.update()
+    time.sleep(0.02)
+verifica(chiamate == [1], "la finestra d'avvio compare dopo l'avvio: " + testo(chiamate))
+r2.destroy()
+cfg3 = Configurazione(os.path.join(tempfile.mkdtemp(), "c3.json"))
+cfg3.imposta("recenti", progetti, notifica=Falso)
+cfg3.imposta("avvio.chiedi", Falso, notifica=Falso)
+r3 = tk.Toplevel(radice)
+app3 = Applicazione(r3, cfg3, chiedi_avvio=Vero)
+r3.update()
+verifica(app3.progetto è non Nessuno e chiamate == [1], "con «non chiedere più» si apre subito l'ultimo lavoro")
+r3.destroy()
+Applicazione.mostra_avvio = originale
+
+# ---------------------------------------------------------------- finestra delle lezioni
+fl = app.apri_lezioni()
+radice.update()
+verifica(app.apri_lezioni() è fl, "una sola finestra delle lezioni")
+verifica(lunghezza(fl.elenco.get_children()) == 16 e fl.numero_scelto() == 1, "16 lezioni, parte dalla prima")
+verifica(fl.pulsanti["quiz"].cget("state") == "normal", "il quiz c'è")
+verifica(non fl.ai_pronta() e "serve l'AI" in fl.pulsanti["professore"].cget("text") e fl.configura_ai.winfo_ismapped(), "senza chiave: il professore chiede di configurare l'AI")
+verifica("Lezioni superate: 0 su 16" in fl.progresso.cget("text"), fl.progresso.cget("text"))
+pagine = []
+app.impostazioni = lambda pagina=Nessuno: pagine.append(pagina)
+fl.professore()
+verifica(pagine == ["Assistente AI"], "«Chiedi al professore» senza AI apre le Impostazioni sulla pagina dell'AI: " + testo(pagine))
+fl.seleziona(8)
+verifica(fl.lezione_scelta()["titolo"] == "I dizionari" e "I dizionari" in fl.titolo.cget("text"), "scelta della lezione 8")
+aperti = []
+app.apri_aiuto = lambda argomento=Nessuno: aperti.append(argomento)
+fl.leggi()
+verifica(aperti == ["lezione-08"], "«Leggi» apre la guida su quella lezione: " + testo(aperti))
+esercizi = []
+app.apri_esercizi = lambda: esercizi.append(1)
+fl.esercizi()
+verifica(esercizi == [1], "«Esercizi guidati»")
+
+# ---------------------------------------------------------------- il quiz
+fl.seleziona(1)
+domande = quiz.carica_quiz(1)
+q = DialogoQuiz(fl, app.colori, fl.lezione_scelta(), domande, cfg, Falso, random.Random(3))
+radice.update()
+verifica("Domanda 1 di 6" in q.avanzamento.cget("text") e lunghezza(q.radio) >= 3, "prima domanda: " + q.avanzamento.cget("text"))
+q.avanti()
+verifica("Scegli prima" in q.esito.cget("text") e q.indice == 0, "senza scegliere avvisa")
+# sbaglio di proposito la prima
+p = q.domande[0]
+sbagliata = [i per i, o in enumera(p["opzioni"]) se non o["giusta"]][0]
+q.var_scelta.set(sbagliata)
+q.avanti()
+verifica(q.esito.cget("text").startswith("✖") e "La risposta giusta era" in q.esito.cget("text") e q.punti == 0, "risposta sbagliata: " + q.esito.cget("text")[:80])
+verifica(all(r.cget("state") == "disabled" per r in q.radio), "dopo il controllo non si cambia risposta")
+q.avanti()
+verifica(q.indice == 1, "si passa alla seconda")
+# le altre tutte giuste
+mentre q.indice < lunghezza(q.domande):
+    p = q.domande[q.indice]
+    q.var_scelta.set([i per i, o in enumera(p["opzioni"]) se o["giusta"]][0])
+    q.avanti()
+    verifica(q.esito.cget("text").startswith("✔"), "risposta giusta")
+    q.avanti()
+verifica(q.fatto e q.risultato == (5, 6, Vero), "risultato 5 su 6, superata: " + testo(getattr(q, "risultato", Nessuno)))
+verifica("5 domande su 6" in q.testo_domanda.cget("text") e "Bene" in q.esito.cget("text"), "schermata finale: " + q.esito.cget("text"))
+radice.update()
+verifica(q.pulsante_ripeti.winfo_ismapped(), "«Rifai il quiz» disponibile")
+verifica(quiz.stato(cfg, 1) == "✔ 5/6", "progresso salvato: " + quiz.stato(cfg, 1))
+q.destroy()
+fl.riempi()
+verifica("✔ 5/6" in fl.elenco.item("1", "values"), "l'elenco mostra il risultato: " + testo(fl.elenco.item("1", "values")))
+verifica(fl.numero_scelto() == 1 e "Lezioni superate: 1 su 16" in fl.progresso.cget("text"), "contatore delle lezioni superate")
+# fai_quiz dal pulsante
+chiuso = []
+originale_mostra = DialogoQuiz.mostra
+DialogoQuiz.mostra = lambda se_stesso: (chiuso.append(se_stesso.lezione["numero"]), se_stesso.destroy())[0]
+fl.fai_quiz()
+verifica(chiuso == [1], "il pulsante apre il quiz della lezione")
+DialogoQuiz.mostra = originale_mostra
+
+# ---------------------------------------------------------------- il professore (con l'AI configurata)
+cfg.imposta("ai.chiave_api", "chiave-finta", notifica=Falso)
+fl._scelta()
+verifica(fl.ai_pronta() e "Chiedi al professore (AI)" in fl.pulsanti["professore"].cget("text") e non fl.configura_ai.winfo_ismapped(), "con la chiave il professore è disponibile")
+fl.seleziona(8)
+if_chat = app.chat
+fl.professore()
+radice.update()
+verifica(if_chat.professore e if_chat.professore["numero"] == 8 e "dizionari" in if_chat.professore["testo"], "la chat è in modalità professore sulla lezione 8")
+verifica(if_chat.pulsante_professore.winfo_ismapped() e "lezione 8" in if_chat.etichetta_professore.cget("text"), "compare la banda del professore con «Esci»")
+verifica("Sono il tuo professore" in if_chat.t.get("1.0", "end") e "I dizionari" in if_chat.t.get("1.0", "end"), "saluto del professore")
+if_chat.invia("non capisco le chiavi")
+t0 = time.time()
+mentre (if_chat.lavoro.is_alive() o non if_chat.eventi.empty()) e time.time() - t0 < 20:
+    radice.update()
+    time.sleep(0.02)
+radice.update()
+verifica(lunghezza(ricevute) == 1, "una richiesta all'API: " + testo(lunghezza(ricevute)))
+r = ricevute[0]
+sistema = r["system"][0]["text"]
+verifica("MODALITÀ PROFESSORE" in sistema e "lezione 8" in sistema e "I dizionari" in sistema, "il prompt di sistema è quello del professore")
+nomi = {t["name"] per t in r["tools"]}
+verifica(nomi == set(ai.NOMI_PROFESSORE) e "scrivi_file" non in nomi e "modifica_file" non in nomi e "elimina_file" non in nomi, "strumenti di sola lettura: " + testo(sorted(nomi)))
+verifica("Proviamo insieme" in if_chat.t.get("1.0", "end"), "la risposta compare nella chat")
+# un tentativo di scrivere viene rifiutato anche se l'AI lo chiedesse
+st = ai.Strumenti(app, cfg, app.ponte)
+st.nomi_ammessi = ai.NOMI_PROFESSORE
+esito, errore = st.esegui("scrivi_file", {"percorso": "a.pit", "contenuto": "x = 1"})
+verifica(errore e "modalità professore" in esito, "scrivi_file rifiutato: " + esito)
+verifica(non os.path.exists(os.path.join(app.progetto.cartella, "a.pit")), "e il file non esiste")
+esito, errore = st.esegui("stato_ide", {})
+verifica(non errore, "gli strumenti di lettura funzionano")
+# uscita
+if_chat.esci_dal_professore()
+verifica(if_chat.professore è Nessuno e non if_chat.pulsante_professore.winfo_ismapped(), "si esce dal professore")
+if_chat.invia("ciao")
+t0 = time.time()
+mentre (if_chat.lavoro.is_alive() o non if_chat.eventi.empty()) e time.time() - t0 < 20:
+    radice.update()
+    time.sleep(0.02)
+verifica("MODALITÀ PROFESSORE" non in ricevute[1]["system"][0]["text"] e lunghezza(ricevute[1]["tools"]) == lunghezza(ai.DEFINIZIONI), "fuori dal professore il prompt e gli strumenti sono quelli di sempre")
+
+server.shutdown()
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

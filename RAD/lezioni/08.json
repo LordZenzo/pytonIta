@@ -1,0 +1,74 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "d = {\"Anna\": 30, \"Luca\": 25}\nstampa(d[\"Luca\"])",
+   "giusta": "25",
+   "sbagliate": [
+    "30",
+    "Luca",
+    "1"
+   ],
+   "spiegazione": "Il dizionario trova il valore dalla chiave: la chiave «Luca» vale 25.",
+   "sezione": "Che cos'è un dizionario"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "d = {\"a\": 1}\nd[\"b\"] = 2\nstampa(lunghezza(d))",
+   "giusta": "2",
+   "sbagliate": [
+    "1",
+    "3",
+    "Errore"
+   ],
+   "spiegazione": "Assegnare a una chiave nuova aggiunge una voce: ora le voci sono due.",
+   "sezione": "Che cos'è un dizionario"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "d = {\"a\": 1}\nstampa(d.ottieni(\"z\", 0))",
+   "giusta": "0",
+   "sbagliate": [
+    "1",
+    "Errore",
+    "Nessuno"
+   ],
+   "spiegazione": ".ottieni(chiave, predefinito) non dà errore se la chiave manca: ritorna il valore predefinito.",
+   "sezione": "Chiavi che mancano"
+  },
+  {
+   "domanda": "Con d = {\"a\": 1}, che cosa succede scrivendo d[\"z\"]?",
+   "giusta": "Il programma si ferma con un errore: la chiave non esiste",
+   "sbagliate": [
+    "Ritorna 0",
+    "Ritorna Nessuno"
+   ],
+   "spiegazione": "Con le parentesi quadre una chiave mancante dà errore; per evitarlo c'è .ottieni().",
+   "sezione": "Chiavi che mancano"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "d = {\"a\": 1, \"b\": 2}\nper chiave in d:\n    stampa(chiave)",
+   "giusta": "a\nb",
+   "sbagliate": [
+    "1\n2",
+    "a: 1\nb: 2",
+    "a b"
+   ],
+   "spiegazione": "Scorrendo un dizionario si ottengono le chiavi.",
+   "sezione": "Scorrere un dizionario"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "stampa(lunghezza({1, 2, 2, 3}))",
+   "giusta": "3",
+   "sbagliate": [
+    "4",
+    "2",
+    "6"
+   ],
+   "spiegazione": "Un insieme non tiene i doppioni: restano 1, 2 e 3.",
+   "sezione": "Gli insiemi"
+  }
+ ]
+}

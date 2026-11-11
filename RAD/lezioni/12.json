@@ -1,0 +1,77 @@
+{
+ "domande": [
+  {
+   "domanda": "Che cos'è un punto di arresto?",
+   "giusta": "Una riga in cui il programma si ferma",
+   "sbagliate": [
+    "Una riga con un errore",
+    "L'ultima riga del programma",
+    "Un commento speciale"
+   ],
+   "spiegazione": "Quando il programma arriva al punto di arresto si ferma e puoi guardare i valori.",
+   "sezione": "Punto di arresto"
+  },
+  {
+   "domanda": "Quale tasto mette un punto di arresto sulla riga del cursore?",
+   "giusta": "F9",
+   "sbagliate": [
+    {
+     "testo": "F5",
+     "indizio": "F5 riprende l'esecuzione fino al prossimo punto di arresto."
+    },
+    {
+     "testo": "F10",
+     "indizio": "F10 esegue una riga e si ferma (Passo)."
+    },
+    {
+     "testo": "F11",
+     "indizio": "F11 entra dentro la funzione chiamata (Entra)."
+    }
+   ],
+   "spiegazione": "F9 (o il clic sul margine a sinistra del numero di riga).",
+   "sezione": "Punto di arresto"
+  },
+  {
+   "domanda": "Che cosa fa il comando Passo (F10)?",
+   "giusta": "Esegue una riga e si ferma",
+   "sbagliate": [
+    "Riprende fino alla fine",
+    "Torna alla riga precedente",
+    "Cancella il punto di arresto"
+   ],
+   "spiegazione": "Passo esegue una riga alla volta; le funzioni chiamate vengono eseguite tutte d'un fiato.",
+   "sezione": "I comandi"
+  },
+  {
+   "domanda": "Che cosa fa il comando Entra (F11)?",
+   "giusta": "Se la riga chiama una funzione, ci entra dentro",
+   "sbagliate": [
+    "Apre il file",
+    "Esce dalla funzione",
+    "Ferma il programma"
+   ],
+   "spiegazione": "Entra ti porta dentro la funzione, per seguirla riga per riga.",
+   "sezione": "I comandi"
+  },
+  {
+   "domanda": "Come si mette un punto di arresto con il mouse?",
+   "giusta": "Cliccando sul margine a sinistra del numero di riga",
+   "sbagliate": [
+    "Facendo doppio clic sul nome della funzione",
+    "Scrivendo «stop» nel codice"
+   ],
+   "spiegazione": "Compare un pallino rosso; un altro clic lo toglie.",
+   "sezione": "Punto di arresto"
+  },
+  {
+   "domanda": "Come si può capire cosa succede anche senza il debugger?",
+   "giusta": "Aggiungendo delle stampa(...) per vedere i valori",
+   "sbagliate": [
+    "Non si può",
+    "Cambiando il nome delle variabili"
+   ],
+   "spiegazione": "Qualche stampa mirata mostra i valori durante l'esecuzione.",
+   "sezione": "Debug senza debugger: stampa"
+  }
+ ]
+}

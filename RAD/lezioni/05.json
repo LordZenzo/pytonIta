@@ -1,0 +1,83 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "per i in intervallo(3):\n    stampa(i)",
+   "giusta": "0\n1\n2",
+   "sbagliate": [
+    {
+     "testo": "1\n2\n3",
+     "indizio": "intervallo(3) parte da 0."
+    },
+    "0\n1\n2\n3",
+    "3"
+   ],
+   "spiegazione": "intervallo(3) produce 0, 1, 2: parte da 0 e si ferma prima di 3.",
+   "sezione": "per e intervallo"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "per i in intervallo(1, 4):\n    stampa(i)",
+   "giusta": "1\n2\n3",
+   "sbagliate": [
+    "1\n2\n3\n4",
+    "0\n1\n2\n3",
+    "1\n2"
+   ],
+   "spiegazione": "intervallo(1, 4) va da 1 fino a 3: l'ultimo numero è escluso.",
+   "sezione": "per e intervallo"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "totale = 0\nper n in [1, 2, 3, 4]:\n    totale += n\nstampa(totale)",
+   "giusta": "10",
+   "sbagliate": [
+    {
+     "testo": "4",
+     "indizio": "totale accumula tutti i numeri, non solo l'ultimo."
+    },
+    "6",
+    "1 2 3 4"
+   ],
+   "spiegazione": "A ogni giro si aggiunge n a totale: 1+2+3+4 = 10.",
+   "sezione": "Accumulare un risultato"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "n = 3\nmentre n > 0:\n    stampa(n)\n    n -= 1",
+   "giusta": "3\n2\n1",
+   "sbagliate": [
+    "1\n2\n3",
+    "3",
+    "3\n2\n1\n0"
+   ],
+   "spiegazione": "Il ciclo continua finché n > 0: stampa 3, 2, 1 e poi si ferma.",
+   "sezione": "mentre: ripetere finché…"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "per i in intervallo(5):\n    se i == 2:\n        continua\n    se i == 4:\n        interrompi\n    stampa(i)",
+   "giusta": "0\n1\n3",
+   "sbagliate": [
+    "0\n1\n2\n3",
+    "0\n1\n3\n4",
+    {
+     "testo": "0\n1",
+     "indizio": "continua salta solo il giro con i == 2, poi il ciclo prosegue."
+    }
+   ],
+   "spiegazione": "continua salta il giro corrente (i = 2), interrompi esce dal ciclo (i = 4).",
+   "sezione": "interrompi e continua"
+  },
+  {
+   "domanda": "Quando termina un ciclo mentre?",
+   "giusta": "Quando la condizione diventa falsa",
+   "sbagliate": [
+    "Dopo dieci ripetizioni",
+    "Alla prima ripetizione"
+   ],
+   "spiegazione": "mentre ripete finché la condizione è vera; se non diventa mai falsa il ciclo non finisce.",
+   "sezione": "mentre: ripetere finché…"
+  }
+ ]
+}

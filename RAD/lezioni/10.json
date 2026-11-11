@@ -1,0 +1,79 @@
+{
+ "domande": [
+  {
+   "domanda": "Quale modalità di apri(...) aggiunge in fondo a un file senza cancellarlo?",
+   "giusta": "\"a\"",
+   "sbagliate": [
+    {
+     "testo": "\"w\"",
+     "indizio": "w scrive da capo: se il file esiste lo svuota."
+    },
+    {
+     "testo": "\"r\"",
+     "indizio": "r è solo per leggere."
+    },
+    "\"x\""
+   ],
+   "spiegazione": "\"a\" (append) aggiunge in fondo.",
+   "sezione": "Aggiungere in fondo"
+  },
+  {
+   "domanda": "Quale parola chiude da sola il file alla fine del blocco?",
+   "giusta": "con",
+   "sbagliate": [
+    "se",
+    "per",
+    "prova"
+   ],
+   "spiegazione": "con apri(...) come f: chiude il file al termine del blocco, anche se c'è un errore.",
+   "sezione": "Scrivere un file"
+  },
+  {
+   "domanda": "Che cosa fa f.scrivi(\"ciao\\n\")?",
+   "giusta": "Scrive «ciao» e va a capo nel file",
+   "sbagliate": [
+    {
+     "testo": "Stampa «ciao» nella console",
+     "indizio": "scrivi scrive nel file; per la console si usa stampa."
+    },
+    "Cancella il file",
+    "Legge la riga «ciao»"
+   ],
+   "spiegazione": "\\n è il «vai a capo»: senza, le scritture finirebbero tutte sulla stessa riga.",
+   "sezione": "Scrivere un file"
+  },
+  {
+   "domanda": "Quale riga controlla se un file esiste?",
+   "giusta": "sistema_operativo.percorso.esiste(\"dati.txt\")",
+   "sbagliate": [
+    "esiste(\"dati.txt\")",
+    "apri(\"dati.txt\").esiste",
+    "file(\"dati.txt\") == Vero"
+   ],
+   "spiegazione": "esiste è nel modulo sistema_operativo (percorso): ritorna Vero o Falso.",
+   "sezione": "Controllare se un file esiste"
+  },
+  {
+   "domanda": "A che cosa serve il formato JSON?",
+   "giusta": "A salvare dati strutturati (liste, dizionari) in un file e rileggerli",
+   "sbagliate": [
+    "A disegnare le finestre",
+    "A calcolare più in fretta",
+    "A scrivere solo numeri"
+   ],
+   "spiegazione": "JSON salva liste e dizionari in un file di testo, e si può ricaricare uguale.",
+   "sezione": "Salvare dati strutturati: JSON"
+  },
+  {
+   "domanda": "Che cosa indica codifica=\"utf-8\"?",
+   "giusta": "Il modo di salvare le lettere, comprese quelle accentate",
+   "sbagliate": [
+    "La velocità di scrittura",
+    "Il nome del file",
+    "Che il file è protetto"
+   ],
+   "spiegazione": "Con utf-8 le lettere accentate si leggono bene su qualunque computer.",
+   "sezione": "Scrivere un file"
+  }
+ ]
+}
