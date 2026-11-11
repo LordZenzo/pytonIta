@@ -53,7 +53,7 @@ classe DialogoQuiz(DialogoBase):
         se_stesso.pulsante = tk.Button(fondo, text="Controlla", command=se_stesso.avanti, background=c["accento"],
                                        foreground="#ffffff", relief="flat", padx=16)
         se_stesso.pulsante.pack(side="right", padx=4)
-        se_stesso.bind("<Return>", lambda e: se_stesso.avanti())
+        se_stesso.bind("<Return>", lambda evento: se_stesso.avanti())
         se_stesso.bind("<Key>", se_stesso._tasto, add="+")
         se_stesso._mostra()
 
@@ -77,9 +77,9 @@ classe DialogoQuiz(DialogoBase):
             r.destroy()
         se_stesso.radio = []
         se_stesso.var_scelta.set(-1)
-        per i, o in enumera(p["opzioni"]):
+        per i, elemento in enumera(p["opzioni"]):
             # a pulsante (senza il pallino, che nel tema scuro non si distingueva da spento): la risposta scelta si colora per intero
-            r = tk.Radiobutton(se_stesso.risposte, text=f"{i + 1}   {o['testo']}", variable=se_stesso.var_scelta, value=i, anchor="w", justify="left",
+            r = tk.Radiobutton(se_stesso.risposte, text=f"{i + 1}   {elemento['testo']}", variable=se_stesso.var_scelta, value=i, anchor="w", justify="left",
                                indicatoron=Falso, relief="flat", borderwidth=0, padx=12, pady=6, cursor="hand2",
                                wraplength=660, background=c["pulsante"], foreground=c["primo_piano"], selectcolor=c["selezione"],
                                activebackground=c["pulsante_attivo"], activeforeground=c["primo_piano"],
@@ -89,16 +89,16 @@ classe DialogoQuiz(DialogoBase):
         se_stesso.esito.configure(text="Scegli una risposta e premi «Controlla».", foreground=c["tenue"])
         se_stesso.pulsante.configure(text="Controlla")
 
-    definisci _tasto(se_stesso, e):
+    definisci _tasto(se_stesso, evento):
         """Da tastiera: i numeri 1-9 scelgono la risposta, le frecce su/giù la spostano, Invio controlla e va avanti."""
         se se_stesso.fatto o se_stesso.controllata o non se_stesso.radio:
             ritorna
         n = lunghezza(se_stesso.radio)
-        se e.char e e.char in "123456789" e int(e.char) <= n:
-            se_stesso.var_scelta.set(int(e.char) - 1)
-        altrimenti_se e.keysym in ("Up", "Down"):
+        se evento.char e evento.char in "123456789" e int(evento.char) <= n:
+            se_stesso.var_scelta.set(int(evento.char) - 1)
+        altrimenti_se evento.keysym in ("Up", "Down"):
             corrente = se_stesso.var_scelta.get()
-            se_stesso.var_scelta.set(max(0, corrente - 1) se e.keysym == "Up" e corrente > 0 altrimenti (min(n - 1, corrente + 1) se e.keysym == "Down" altrimenti 0))
+            se_stesso.var_scelta.set(max(0, corrente - 1) se evento.keysym == "Up" e corrente > 0 altrimenti (min(n - 1, corrente + 1) se evento.keysym == "Down" altrimenti 0))
 
     definisci avanti(se_stesso):
         """«Controlla» → mostra se è giusta; poi «Avanti» alla domanda dopo (o al risultato)."""
@@ -181,7 +181,7 @@ classe FinestraLezioni(tk.Toplevel):
         se_stesso.elenco.column("stato", width=60, anchor="e")
         se_stesso.elenco.grid(row=0, column=0, sticky="nsw", padx=(12, 6), pady=12)
         se_stesso.elenco.bind("<<TreeviewSelect>>", se_stesso._scelta)
-        se_stesso.elenco.bind("<Double-1>", lambda e: se_stesso.leggi())
+        se_stesso.elenco.bind("<Double-1>", lambda evento: se_stesso.leggi())
         destra = tk.Frame(se_stesso, background=c["pannello"])
         destra.grid(row=0, column=1, sticky="nsew", padx=(6, 12), pady=12)
         destra.grid_columnconfigure(0, weight=1)
@@ -236,7 +236,7 @@ classe FinestraLezioni(tk.Toplevel):
         n = se_stesso.numero_scelto()
         ritorna ([v per v in se_stesso.lezioni se v["numero"] == n] o [Nessuno])[0] se n altrimenti Nessuno
 
-    definisci _scelta(se_stesso, e=Nessuno):
+    definisci _scelta(se_stesso, evento=Nessuno):
         v = se_stesso.lezione_scelta()
         se v è Nessuno:
             ritorna

@@ -102,8 +102,8 @@ classe Applicazione:
         se_stesso._logo_barra = stile.logo_tk(26)
         tk.Label(se_stesso.barra, image=se_stesso._logo_barra, borderwidth=0).pack(side="left", padx=(10, 6), pady=5)
         se_stesso._etichetta_logo = se_stesso.barra.winfo_children()[0]
-        se_stesso.barra.bind("<Button-3>", lambda e: se_stesso._menu_barra(e))
-        se_stesso._etichetta_logo.bind("<Button-3>", lambda e: se_stesso._menu_barra(e))
+        se_stesso.barra.bind("<Button-3>", lambda evento: se_stesso._menu_barra(evento))
+        se_stesso._etichetta_logo.bind("<Button-3>", lambda evento: se_stesso._menu_barra(evento))
         se_stesso.comandi_menu = barra_mod.raccogli_comandi(se_stesso.menu_barra)
         se_stesso._costruisci_barra()
         se_stesso.riga_barra = tk.Frame(r, height=1)
@@ -153,7 +153,7 @@ classe Applicazione:
         per chiave, testo_ in (("progetto", "📁  Progetto"), ("librerie", "📚  Librerie"), ("test", "Test"), ("git", "Git"), ("pacchetti", "Pip")):
             b = tk.Label(se_stesso.schede_sinistra, text=testo_, padx=10 se chiave in ("progetto", "librerie") altrimenti 8, pady=6, cursor="hand2", font=(FONT_UI, 9))
             b.pack(side="left")
-            b.bind("<Button-1>", lambda e, k=chiave: se_stesso.mostra_pannello_sinistro(k))
+            b.bind("<Button-1>", lambda evento, k=chiave: se_stesso.mostra_pannello_sinistro(k))
             stile.suggerisci(b, AIUTI_SCHEDE[chiave], c)
             se_stesso.pulsanti_sinistra[chiave] = b
         se_stesso.pannello_sinistro = "progetto"
@@ -233,7 +233,7 @@ classe Applicazione:
             se x == barra_mod.SEPARATORE:
                 sep = stile.Separatore(se_stesso.barra, c)
                 sep.pack(side=lato, fill="y", padx=6, pady=9)
-                sep.bind("<Button-3>", lambda e: se_stesso._menu_barra(e))
+                sep.bind("<Button-3>", lambda evento: se_stesso._menu_barra(evento))
                 se_stesso.pulsanti_barra.append(sep)
                 continua
             dati = se_stesso.comandi_menu[x]
@@ -241,7 +241,7 @@ classe Applicazione:
             b = stile.PulsanteIcona(se_stesso.barra, icona, testo_, dati["esegui"], c, accento, aiuto)
             b.pack(side=lato, padx=1, pady=4)
             per w in [b] + b.winfo_children():
-                w.bind("<Button-3>", lambda e, i=x: se_stesso._menu_barra(e, i))
+                w.bind("<Button-3>", lambda evento, i=x: se_stesso._menu_barra(evento, i))
             se_stesso.pulsanti_barra.append(b)
             se_stesso.pulsanti_per_id[x] = b
         se_stesso.pulsante_chat = se_stesso.pulsanti_per_id.get("Visualizza/Assistente AI")
@@ -277,7 +277,7 @@ classe Applicazione:
         se_stesso.config_.imposta("finestra.barra", lista(elementi))
         se_stesso.config_.salva()
 
-    definisci _menu_barra(se_stesso, e, id_=Nessuno):
+    definisci _menu_barra(se_stesso, evento, id_=Nessuno):
         """Clic destro sulla barra: personalizzare, togliere il pulsante, tornare alla barra predefinita."""
         m = tk.Menu(se_stesso.radice, tearoff=0)
         se id_:
@@ -286,7 +286,7 @@ classe Applicazione:
         m.add_command(label="Personalizza barra…", command=se_stesso.personalizza_barra)
         m.add_command(label="Ripristina la barra predefinita", command=lambda: se_stesso.imposta_barra(barra_mod.PREDEFINITA))
         se_stesso._menu_colori(m, se_stesso.colori)
-        m.tk_popup(e.x_root, e.y_root)
+        m.tk_popup(evento.x_root, evento.y_root)
         ritorna "break"
 
     definisci _menu_principale(se_stesso):
@@ -451,14 +451,14 @@ classe Applicazione:
                 continua
             sequenza = f"<{seq}>"
             prova:
-                r.bind(sequenza, lambda e, f=funzione: f() o "break")
+                r.bind(sequenza, lambda evento, f=funzione: f() o "break")
                 se_stesso._sequenze.append(sequenza)
             eccetto tk.TclError:
                 passa
-        r.bind("<F1>", lambda e: se_stesso.apri_aiuto(se_stesso._parola_sotto_cursore()) o "break")
-        r.bind("<Control-plus>", lambda e: se_stesso.zoom(1) o "break")
-        r.bind("<Control-equal>", lambda e: se_stesso.zoom(1) o "break")
-        r.bind("<Control-minus>", lambda e: se_stesso.zoom(-1) o "break")
+        r.bind("<F1>", lambda evento: se_stesso.apri_aiuto(se_stesso._parola_sotto_cursore()) o "break")
+        r.bind("<Control-plus>", lambda evento: se_stesso.zoom(1) o "break")
+        r.bind("<Control-equal>", lambda evento: se_stesso.zoom(1) o "break")
+        r.bind("<Control-minus>", lambda evento: se_stesso.zoom(-1) o "break")
 
     # ================================================================== tema e impostazioni
     definisci applica_tema(se_stesso):
@@ -895,7 +895,7 @@ classe Applicazione:
             se ricerca:
                 w.vai_a(int(ricerca.split(".")[0]))
 
-    definisci _scheda_cambiata(se_stesso, e=Nessuno):
+    definisci _scheda_cambiata(se_stesso, evento=Nessuno):
         w = se_stesso._scheda_corrente()
         p = se_stesso._percorso_di(w)
         se_stesso.pannello_librerie.aggiorna_uso()
@@ -945,16 +945,16 @@ classe Applicazione:
                 ritorna Falso
         ritorna Vero
 
-    definisci _chiudi_con_clic_centrale(se_stesso, e):
+    definisci _chiudi_con_clic_centrale(se_stesso, evento):
         prova:
-            indice = se_stesso.schede_nb.index(f"@{e.x},{e.y}")
+            indice = se_stesso.schede_nb.index(f"@{evento.x},{evento.y}")
             se_stesso.chiudi_scheda(se_stesso.schede_nb.nametowidget(se_stesso.schede_nb.tabs()[indice]))
         eccetto (tk.TclError, IndexError, KeyError):
             passa
 
-    definisci _menu_scheda(se_stesso, e):
+    definisci _menu_scheda(se_stesso, evento):
         prova:
-            indice = se_stesso.schede_nb.index(f"@{e.x},{e.y}")
+            indice = se_stesso.schede_nb.index(f"@{evento.x},{evento.y}")
             w = se_stesso.schede_nb.nametowidget(se_stesso.schede_nb.tabs()[indice])
         eccetto (tk.TclError, IndexError, KeyError):
             ritorna
@@ -964,7 +964,7 @@ classe Applicazione:
         p = se_stesso._percorso_di(w)
         se p:
             m.add_command(label="Copia percorso", command=lambda: (se_stesso.radice.clipboard_clear(), se_stesso.radice.clipboard_append(p)))
-        m.tk_popup(e.x_root, e.y_root)
+        m.tk_popup(evento.x_root, evento.y_root)
 
     definisci _su_editor(se_stesso, metodo, *argomenti):
         w = se_stesso._scheda_corrente()
@@ -1507,22 +1507,22 @@ classe Applicazione:
                 se_stesso.apri_progetto(cartella)
         ritorna FinestraEsercizi(se_stesso.radice, se_stesso.colori, se_stesso.config_, se_stesso._lista_esercizi(), se_stesso)
 
-    definisci apri_esercizio(se_stesso, e):
+    definisci apri_esercizio(se_stesso, evento):
         """Crea (se manca) il file dell'esercizio nel progetto e lo apre nell'editor."""
-        percorso = esercizi.file_dell_esercizio(e, se_stesso.progetto.cartella)
+        percorso = esercizi.file_dell_esercizio(evento, se_stesso.progetto.cartella)
         se_stesso.pannello_progetto.aggiorna()
         se_stesso.apri_file(percorso)
         ritorna percorso
 
-    definisci controlla_esercizio(se_stesso, e):
+    definisci controlla_esercizio(se_stesso, evento):
         """Salva tutto, esegue il programma dell'allievo con le prove dell'esercizio e registra il tentativo. Ritorna il risultato."""
-        percorso = esercizi.file_dell_esercizio(e, se_stesso.progetto.cartella)
+        percorso = esercizi.file_dell_esercizio(evento, se_stesso.progetto.cartella)
         se_stesso.salva_tutto()
         aperto = se_stesso.schede.get(os.path.abspath(percorso))
         se aperto è non Nessuno e hasattr(aperto, "salva"):
             aperto.salva()                     # il file dell'esercizio si controlla sempre com'è nell'editor
-        r = esercizi.controlla(percorso, e, se_stesso.config_.interprete())
-        esercizi.registra_tentativo(se_stesso.config_, e["id"], r["ok"])
+        r = esercizi.controlla(percorso, evento, se_stesso.config_.interprete())
+        esercizi.registra_tentativo(se_stesso.config_, evento["id"], r["ok"])
         ritorna r
 
     definisci aggiungi_cartella_esercizi(se_stesso):
@@ -1648,8 +1648,8 @@ classe Applicazione:
         se_stesso.radice.update_idletasks()
         prova:
             r = esporta_python.esporta(origine, destinazione)
-        eccetto Exception come e:
-            messagebox.showerror("Esporta come Python", f"Non sono riuscito a convertire il progetto:\n{e}", parent=se_stesso.radice)
+        eccetto Exception come eccezione:
+            messagebox.showerror("Esporta come Python", f"Non sono riuscito a convertire il progetto:\n{eccezione}", parent=se_stesso.radice)
             se_stesso.info("Esportazione non riuscita")
             ritorna Nessuno
         se_stesso.info(f"Progetto Python creato in {destinazione}")
@@ -1922,10 +1922,10 @@ classe Applicazione:
             lab_d = tk.Label(carta, text=descr, font=(FONT_UI, 9), background=c["pannello"], foreground=c["tenue"], anchor="w")
             lab_d.grid(row=1, column=1, sticky="nw", padx=(0, 14), pady=(0, 12))
             per w in (carta, lab_i, lab_t, lab_d):
-                w.bind("<Button-1>", lambda e, fn=comando: fn())
+                w.bind("<Button-1>", lambda evento, fn=comando: fn())
                 stile.suggerisci(w, titolo + ": " + descr, c)
-                w.bind("<Enter>", lambda e, k=carta: k.configure(highlightbackground=c["accento"]))
-                w.bind("<Leave>", lambda e, k=carta: k.configure(highlightbackground=c["bordo"]))
+                w.bind("<Enter>", lambda evento, k=carta: k.configure(highlightbackground=c["accento"]))
+                w.bind("<Leave>", lambda evento, k=carta: k.configure(highlightbackground=c["bordo"]))
         recenti = [r per r in se_stesso.config_.ottieni("recenti", []) se os.path.isdir(r)][:5]
         se recenti:
             tk.Label(centro, text="PROGETTI RECENTI", font=semi(9), background=c["editor"],
@@ -1939,7 +1939,7 @@ classe Applicazione:
                 perc = tk.Label(riga, text=r, font=(FONT_UI, 9), background=c["editor"], foreground=c["tenue"], anchor="w")
                 perc.pack(side="left")
                 per w in (riga, nome_, perc):
-                    w.bind("<Button-1>", lambda e, p=r: se_stesso.apri_progetto(p))
+                    w.bind("<Button-1>", lambda evento, p=r: se_stesso.apri_progetto(p))
                     stile.suggerisci(w, "Apri il progetto " + r, c)
         tk.Label(f, text="Premi F1 in qualsiasi momento per aprire la guida", font=(FONT_UI, 9), background=c["editor"],
                  foreground=c["tenue"]).place(relx=0.5, rely=0.97, anchor="s")

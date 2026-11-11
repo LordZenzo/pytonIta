@@ -226,16 +226,16 @@ classe ClienteBase:
         prova:
             con urllib.request.urlopen(richiesta, timeout=180) come r:
                 ritorna json.loads(r.read().decode("utf-8"))
-        eccetto urllib.error.HTTPError come e:
+        eccetto urllib.error.HTTPError come eccezione:
             prova:
-                dettaglio = json.loads(e.read().decode("utf-8")).get("error", {}).get("message", "")
+                dettaglio = json.loads(eccezione.read().decode("utf-8")).get("error", {}).get("message", "")
             eccetto Eccezione:
                 dettaglio = ""
-            solleva ErroreAI(f"Errore {e.code} dall'API: {dettaglio o e.reason}")
-        eccetto urllib.error.URLError come e:
-            solleva ErroreAI(f"Connessione non riuscita: {e.reason}")
-        eccetto (TimeoutError, OSError) come e:
-            solleva ErroreAI(f"Errore di rete: {e}")
+            solleva ErroreAI(f"Errore {eccezione.code} dall'API: {dettaglio o eccezione.reason}")
+        eccetto urllib.error.URLError come eccezione:
+            solleva ErroreAI(f"Connessione non riuscita: {eccezione.reason}")
+        eccetto (TimeoutError, OSError) come eccezione:
+            solleva ErroreAI(f"Errore di rete: {eccezione}")
 
 
 classe ClienteClaude(ClienteBase):
@@ -562,10 +562,10 @@ classe Strumenti:
                 passa           # senza copia di sicurezza l'assistente lavora lo stesso
         prova:
             ritorna _tronca(testo(funzione(**(parametri o {})))), Falso
-        eccetto ErroreDiValore come e:
-            ritorna testo(e), Vero
-        eccetto (OSError, KeyError, ErroreDiTipo, ErroreDiAttributo, TimeoutError) come e:
-            ritorna f"{tipo(e).__name__}: {e}", Vero
+        eccetto ErroreDiValore come eccezione:
+            ritorna testo(eccezione), Vero
+        eccetto (OSError, KeyError, ErroreDiTipo, ErroreDiAttributo, TimeoutError) come eccezione:
+            ritorna f"{tipo(eccezione).__name__}: {eccezione}", Vero
 
     # --- lettura
     definisci s_stato_ide(se_stesso):
@@ -574,7 +574,7 @@ classe Strumenti:
     definisci s_elenca_file(se_stesso, cartella="", estensioni=Nessuno):
         p = se_stesso.progetto
         prefisso = cartella.strip("/").replace("\\", "/")
-        file = p.tutti_i_file([e.lower() per e in estensioni] se estensioni altrimenti Nessuno)
+        file = p.tutti_i_file([elemento.lower() per elemento in estensioni] se estensioni altrimenti Nessuno)
         se prefisso:
             file = [f per f in file se f == prefisso o f.startswith(prefisso + "/")]
         ritorna "\n".join(file) o "(nessun file)"
@@ -595,7 +595,7 @@ classe Strumenti:
         ritorna "\n".join(f"{n}: {r}" per n, r in enumera(righe[da_riga - 1:a_riga], da_riga))
 
     definisci s_cerca_nel_progetto(se_stesso, testo, estensioni=Nessuno):
-        trovati = se_stesso.progetto.cerca(testo, [e.lower() per e in estensioni] se estensioni altrimenti Nessuno)
+        trovati = se_stesso.progetto.cerca(testo, [elemento.lower() per elemento in estensioni] se estensioni altrimenti Nessuno)
         se non trovati:
             ritorna "nessun risultato"
         ritorna "\n".join(f"{f}:{n}: {r}" per f, n, r in trovati)

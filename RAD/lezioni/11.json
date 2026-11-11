@@ -52,14 +52,14 @@
   },
   {
    "tipo": "stampa",
-   "codice": "prova:\n    solleva ErroreDiValore(\"no\")\neccetto ErroreDiValore come e:\n    stampa(\"preso:\", e)",
+   "codice": "prova:\n    solleva ErroreDiValore(\"no\")\neccetto ErroreDiValore come errore:\n    stampa(\"preso:\", errore)",
    "giusta": "preso: no",
    "sbagliate": [
     "preso: ErroreDiValore",
     "no",
     "Errore"
    ],
-   "spiegazione": "solleva crea un errore, e eccetto ... come e lo cattura: e contiene il messaggio.",
+   "spiegazione": "solleva crea un errore, e eccetto ... come errore lo cattura: errore contiene il messaggio.",
    "sezione": "Sollevare un errore"
   },
   {

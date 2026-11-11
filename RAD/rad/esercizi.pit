@@ -57,8 +57,8 @@ definisci esegui_programma(interprete, percorso, ingresso, timeout=8):
                            timeout=timeout, cwd=os.path.dirname(os.path.abspath(percorso)), env=dict(os.environ, PYTHONUTF8="1"))
     eccetto subprocess.TimeoutExpired:
         ritorna "", "", Vero
-    eccetto OSError come e:
-        ritorna "", testo(e), Falso
+    eccetto OSError come eccezione:
+        ritorna "", testo(eccezione), Falso
     ritorna r.stdout, r.stderr, Falso
 
 
@@ -134,7 +134,7 @@ definisci completato(config, id_esercizio):
 
 
 definisci riassunto_progressi(config, esercizi):
-    fatti = sum(1 per e in esercizi se completato(config, e["id"]))
+    fatti = sum(1 per elemento in esercizi se completato(config, elemento["id"]))
     ritorna fatti, lunghezza(esercizi)
 
 
@@ -144,8 +144,8 @@ definisci esporta_progressi(config, percorso, nome_allievo, esercizi):
     p = progressi(config)
     dati = {"allievo": nome_allievo.strip() o "senza nome", "data": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
             "totale": lunghezza(esercizi),
-            "esercizi": {e["id"]: {"titolo": e["titolo"], "completato": p.get(e["id"], {}).get("completato", ""), "tentativi": p.get(e["id"], {}).get("tentativi", 0)}
-                         per e in esercizi}}
+            "esercizi": {elemento["id"]: {"titolo": elemento["titolo"], "completato": p.get(elemento["id"], {}).get("completato", ""), "tentativi": p.get(elemento["id"], {}).get("tentativi", 0)}
+                         per elemento in esercizi}}
     con open(percorso, "w", encoding="utf-8") come f:
         json.dump(dati, f, ensure_ascii=Falso, indent=2)
     ritorna dati

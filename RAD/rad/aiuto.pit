@@ -190,11 +190,11 @@ classe FinestraAiuto(tk.Toplevel):
         se_stesso._immagini = []
         se_stesso._costruisci()
         se_stesso.applica_colori(app.colori)
-        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
-        se_stesso.bind("<Alt-Left>", lambda e: se_stesso.indietro())
-        se_stesso.bind("<Alt-Right>", lambda e: se_stesso.avanti())
-        se_stesso.bind("<Control-f>", lambda e: se_stesso.campo.focus_set())
-        se_stesso.bind("<F1>", lambda e: se_stesso.vai("benvenuto"))
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
+        se_stesso.bind("<Alt-Left>", lambda evento: se_stesso.indietro())
+        se_stesso.bind("<Alt-Right>", lambda evento: se_stesso.avanti())
+        se_stesso.bind("<Control-f>", lambda evento: se_stesso.campo.focus_set())
+        se_stesso.bind("<F1>", lambda evento: se_stesso.vai("benvenuto"))
 
     # ------------------------------------------------------------ struttura
     definisci _costruisci(se_stesso):
@@ -216,7 +216,7 @@ classe FinestraAiuto(tk.Toplevel):
         se_stesso.etichetta_cerca = tk.Label(se_stesso.barra, text=stile.glifo("cerca"), font=(stile.famiglia_icone() o FONT_SIMBOLI, 11))
         se_stesso.etichetta_cerca.pack(side="right")
         se_stesso.campo.bind("<KeyRelease>", se_stesso._cerca_digitando)
-        se_stesso.campo.bind("<Return>", lambda e: se_stesso._apri_primo_risultato())
+        se_stesso.campo.bind("<Return>", lambda evento: se_stesso._apri_primo_risultato())
         se_stesso.riga = tk.Frame(se_stesso, height=1)
         se_stesso.riga.pack(fill="x")
         se_stesso.corpo = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=4, borderwidth=0)
@@ -248,7 +248,7 @@ classe FinestraAiuto(tk.Toplevel):
         barra_y.pack(side="right", fill="y")
         se_stesso.t.pack(fill="both", expand=Vero)
         se_stesso.corpo.add(destra, minsize=420, stretch="always")
-        se_stesso.t.bind("<Configure>", lambda e: se_stesso._ridimensiona_tabelle())
+        se_stesso.t.bind("<Configure>", lambda evento: se_stesso._ridimensiona_tabelle())
 
     definisci applica_colori(se_stesso, c):
         se_stesso.colori = c
@@ -386,9 +386,9 @@ classe FinestraAiuto(tk.Toplevel):
                 se_stesso._n_link += 1
                 nome = f"lk{se_stesso._n_link}"
                 t.tag_configure(nome)
-                t.tag_bind(nome, "<Button-1>", lambda e, d=s[2]: se_stesso.vai(d))
-                t.tag_bind(nome, "<Enter>", lambda e: t.configure(cursor="hand2"))
-                t.tag_bind(nome, "<Leave>", lambda e: t.configure(cursor="arrow"))
+                t.tag_bind(nome, "<Button-1>", lambda evento, d=s[2]: se_stesso.vai(d))
+                t.tag_bind(nome, "<Enter>", lambda evento: t.configure(cursor="hand2"))
+                t.tag_bind(nome, "<Leave>", lambda evento: t.configure(cursor="arrow"))
                 t.insert("end", s[1], base + ("link", nome))
 
     definisci _disegna(se_stesso, blocchi):
@@ -498,14 +498,14 @@ classe FinestraAiuto(tk.Toplevel):
                 passa
 
     # ------------------------------------------------------------ ricerca
-    definisci _scelta_albero(se_stesso, e=Nessuno):
+    definisci _scelta_albero(se_stesso, evento=Nessuno):
         sel = se_stesso.albero.selection()
         se sel:
             valori = se_stesso.albero.item(sel[0], "values")
             se valori e valori[0] != se_stesso.corrente:
                 se_stesso.vai(valori[0])
 
-    definisci _cerca_digitando(se_stesso, e=Nessuno):
+    definisci _cerca_digitando(se_stesso, evento=Nessuno):
         q = se_stesso.var_cerca.get().strip().lower()
         se_stesso.risultati.delete(0, "end")
         se_stesso._risultati = []
@@ -539,7 +539,7 @@ classe FinestraAiuto(tk.Toplevel):
         se_stesso.albero.pack_forget()
         se_stesso.risultati.pack(fill="both", expand=Vero)
 
-    definisci _scelta_risultato(se_stesso, e=Nessuno):
+    definisci _scelta_risultato(se_stesso, evento=Nessuno):
         sel = se_stesso.risultati.curselection()
         se sel e sel[0] < lunghezza(se_stesso._risultati):
             d, q = se_stesso._risultati[sel[0]]

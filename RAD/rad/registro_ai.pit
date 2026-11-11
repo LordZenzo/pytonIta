@@ -104,30 +104,30 @@ definisci riepilogo(eventi, prezzi=Nessuno):
          "token_uscita": 0, "scritture": 0, "valide_al_primo": 0, "corrette_da_sole": 0, "forzate": 0, "rifiutate": 0,
          "esecuzioni": 0, "esecuzioni_ok": 0, "scadute": 0, "passi_totali": 0, "durata_totale_s": 0.0,
          "costo_usd": 0.0, "chiamate_senza_prezzo": 0, "costo_per_modello": {}, "costo_per_richiesta": {}}
-    per e in eventi:
-        t = e.get("tipo")
+    per elemento in eventi:
+        t = elemento.get("tipo")
         se t == "richiesta":
             r["richieste"] += 1
         altrimenti_se t == "chiamata":
             r["chiamate"] += 1
-            r["token_nuovi"] += e.get("input", 0)
-            r["token_cache_lettura"] += e.get("cache_lettura", 0)
-            r["token_cache_scrittura"] += e.get("cache_scrittura", 0)
-            r["token_uscita"] += e.get("output", 0)
-            costo = costo_da_uso(e, e.get("modello", ""), prezzi)
+            r["token_nuovi"] += elemento.get("input", 0)
+            r["token_cache_lettura"] += elemento.get("cache_lettura", 0)
+            r["token_cache_scrittura"] += elemento.get("cache_scrittura", 0)
+            r["token_uscita"] += elemento.get("output", 0)
+            costo = costo_da_uso(elemento, elemento.get("modello", ""), prezzi)
             se costo è Nessuno:
                 r["chiamate_senza_prezzo"] += 1
             altrimenti:
                 r["costo_usd"] += costo
-                modello = e.get("modello", "?")
+                modello = elemento.get("modello", "?")
                 r["costo_per_modello"][modello] = r["costo_per_modello"].get(modello, 0.0) + costo
-                id_richiesta = e.get("richiesta", "")
+                id_richiesta = elemento.get("richiesta", "")
                 r["costo_per_richiesta"][id_richiesta] = r["costo_per_richiesta"].get(id_richiesta, 0.0) + costo
         altrimenti_se t == "scrittura":
-            esito = e.get("esito")
+            esito = elemento.get("esito")
             se esito == "valido":
                 r["scritture"] += 1
-                se e.get("tentativo", 1) == 1:
+                se elemento.get("tentativo", 1) == 1:
                     r["valide_al_primo"] += 1
                 altrimenti:
                     r["corrette_da_sole"] += 1
@@ -138,13 +138,13 @@ definisci riepilogo(eventi, prezzi=Nessuno):
                 r["rifiutate"] += 1
         altrimenti_se t == "esecuzione":
             r["esecuzioni"] += 1
-            se e.get("codice") == 0 e non e.get("scaduto"):
+            se elemento.get("codice") == 0 e non elemento.get("scaduto"):
                 r["esecuzioni_ok"] += 1
-            se e.get("scaduto"):
+            se elemento.get("scaduto"):
                 r["scadute"] += 1
         altrimenti_se t == "fine":
-            r["passi_totali"] += e.get("passi", 0)
-            r["durata_totale_s"] += e.get("durata_s", 0)
+            r["passi_totali"] += elemento.get("passi", 0)
+            r["durata_totale_s"] += elemento.get("durata_s", 0)
     ritorna r
 
 

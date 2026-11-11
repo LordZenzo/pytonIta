@@ -44,20 +44,20 @@ definisci controlla_sintassi(sorgente, nome_file="<editor>", linguaggio=Nessuno)
             compile(sorgente, nome_file, "exec", 0, Vero)       # senza ereditare le parole chiave italiane
         altrimenti:
             compile(sorgente, nome_file, "exec")
-    eccetto SyntaxError come e:
+    eccetto SyntaxError come eccezione:
         da _italiano importa traduci_errore
-        messaggio = traduci_errore(testo(e.msg))
+        messaggio = traduci_errore(testo(eccezione.msg))
         righe = sorgente.split(chr(10))
-        riga_errore = righe[(e.lineno o 1) - 1] se 0 < (e.lineno o 1) <= lunghezza(righe) altrimenti ""
+        riga_errore = righe[(eccezione.lineno o 1) - 1] se 0 < (eccezione.lineno o 1) <= lunghezza(righe) altrimenti ""
         prova:
             aiuto = diagnosi.aiuto_sintassi(messaggio, riga_errore, linguaggio == "py")
         eccetto Exception:
             aiuto = Nessuno
         se aiuto:
             messaggio = messaggio + " — " + aiuto
-        ritorna (e.lineno o 1, e.offset o 0, messaggio)
-    eccetto (ErroreDiValore, ValueError) come e:
-        ritorna (1, 0, testo(e))
+        ritorna (eccezione.lineno o 1, eccezione.offset o 0, messaggio)
+    eccetto (ErroreDiValore, ValueError) come eccezione:
+        ritorna (1, 0, testo(eccezione))
     ritorna Nessuno
 
 
@@ -71,8 +71,8 @@ definisci esegui_sincrono(argomenti, cartella=Nessuno, tempo_massimo=60, ingress
         p = subprocess.Popen(argomenti, cwd=cartella, stdin=subprocess.PIPE se ingresso è non Nessuno altrimenti subprocess.DEVNULL,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ambiente, creationflags=_FLAG_NASCONDI,
                              start_new_session=piattaforma.NUOVA_SESSIONE)
-    eccetto OSError come e:
-        ritorna {"codice": -1, "uscita": "", "errori": testo(e), "scaduto": Falso, "secondi": 0}
+    eccetto OSError come eccezione:
+        ritorna {"codice": -1, "uscita": "", "errori": testo(eccezione), "scaduto": Falso, "secondi": 0}
     limite = limiti_mod.applica(p, *limiti) se limiti altrimenti Nessuno
     prova:
         prova:
@@ -255,8 +255,8 @@ classe Console(tk.Frame):
         barra_y.pack(side="right", fill="y")
         se_stesso.t.pack(fill="both", expand=Vero)
         se_stesso.t.tag_bind("link", "<Button-1>", se_stesso._clic_link)
-        se_stesso.t.tag_bind("link", "<Enter>", lambda e: se_stesso.t.configure(cursor="hand2"))
-        se_stesso.t.tag_bind("link", "<Leave>", lambda e: se_stesso.t.configure(cursor=""))
+        se_stesso.t.tag_bind("link", "<Enter>", lambda evento_tk: se_stesso.t.configure(cursor="hand2"))
+        se_stesso.t.tag_bind("link", "<Leave>", lambda evento_tk: se_stesso.t.configure(cursor=""))
 
     definisci applica_colori(se_stesso, c):
         se_stesso.colori = c
@@ -301,9 +301,9 @@ classe Console(tk.Frame):
         se_stesso.t.delete("1.0", "end")
         se_stesso.t.configure(state="disabled")
 
-    definisci _clic_link(se_stesso, e):
+    definisci _clic_link(se_stesso, evento_tk):
         t = se_stesso.t
-        indice = t.index(f"@{e.x},{e.y}")
+        indice = t.index(f"@{evento_tk.x},{evento_tk.y}")
         intervalli = t.tag_ranges("link")
         per i in intervallo(0, lunghezza(intervalli), 2):
             se t.compare(intervalli[i], "<=", indice) e t.compare(indice, "<", intervalli[i + 1]):
@@ -402,7 +402,7 @@ classe Console(tk.Frame):
             se_stesso.esecutore.ferma()
             se_stesso.scrivi("\n■ interrotto\n", "info")
 
-    definisci _invia(se_stesso, e=Nessuno):
+    definisci _invia(se_stesso, evento_tk=Nessuno):
         riga = se_stesso.ingresso.get()
         se_stesso.ingresso.delete(0, "end")
         se_stesso.scrivi(riga + "\n", "utente")

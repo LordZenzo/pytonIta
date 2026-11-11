@@ -132,14 +132,14 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
             w = tk.Canvas(genitore, background="#f0f0f0", highlightthickness=0)
             orizzontale = v["orientamento"] == "orizzontale"
 
-            definisci _linee(e, w=w, orizzontale=orizzontale):
+            definisci _linee(elemento, w=w, orizzontale=orizzontale):
                 w.delete("riga")
                 se orizzontale:
-                    w.create_line(0, 0, e.width, 0, fill="#a0a0a0", tags="riga")
-                    w.create_line(0, 1, e.width, 1, fill="#ffffff", tags="riga")
+                    w.create_line(0, 0, elemento.width, 0, fill="#a0a0a0", tags="riga")
+                    w.create_line(0, 1, elemento.width, 1, fill="#ffffff", tags="riga")
                 altrimenti:
-                    w.create_line(0, 0, 0, e.height, fill="#a0a0a0", tags="riga")
-                    w.create_line(1, 0, 1, e.height, fill="#ffffff", tags="riga")
+                    w.create_line(0, 0, 0, elemento.height, fill="#a0a0a0", tags="riga")
+                    w.create_line(1, 0, 1, elemento.height, fill="#ffffff", tags="riga")
             w.bind("<Configure>", _linee)
         altrimenti_se t == "Schede":
             w = ttk.Notebook(genitore)
@@ -151,7 +151,7 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
         altrimenti_se t == "BarraNavigazione":
             w = tk.Canvas(genitore, background="#f0f0f0", highlightthickness=0)
             _disegna_barra(w, v)
-            w.bind("<Configure>", lambda e, w=w, v=v: _disegna_barra(w, v))
+            w.bind("<Configure>", lambda evento, w=w, v=v: _disegna_barra(w, v))
         altrimenti_se non e_visivo(t):
             w = tk.Label(genitore, text=f"{TIPI[t]['icona']} {c.nome}", relief="raised", borderwidth=1, background="#fff3bf", foreground="#4a3b00",
                          anchor="w", font=(FONT_UI, 8))
@@ -262,10 +262,10 @@ classe DialogoColonne(tk.Toplevel):
             se widget.winfo_class() in ("Entry", "Spinbox"):       # (il Combobox ttk è anch'esso un'Entry per isinstance)
                 widget.configure(background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"], relief="flat",
                                  highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
-                widget.bind("<Return>", lambda e: se_stesso._applica())
-                widget.bind("<FocusOut>", lambda e: se_stesso._applica())
+                widget.bind("<Return>", lambda evento: se_stesso._applica())
+                widget.bind("<FocusOut>", lambda evento: se_stesso._applica())
             altrimenti:
-                widget.bind("<<ComboboxSelected>>", lambda e: se_stesso._applica())
+                widget.bind("<<ComboboxSelected>>", lambda evento: se_stesso._applica())
         se_stesso.campo_nome = destra.grid_slaves(row=1, column=0)[0]
         se_stesso.campo_larghezza = destra.grid_slaves(row=3, column=0)[0]
         se_stesso.campo_allineamento = destra.grid_slaves(row=5, column=0)[0]
@@ -279,7 +279,7 @@ classe DialogoColonne(tk.Toplevel):
         se_stesso.riempi()
         se se_stesso.righe:
             se_stesso.seleziona(0)
-        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
 
     definisci riempi(se_stesso):
         se_stesso.elenco.delete(0, "end")
@@ -300,7 +300,7 @@ classe DialogoColonne(tk.Toplevel):
         se_stesso.var_larghezza.set(testo(larghezza))
         se_stesso.var_allineamento.set(NOMI_ALLINEAMENTO[ancora])
 
-    definisci _scelta(se_stesso, e=Nessuno):
+    definisci _scelta(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco.curselection()
         se sel e sel[0] != se_stesso._corrente:
             se_stesso.seleziona(sel[0])
@@ -391,7 +391,7 @@ classe DialogoMenu(tk.Toplevel):
         fondo.pack(fill="x", padx=12, pady=10)
         tk.Button(fondo, text="Annulla", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
         tk.Button(fondo, text="Applica", command=se_stesso.conferma, background=c["accento"], foreground="#ffffff", relief="flat", padx=12).pack(side="right", padx=4)
-        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
         se_stesso.testo.focus_set()
 
     definisci conferma(se_stesso):
@@ -433,7 +433,7 @@ classe DialogoOrdine(tk.Toplevel):
         tk.Button(fondo, text="Annulla", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
         tk.Button(fondo, text="Applica", command=se_stesso.conferma, background=c["accento"], foreground="#ffffff", relief="flat", padx=12).pack(side="right", padx=4)
         se_stesso.riempi()
-        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
 
     definisci riempi(se_stesso, scelta=Nessuno):
         se_stesso.elenco.delete(0, "end")
@@ -585,9 +585,9 @@ classe Progettista(tk.Frame):
         se_stesso._tracce = {}
         se_stesso._evid = Nessuno
         per etichetta_, lato_, cursore_ in (("mf_e", "e", cursore("size_we")), ("mf_s", "s", cursore("size_ns")), ("mf_se", "se", cursore("size_nw_se"))):
-            se_stesso.area.tag_bind(etichetta_, "<ButtonPress-1>", lambda e, l=lato_: se_stesso._inizia_finestra(e, l))
-            se_stesso.area.tag_bind(etichetta_, "<Enter>", lambda e, k=cursore_: se_stesso.area.configure(cursor=k))
-            se_stesso.area.tag_bind(etichetta_, "<Leave>", lambda e: se_stesso.area.configure(cursor=""))
+            se_stesso.area.tag_bind(etichetta_, "<ButtonPress-1>", lambda evento, l=lato_: se_stesso._inizia_finestra(evento, l))
+            se_stesso.area.tag_bind(etichetta_, "<Enter>", lambda evento, k=cursore_: se_stesso.area.configure(cursor=k))
+            se_stesso.area.tag_bind(etichetta_, "<Leave>", lambda evento: se_stesso.area.configure(cursor=""))
         se_stesso.area.bind("<B1-Motion>", se_stesso._muovi_finestra, add="+")
         se_stesso.area.bind("<ButtonRelease-1>", se_stesso._fine_finestra, add="+")
         se_stesso.superficie = tk.Canvas(se_stesso.area, highlightthickness=0, cursor="arrow")
@@ -598,7 +598,7 @@ classe Progettista(tk.Frame):
         se_stesso.superficie.bind("<B1-Motion>", se_stesso._trascina_lazo)
         se_stesso.superficie.bind("<ButtonRelease-1>", se_stesso._fine_lazo)
         se_stesso._lazo = Nessuno
-        se_stesso.superficie.bind("<Button-3>", lambda e: se_stesso._menu(e, Nessuno))
+        se_stesso.superficie.bind("<Button-3>", lambda evento: se_stesso._menu(evento, Nessuno))
         corpo.add(centro, minsize=300, stretch="always")
         # ispettore
         ispettore = tk.Frame(corpo)
@@ -616,22 +616,22 @@ classe Progettista(tk.Frame):
         se_stesso.tela_ispettore.pack(side="left", fill="both", expand=Vero)
         se_stesso.righe_ispettore = tk.Frame(se_stesso.tela_ispettore)
         se_stesso.tela_ispettore.create_window(0, 0, anchor="nw", window=se_stesso.righe_ispettore, tags="righe")
-        se_stesso.righe_ispettore.bind("<Configure>", lambda e: se_stesso.tela_ispettore.configure(
+        se_stesso.righe_ispettore.bind("<Configure>", lambda evento: se_stesso.tela_ispettore.configure(
             scrollregion=se_stesso.tela_ispettore.bbox("all")))
-        se_stesso.tela_ispettore.bind("<Configure>", lambda e: se_stesso.tela_ispettore.itemconfigure("righe", width=e.width))
+        se_stesso.tela_ispettore.bind("<Configure>", lambda elemento: se_stesso.tela_ispettore.itemconfigure("righe", width=elemento.width))
         corpo.add(ispettore, minsize=240, width=290)
-        se_stesso.area.bind("<Configure>", lambda e: Nessuno)
+        se_stesso.area.bind("<Configure>", lambda evento: Nessuno)
         se_stesso.bind_all("<Delete>", se_stesso._tasto_elimina, add="+")
         se_stesso.configure(takefocus=1)
         per tasto, dx, dy in (("Left", -1, 0), ("Right", 1, 0), ("Up", 0, -1), ("Down", 0, 1)):
-            se_stesso.bind(f"<{tasto}>", lambda e, dx=dx, dy=dy: se_stesso.sposta_selezione(dx, dy))
-            se_stesso.bind(f"<Shift-{tasto}>", lambda e, dx=dx, dy=dy: se_stesso.sposta_selezione(dx * 10, dy * 10))
-        se_stesso.bind("<Control-d>", lambda e: se_stesso.duplica())
-        se_stesso.bind("<Control-c>", lambda e: se_stesso.copia())
-        se_stesso.bind("<Control-v>", lambda e: se_stesso.incolla())
-        se_stesso.bind("<Control-z>", lambda e: se_stesso.annulla())
-        se_stesso.bind("<Control-y>", lambda e: se_stesso.ripeti())
-        se_stesso.bind("<Control-a>", lambda e: se_stesso.seleziona([c.nome per c in se_stesso.form.componenti]))
+            se_stesso.bind(f"<{tasto}>", lambda evento, dx=dx, dy=dy: se_stesso.sposta_selezione(dx, dy))
+            se_stesso.bind(f"<Shift-{tasto}>", lambda evento, dx=dx, dy=dy: se_stesso.sposta_selezione(dx * 10, dy * 10))
+        se_stesso.bind("<Control-d>", lambda evento: se_stesso.duplica())
+        se_stesso.bind("<Control-c>", lambda evento: se_stesso.copia())
+        se_stesso.bind("<Control-v>", lambda evento: se_stesso.incolla())
+        se_stesso.bind("<Control-z>", lambda evento: se_stesso.annulla())
+        se_stesso.bind("<Control-y>", lambda evento: se_stesso.ripeti())
+        se_stesso.bind("<Control-a>", lambda evento: se_stesso.seleziona([c.nome per c in se_stesso.form.componenti]))
 
     definisci applica_colori(se_stesso, c):
         se_stesso.colori = c
@@ -727,24 +727,24 @@ classe Progettista(tk.Frame):
                 passa
 
     # ------------------------------------------------------------ dimensioni della finestra (maniglie fuori dalla superficie)
-    definisci _inizia_finestra(se_stesso, e, lato):
+    definisci _inizia_finestra(se_stesso, evento, lato):
         f = se_stesso.form
-        se_stesso._ridim_finestra = {"lato": lato, "x": e.x_root, "y": e.y_root, "w": f.larghezza, "h": f.altezza}
+        se_stesso._ridim_finestra = {"lato": lato, "x": evento.x_root, "y": evento.y_root, "w": f.larghezza, "h": f.altezza}
         ritorna "break"
 
-    definisci _muovi_finestra(se_stesso, e):
+    definisci _muovi_finestra(se_stesso, evento):
         r = se_stesso._ridim_finestra
         se non r:
             ritorna
         f = se_stesso.form
         se "e" in r["lato"]:
-            f.larghezza = max(60, min(4000, se_stesso._aggancia(r["w"] + e.x_root - r["x"])))
+            f.larghezza = max(60, min(4000, se_stesso._aggancia(r["w"] + evento.x_root - r["x"])))
         se "s" in r["lato"]:
-            f.altezza = max(60, min(4000, se_stesso._aggancia(r["h"] + e.y_root - r["y"])))
+            f.altezza = max(60, min(4000, se_stesso._aggancia(r["h"] + evento.y_root - r["y"])))
         se_stesso._disegna_griglia()
         ritorna "break"
 
-    definisci _fine_finestra(se_stesso, e=Nessuno):
+    definisci _fine_finestra(se_stesso, evento=Nessuno):
         se se_stesso._ridim_finestra:
             se_stesso._ridim_finestra = Nessuno
             se_stesso.area.configure(cursor="")
@@ -1059,9 +1059,9 @@ classe Progettista(tk.Frame):
         per sequenza, funzione in (("<ButtonPress-1>", se_stesso._premi), ("<B1-Motion>", se_stesso._trascina),
                                    ("<ButtonRelease-1>", se_stesso._rilascia), ("<Double-Button-1>", se_stesso._doppio),
                                    ("<Button-3>", se_stesso._menu_widget)):
-            w.bind(sequenza, lambda e, n=c.nome, f=funzione: f(e, n))
+            w.bind(sequenza, lambda evento, n=c.nome, f=funzione: f(evento, n))
             per pagina in getattr(w, "_pagine", []):
-                pagina.bind(sequenza, lambda e, n=c.nome, f=funzione: f(e, n))
+                pagina.bind(sequenza, lambda evento, n=c.nome, f=funzione: f(evento, n))
         se_stesso.widget[c.nome] = w
         ritorna w
 
@@ -1130,7 +1130,7 @@ classe Progettista(tk.Frame):
                     m = tk.Frame(se_stesso._padre_widget(c), background=se_stesso.colori["accento"], width=8, height=8,
                                  cursor=cursore, borderwidth=1, relief="solid")
                     m.place(x=x_ + int(l_ * ax) - 4, y=y_ + int(a_ * ay) - 4)
-                    m.bind("<ButtonPress-1>", lambda e, k=chiave, n=nome: se_stesso._inizia_ridimensiona(e, k, n))
+                    m.bind("<ButtonPress-1>", lambda evento, k=chiave, n=nome: se_stesso._inizia_ridimensiona(evento, k, n))
                     m.bind("<B1-Motion>", se_stesso._ridimensiona)
                     m.bind("<ButtonRelease-1>", se_stesso._fine_ridimensiona)
                     se_stesso.maniglie.append(m)
@@ -1152,14 +1152,14 @@ classe Progettista(tk.Frame):
             se_stesso.stato.configure(text=f"{lunghezza(se_stesso.selezione_)} selezionati")
 
     # ------------------------------------------------------------ palette
-    definisci _palette_scelta(se_stesso, e=Nessuno):
+    definisci _palette_scelta(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco_palette.curselection()
         se sel:
             se_stesso.da_aggiungere = ORDINE_PALETTE[sel[0]]
             se_stesso.superficie.configure(cursor="crosshair")
             se_stesso.suggerimento.configure(text=f"Clicca sulla finestra per inserire: {se_stesso.da_aggiungere}")
 
-    definisci _palette_doppio(se_stesso, e=Nessuno):
+    definisci _palette_doppio(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco_palette.curselection()
         se sel:
             n = lunghezza(se_stesso.form.componenti)
@@ -1180,7 +1180,7 @@ classe Progettista(tk.Frame):
         se_stesso.seleziona([c.nome])
         ritorna c
 
-    definisci _destinazione(se_stesso, e, nome):
+    definisci _destinazione(se_stesso, evento, nome):
         """(genitore, x, y) dove inserire un nuovo componente cliccando sul componente «nome»."""
         c = se_stesso.form.trova(nome)
         w = se_stesso.widget.get(nome)
@@ -1193,13 +1193,13 @@ classe Progettista(tk.Frame):
                     indice = 0
                 se pagine:
                     pagina = pagine[min(indice, lunghezza(pagine) - 1)]
-                    ritorna f"{nome}#{min(indice, lunghezza(pagine) - 1)}", e.x_root - pagina.winfo_rootx(), e.y_root - pagina.winfo_rooty()
+                    ritorna f"{nome}#{min(indice, lunghezza(pagine) - 1)}", evento.x_root - pagina.winfo_rootx(), evento.y_root - pagina.winfo_rooty()
             altrimenti:
-                ritorna nome, e.x_root - w.winfo_rootx(), e.y_root - w.winfo_rooty()
+                ritorna nome, evento.x_root - w.winfo_rootx(), evento.y_root - w.winfo_rooty()
         se c è non Nessuno e c.genitore:
             padre = se_stesso._padre_widget(c)
-            ritorna c.genitore, e.x_root - padre.winfo_rootx(), e.y_root - padre.winfo_rooty()
-        ritorna "", e.x_root - se_stesso.superficie.winfo_rootx(), e.y_root - se_stesso.superficie.winfo_rooty()
+            ritorna c.genitore, evento.x_root - padre.winfo_rootx(), evento.y_root - padre.winfo_rooty()
+        ritorna "", evento.x_root - se_stesso.superficie.winfo_rootx(), evento.y_root - se_stesso.superficie.winfo_rooty()
 
     definisci _aggancia(se_stesso, v):
         se se_stesso.griglia_attiva.get():
@@ -1207,27 +1207,27 @@ classe Progettista(tk.Frame):
         ritorna int(v)
 
     # ------------------------------------------------------------ mouse
-    definisci _clic_superficie(se_stesso, e):
+    definisci _clic_superficie(se_stesso, evento):
         se_stesso.focus_set()
         se se_stesso.da_aggiungere:
-            se_stesso.aggiungi_componente(se_stesso.da_aggiungere, e.x, e.y)
+            se_stesso.aggiungi_componente(se_stesso.da_aggiungere, evento.x, evento.y)
             se_stesso._annulla_aggiunta()
         altrimenti:
-            base = lista(se_stesso.selezione_) se e.state & 0x1 altrimenti []       # Maiusc: il rettangolo si aggiunge alla selezione
+            base = lista(se_stesso.selezione_) se evento.state & 0x1 altrimenti []       # Maiusc: il rettangolo si aggiunge alla selezione
             se non base:
                 se_stesso.seleziona([])
-            se_stesso._lazo = {"x": e.x, "y": e.y, "base": base, "ultimi": Nessuno}
+            se_stesso._lazo = {"x": evento.x, "y": evento.y, "base": base, "ultimi": Nessuno}
 
-    definisci _trascina_lazo(se_stesso, e):
+    definisci _trascina_lazo(se_stesso, evento):
         """Rettangolo di selezione: trascinando su uno spazio vuoto si selezionano i componenti (della finestra) che il rettangolo tocca."""
         z = se_stesso._lazo
         se non z:
             ritorna
         s = se_stesso.superficie
         s.delete("lazo")
-        s.create_rectangle(z["x"], z["y"], e.x, e.y, outline=se_stesso.colori["accento"], dash=(3, 3), tags="lazo")
-        x0, x1 = sorted((z["x"], e.x))
-        y0, y1 = sorted((z["y"], e.y))
+        s.create_rectangle(z["x"], z["y"], evento.x, evento.y, outline=se_stesso.colori["accento"], dash=(3, 3), tags="lazo")
+        x0, x1 = sorted((z["x"], evento.x))
+        y0, y1 = sorted((z["y"], evento.y))
         toccati = []
         per c in se_stesso.form.componenti:
             se c.genitore o c.nome non in se_stesso.widget:
@@ -1240,19 +1240,19 @@ classe Progettista(tk.Frame):
             z["ultimi"] = nuovi
             se_stesso.seleziona(nuovi)
 
-    definisci _fine_lazo(se_stesso, e=Nessuno):
+    definisci _fine_lazo(se_stesso, evento=Nessuno):
         se_stesso.superficie.delete("lazo")
         se_stesso._lazo = Nessuno
 
-    definisci _premi(se_stesso, e, nome):
+    definisci _premi(se_stesso, evento, nome):
         se_stesso.focus_set()
         se se_stesso.da_aggiungere:
             # inserisce nella posizione del puntatore: dentro il contenitore cliccato (o accanto al componente cliccato)
-            genitore, x, y = se_stesso._destinazione(e, nome)
+            genitore, x, y = se_stesso._destinazione(evento, nome)
             se_stesso.aggiungi_componente(se_stesso.da_aggiungere, x, y, genitore=genitore)
             se_stesso._annulla_aggiunta()
             ritorna "break"
-        se e.state & 0x1:       # Maiusc: aggiunge/toglie dalla selezione
+        se evento.state & 0x1:       # Maiusc: aggiunge/toglie dalla selezione
             se nome in se_stesso.selezione_:
                 se_stesso.seleziona([n per n in se_stesso.selezione_ se n != nome])
             altrimenti:
@@ -1260,17 +1260,17 @@ classe Progettista(tk.Frame):
         altrimenti_se nome non in se_stesso.selezione_:
             se_stesso.seleziona([nome])
         se_stesso._trascinamento = {
-            "x": e.x_root, "y": e.y_root,
+            "x": evento.x_root, "y": evento.y_root,
             "inizio": {n: (se_stesso.form.trova(n).x, se_stesso.form.trova(n).y) per n in se_stesso.selezione_},
             "schermo": {n: (se_stesso.widget[n].winfo_rootx(), se_stesso.widget[n].winfo_rooty()) per n in se_stesso.selezione_ se n in se_stesso.widget},
             "mosso": Falso}
         ritorna "break"
 
-    definisci _trascina(se_stesso, e, nome):
+    definisci _trascina(se_stesso, evento, nome):
         d = se_stesso._trascinamento
         se non d:
             ritorna "break"
-        dx, dy = e.x_root - d["x"], e.y_root - d["y"]
+        dx, dy = evento.x_root - d["x"], evento.y_root - d["y"]
         se abs(dx) + abs(dy) < 3 e non d["mosso"]:
             ritorna "break"
         d["mosso"] = Vero
@@ -1282,12 +1282,12 @@ classe Progettista(tk.Frame):
                 bordo = int(str(padre.cget("borderwidth")))
             eccetto (tk.TclError, ValueError):
                 bordo = 0
-            riga, colonna = se_stesso._cella_a(c.genitore, e.x_root - padre.winfo_rootx() - bordo, e.y_root - padre.winfo_rooty() - bordo)
+            riga, colonna = se_stesso._cella_a(c.genitore, evento.x_root - padre.winfo_rootx() - bordo, evento.y_root - padre.winfo_rooty() - bordo)
             d["cella"] = (riga, colonna)
             se_stesso._evidenzia_cella(c.genitore, riga, colonna, padre)
-            se_stesso._suggerisci_rilascio(e, d)
+            se_stesso._suggerisci_rilascio(evento, d)
             ritorna "break"
-        cx, cy, linee = se_stesso._guide(d, dx, dy, e)
+        cx, cy, linee = se_stesso._guide(d, dx, dy, evento)
         per n, (x0, y0) in d["inizio"].items():
             c = se_stesso.form.trova(n)
             se n in getattr(se_stesso, "_rett", {}):
@@ -1298,7 +1298,7 @@ classe Progettista(tk.Frame):
         se_stesso._riposiziona_maniglie()
         se_stesso._aggiorna_stato()
         se_stesso._disegna_guide(nome, linee)
-        se_stesso._suggerisci_rilascio(e, d)
+        se_stesso._suggerisci_rilascio(evento, d)
         ritorna "break"
 
     # ------------------------------------------------------------ guide di allineamento
@@ -1317,10 +1317,10 @@ classe Progettista(tk.Frame):
         b = int(padre.valori.get("bordo", 0) o 0)
         ritorna padre.larghezza - 2 * b, padre.altezza - 2 * b
 
-    definisci _guide(se_stesso, d, dx, dy, e):
+    definisci _guide(se_stesso, d, dx, dy, evento):
         """Aggancio alle guide durante il trascinamento: (correzione x, correzione y, linee) dove le linee sono [("v", x), ("o", y)].
         Si confrontano sinistra, centro e destra (alto, centro, basso) di quello che si trascina con quelli degli altri componenti dello stesso contenitore e con i bordi e il centro del contenitore."""
-        se non se_stesso.guide_attive.get() o (e.state & 0x20000):          # Alt: niente aggancio
+        se non se_stesso.guide_attive.get() o (evento.state & 0x20000):          # Alt: niente aggancio
             ritorna 0, 0, []
         mossi = [se_stesso.form.trova(n) per n in d["inizio"] se n non in getattr(se_stesso, "_rett", {})]
         mossi = [c per c in mossi se c è non Nessuno]
@@ -1393,11 +1393,11 @@ classe Progettista(tk.Frame):
         se_stesso._linee_guida = []
 
     # ------------------------------------------------------------ spostare un componente dentro o fuori da un contenitore
-    definisci _contenitore_sotto(se_stesso, e, spostati):
+    definisci _contenitore_sotto(se_stesso, evento, spostati):
         """Il contenitore sotto il puntatore: ('', widget) = la finestra, ('riquadro1', widget) = un riquadro, ('schede1#0', pagina) = una pagina di schede;
         Nessuno se il puntatore è fuori dalla finestra. Non vale un componente che si sta spostando né quelli dentro di lui."""
         s = se_stesso.superficie
-        se non (s.winfo_rootx() <= e.x_root < s.winfo_rootx() + s.winfo_width() e s.winfo_rooty() <= e.y_root < s.winfo_rooty() + s.winfo_height()):
+        se non (s.winfo_rootx() <= evento.x_root < s.winfo_rootx() + s.winfo_width() e s.winfo_rooty() <= evento.y_root < s.winfo_rooty() + s.winfo_height()):
             ritorna Nessuno
         esclusi = se_stesso._con_discendenti(spostati)
         per c in reversed(form_modello.ordine_creazione(se_stesso.form)):
@@ -1415,17 +1415,17 @@ classe Progettista(tk.Frame):
                     indice = 0
                 chiave, area = f"{c.nome}#{indice}", pagine[indice]
             prova:
-                dentro = area.winfo_ismapped() e area.winfo_rootx() <= e.x_root < area.winfo_rootx() + area.winfo_width() e area.winfo_rooty() <= e.y_root < area.winfo_rooty() + area.winfo_height()
+                dentro = area.winfo_ismapped() e area.winfo_rootx() <= evento.x_root < area.winfo_rootx() + area.winfo_width() e area.winfo_rooty() <= evento.y_root < area.winfo_rooty() + area.winfo_height()
             eccetto tk.TclError:
                 dentro = Falso
             se dentro:
                 ritorna chiave, area
         ritorna "", s
 
-    definisci _suggerisci_rilascio(se_stesso, e, d):
+    definisci _suggerisci_rilascio(se_stesso, evento, d):
         """Durante il trascinamento: nella barra di stato dice dove finirà il componente se cambia contenitore."""
         c = se_stesso.form.trova(se_stesso.selezione_[0]) se se_stesso.selezione_ altrimenti Nessuno
-        bersaglio = se_stesso._contenitore_sotto(e, d["inizio"])
+        bersaglio = se_stesso._contenitore_sotto(evento, d["inizio"])
         se c è non Nessuno e bersaglio è non Nessuno e bersaglio[0] != c.genitore:
             se_stesso.stato.configure(text="Rilascia per spostarlo " + ("nella finestra" se bersaglio[0] == "" altrimenti f"dentro «{bersaglio[0].split('#')[0]}»"))
 
@@ -1453,16 +1453,16 @@ classe Progettista(tk.Frame):
         se_stesso._registra()
         ritorna Vero
 
-    definisci _rilascia(se_stesso, e, nome):
+    definisci _rilascia(se_stesso, evento, nome):
         d = se_stesso._trascinamento
         se_stesso._trascinamento = Nessuno
         se_stesso._togli_evidenza()
         se_stesso._togli_guide()
         se d e d["mosso"]:
             c_ = se_stesso.form.trova(nome)
-            bersaglio = se_stesso._contenitore_sotto(e, d["inizio"])
+            bersaglio = se_stesso._contenitore_sotto(evento, d["inizio"])
             se c_ è non Nessuno e bersaglio è non Nessuno e bersaglio[0] != c_.genitore:
-                se_stesso.sposta_in_contenitore(lista(d["inizio"]), bersaglio[0], e.x_root, e.y_root, d["schermo"], e.x_root - d["x"], e.y_root - d["y"])
+                se_stesso.sposta_in_contenitore(lista(d["inizio"]), bersaglio[0], evento.x_root, evento.y_root, d["schermo"], evento.x_root - d["x"], evento.y_root - d["y"])
                 se_stesso._riempi_ispettore()
                 ritorna "break"
             se d.get("cella") e nome in getattr(se_stesso, "_rett", {}):
@@ -1472,7 +1472,7 @@ classe Progettista(tk.Frame):
             se_stesso._riempi_ispettore()
         ritorna "break"
 
-    definisci _doppio(se_stesso, e, nome):
+    definisci _doppio(se_stesso, evento, nome):
         c = se_stesso.form.trova(nome)
         per k, (t, d, desc) in proprieta_di(c.tipo).items():
             se t == "evento":
@@ -1480,19 +1480,19 @@ classe Progettista(tk.Frame):
                 ritorna "break"
         ritorna "break"
 
-    definisci _inizia_ridimensiona(se_stesso, e, maniglia, nome):
+    definisci _inizia_ridimensiona(se_stesso, evento, maniglia, nome):
         c = se_stesso.form.trova(nome)
-        se_stesso._ridim = {"m": maniglia, "nome": nome, "x": e.x_root, "y": e.y_root,
+        se_stesso._ridim = {"m": maniglia, "nome": nome, "x": evento.x_root, "y": evento.y_root,
                             "geom": se_stesso._geom(c)}
         ritorna "break"
 
-    definisci _ridimensiona(se_stesso, e):
+    definisci _ridimensiona(se_stesso, evento):
         r = getattr(se_stesso, "_ridim", Nessuno)
         se non r:
             ritorna "break"
         c = se_stesso.form.trova(r["nome"])
         x, y, w, h = r["geom"]
-        dx, dy = e.x_root - r["x"], e.y_root - r["y"]
+        dx, dy = evento.x_root - r["x"], evento.y_root - r["y"]
         m = r["m"]
         se "e" in m:
             w = max(8, se_stesso._aggancia(w + dx))
@@ -1517,7 +1517,7 @@ classe Progettista(tk.Frame):
         se_stesso._aggiorna_stato()
         ritorna "break"
 
-    definisci _fine_ridimensiona(se_stesso, e):
+    definisci _fine_ridimensiona(se_stesso, evento):
         se getattr(se_stesso, "_ridim", Nessuno):
             se_stesso._ridim = Nessuno
             se_stesso._registra()
@@ -1525,7 +1525,7 @@ classe Progettista(tk.Frame):
         ritorna "break"
 
     # ------------------------------------------------------------ tastiera
-    definisci _tasto_elimina(se_stesso, e):
+    definisci _tasto_elimina(se_stesso, evento):
         prova:
             se non se_stesso.winfo_exists() o non se_stesso.winfo_ismapped():
                 ritorna
@@ -1552,17 +1552,17 @@ classe Progettista(tk.Frame):
         se_stesso._riempi_ispettore()
 
     # ------------------------------------------------------------ menu
-    definisci _menu_widget(se_stesso, e, nome):
+    definisci _menu_widget(se_stesso, evento, nome):
         se nome non in se_stesso.selezione_:
             se_stesso.seleziona([nome])
-        se_stesso._menu(e, nome)
+        se_stesso._menu(evento, nome)
         ritorna "break"
 
-    definisci _menu(se_stesso, e, nome):
+    definisci _menu(se_stesso, evento, nome):
         m = tk.Menu(se_stesso, tearoff=0)
         se nome:
             c = se_stesso.form.trova(nome)
-            m.add_command(label=f"Vai al gestore dell'evento", command=lambda: se_stesso._doppio(e, nome))
+            m.add_command(label=f"Vai al gestore dell'evento", command=lambda: se_stesso._doppio(evento, nome))
             m.add_command(label="Duplica", command=se_stesso.duplica)
             m.add_command(label="Porta in primo piano", command=lambda: se_stesso.ordine(Vero))
             m.add_command(label="Porta in secondo piano", command=lambda: se_stesso.ordine(Falso))
@@ -1571,7 +1571,7 @@ classe Progettista(tk.Frame):
         altrimenti:
             m.add_command(label="Incolla", command=se_stesso.incolla)
             m.add_command(label="Proprietà della finestra", command=lambda: se_stesso.seleziona([]))
-        m.tk_popup(e.x_root, e.y_root)
+        m.tk_popup(evento.x_root, evento.y_root)
 
     # ------------------------------------------------------------ operazioni sul modello
     definisci _registra(se_stesso):
@@ -1816,7 +1816,7 @@ classe Progettista(tk.Frame):
             ritorna
         c = se_stesso.form.trova(se_stesso.selezione_[0])
         se_stesso.intestazione_ispettore.configure(text=f"{c.tipo}")
-        e = aggiungi_riga("Nome", lambda p: se_stesso._entry(p, c.nome, lambda v: se_stesso._rinomina(c, v)))
+        elemento = aggiungi_riga("Nome", lambda p: se_stesso._entry(p, c.nome, lambda v: se_stesso._rinomina(c, v)))
         in_griglia = form_modello.definizione_griglia(se_stesso.form, c.genitore) è non Nessuno e e_visivo(c.tipo)
         se in_griglia:
             se_stesso._campi_cella(aggiungi_riga, c)
@@ -1836,13 +1836,13 @@ classe Progettista(tk.Frame):
 
     definisci _entry(se_stesso, genitore, valore, alla_conferma, larghezza=8):
         c_ = se_stesso.colori
-        e = tk.Entry(genitore, width=larghezza, background=c_["campo"], foreground=c_["primo_piano"],
+        elemento = tk.Entry(genitore, width=larghezza, background=c_["campo"], foreground=c_["primo_piano"],
                      insertbackground=c_["cursore"], relief="flat", highlightthickness=1,
                      highlightbackground=c_["bordo"], highlightcolor=c_["accento"])
-        e.insert(0, valore)
-        e.bind("<Return>", lambda ev: alla_conferma(e.get()))
-        e.bind("<FocusOut>", lambda ev: alla_conferma(e.get()))
-        ritorna e
+        elemento.insert(0, valore)
+        elemento.bind("<Return>", lambda ev: alla_conferma(elemento.get()))
+        elemento.bind("<FocusOut>", lambda ev: alla_conferma(elemento.get()))
+        ritorna elemento
 
     definisci _spin(se_stesso, genitore, valore, alla_conferma, minimo, massimo, larghezza=8):
         """Campo numerico con le freccette su/giù (anche rotella e tasti freccia), dentro i limiti naturali del valore."""
@@ -1959,20 +1959,20 @@ classe Progettista(tk.Frame):
 
     definisci _campo_colore(se_stesso, genitore, valore, alla_conferma):
         cornice = tk.Frame(genitore, background=se_stesso.colori["pannello"])
-        e = se_stesso._entry(cornice, valore, alla_conferma, larghezza=6)
-        e.pack(side="left", fill="x", expand=Vero)
+        elemento = se_stesso._entry(cornice, valore, alla_conferma, larghezza=6)
+        elemento.pack(side="left", fill="x", expand=Vero)
 
         definisci scegli():
-            scelto = colorchooser.askcolor(color=e.get() o Nessuno, parent=se_stesso)
+            scelto = colorchooser.askcolor(color=elemento.get() o Nessuno, parent=se_stesso)
             se scelto e scelto[1]:
-                e.delete(0, "end")
-                e.insert(0, scelto[1])
+                elemento.delete(0, "end")
+                elemento.insert(0, scelto[1])
                 alla_conferma(scelto[1])
         b1 = tk.Button(cornice, text="…", command=scegli, width=3, relief="flat",
                        background=se_stesso.colori["pulsante"], foreground=se_stesso.colori["primo_piano"])
         b1.pack(side="left", padx=2)
         stile_suggerisci(b1, "Sceglie il colore", se_stesso.colori)
-        b2 = tk.Button(cornice, text="✕", command=lambda: (e.delete(0, "end"), alla_conferma("")), width=2, relief="flat",
+        b2 = tk.Button(cornice, text="✕", command=lambda: (elemento.delete(0, "end"), alla_conferma("")), width=2, relief="flat",
                        background=se_stesso.colori["pulsante"], foreground=se_stesso.colori["primo_piano"])
         b2.pack(side="left")
         stile_suggerisci(b2, "Toglie il colore (usa quello predefinito)", se_stesso.colori)
@@ -2158,8 +2158,8 @@ classe Progettista(tk.Frame):
             ritorna se_stesso._campo_database(genitore, c, chiave)
         se tipo_ == "file":
             cornice = tk.Frame(genitore, background=c_["pannello"])
-            e = se_stesso._entry(cornice, valore o "", lambda v: se_stesso._modifica(c, chiave, v), larghezza=6)
-            e.pack(side="left", fill="x", expand=Vero)
+            elemento = se_stesso._entry(cornice, valore o "", lambda v: se_stesso._modifica(c, chiave, v), larghezza=6)
+            elemento.pack(side="left", fill="x", expand=Vero)
 
             definisci scegli():
                 p = filedialog.askopenfilename(parent=se_stesso, initialdir=se_stesso.cartella,
@@ -2175,8 +2175,8 @@ classe Progettista(tk.Frame):
                     p = nuovo
                     se_stesso.azioni.info("Immagine copiata in risorse/")
                 rel = os.path.relpath(p, se_stesso.cartella).replace("\\", "/")
-                e.delete(0, "end")
-                e.insert(0, rel)
+                elemento.delete(0, "end")
+                elemento.insert(0, rel)
                 se_stesso._modifica(c, chiave, rel)
             b = tk.Button(cornice, text="…", command=scegli, width=3, relief="flat",
                           background=c_["pulsante"], foreground=c_["primo_piano"])
@@ -2185,13 +2185,13 @@ classe Progettista(tk.Frame):
             ritorna cornice
         se tipo_ == "evento":
             cornice = tk.Frame(genitore, background=c_["pannello"])
-            e = se_stesso._entry(cornice, valore o "", lambda v: se_stesso._modifica(c, chiave, v.strip()), larghezza=6)
-            e.pack(side="left", fill="x", expand=Vero)
+            elemento = se_stesso._entry(cornice, valore o "", lambda v: se_stesso._modifica(c, chiave, v.strip()), larghezza=6)
+            elemento.pack(side="left", fill="x", expand=Vero)
 
             definisci crea_gestore():
-                se non e.get().strip():
-                    e.insert(0, f"{chiave}_{c.nome}")
-                se_stesso._modifica(c, chiave, e.get().strip())
+                se non elemento.get().strip():
+                    elemento.insert(0, f"{chiave}_{c.nome}")
+                se_stesso._modifica(c, chiave, elemento.get().strip())
                 se_stesso.vai_al_gestore(c, chiave)
             b = tk.Button(cornice, text="⏎", command=crea_gestore, width=3, relief="flat",
                           background=c_["pulsante"], foreground=c_["primo_piano"])
@@ -2264,8 +2264,8 @@ classe Progettista(tk.Frame):
         """Il file SQLite (relativo al progetto se ci sta dentro) oppure il nome del database MySQL."""
         c_ = se_stesso.colori
         cornice = tk.Frame(genitore, background=c_["pannello"])
-        e = se_stesso._entry(cornice, c.valori.get(chiave) o "", lambda v: se_stesso._modifica(c, chiave, v.strip()), larghezza=6)
-        e.pack(side="left", fill="x", expand=Vero)
+        elemento = se_stesso._entry(cornice, c.valori.get(chiave) o "", lambda v: se_stesso._modifica(c, chiave, v.strip()), larghezza=6)
+        elemento.pack(side="left", fill="x", expand=Vero)
         se c.valori.get("dialetto") == "mysql":
             ritorna cornice
 
@@ -2280,8 +2280,8 @@ classe Progettista(tk.Frame):
             altrimenti:
                 valore = percorso
                 se_stesso.azioni.info("Il database sta fuori dal progetto: il programma lo cercherà in quel percorso. Meglio tenerlo nella cartella del progetto.")
-            e.delete(0, "end")
-            e.insert(0, valore)
+            elemento.delete(0, "end")
+            elemento.insert(0, valore)
             se_stesso._modifica(c, chiave, valore)
         b = tk.Button(cornice, text="…", command=scegli, width=3, relief="flat", background=c_["pulsante"], foreground=c_["primo_piano"])
         b.pack(side="left", padx=2)

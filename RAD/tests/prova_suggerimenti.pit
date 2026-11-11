@@ -55,15 +55,15 @@ radice.update()
 stampa("fumetto nascosto all'uscita:", s._finestra è Nessuno)
 
 # nuova funzione stile.suggerisci su un widget qualunque (anche senza colori del tema)
-e = stile.suggerisci(tk.Button(radice, text="x"), "prova")
-stampa("suggerisci ritorna il widget:", isinstance(e, tk.Button), e._suggerimento.testo == "prova")
-e._suggerimento.ritardo = 10
-e.pack()
+elemento = stile.suggerisci(tk.Button(radice, text="x"), "prova")
+stampa("suggerisci ritorna il widget:", isinstance(elemento, tk.Button), elemento._suggerimento.testo == "prova")
+elemento._suggerimento.ritardo = 10
+elemento.pack()
 radice.update()
-e.event_generate("<Enter>")
+elemento.event_generate("<Enter>")
 radice.after(80, radice.quit)
 radice.mainloop()
-stampa("senza colori del tema:", e._suggerimento._finestra è non Nessuno)
+stampa("senza colori del tema:", elemento._suggerimento._finestra è non Nessuno)
 
 # più monitor: il fumetto sta vicino al puntatore e dentro il monitor in cui il puntatore si trova
 l, a, r, b = stile.area_monitor(radice, radice.winfo_pointerx(), radice.winfo_pointery())

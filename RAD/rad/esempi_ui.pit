@@ -23,7 +23,7 @@ classe DialogoEsempi(DialogoBase):
         se_stesso.albero.pack(fill="y", expand=Vero)
         se_stesso.albero.column("#0", width=250)
         se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._scelta)
-        se_stesso.albero.bind("<Double-Button-1>", lambda e: se_stesso._conferma())
+        se_stesso.albero.bind("<Double-Button-1>", lambda evento: se_stesso._conferma())
         destra = tk.Frame(se_stesso, background=c["pannello"])
         destra.grid(row=0, column=1, sticky="nsew", padx=(6, 14), pady=14)
         se_stesso.titolo = tk.Label(destra, text="Scegli un esempio a sinistra", anchor="w", background=c["pannello"], foreground=c["primo_piano"], font=semi(14))
@@ -42,22 +42,22 @@ classe DialogoEsempi(DialogoBase):
         se_stesso.pulsante.pack(side="right", padx=4)
         se_stesso.per_id = {}
         categorie = []
-        per e in se_stesso.esempi:
-            se e["categoria"] non in categorie:
-                categorie.append(e["categoria"])
+        per elemento in se_stesso.esempi:
+            se elemento["categoria"] non in categorie:
+                categorie.append(elemento["categoria"])
         per cat in categorie:
             se_stesso.albero.insert("", "end", iid="cat:" + cat, text=cat, open=Vero)
-            per e in se_stesso.esempi:
-                se e["categoria"] == cat:
-                    se_stesso.albero.insert("cat:" + cat, "end", iid=e["id"], text="   " + e["titolo"])
-                    se_stesso.per_id[e["id"]] = e
+            per elemento in se_stesso.esempi:
+                se elemento["categoria"] == cat:
+                    se_stesso.albero.insert("cat:" + cat, "end", iid=elemento["id"], text="   " + elemento["titolo"])
+                    se_stesso.per_id[elemento["id"]] = elemento
         se non se_stesso.esempi:
             se_stesso.titolo.configure(text="Nessun esempio trovato")
-        se_stesso.bind("<Return>", lambda e: se_stesso._conferma())
+        se_stesso.bind("<Return>", lambda evento: se_stesso._conferma())
         se se_stesso.esempi:
             se_stesso.albero.selection_set(se_stesso.esempi[0]["id"])
 
-    definisci _scelta(se_stesso, e=Nessuno):
+    definisci _scelta(se_stesso, evento=Nessuno):
         sel = se_stesso.albero.selection()
         esempio = se_stesso.per_id.get(sel[0]) se sel altrimenti Nessuno
         se non esempio:

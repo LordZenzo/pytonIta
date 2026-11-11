@@ -38,10 +38,10 @@ classe FinestraRisultati(tk.Toplevel):
             se_stesso.albero.selection_set("0")
         se_stesso.albero.bind("<Double-Button-1>", se_stesso._apri_scelto)
         se_stesso.albero.bind("<Return>", se_stesso._apri_scelto)
-        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
         se_stesso.albero.focus_set()
 
-    definisci _apri_scelto(se_stesso, e=Nessuno):
+    definisci _apri_scelto(se_stesso, evento=Nessuno):
         sel = se_stesso.albero.selection()
         se non sel:
             ritorna "break"

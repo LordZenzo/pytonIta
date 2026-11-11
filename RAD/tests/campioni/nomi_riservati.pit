@@ -54,6 +54,6 @@ stampa(x)
 stampa(1 se classe altrimenti 2)
 prova:
     1 / 0
-eccetto DivisionePerZero come e:
-    stampa("e =", e)
+eccetto DivisionePerZero come errore:
+    stampa("e =", errore)
 altrimenti_ = 3

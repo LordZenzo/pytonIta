@@ -80,22 +80,22 @@ classe FinestraEsercizi(tk.Toplevel):
         se_stesso.barra.grid(row=6, column=0, sticky="we", pady=(8, 0))
         se_stesso.riga_progressi = tk.Label(destra, text="", anchor="w", background=c["pannello"], foreground=c["tenue"])
         se_stesso.riga_progressi.grid(row=7, column=0, sticky="we")
-        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
         se_stesso.riempi()
 
     definisci riempi(se_stesso, scegli=Nessuno):
         scelto = scegli o (se_stesso.corrente["id"] se se_stesso.corrente altrimenti Nessuno)
         se_stesso.albero.delete(*se_stesso.albero.get_children())
         argomenti = []
-        per e in se_stesso.lista:
-            se e["argomento"] non in argomenti:
-                argomenti.append(e["argomento"])
+        per elemento in se_stesso.lista:
+            se elemento["argomento"] non in argomenti:
+                argomenti.append(elemento["argomento"])
         per arg in argomenti:
             se_stesso.albero.insert("", "end", iid="arg:" + arg, text=arg, open=Vero)
-            per e in se_stesso.lista:
-                se e["argomento"] == arg:
-                    segno = "✓" se esercizi.completato(se_stesso.config_, e["id"]) altrimenti "○"
-                    se_stesso.albero.insert("arg:" + arg, "end", iid=e["id"], text=f"  {segno}  {e['titolo']}")
+            per elemento in se_stesso.lista:
+                se elemento["argomento"] == arg:
+                    segno = "✓" se esercizi.completato(se_stesso.config_, elemento["id"]) altrimenti "○"
+                    se_stesso.albero.insert("arg:" + arg, "end", iid=elemento["id"], text=f"  {segno}  {elemento['titolo']}")
         fatti, totale = esercizi.riassunto_progressi(se_stesso.config_, se_stesso.lista)
         se_stesso.barra.configure(value=fatti)
         se_stesso.riga_progressi.configure(text=f"{fatti} esercizi completati su {totale}" + ("   —   fantastico!" se fatti == totale e totale altrimenti ""))
@@ -113,7 +113,7 @@ classe FinestraEsercizi(tk.Toplevel):
             widget.insert("end", testo_)
         widget.configure(state="disabled")
 
-    definisci _scelta(se_stesso, e=Nessuno):
+    definisci _scelta(se_stesso, evento=Nessuno):
         sel = se_stesso.albero.selection()
         per_id = {x["id"]: x per x in se_stesso.lista}
         esercizio = per_id.get(sel[0]) se sel altrimenti Nessuno
@@ -138,18 +138,18 @@ classe FinestraEsercizi(tk.Toplevel):
             se_stesso.azioni.apri_esercizio(se_stesso.corrente)
 
     definisci controlla(se_stesso):
-        e = se_stesso.corrente
-        se non e:
+        elemento = se_stesso.corrente
+        se non elemento:
             ritorna
         se_stesso.configure(cursor="watch")
         se_stesso.update_idletasks()
         prova:
-            r = se_stesso.azioni.controlla_esercizio(e)
+            r = se_stesso.azioni.controlla_esercizio(elemento)
         infine:
             se_stesso.configure(cursor="")
         se r è Nessuno:
             ritorna
-        se_stesso.riempi(e["id"])
+        se_stesso.riempi(elemento["id"])
         se_stesso._scelta()
         t = se_stesso.risultato
         t.configure(state="normal")
@@ -162,22 +162,22 @@ classe FinestraEsercizi(tk.Toplevel):
         t.configure(state="disabled")
 
     definisci suggerimento(se_stesso):
-        e = se_stesso.corrente
-        se non e o non e["suggerimenti"]:
+        elemento = se_stesso.corrente
+        se non elemento o non elemento["suggerimenti"]:
             ritorna
-        se_stesso.suggerimenti_mostrati = min(se_stesso.suggerimenti_mostrati + 1, lunghezza(e["suggerimenti"]))
-        testo_ = "\n".join(f"💡 {i}. {s}" per i, s in enumera(e["suggerimenti"][:se_stesso.suggerimenti_mostrati], 1))
-        se se_stesso.suggerimenti_mostrati < lunghezza(e["suggerimenti"]):
+        se_stesso.suggerimenti_mostrati = min(se_stesso.suggerimenti_mostrati + 1, lunghezza(elemento["suggerimenti"]))
+        testo_ = "\n".join(f"💡 {i}. {s}" per i, s in enumera(elemento["suggerimenti"][:se_stesso.suggerimenti_mostrati], 1))
+        se se_stesso.suggerimenti_mostrati < lunghezza(elemento["suggerimenti"]):
             testo_ += "\n\n(Premi ancora «Suggerimento» per un aiuto più preciso.)"
         se_stesso._imposta_testo(se_stesso.risultato, testo_)
 
     definisci soluzione(se_stesso):
-        e = se_stesso.corrente
-        se non e o non e["soluzione"]:
+        elemento = se_stesso.corrente
+        se non elemento o non elemento["soluzione"]:
             ritorna
         se non messagebox.askyesno("Soluzione", "Hai provato a risolverlo? Guardare subito la soluzione toglie il bello.\n\nVuoi vederla lo stesso?", parent=se_stesso):
             ritorna
-        se_stesso._imposta_testo(se_stesso.risultato, "Una soluzione possibile:\n\n" + e["soluzione"])
+        se_stesso._imposta_testo(se_stesso.risultato, "Una soluzione possibile:\n\n" + elemento["soluzione"])
 
     definisci _aggiungi_cartella(se_stesso):
         se_stesso.azioni.aggiungi_cartella_esercizi()

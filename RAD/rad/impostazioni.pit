@@ -129,15 +129,15 @@ classe Impostazioni(DialogoBase):
         tela.pack(side="left", fill="both", expand=Vero)
         cornice = tk.Frame(tela, background=sfondo)
         finestra_id = tela.create_window(0, 0, window=cornice, anchor="nw")
-        cornice.bind("<Configure>", lambda e: tela.configure(scrollregion=tela.bbox("all")))
-        tela.bind("<Configure>", lambda e: tela.itemconfigure(finestra_id, width=e.width))
+        cornice.bind("<Configure>", lambda evento: tela.configure(scrollregion=tela.bbox("all")))
+        tela.bind("<Configure>", lambda elemento: tela.itemconfigure(finestra_id, width=elemento.width))
         cornice.grid_columnconfigure(1, weight=1)
         se_stesso._tele[testo(esterno)] = tela
         ritorna cornice
 
-    definisci _rotella(se_stesso, e):
+    definisci _rotella(se_stesso, evento):
         """La rotella fa scorrere la pagina aperta (non dove c'è già un campo di testo che scorre da solo)."""
-        se e.widget.winfo_class() in ("Text", "Listbox", "TCombobox"):
+        se evento.widget.winfo_class() in ("Text", "Listbox", "TCombobox"):
             ritorna
         prova:
             tela = se_stesso._tele.get(testo(se_stesso.blocco.nametowidget(se_stesso.blocco.select())))
@@ -145,7 +145,7 @@ classe Impostazioni(DialogoBase):
             ritorna
         se tela è Nessuno o tela.yview() == (0.0, 1.0):
             ritorna
-        tela.yview_scroll(-1 se e.delta > 0 altrimenti 1, "units")
+        tela.yview_scroll(-1 se evento.delta > 0 altrimenti 1, "units")
 
     definisci _scheda(se_stesso, blocco, titolo, campi):
         pagina = se_stesso._pagina(blocco, titolo)
@@ -194,7 +194,7 @@ classe Impostazioni(DialogoBase):
         se_stesso.var_tema = tk.StringVar(value=se_stesso.config_.ottieni("tema"))
         cb = ttk.Combobox(pagina, textvariable=se_stesso.var_tema, values=lista(TEMI.keys()), state="readonly", width=14)
         cb.grid(row=0, column=1, sticky="w", padx=12)
-        cb.bind("<<ComboboxSelected>>", lambda e: se_stesso._ricarica_colori())
+        cb.bind("<<ComboboxSelected>>", lambda evento: se_stesso._ricarica_colori())
         tk.Label(pagina, text="Colori personalizzati (vuoto = quelli del tema)", anchor="w",
                  background=c["pannello"], foreground=c["tenue"]).grid(row=1, column=0, columnspan=2, sticky="w", padx=12)
         griglia = tk.Frame(pagina, background=c["pannello"])
@@ -206,9 +206,9 @@ classe Impostazioni(DialogoBase):
             tk.Label(griglia, text=etichetta, anchor="w", background=c["pannello"], foreground=c["primo_piano"],
                      width=20).grid(row=riga, column=col, sticky="w", pady=3)
             var = tk.StringVar()
-            e = tk.Entry(griglia, textvariable=var, width=9, background=c["campo"], foreground=c["primo_piano"],
+            elemento = tk.Entry(griglia, textvariable=var, width=9, background=c["campo"], foreground=c["primo_piano"],
                          relief="flat", insertbackground=c["cursore"])
-            e.grid(row=riga, column=col + 1, padx=4)
+            elemento.grid(row=riga, column=col + 1, padx=4)
             campione = tk.Label(griglia, text="   ", width=3, relief="solid", borderwidth=1)
             campione.grid(row=riga, column=col + 2, padx=(0, 14))
             campione.bind("<Button-1>", lambda ev, v=var, k=chiave: se_stesso._scegli_colore(v, k))

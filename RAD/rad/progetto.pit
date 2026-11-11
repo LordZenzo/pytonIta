@@ -500,7 +500,7 @@ classe DialogoGruppoFinestra(tk.Toplevel):
         ttk.Button(riga, text="Annulla", command=se_stesso.destroy).pack(side="right")
         se_stesso.bottone = ttk.Button(riga, text="Elimina", command=se_stesso._conferma)
         se_stesso.bottone.pack(side="right", padx=(0, 8))
-        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
         se_stesso.update_idletasks()
         p = genitore.winfo_toplevel()
         x = p.winfo_rootx() + max(0, (p.winfo_width() - se_stesso.winfo_reqwidth()) // 2)
@@ -555,8 +555,8 @@ classe PannelloProgetto(tk.Frame):
         se_stesso.albero.bind("<Double-1>", se_stesso._doppio_clic)
         se_stesso.albero.bind("<Return>", se_stesso._doppio_clic)
         se_stesso.albero.bind("<Button-3>", se_stesso._menu_contestuale)
-        se_stesso.albero.bind("<F2>", lambda e: se_stesso.rinomina())
-        se_stesso.albero.bind("<Delete>", lambda e: se_stesso.cancella())
+        se_stesso.albero.bind("<F2>", lambda evento: se_stesso.rinomina())
+        se_stesso.albero.bind("<Delete>", lambda evento: se_stesso.cancella())
         se_stesso.menu = tk.Menu(se_stesso, tearoff=0)
 
     # --- albero
@@ -631,7 +631,7 @@ classe PannelloProgetto(tk.Frame):
             rel = se_stesso.albero.item(nodo, "values")[0]
             se_stesso._riempi(nodo, rel)
 
-    definisci _alla_apertura(se_stesso, e):
+    definisci _alla_apertura(se_stesso, evento):
         nodo = se_stesso.albero.focus()
         se nodo:
             se_stesso._carica_figli(nodo)
@@ -655,7 +655,7 @@ classe PannelloProgetto(tk.Frame):
             ritorna rel
         ritorna os.path.dirname(rel).replace("\\", "/")
 
-    definisci _doppio_clic(se_stesso, e=Nessuno):
+    definisci _doppio_clic(se_stesso, evento=Nessuno):
         rel, e_cartella = se_stesso._selezionato()
         se rel e non e_cartella:
             se_stesso.azioni.apri_file(se_stesso.progetto.assoluto(rel))
@@ -663,8 +663,8 @@ classe PannelloProgetto(tk.Frame):
                 ritorna "break"            # sul nodo della finestra il doppio clic apre il progettista, non apre né chiude il nodo
 
     # --- menu contestuale
-    definisci _menu_contestuale(se_stesso, e):
-        riga = se_stesso.albero.identify_row(e.y)
+    definisci _menu_contestuale(se_stesso, evento):
+        riga = se_stesso.albero.identify_row(evento.y)
         se riga:
             se_stesso.albero.selection_set(riga)
             se_stesso.albero.focus(riga)
@@ -697,7 +697,7 @@ classe PannelloProgetto(tk.Frame):
             m.add_command(label="Mostra in Esplora risorse", command=se_stesso.mostra_in_esplora)
         m.add_separator()
         m.add_command(label="Aggiorna", command=se_stesso.aggiorna)
-        m.tk_popup(e.x_root, e.y_root)
+        m.tk_popup(evento.x_root, evento.y_root)
 
     # --- azioni
     definisci nuovo_file(se_stesso, nome_=Nessuno):

@@ -55,16 +55,16 @@ r.update()
 verifica(p.valutazione.winfo_manager() == "pack" e p.valutazione.cget("text") == "Riga a + b * 2  →  3 + 8  →  11", "riga di valutazione: " + p.valutazione.cget("text"))
 righe = p.variabili.get_children()
 verifica(p.variabili.item(righe[0], "tags") in ((), ("",), "") e "cambiata" in p.variabili.item(righe[1], "tags"), "le variabili cambiate sono evidenziate")
-o = p.osservate.get_children()[0]
-verifica("cambiata" in p.osservate.item(o, "tags") e p.osservate.item(o, "values")[1] in ("", " "), "l'osservata cambiata è evidenziata, senza 👁")
+valore = p.osservate.get_children()[0]
+verifica("cambiata" in p.osservate.item(valore, "tags") e p.osservate.item(valore, "values")[1] in ("", " "), "l'osservata cambiata è evidenziata, senza 👁")
 p.mostra_stato(dict(ev, valutazione=[]))
 r.update()
 verifica(non p.valutazione.winfo_manager(), "la riga sparisce quando non c'è niente da spiegare")
 
 # watchpoint dal pannello: doppio clic sulla riga dell'osservata
-o = p.osservate.get_children()[0]
+valore = p.osservate.get_children()[0]
 r.update()
-bbox = p.osservate.bbox(o, "#0")
+bbox = p.osservate.bbox(valore, "#0")
 classe Clic:
     x = bbox[0] + 5
     y = bbox[1] + 5

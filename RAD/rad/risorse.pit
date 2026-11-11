@@ -67,7 +67,7 @@ classe VisoreImmagine(VisoreBase):
         bx.pack(side="bottom", fill="x")
         by.pack(side="right", fill="y")
         se_stesso.tela.pack(fill="both", expand=Vero)
-        se_stesso.tela.bind("<Configure>", lambda e: se_stesso._ricentra())
+        se_stesso.tela.bind("<Configure>", lambda evento: se_stesso._ricentra())
         lega_rotella(se_stesso.tela, se_stesso._rotella, "Control-")
         se_stesso.carica()
         se_stesso.applica_colori(colori)
@@ -129,8 +129,8 @@ classe VisoreImmagine(VisoreBase):
         se_stesso.tela.create_image(x, y, anchor="nw", image=se_stesso._foto)
         se_stesso.tela.configure(scrollregion=(0, 0, max(W, l + 20), max(H, a + 20)))
 
-    definisci _rotella(se_stesso, e):
-        se_stesso.imposta_zoom(se_stesso.zoom * (1.15 se e.delta > 0 altrimenti 1 / 1.15))
+    definisci _rotella(se_stesso, evento):
+        se_stesso.imposta_zoom(se_stesso.zoom * (1.15 se evento.delta > 0 altrimenti 1 / 1.15))
 
     definisci copia_percorso(se_stesso):
         se_stesso.clipboard_clear()
@@ -182,7 +182,7 @@ classe VisoreJson(VisoreBase):
         divisore.add(sinistra, minsize=200, width=420)
         divisore.add(destra, minsize=200)
         se_stesso.t.bind("<<Modified>>", se_stesso._alla_modifica)
-        se_stesso.t.bind("<Control-s>", lambda e: se_stesso.salva() o "break")
+        se_stesso.t.bind("<Control-s>", lambda evento: se_stesso.salva() o "break")
         se_stesso.carica()
         se_stesso.applica_colori(colori)
 
@@ -220,7 +220,7 @@ classe VisoreJson(VisoreBase):
     definisci contenuto(se_stesso):
         ritorna se_stesso.t.get("1.0", "end-1c")
 
-    definisci _alla_modifica(se_stesso, e=Nessuno):
+    definisci _alla_modifica(se_stesso, evento=Nessuno):
         se se_stesso.t.edit_modified():
             se_stesso.t.edit_modified(Falso)
             se non se_stesso.modificato:
@@ -267,8 +267,8 @@ classe VisoreJson(VisoreBase):
             mostrato = valore se isinstance(valore, str) altrimenti json.dumps(valore)
             se_stesso.albero.insert(genitore, "end", text=chiave, values=(mostrato, tipo_), tags=(percorso,))
 
-    definisci _modifica_valore(se_stesso, e):
-        nodo = se_stesso.albero.identify_row(e.y)
+    definisci _modifica_valore(se_stesso, evento):
+        nodo = se_stesso.albero.identify_row(evento.y)
         se non nodo:
             ritorna
         valori = se_stesso.albero.item(nodo, "values")

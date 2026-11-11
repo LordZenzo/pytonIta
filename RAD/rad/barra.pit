@@ -130,8 +130,8 @@ classe DialogoBarra(DialogoBase):
         se_stesso.resizable(Vero, Vero)
         se_stesso.pulsanti(2, "Applica", se_stesso._conferma)
         se_stesso.grid_slaves(row=2)[0].grid_configure(columnspan=3)
-        se_stesso.lista_comandi.bind("<Double-Button-1>", lambda e: se_stesso.aggiungi())
-        se_stesso.lista_barra.bind("<Double-Button-1>", lambda e: se_stesso.togli())
+        se_stesso.lista_comandi.bind("<Double-Button-1>", lambda evento: se_stesso.aggiungi())
+        se_stesso.lista_barra.bind("<Double-Button-1>", lambda evento: se_stesso.togli())
         se_stesso.riempi()
 
     definisci _crea_lista(se_stesso, riga, colonna):

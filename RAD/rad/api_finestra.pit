@@ -186,8 +186,8 @@ definisci argomenti_chiamata(riga, percorso):
             m = re.match(r"\s*(\w+)\s*=", pezzo)
             se m:
                 usate.add(m.group(1))
-        voci = [(o + "=", "opzione", AIUTO_OPZIONI.get(o, "")) per o in OPZIONI.get(tipo_, _BASE)
-                se o non in usate e o.startswith(prefisso) e o != prefisso]
+        voci = [(elemento + "=", "opzione", AIUTO_OPZIONI.get(elemento, "")) per elemento in OPZIONI.get(tipo_, _BASE)
+                se elemento non in usate e elemento.startswith(prefisso) e elemento != prefisso]
         ritorna (voci, prefisso) se voci altrimenti Nessuno
     se scritti.strip() == "" e (tipo_, metodo) in ARGOMENTI:
         ritorna [(testo_, "argomenti", spiegazione) per testo_, spiegazione in ARGOMENTI[(tipo_, metodo)]], ""

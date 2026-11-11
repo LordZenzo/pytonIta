@@ -201,14 +201,14 @@ form_modello.salva_form(f, cartella)
 
 # --- esportato in Python
 dest = os.path.join(tempfile.mkdtemp(), "e")
-e = esporta_python.esporta(cartella, dest)
+elemento = esporta_python.esporta(cartella, dest)
 open(os.path.join(dest, "p.py"), "w", encoding="utf-8").write(
     "import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport anagrafica\n"
     "r = tk.Tk(); a = anagrafica.Anagrafica(r); r.update()\nprint('python:', a.barra.etichetta.cget('text'))\nr.destroy()\n")
 python_ = __import__("shutil").which("python") o __import__("shutil").which("py")
 se python_:
     u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "p.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
-    stampa("con Python normale:", e["errori"], u.stdout.strip(), u.returncode, u.stderr.strip()[-200:])
+    stampa("con Python normale:", elemento["errori"], u.stdout.strip(), u.returncode, u.stderr.strip()[-200:])
 
 # --- il progettista
 cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))

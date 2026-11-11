@@ -76,8 +76,8 @@ altrimenti:
     sollevato = Falso
     prova:
         ag.installa_da_sorgenti(guasto, prefisso)
-    eccetto ag.ErroreAggiornamenti come e:
-        sollevato = "compilazione fallita" in testo(e)
+    eccetto ag.ErroreAggiornamenti come errore:
+        sollevato = "compilazione fallita" in testo(errore)
     verifica(sollevato, "lo script fallito doveva dare un errore con il suo testo")
 
     # archivio non valido

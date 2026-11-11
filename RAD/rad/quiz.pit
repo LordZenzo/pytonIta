@@ -87,9 +87,9 @@ definisci prepara(d, caso=Nessuno):
     caso = caso o random
     opzioni = [{"testo": testo(d["giusta"]), "giusta": Vero, "indizio": ""}]
     per x in d["sbagliate"]:
-        o = _opzione(x)
-        o["giusta"] = Falso
-        opzioni.append(o)
+        valore = _opzione(x)
+        valore["giusta"] = Falso
+        opzioni.append(valore)
     caso.shuffle(opzioni)
     ritorna {"domanda": d.get("domanda") o ("Che cosa stampa questo programma?" se d.get("tipo") == "stampa" altrimenti ""),
              "codice": d.get("codice", ""), "opzioni": opzioni, "spiegazione": d.get("spiegazione", ""),
@@ -99,7 +99,7 @@ definisci prepara(d, caso=Nessuno):
 definisci valuta(p, indice):
     """(giusta?, messaggio) per la risposta scelta."""
     scelta = p["opzioni"][indice]
-    giusta = [o per o in p["opzioni"] se o["giusta"]][0]
+    giusta = [elemento per elemento in p["opzioni"] se elemento["giusta"]][0]
     se scelta["giusta"]:
         ritorna Vero, "Giusto! " + p["spiegazione"]
     messaggio = "Non è questa. " + (scelta["indizio"] o "")

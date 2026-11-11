@@ -38,8 +38,8 @@ classe FonteDati:
     definisci sqlite(percorso, tabella):
         prova:
             conn = sqlite3.connect(percorso)
-        eccetto sqlite3.Error come e:
-            solleva ErroreDati(f"Non riesco ad aprire il database: {e}")
+        eccetto sqlite3.Error come eccezione:
+            solleva ErroreDati(f"Non riesco ad aprire il database: {eccezione}")
         ritorna FonteDati(conn, tabella)
 
     @staticmethod
@@ -50,8 +50,8 @@ classe FonteDati:
             solleva ErroreDati("Per MySQL serve il pacchetto pymysql (pip install pymysql).")
         prova:
             conn = pymysql.connect(host=server, port=int(porta), user=utente, password=password, database=database, charset="utf8mb4", connect_timeout=8)
-        eccetto Exception come e:
-            solleva ErroreDati(f"Collegamento a MySQL non riuscito: {e}")
+        eccetto Exception come eccezione:
+            solleva ErroreDati(f"Collegamento a MySQL non riuscito: {eccezione}")
         ritorna FonteDati(conn, tabella, è_mysql=Vero)
 
     definisci _n(se_stesso, nome):
@@ -64,8 +64,8 @@ classe FonteDati:
                 cur.execute(sql, tuple(parametri))
             altrimenti:
                 cur.execute(sql)
-        eccetto Exception come e:
-            solleva ErroreDati(testo(e))
+        eccetto Exception come eccezione:
+            solleva ErroreDati(testo(eccezione))
         ritorna cur
 
     definisci _leggi_struttura(se_stesso):

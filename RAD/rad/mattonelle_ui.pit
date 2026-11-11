@@ -74,8 +74,8 @@ classe DialogoTesto(tk.Toplevel):
                              foreground=colori["primo_piano"], relief="flat", padx=12), "Chiude senza salvare  (Esc)").pack(side="right", padx=(4, 0))
         suggerisci(tk.Button(barra, text="Applica", command=se_stesso.applica, background=colori["accento"],
                              foreground="#ffffff", relief="flat", padx=12), "Salva il testo nella mattonella  (Ctrl+Invio)").pack(side="right", padx=4)
-        se_stesso.bind("<Escape>", lambda e: se_stesso._chiudi())
-        se_stesso.t.bind("<Control-Return>", lambda e: (se_stesso.applica(), "break")[1])
+        se_stesso.bind("<Escape>", lambda evento: se_stesso._chiudi())
+        se_stesso.t.bind("<Control-Return>", lambda evento: (se_stesso.applica(), "break")[1])
         se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
 
     definisci _imposta_a_capo(se_stesso):
@@ -141,7 +141,7 @@ classe DialogoClasse(tk.Toplevel):
                              relief="flat", padx=12), "Chiude senza salvare  (Esc)").pack(side="right", padx=4)
         suggerisci(tk.Button(barra, text="Applica", command=se_stesso.applica, background=colori["accento"], foreground="#ffffff",
                              relief="flat", padx=12), "Salva le modifiche").pack(side="right", padx=4)
-        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
 
     definisci applica(se_stesso):
         se_stesso.risultato = (se_stesso.e_nome.get().strip(), se_stesso.e_base.get().strip(), se_stesso.t.get("1.0", "end-1c"))
@@ -186,14 +186,14 @@ classe AreaMattonelle(tk.Frame):
         t.bind("<Double-Button-1>", se_stesso._doppio)
         t.bind("<Button-3>", se_stesso._menu)
         lega_rotella(t, se_stesso._rotella)
-        lega_rotella(t, lambda e: t.xview_scroll(-1 se e.delta > 0 altrimenti 1, "units"), "Shift-")
+        lega_rotella(t, lambda evento: t.xview_scroll(-1 se evento.delta > 0 altrimenti 1, "units"), "Shift-")
         lega_rotella(t, se_stesso._zoom_rotella, "Control-")
-        t.bind("<Delete>", lambda e: se_stesso.cancella_selezione())
-        t.bind("<Control-d>", lambda e: se_stesso.duplica_selezione())
-        t.bind("<Control-z>", lambda e: se_stesso.editor.annulla())
-        t.bind("<Control-y>", lambda e: se_stesso.editor.ripeti())
-        t.bind("<Escape>", lambda e: se_stesso._chiudi_modifica())
-        t.bind("<Configure>", lambda e: se_stesso.ridisegna())
+        t.bind("<Delete>", lambda evento: se_stesso.cancella_selezione())
+        t.bind("<Control-d>", lambda evento: se_stesso.duplica_selezione())
+        t.bind("<Control-z>", lambda evento: se_stesso.editor.annulla())
+        t.bind("<Control-y>", lambda evento: se_stesso.editor.ripeti())
+        t.bind("<Escape>", lambda evento: se_stesso._chiudi_modifica())
+        t.bind("<Configure>", lambda evento: se_stesso.ridisegna())
 
     # ------------------------------------------------------------ accesso al modello
     definisci area(se_stesso):
@@ -234,8 +234,8 @@ classe AreaMattonelle(tk.Frame):
                     se_stesso.tela.create_text(lay.x, lay.y - 6, text="non collegato: non verrà eseguito", anchor="sw",
                                                fill=se_stesso.colori["avviso"], font=(FONT_UI, 8, "italic"), tags=("m", "sciolta"))
 
-    definisci _coord(se_stesso, e):
-        ritorna se_stesso.tela.canvasx(e.x), se_stesso.tela.canvasy(e.y)
+    definisci _coord(se_stesso, evento):
+        ritorna se_stesso.tela.canvasx(evento.x), se_stesso.tela.canvasy(evento.y)
 
     # ------------------------------------------------------------ selezione
     definisci seleziona(se_stesso, ids):
@@ -243,14 +243,14 @@ classe AreaMattonelle(tk.Frame):
         se_stesso.ridisegna()
 
     # ------------------------------------------------------------ mouse
-    definisci _premi(se_stesso, e):
+    definisci _premi(se_stesso, evento):
         se_stesso.tela.focus_set()
         se_stesso._chiudi_modifica()
-        cx, cy = se_stesso._coord(e)
+        cx, cy = se_stesso._coord(evento)
         hit = se_stesso.disegnatore.trova(se_stesso.area(), cx, cy)
         se hit è Nessuno:
             se_stesso.seleziona(())
-            se_stesso.tela.scan_mark(e.x, e.y)
+            se_stesso.tela.scan_mark(evento.x, evento.y)
             se_stesso._panoramica = Vero
             ritorna
         m, zona, nome = hit
@@ -263,16 +263,16 @@ classe AreaMattonelle(tk.Frame):
             se_stesso._modifica_letterale(m, nome)
             ritorna
         se_stesso.seleziona((m.id,))
-        se_stesso._attesa = {"m": m, "x0": cx, "y0": cy, "ex": e.x, "ey": e.y, "alt": bool(e.state & 0x20000)}
+        se_stesso._attesa = {"m": m, "x0": cx, "y0": cy, "ex": evento.x, "ey": evento.y, "alt": bool(evento.state & 0x20000)}
 
-    definisci _muovi_mouse(se_stesso, e):
+    definisci _muovi_mouse(se_stesso, evento):
         se se_stesso._panoramica:
-            se_stesso.tela.scan_dragto(e.x, e.y, gain=1)
+            se_stesso.tela.scan_dragto(evento.x, evento.y, gain=1)
             ritorna
-        cx, cy = se_stesso._coord(e)
+        cx, cy = se_stesso._coord(evento)
         se se_stesso._trasc è Nessuno e se_stesso._attesa:
             a = se_stesso._attesa
-            se abs(e.x - a["ex"]) + abs(e.y - a["ey"]) < 5:
+            se abs(evento.x - a["ex"]) + abs(evento.y - a["ey"]) < 5:
                 ritorna
             se_stesso._inizia_distacco()
         se se_stesso._trasc:
@@ -318,7 +318,7 @@ classe AreaMattonelle(tk.Frame):
         se_stesso.disegnatore.disegna_aggancio(se_stesso._candidato)
         se_stesso.editor.suggerimento_trascinamento(se_stesso._candidato)
 
-    definisci _rilascia(se_stesso, e):
+    definisci _rilascia(se_stesso, evento):
         se se_stesso._panoramica:
             se_stesso._panoramica = Falso
             ritorna
@@ -327,7 +327,7 @@ classe AreaMattonelle(tk.Frame):
             ritorna
         t = se_stesso._trasc
         # rilasciata sopra la tavolozza = cestino
-        sotto = se_stesso.winfo_containing(e.x_root, e.y_root)
+        sotto = se_stesso.winfo_containing(evento.x_root, evento.y_root)
         se sotto è non Nessuno e se_stesso.editor.è_tavolozza(sotto):
             se_stesso.editor.cestina(se_stesso.area(), t["radice"])
         altrimenti:
@@ -455,33 +455,33 @@ classe AreaMattonelle(tk.Frame):
     definisci _edit_testo(se_stesso, rett, valore, alla_conferma):
         se_stesso._chiudi_modifica()
         x, y, w, h = rett
-        e = tk.Entry(se_stesso.tela, font=se_stesso.disegnatore.f_campo, relief="solid", borderwidth=1,
+        elemento = tk.Entry(se_stesso.tela, font=se_stesso.disegnatore.f_campo, relief="solid", borderwidth=1,
                      background="#ffffff", foreground="#111111", insertbackground="#111111")
-        e.insert(0, valore)
+        elemento.insert(0, valore)
         larghezza = max(w + 24, se_stesso.disegnatore.s(110))
-        id_ = se_stesso.tela.create_window(x - 2, y - 2, anchor="nw", window=e, width=larghezza, height=h + 4, tags="edit")
-        e.focus_set()
-        e.select_range(0, "end")
+        id_ = se_stesso.tela.create_window(x - 2, y - 2, anchor="nw", window=elemento, width=larghezza, height=h + 4, tags="edit")
+        elemento.focus_set()
+        elemento.select_range(0, "end")
 
         definisci conferma(ev=Nessuno):
             se se_stesso._edit è Nessuno:
                 ritorna
-            v = e.get()
+            v = elemento.get()
             se_stesso._edit = Nessuno
-            e.destroy()
+            elemento.destroy()
             se_stesso.tela.delete("edit")
             alla_conferma(v)
-        e.bind("<Return>", conferma)
-        e.bind("<FocusOut>", conferma)
-        e.bind("<Escape>", lambda ev: se_stesso._chiudi_modifica())
-        se_stesso._edit = (e, id_)
+        elemento.bind("<Return>", conferma)
+        elemento.bind("<FocusOut>", conferma)
+        elemento.bind("<Escape>", lambda ev: se_stesso._chiudi_modifica())
+        se_stesso._edit = (elemento, id_)
 
     definisci _chiudi_modifica(se_stesso):
         se se_stesso._edit:
-            e, id_ = se_stesso._edit
+            elemento, id_ = se_stesso._edit
             se_stesso._edit = Nessuno
             prova:
-                e.destroy()
+                elemento.destroy()
             eccetto tk.TclError:
                 passa
             se_stesso.tela.delete("edit")
@@ -508,15 +508,15 @@ classe AreaMattonelle(tk.Frame):
         se v:
             se_stesso._imposta_campo(m, nome, v)
 
-    definisci _doppio(se_stesso, e):
-        cx, cy = se_stesso._coord(e)
+    definisci _doppio(se_stesso, evento):
+        cx, cy = se_stesso._coord(evento)
         hit = se_stesso.disegnatore.trova(se_stesso.area(), cx, cy)
         se hit e hit[0].tipo.startswith("fn"):
             se_stesso.editor.vai_alla_funzione(hit[0].tipo.split(":", 1)[1])
 
     # ------------------------------------------------------------ menu e comandi
-    definisci _menu(se_stesso, e):
-        cx, cy = se_stesso._coord(e)
+    definisci _menu(se_stesso, evento):
+        cx, cy = se_stesso._coord(evento)
         hit = se_stesso.disegnatore.trova(se_stesso.area(), cx, cy)
         menu = tk.Menu(se_stesso, tearoff=0)
         c = se_stesso.colori
@@ -546,7 +546,7 @@ classe AreaMattonelle(tk.Frame):
             menu.add_separator()
             menu.add_command(label="Zoom +", command=lambda: se_stesso.editor.cambia_zoom(1.15))
             menu.add_command(label="Zoom −", command=lambda: se_stesso.editor.cambia_zoom(1 / 1.15))
-        menu.tk_popup(e.x_root, e.y_root)
+        menu.tk_popup(evento.x_root, evento.y_root)
 
     definisci stacca(se_stesso, m, solo_questa):
         lay = se_stesso.disegnatore.lay[m.id]
@@ -610,11 +610,11 @@ classe AreaMattonelle(tk.Frame):
         se_stesso.editor.registra()
         se_stesso.editor.notifica()
 
-    definisci _rotella(se_stesso, e):
-        se_stesso.tela.yview_scroll(-1 se e.delta > 0 altrimenti 1, "units")
+    definisci _rotella(se_stesso, evento):
+        se_stesso.tela.yview_scroll(-1 se evento.delta > 0 altrimenti 1, "units")
 
-    definisci _zoom_rotella(se_stesso, e):
-        se_stesso.editor.cambia_zoom(1.1 se e.delta > 0 altrimenti 1 / 1.1)
+    definisci _zoom_rotella(se_stesso, evento):
+        se_stesso.editor.cambia_zoom(1.1 se evento.delta > 0 altrimenti 1 / 1.1)
         ritorna "break"
 
 
@@ -636,7 +636,7 @@ classe Tavolozza(tk.Frame):
             nome, col = CATEGORIE[cat]
             b = tk.Label(se_stesso.colonna, text=nome, anchor="w", padx=8, pady=5, cursor="hand2", font=(FONT_UI, 9, "bold"))
             b.pack(fill="x")
-            b.bind("<Button-1>", lambda e, c=cat: se_stesso.scegli(c))
+            b.bind("<Button-1>", lambda evento, c=cat: se_stesso.scegli(c))
             suggerisci(b, f"Mostra le mattonelle della categoria «{nome}»")
             se_stesso.bottoni[cat] = b
         se_stesso.tela = tk.Canvas(se_stesso, highlightthickness=0, width=270)
@@ -649,7 +649,7 @@ classe Tavolozza(tk.Frame):
         se_stesso.tela.bind("<ButtonPress-1>", se_stesso._premi)
         se_stesso.tela.bind("<B1-Motion>", se_stesso._muovi)
         se_stesso.tela.bind("<ButtonRelease-1>", se_stesso._rilascia)
-        lega_rotella(se_stesso.tela, lambda e: se_stesso.tela.yview_scroll(-1 se e.delta > 0 altrimenti 1, "units"))
+        lega_rotella(se_stesso.tela, lambda evento: se_stesso.tela.yview_scroll(-1 se evento.delta > 0 altrimenti 1, "units"))
         se_stesso.tela.bind("<Motion>", se_stesso._passa)
         se_stesso.applica_colori(colori)
 
@@ -729,21 +729,21 @@ classe Tavolozza(tk.Frame):
         t.configure(scrollregion=(0, 0, 240, y + 20))
 
     # ------------------------------------------------------------ mouse
-    definisci _voce_sotto(se_stesso, e):
-        x, y = se_stesso.tela.canvasx(e.x), se_stesso.tela.canvasy(e.y)
+    definisci _voce_sotto(se_stesso, evento):
+        x, y = se_stesso.tela.canvasx(evento.x), se_stesso.tela.canvasy(evento.y)
         per rett, tipo_, campi in se_stesso._voci:
             se rett[0] <= x <= rett[2] e rett[1] <= y <= rett[3]:
                 ritorna tipo_, campi
         ritorna Nessuno
 
-    definisci _passa(se_stesso, e):
-        v = se_stesso._voce_sotto(e)
+    definisci _passa(se_stesso, evento):
+        v = se_stesso._voce_sotto(evento)
         se_stesso.tela.configure(cursor="hand2" se v altrimenti "")
         se v:
             se_stesso.editor.mostra_descrizione(definizione(v[0], se_stesso.editor.programma)["descrizione"])
 
-    definisci _premi(se_stesso, e):
-        v = se_stesso._voce_sotto(e)
+    definisci _premi(se_stesso, evento):
+        v = se_stesso._voce_sotto(evento)
         se non v:
             ritorna
         area = se_stesso.editor.area_corrente()
@@ -752,15 +752,15 @@ classe Tavolozza(tk.Frame):
         m = Mattonella(v[0], se_stesso.editor.programma)
         m.campi.update(v[1])
         se_stesso._attiva = se_stesso.editor.vista_corrente()
-        se_stesso._attiva.inizia_esterno(m, e.x_root, e.y_root)
+        se_stesso._attiva.inizia_esterno(m, evento.x_root, evento.y_root)
 
-    definisci _muovi(se_stesso, e):
+    definisci _muovi(se_stesso, evento):
         se se_stesso._attiva:
-            se_stesso._attiva.muovi_esterno(e.x_root, e.y_root)
+            se_stesso._attiva.muovi_esterno(evento.x_root, evento.y_root)
 
-    definisci _rilascia(se_stesso, e):
+    definisci _rilascia(se_stesso, evento):
         se se_stesso._attiva:
-            se_stesso._attiva.rilascia_esterno(e.x_root, e.y_root)
+            se_stesso._attiva.rilascia_esterno(evento.x_root, evento.y_root)
             se_stesso._attiva = Nessuno
 
 
@@ -821,7 +821,7 @@ classe EditorMattonelle(tk.Frame):
         centro = tk.Frame(se_stesso.corpo)
         se_stesso.blocco = ttk.Notebook(centro)
         se_stesso.blocco.pack(fill="both", expand=Vero)
-        se_stesso.blocco.bind("<<NotebookTabChanged>>", lambda e: (se_stesso.tavolozza.aggiorna(), se_stesso._aggiorna_selettore()))
+        se_stesso.blocco.bind("<<NotebookTabChanged>>", lambda evento: (se_stesso.tavolozza.aggiorna(), se_stesso._aggiorna_selettore()))
         se_stesso.blocco.bind("<Button-3>", se_stesso._menu_scheda)
         se_stesso.descrizione = tk.Label(centro, anchor="w", text="Trascina le mattonelle dalla tavolozza. Per staccare un collegamento "
                                          "afferra la mattonella e portala via; per ricollegarla lasciala vicino al punto giusto.")
@@ -907,7 +907,7 @@ classe EditorMattonelle(tk.Frame):
     definisci _etichetta(se_stesso, nome):
         ritorna "▶ Principale" se nome == "principale" altrimenti f"ƒ {nome}"
 
-    definisci _scelta_selettore(se_stesso, e=Nessuno):
+    definisci _scelta_selettore(se_stesso, evento=Nessuno):
         scelta = se_stesso.selettore.get()
         per nome in se_stesso.viste:
             se se_stesso._etichetta(nome) == scelta:
@@ -1046,9 +1046,9 @@ classe EditorMattonelle(tk.Frame):
         messagebox.showwarning("Parametri non validi", "Ogni parametro deve essere un nome valido.", parent=se_stesso)
         ritorna Falso
 
-    definisci _menu_scheda(se_stesso, e):
+    definisci _menu_scheda(se_stesso, evento):
         prova:
-            indice = se_stesso.blocco.index(f"@{e.x},{e.y}")
+            indice = se_stesso.blocco.index(f"@{evento.x},{evento.y}")
             v = se_stesso.blocco.nametowidget(se_stesso.blocco.tabs()[indice])
         eccetto (tk.TclError, IndexError, KeyError):
             ritorna
@@ -1062,7 +1062,7 @@ classe EditorMattonelle(tk.Frame):
             m.add_command(label=f"Elimina la classe {fn.classe}", command=lambda: se_stesso.elimina_classe(fn.classe))
         altrimenti_se v.nome_area != "principale":
             m.add_command(label="Elimina la funzione", command=lambda: se_stesso.elimina_funzione(v.nome_area))
-        m.tk_popup(e.x_root, e.y_root)
+        m.tk_popup(evento.x_root, evento.y_root)
 
     definisci elimina_funzione(se_stesso, nome):
         se messagebox.askyesno("Elimina funzione", f"Eliminare la funzione «{nome}»? Le chiamate resteranno ma non funzioneranno.", parent=se_stesso):

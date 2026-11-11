@@ -47,12 +47,12 @@ prova:
     stampa("dopo l'eliminazione:", [r[0] per r in c.esegui("SELECT nome FROM prodotti ORDER BY id").righe])
     prova:
         c.inserisci_riga("prodotti", {"nome": "Doppione", "codice": "P1"})
-    eccetto dbm.ErroreDatabase come e:
-        stampa("errore comprensibile (duplicato):", "Duplicate" in str(e) o "1062" in str(e))
+    eccetto dbm.ErroreDatabase come errore:
+        stampa("errore comprensibile (duplicato):", "Duplicate" in str(errore) o "1062" in str(errore))
     prova:
         c.esegui("SELECT 1; SELEKT 2")
-    eccetto dbm.ErroreDatabase come e:
-        stampa("errore nel secondo comando:", str(e).startswith("Istruzione 2 di 2"))
+    eccetto dbm.ErroreDatabase come errore:
+        stampa("errore nel secondo comando:", str(errore).startswith("Istruzione 2 di 2"))
 
     # chiave esterna, colonna aggiunta, vista, aggregati
     c.esegui("CREATE TABLE righe_ordine (id INT AUTO_INCREMENT PRIMARY KEY, prodotto INT NOT NULL, q INT NOT NULL DEFAULT 1, "
@@ -96,8 +96,8 @@ prova:
     stampa("modificato:", [v["nome"] per _, v in fonte.record("anna")])
     prova:
         fonte.salva({"id": "", "nome": "", "eta": "", "saldo": ""})
-    eccetto fd.ErroreDati come e:
-        stampa("obbligatorio:", e)
+    eccetto fd.ErroreDati come errore:
+        stampa("obbligatorio:", errore)
     fonte.elimina(id2)
     stampa("dopo l'eliminazione:", lunghezza(fonte.record()))
     fonte.chiudi()
@@ -148,5 +148,5 @@ infine:
 # password sbagliata: messaggio chiaro
 prova:
     dbm.apri_mysql(server, porta, "utente_inesistente_xyz", "no", "")
-eccetto dbm.ErroreDatabase come e:
-    stampa("accesso negato:", "Collegamento a MySQL non riuscito" in str(e))
+eccetto dbm.ErroreDatabase come errore:
+    stampa("accesso negato:", "Collegamento a MySQL non riuscito" in str(errore))

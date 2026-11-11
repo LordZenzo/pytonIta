@@ -122,30 +122,30 @@ classe PannelloDebug(tk.Frame):
 
     definisci aggiorna_osservate(se_stesso, osservate):
         se_stesso.osservate.delete(*se_stesso.osservate.get_children())
-        per o in osservate:
-            se_stesso.osservate.insert("", "end", text=o["espressione"], values=(o["valore"], "👁" se o["espressione"] in se_stesso.sessione.ferma_su altrimenti ""),
-                                       tags=("cambiata",) se o.get("cambiata") altrimenti ())
+        per elemento in osservate:
+            se_stesso.osservate.insert("", "end", text=elemento["espressione"], values=(elemento["valore"], "👁" se elemento["espressione"] in se_stesso.sessione.ferma_su altrimenti ""),
+                                       tags=("cambiata",) se elemento.get("cambiata") altrimenti ())
 
-    definisci _commuta_ferma(se_stesso, e=Nessuno):
+    definisci _commuta_ferma(se_stesso, evento=Nessuno):
         """Doppio clic su una espressione osservata: ferma il programma quando il suo valore cambia (o toglie la richiesta)."""
-        riga = se_stesso.osservate.identify_row(e.y) se e è non Nessuno altrimenti ""
+        riga = se_stesso.osservate.identify_row(evento.y) se evento è non Nessuno altrimenti ""
         se riga:
             se_stesso.sessione.commuta_ferma(se_stesso.osservate.item(riga, "text"))
 
-    definisci _scelta_pila(se_stesso, e=Nessuno):
+    definisci _scelta_pila(se_stesso, evento=Nessuno):
         sel = se_stesso.pila.curselection()
         se sel e sel[0] < lunghezza(se_stesso._frame_pila):
             f = se_stesso._frame_pila[sel[0]]
             se_stesso.sessione.mostra_posizione(f["file"], f["riga"])
             se_stesso.sessione.scegli_frame(sel[0])
 
-    definisci _aggiungi_osservata(se_stesso, e=Nessuno):
+    definisci _aggiungi_osservata(se_stesso, evento=Nessuno):
         espressione = se_stesso.var_osserva.get().strip()
         se espressione:
             se_stesso.sessione.aggiungi_osservata(espressione)
             se_stesso.var_osserva.set("")
 
-    definisci _rimuovi_osservata(se_stesso, e=Nessuno):
+    definisci _rimuovi_osservata(se_stesso, evento=Nessuno):
         sel = se_stesso.osservate.selection()
         se sel:
             se_stesso.sessione.rimuovi_osservata(se_stesso.osservate.item(sel[0], "text"))
@@ -322,13 +322,13 @@ classe SessioneDebug:
         se_stesso._invia_osservate()
 
     definisci osservate_per_il_runner(se_stesso):
-        ritorna [{"e": e, "ferma": e in se_stesso.ferma_su} per e in se_stesso.osservate]
+        ritorna [{"e": elemento, "ferma": elemento in se_stesso.ferma_su} per elemento in se_stesso.osservate]
 
     definisci _invia_osservate(se_stesso):
         se se_stesso.attiva e se_stesso.fermo:
             se_stesso.app.console.esecutore.invia(PREFISSO_COMANDO + "osserva " + json.dumps(se_stesso.osservate_per_il_runner()))
         altrimenti_se se_stesso.pannello:
-            se_stesso.pannello.aggiorna_osservate([{"espressione": e, "valore": "…"} per e in se_stesso.osservate])
+            se_stesso.pannello.aggiorna_osservate([{"espressione": elemento, "valore": "…"} per elemento in se_stesso.osservate])
 
     # ------------------------------------------------------------ pannello
     definisci _mostra_pannello(se_stesso):
@@ -338,7 +338,7 @@ classe SessioneDebug:
             se_stesso.pannello.applica_colori(app.colori)
         se str(se_stesso.pannello) non in [testo(x) per x in app.centro.panes()]:
             app.centro.add(se_stesso.pannello, before=app.console, minsize=110, height=210)
-        se_stesso.pannello.aggiorna_osservate([{"espressione": e, "valore": "…"} per e in se_stesso.osservate])
+        se_stesso.pannello.aggiorna_osservate([{"espressione": elemento, "valore": "…"} per elemento in se_stesso.osservate])
 
     definisci _nascondi_pannello(se_stesso):
         se se_stesso.pannello è non Nessuno e se_stesso.pannello.winfo_exists():

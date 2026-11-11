@@ -88,9 +88,9 @@ prova_finestra(m, "testo", "ZZZ", azione="annulla")
 stampa("annulla: invariato:", m.campi["testo"] == prima)
 
 # espressione e commento stanno su una riga
-e = aggiungi("espressione")
-prova_finestra(e, "testo", "a +\n   b")
-stampa("espressione su una riga:", e.campi["testo"] == "a + b", repr(e.campi["testo"]))
+elemento = aggiungi("espressione")
+prova_finestra(elemento, "testo", "a +\n   b")
+stampa("espressione su una riga:", elemento.campi["testo"] == "a + b", repr(elemento.campi["testo"]))
 n = aggiungi("commento")
 prova_finestra(n, "testo", "nota lunga\nsu due righe")
 stampa("commento su una riga:", n.campi["testo"] == "nota lunga su due righe")

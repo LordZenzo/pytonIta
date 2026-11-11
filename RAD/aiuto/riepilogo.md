@@ -20,7 +20,7 @@ Tutto ciò che serve in una pagina. Per i dettagli: [il linguaggio](#linguaggio)
 | funzione | `definisci f(a, b=1):` … `ritorna valore` |
 | classe | `classe Cane:` · `definisci __inizializza__(se_stesso, nome):` |
 | ereditare | `classe Gatto(Animale):` |
-| errori | `prova:` · `eccetto ErroreDiValore come e:` · `infine:` |
+| errori | `prova:` · `eccetto ErroreDiValore come errore:` · `infine:` |
 | sollevare un errore | `solleva ErroreDiValore("messaggio")` |
 | file | `con apri("a.txt", codifica="utf-8") come f:` |
 | importare | `importa matematica` · `da matematica importa pi` · `importa x come y` |

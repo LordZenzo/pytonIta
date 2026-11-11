@@ -26,14 +26,14 @@ toccati = claude_code.prepara_progetto(d, cfg, "Prova")
 stampa("file toccati:", [os.path.basename(p) per p in toccati])
 dati = json.load(open(os.path.join(d, ".claude", "settings.local.json"), encoding="utf-8"))
 stampa("impostazioni dell'utente conservate:", dati["permissions"] == {"allow": ["Bash(ls)"]}, "| hook dell'utente conservato:", any(h.get("command") == "echo mio" per g in dati["hooks"]["Stop"] per h in g["hooks"]))
-stampa("hook nostri:", {e: lunghezza(g) per e, g in dati["hooks"].items()}, "| matcher:", [g.get("matcher") per g in dati["hooks"]["PostToolUse"]])
+stampa("hook nostri:", {elemento: lunghezza(g) per elemento, g in dati["hooks"].items()}, "| matcher:", [g.get("matcher") per g in dati["hooks"]["PostToolUse"]])
 stampa("preparato dopo:", claude_code.preparato(d))
 prima = open(os.path.join(d, "CLAUDE.md"), encoding="utf-8").read()
 claude_code.prepara_progetto(d, cfg, "Prova")
 dopo = open(os.path.join(d, "CLAUDE.md"), encoding="utf-8").read()
 stampa("CLAUDE.md: note dell'utente intatte:", "Non toccare questa riga." in dopo, "| blocco una volta sola:", dopo.count(claude_code.MARCATORE_INIZIO) == 1, "| idempotente:", prima == dopo)
 dati2 = json.load(open(os.path.join(d, ".claude", "settings.local.json"), encoding="utf-8"))
-stampa("hook senza doppioni dopo la seconda preparazione:", {e: lunghezza(g) per e, g in dati2["hooks"].items()})
+stampa("hook senza doppioni dopo la seconda preparazione:", {elemento: lunghezza(g) per elemento, g in dati2["hooks"].items()})
 stampa(".gitignore:", "settings.local.json" in open(os.path.join(d, ".gitignore"), encoding="utf-8").read())
 stampa("istruzioni con il percorso di pitonit:", claude_code.percorso_pitonit(cfg) in dopo, "| nessun segnaposto rimasto:", "{{pitonit}}" non in dopo)
 rotto = os.path.join(cartella_temp, "Rotto")
@@ -42,8 +42,8 @@ open(os.path.join(rotto, ".claude", "settings.local.json"), "w").write("{ non e'
 prova:
     claude_code.prepara_progetto(rotto, cfg)
     stampa("JSON rotto: nessun errore (sbagliato)")
-eccetto ErroreDiValore come e:
-    stampa("JSON rotto -> errore chiaro:", "non è un JSON valido" in testo(e))
+eccetto ErroreDiValore come errore:
+    stampa("JSON rotto -> errore chiaro:", "non è un JSON valido" in testo(errore))
 stampa("claude.exe trovato su questo computer:", claude_code.trova_claude(cfg) è non Nessuno)
 
 # ================================================================= gli hook, come li esegue Claude Code

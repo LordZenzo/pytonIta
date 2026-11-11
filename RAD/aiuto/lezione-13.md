@@ -91,8 +91,8 @@ conto.preleva(30)
 stampa(conto.titolare, conto.saldo)
 prova:
     conto.preleva(1000)
-eccetto ErroreDiValore come e:
-    stampa("Errore:", e)
+eccetto ErroreDiValore come errore:
+    stampa("Errore:", errore)
 ```
 
 ```output

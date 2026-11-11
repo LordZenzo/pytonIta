@@ -54,10 +54,10 @@ definisci _inutile(nome, verso_x, verso_y):
     w = p.widget[nome]
     p._premi(Ev(w.winfo_rootx() + 3, w.winfo_rooty() + 3), nome)
     sx, sy = p.superficie.winfo_rootx(), p.superficie.winfo_rooty()
-    e = Ev(sx + verso_x, sy + verso_y)
-    p._trascina(e, nome)
+    elemento = Ev(sx + verso_x, sy + verso_y)
+    p._trascina(elemento, nome)
     radice.update()
-    p._rilascia(e, nome)
+    p._rilascia(elemento, nome)
     radice.update()
 
 
@@ -68,7 +68,7 @@ radice.update()
 a = p.aggiungi_componente("Pulsante", 10, 10)
 rq = p.aggiungi_componente("Riquadro", 60, 120, larghezza=300, altezza=160)
 sc = p.aggiungi_componente("Schede", 400, 300, larghezza=250, altezza=150)
-e = p.aggiungi_componente("Etichetta", 20, 20, genitore=rq.nome)
+elemento = p.aggiungi_componente("Etichetta", 20, 20, genitore=rq.nome)
 radice.update()
 t = p.albero
 
@@ -80,13 +80,13 @@ definisci riga(iid):
 
 
 verifica(t.exists("__finestra__") e t.exists(a.nome) e t.exists(rq.nome), "finestra e componenti nell'albero")
-verifica(t.parent(a.nome) == "__finestra__" e t.parent(e.nome) == rq.nome, "l'etichetta sta sotto il riquadro: " + repr(t.parent(e.nome)))
+verifica(t.parent(a.nome) == "__finestra__" e t.parent(elemento.nome) == rq.nome, "l'etichetta sta sotto il riquadro: " + repr(t.parent(elemento.nome)))
 verifica(t.exists(sc.nome + "#0") e t.exists(sc.nome + "#1") e t.parent(sc.nome + "#0") == sc.nome, "le pagine di schede sono nell'albero")
 
 # selezione: progettista -> albero
-p.seleziona([e.nome])
+p.seleziona([elemento.nome])
 radice.update()
-verifica(t.selection() == (e.nome,), "selezionando nella finestra si seleziona nell'albero: " + str(t.selection()))
+verifica(t.selection() == (elemento.nome,), "selezionando nella finestra si seleziona nell'albero: " + str(t.selection()))
 # albero -> progettista
 t.selection_set([a.nome])
 radice.update()
@@ -109,8 +109,8 @@ verifica(p.widget[a.nome].master è p.widget[rq.nome], "e nel disegno è figlio 
 
 # rilasciato su un componente normale (l'etichetta nel riquadro): resta in quel contenitore
 p._albero_premi(riga(a.nome))
-p._albero_muovi(riga(e.nome))
-p._albero_rilascia(riga(e.nome))
+p._albero_muovi(riga(elemento.nome))
+p._albero_rilascia(riga(elemento.nome))
 verifica(f.trova(a.nome).genitore == rq.nome, "su un componente normale non cambia")
 
 # alla pagina 2 delle schede
@@ -131,7 +131,7 @@ verifica(f.trova(a.nome).genitore == "", "sulla finestra: torna nella finestra")
 
 # un riquadro non entra in se stesso né nei suoi figli
 verifica(p.sposta_in([rq.nome], rq.nome) == Falso, "non dentro se stesso")
-verifica(p.sposta_in([rq.nome], e.nome) == Falso o f.trova(rq.nome).genitore == "", "non dentro un suo figlio")
+verifica(p.sposta_in([rq.nome], elemento.nome) == Falso o f.trova(rq.nome).genitore == "", "non dentro un suo figlio")
 
 # rinomina: l'albero si aggiorna
 p.imposta_proprieta(a.nome, "testo", "x")

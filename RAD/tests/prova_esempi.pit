@@ -11,15 +11,15 @@ da rad importa esempi, esporta_python
 PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
 lavoro = tempfile.mkdtemp()
 elenco = esempi.elenco_esempi()
-stampa("esempi:", [e["id"] per e in elenco])
-stampa("categorie:", sorted({e["categoria"] per e in elenco}), "| livelli:", sorted({e["livello"] per e in elenco}))
-stampa("metadati completi:", all(e.get("titolo") e e.get("descrizione") e e.get("impara") e e.get("principale") per e in elenco))
+stampa("esempi:", [elemento["id"] per elemento in elenco])
+stampa("categorie:", sorted({elemento["categoria"] per elemento in elenco}), "| livelli:", sorted({elemento["livello"] per elemento in elenco}))
+stampa("metadati completi:", all(elemento.get("titolo") e elemento.get("descrizione") e elemento.get("impara") e elemento.get("principale") per elemento in elenco))
 copie = {}
-per e in elenco:
-    destinazione = os.path.join(lavoro, e["id"])
-    shutil.copytree(e["cartella"], destinazione)
-    copie[e["id"]] = destinazione
-    stampa(" ", e["id"], "| file principale esiste:", os.path.exists(os.path.join(destinazione, e["principale"])))
+per elemento in elenco:
+    destinazione = os.path.join(lavoro, elemento["id"])
+    shutil.copytree(elemento["cartella"], destinazione)
+    copie[elemento["id"]] = destinazione
+    stampa(" ", elemento["id"], "| file principale esiste:", os.path.exists(os.path.join(destinazione, elemento["principale"])))
 
 
 definisci esegui(id_, ingresso, argomenti=()):
@@ -146,8 +146,8 @@ w.destroy()
 cfg_radice.destroy()
 
 # ---- ogni esempio si esporta in Python senza errori
-per e in elenco:
-    r = esporta_python.esporta(e["cartella"], os.path.join(lavoro, "py_" + e["id"]))
+per elemento in elenco:
+    r = esporta_python.esporta(elemento["cartella"], os.path.join(lavoro, "py_" + elemento["id"]))
     se r["errori"]:
-        stampa("ESPORTAZIONE:", e["id"], r["errori"])
+        stampa("ESPORTAZIONE:", elemento["id"], r["errori"])
 stampa("esportati in Python:", lunghezza(elenco), "esempi")

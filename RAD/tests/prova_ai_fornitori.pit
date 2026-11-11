@@ -24,11 +24,11 @@ interna = [
     {"role": "assistant", "content": [{"type": "text", "text": "Lo leggo."}, {"type": "tool_use", "id": "t1", "name": "leggi_file", "input": {"percorso": "a.pit"}}]},
     {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "1: stampa(1)"}]},
     {"role": "assistant", "content": [{"type": "text", "text": "Fatto."}]}]
-o = ai.messaggi_a_openai(interna, "SISTEMA")
-verifica([m["role"] per m in o] == ["system", "user", "assistant", "tool", "assistant"], "ruoli openai: " + str([m["role"] per m in o]))
-verifica(o[2]["tool_calls"][0]["function"]["arguments"] == '{"percorso": "a.pit"}' e o[2]["tool_calls"][0]["id"] == "t1", "chiamata dello strumento")
-verifica(o[3] == {"role": "tool", "tool_call_id": "t1", "content": "1: stampa(1)"}, "risultato dello strumento: " + str(o[3]))
-verifica("leggi a.pit" in o[1]["content"] e "contesto_ide" in o[1]["content"], "testi dell'utente uniti")
+valore = ai.messaggi_a_openai(interna, "SISTEMA")
+verifica([m["role"] per m in valore] == ["system", "user", "assistant", "tool", "assistant"], "ruoli openai: " + str([m["role"] per m in valore]))
+verifica(valore[2]["tool_calls"][0]["function"]["arguments"] == '{"percorso": "a.pit"}' e valore[2]["tool_calls"][0]["id"] == "t1", "chiamata dello strumento")
+verifica(valore[3] == {"role": "tool", "tool_call_id": "t1", "content": "1: stampa(1)"}, "risultato dello strumento: " + str(valore[3]))
+verifica("leggi a.pit" in valore[1]["content"] e "contesto_ide" in valore[1]["content"], "testi dell'utente uniti")
 r = ai.risposta_da_openai({"choices": [{"message": {"content": Nessuno, "tool_calls": [{"id": "c9", "type": "function", "function": {"name": "stato_ide", "arguments": "{}"}}]},
                                          "finish_reason": "tool_calls"}],
                            "usage": {"prompt_tokens": 100, "completion_tokens": 7, "prompt_cache_hit_tokens": 60, "prompt_cache_miss_tokens": 40}})
@@ -68,8 +68,8 @@ verifica(r["usage"] == {"input_tokens": 30, "output_tokens": 8, "cache_read_inpu
 sollevato = Falso
 prova:
     ai.risposta_da_gemini({"candidates": [], "promptFeedback": {"blockReason": "SAFETY"}})
-eccetto ai.ErroreAI come e:
-    sollevato = "SAFETY" in testo(e)
+eccetto ai.ErroreAI come errore:
+    sollevato = "SAFETY" in testo(errore)
 verifica(sollevato, "richiesta bloccata = errore chiaro")
 
 # ----------------------------------------------------------------- cambio di fornitore a metà conversazione
@@ -199,8 +199,8 @@ os.environ.pop("DEEPSEEK_API_KEY")
 sollevato = Falso
 prova:
     ai.crea_cliente(cfg).chiama([], "S", [])
-eccetto ai.ErroreAI come e:
-    sollevato = "DeepSeek" in testo(e) e "DEEPSEEK_API_KEY" in testo(e)
+eccetto ai.ErroreAI come errore:
+    sollevato = "DeepSeek" in testo(errore) e "DEEPSEEK_API_KEY" in testo(errore)
 verifica(sollevato, "senza chiave l'errore nomina il fornitore")
 
 # le Impostazioni mostrano le voci dei fornitori

@@ -168,8 +168,8 @@ per nome_prova, file_, atteso in (("altra tabella", altra, "non contiene la tabe
     sollevato = ""
     prova:
         fonte.controlla_copia(file_)
-    eccetto fonte_dati.ErroreDati come e:
-        sollevato = testo(e)
+    eccetto fonte_dati.ErroreDati come errore:
+        sollevato = testo(errore)
     verifica(atteso in sollevato, f"controlla_copia ({nome_prova}): {sollevato!r}")
 # modifiche non confermate: niente copia né ripristino
 fonte.in_sospeso = 2
@@ -177,8 +177,8 @@ per azione in (lambda: fonte.copia_di_sicurezza(os.path.join(base, "x.db")), lam
     sollevato = Falso
     prova:
         azione()
-    eccetto fonte_dati.ErroreDati come e:
-        sollevato = "non confermate" in testo(e)
+    eccetto fonte_dati.ErroreDati come errore:
+        sollevato = "non confermate" in testo(errore)
     verifica(sollevato, "con modifiche in sospeso si rifiuta")
 fonte.in_sospeso = 0
 

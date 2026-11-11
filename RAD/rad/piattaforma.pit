@@ -102,7 +102,7 @@ definisci lega_rotella(widget, funzione, modificatore=""):
     widget.bind(f"<{modificatore}MouseWheel>", funzione, add="+")
     se LINUX:
         per bottone, delta in ((4, 120), (5, -120)):
-            widget.bind(f"<{modificatore}Button-{bottone}>", lambda e, d=delta: funzione(_EventoRotella(e, d)), add="+")
+            widget.bind(f"<{modificatore}Button-{bottone}>", lambda evento_tk, d=delta: funzione(_EventoRotella(evento_tk, d)), add="+")
 
 
 definisci nome_eseguibile(nome):

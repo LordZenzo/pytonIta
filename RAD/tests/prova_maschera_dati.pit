@@ -93,8 +93,8 @@ radice.destroy()
 # esportazione in Python: la maschera gira senza pytonIta (il programma gira in un processo a parte, senza mostrare la finestra)
 da rad importa esporta_python
 destinazione = os.path.join(tempfile.mkdtemp(), "export")
-e = esporta_python.esporta(cartella, destinazione)
-stampa("esportato:", e["file_python"], "file Python | errori:", e["errori"])
+elemento = esporta_python.esporta(cartella, destinazione)
+stampa("esportato:", elemento["file_python"], "file Python | errori:", elemento["errori"])
 programma = os.path.join(destinazione, "prova_maschera.py")
 open(programma, "w", encoding="utf-8").write("""
 import os, sys, tkinter as tk

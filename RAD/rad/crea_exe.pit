@@ -368,7 +368,7 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
         os.makedirs(build, exist_ok=Vero)
         r = esporta_python.esporta(origine, sorgente)
         se r["errori"]:
-            risultato["errore"] = "Alcuni file non si convertono in Python:\n" + "\n".join(f"  {f}: {e}" per f, e in r["errori"][:5])
+            risultato["errore"] = "Alcuni file non si convertono in Python:\n" + "\n".join(f"  {f}: {elemento}" per f, elemento in r["errori"][:5])
             ritorna risultato
         scrivi(f"     {r['file_python']} file Python, {r['altri_file']} altri file.")
         scrivi_posizione_dati(sorgente, opzioni, scrivi)
@@ -431,8 +431,8 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
                     da_firmare(risultato["setup"])
     eccetto Interrotto:
         risultato["errore"] = "Interrotto."
-    eccetto Exception come e:
-        risultato["errore"] = f"{type(e).__name__}: {e}"
+    eccetto Exception come errore:
+        risultato["errore"] = f"{type(errore).__name__}: {errore}"
     ritorna risultato
 
 
@@ -480,8 +480,8 @@ classe DialogoEseguibile(DialogoBase):
                  background=c["pannello"], foreground=c["tenue"], anchor="w", wraplength=720, justify="left").grid(row=0, column=0, columnspan=3, sticky="we", padx=14, pady=(12, 6))
         se_stesso.riga("Nome del programma:", se_stesso.campo(se_stesso.var_nome, 28), 1)
         riga_icona = tk.Frame(se_stesso, background=c["pannello"])
-        e = se_stesso.campo(se_stesso.var_icona, 40)(riga_icona)
-        e.pack(side="left", fill="x", expand=Vero)
+        elemento = se_stesso.campo(se_stesso.var_icona, 40)(riga_icona)
+        elemento.pack(side="left", fill="x", expand=Vero)
         b = tk.Button(riga_icona, text="Sfoglia…", command=se_stesso._sfoglia_icona, relief="flat", background=c["pulsante"], foreground=c["primo_piano"])
         b.pack(side="left", padx=(6, 0))
         suggerisci(b, "Scegli un file .ico per l'icona dell'eseguibile (facoltativo)", c)
@@ -622,20 +622,20 @@ classe DialogoEseguibile(DialogoBase):
         se_stesso.progresso.stop()
         se_stesso.pulsante_avvia.configure(state="normal")
         se_stesso.pulsante_ferma.configure(state="disabled")
-        e = se_stesso.esito o {}
-        se e.get("ok"):
+        elemento = se_stesso.esito o {}
+        se elemento.get("ok"):
             se_stesso.pulsante_cartella.configure(state="normal")
             se_stesso._scrivi("")
-            se e.get("setup"):
-                se_stesso._scrivi("Il programma di installazione è pronto: " + e["setup"])
+            se elemento.get("setup"):
+                se_stesso._scrivi("Il programma di installazione è pronto: " + elemento["setup"])
                 se_stesso._scrivi("Spedisci quello: chi lo apre installa il programma e lo trova in «App» di Windows per disinstallarlo.")
             altrimenti:
                 se_stesso._scrivi("L'eseguibile è pronto. Puoi spedirlo: non serve nient'altro.")
-            per avviso in e.get("avvisi", []):
+            per avviso in elemento.get("avvisi", []):
                 se_stesso._scrivi("⚠ " + avviso)
         altrimenti:
             se_stesso._scrivi("")
-            se_stesso._scrivi("NON RIUSCITO: " + e.get("errore", "errore sconosciuto"))
+            se_stesso._scrivi("NON RIUSCITO: " + elemento.get("errore", "errore sconosciuto"))
 
     definisci _ferma(se_stesso):
         se_stesso.ferma_richiesto = Vero

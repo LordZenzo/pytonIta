@@ -184,7 +184,7 @@ classe Grafico(tk.Canvas):
 
     definisci _torta(se_stesso, larghezza, altezza, alto):
         testo_c = se_stesso.colore_testo
-        positive = [(e, v) per e, v in se_stesso.voci se v > 0]
+        positive = [(elemento, v) per elemento, v in se_stesso.voci se v > 0]
         totale = sum(v per _, v in positive)
         se totale <= 0:
             se_stesso.create_text(larghezza / 2, altezza / 2, text="Nessun valore positivo", fill=testo_c, font=("Segoe UI", 10))

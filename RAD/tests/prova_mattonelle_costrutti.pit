@@ -35,15 +35,15 @@ definisci principale():
         stampa(f.read())
     prova:
         solleva ValueError("brutto")
-    eccetto ValueError come e:
-        stampa("preso", e)
+    eccetto ValueError come errore:
+        stampa("preso", errore)
     prova:
         prova:
             solleva KeyError("k")
         eccetto KeyError:
             solleva
-    eccetto KeyError come e:
-        stampa("rilanciato", e)
+    eccetto KeyError come errore:
+        stampa("rilanciato", errore)
     stampa(lista(generatore(3)))
     stampa(somma_tutto(1, 2, *[3, 4], a=5, **{"b": 6}))
     d = {"x": 1, "y": 2, **{"z": 3}}

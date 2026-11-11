@@ -20,14 +20,14 @@ per nome in aspetto.NOMI_TEMI:
     r = tk.Tk()
     c = aspetto.applica_aspetto(r, nome)
     b = tk.Button(r, text="Ok")
-    e = tk.Entry(r)
+    elemento = tk.Entry(r)
     l = tk.Label(r, text="x")
     lb = tk.Listbox(r)
     t = tk.Text(r)
     cb = tk.Checkbutton(r, text="c")
     rosso = tk.Button(r, text="rosso", background="#ff0000")
     r.update()
-    ok = (b.cget("background") == c["accento"], b.cget("relief") == "flat", e.cget("highlightcolor") == c["accento"], e.cget("background") == c["scheda"],
+    ok = (b.cget("background") == c["accento"], b.cget("relief") == "flat", elemento.cget("highlightcolor") == c["accento"], elemento.cget("background") == c["scheda"],
           l.cget("background") == c["sfondo"], lb.cget("selectbackground") == c["selezione"], t.cget("background") == c["scheda"], cb.cget("selectcolor") == c["scheda"],
           rosso.cget("background") == "#ff0000", r.cget("background") == c["sfondo"])
     st = ttk.Style(r)
@@ -88,12 +88,12 @@ radice.destroy()
 
 # --- esportato in Python
 dest = os.path.join(tempfile.mkdtemp(), "e")
-e = esporta_python.esporta(cartella, dest)
+elemento = esporta_python.esporta(cartella, dest)
 open(os.path.join(dest, "p.py"), "w", encoding="utf-8").write("import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport moderna\nr = tk.Tk(); a = moderna.Moderna(r); r.update()\nprint('python:', a.pulsante_ok.cget('background'), a.pulsante_rosso.cget('background'))\nr.destroy()\n")
 python_ = __import__("shutil").which("python") o __import__("shutil").which("py")
 se python_:
     u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "p.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
-    stampa("con Python normale:", e["errori"], u.stdout.strip(), u.returncode, u.stderr.strip()[-120:])
+    stampa("con Python normale:", elemento["errori"], u.stdout.strip(), u.returncode, u.stderr.strip()[-120:])
 
 # --- il progettista: anteprima fedele e scelta dell'aspetto
 cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))

@@ -149,7 +149,7 @@ q.avanti()
 verifica("Scegli prima" in q.esito.cget("text") e q.indice == 0, "senza scegliere avvisa")
 # sbaglio di proposito la prima
 p = q.domande[0]
-sbagliata = [i per i, o in enumera(p["opzioni"]) se non o["giusta"]][0]
+sbagliata = [i per i, elemento in enumera(p["opzioni"]) se non elemento["giusta"]][0]
 q.var_scelta.set(sbagliata)
 q.avanti()
 verifica(q.esito.cget("text").startswith("✖") e "La risposta giusta era" in q.esito.cget("text") e q.punti == 0, "risposta sbagliata: " + q.esito.cget("text")[:80])
@@ -183,7 +183,7 @@ verifica(int(q.radio[0].cget("indicatoron")) == 0 e q.radio[0].cget("selectcolor
 # le altre tutte giuste
 mentre q.indice < lunghezza(q.domande):
     p = q.domande[q.indice]
-    q.var_scelta.set([i per i, o in enumera(p["opzioni"]) se o["giusta"]][0])
+    q.var_scelta.set([i per i, elemento in enumera(p["opzioni"]) se elemento["giusta"]][0])
     q.avanti()
     verifica(q.esito.cget("text").startswith("✔"), "risposta giusta")
     q.avanti()

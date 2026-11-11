@@ -80,7 +80,7 @@ definisci preparato(cartella, config=Nessuno):
             hooks = json.load(f).get("hooks", {})
     eccetto (OSError, ValueError):
         ritorna Falso
-    ritorna tutti(any(_e_nostro(g) e _aggiornato(g, pitonit) per g in hooks.get(e, [])) per e in EVENTI)
+    ritorna tutti(any(_e_nostro(g) e _aggiornato(g, pitonit) per g in hooks.get(elemento, [])) per elemento in EVENTI)
 
 
 definisci _scrivi_impostazioni(cartella, pitonit):

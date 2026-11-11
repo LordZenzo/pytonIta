@@ -203,7 +203,7 @@ classe Convertitore:
             m.campi["nome"] = nodo.attr
             se_stesso.ingresso(m, "obj", nodo.value)
             ritorna m
-        se isinstance(nodo, ast.Tuple) e lunghezza(nodo.elts) <= 12 e non any(isinstance(e, ast.Starred) per e in nodo.elts):
+        se isinstance(nodo, ast.Tuple) e lunghezza(nodo.elts) <= 12 e non any(isinstance(elemento, ast.Starred) per elemento in nodo.elts):
             m = se_stesso.nuova("tupla")
             se_stesso._elementi(m, nodo.elts)
             ritorna m
@@ -281,8 +281,8 @@ classe Convertitore:
 
     definisci _elementi(se_stesso, m, elementi):
         """Collega gli elementi di una lista, tupla o insieme agli ingressi a, b, c… della mattonella."""
-        per slot, e in zip(SLOT_VARI, elementi):
-            se_stesso.ingresso(m, slot, e)
+        per slot, elemento in zip(SLOT_VARI, elementi):
+            se_stesso.ingresso(m, slot, elemento)
 
     definisci _frase(se_stesso, nodo):
         """f-string -> mattonella «frase»: modello con {a}, {b}… e i valori negli ingressi. Nessuno se non ci sta."""
@@ -306,8 +306,8 @@ classe Convertitore:
                 modello += "{" + lettera + conv + spec + "}"
         m = se_stesso.nuova("testo_f")
         m.campi["modello"] = modello
-        per lettera, e in zip("abcdef", da_collegare):
-            se_stesso.ingresso(m, lettera, e)
+        per lettera, elemento in zip("abcdef", da_collegare):
+            se_stesso.ingresso(m, lettera, elemento)
         ritorna m
 
     definisci _radice_modulo(se_stesso, f):
@@ -339,14 +339,14 @@ classe Convertitore:
             se genere == "pos":
                 se_stesso.ingresso(m, slot, a)
             altrimenti_se a.arg è Nessuno:
-                o = se_stesso.nuova("spacchetta_dizionario")
-                se_stesso.ingresso(o, "v", a.value)
-                se_stesso._collega(m, slot, o)
+                valore = se_stesso.nuova("spacchetta_dizionario")
+                se_stesso.ingresso(valore, "v", a.value)
+                se_stesso._collega(m, slot, valore)
             altrimenti:
-                o = se_stesso.nuova("opzione")
-                o.campi["nome"] = a.arg
-                se_stesso.ingresso(o, "val", a.value)
-                se_stesso._collega(m, slot, o)
+                valore = se_stesso.nuova("opzione")
+                valore.campi["nome"] = a.arg
+                se_stesso.ingresso(valore, "val", a.value)
+                se_stesso._collega(m, slot, valore)
         ritorna m
 
     definisci _semplice(se_stesso, chiamata):
@@ -579,12 +579,12 @@ classe Convertitore:
             ritorna [m]
         se isinstance(nodo, ast.With) e lunghezza(nodo.items) == 1:
             it = nodo.items[0]
-            e = it.context_expr
-            se (isinstance(e, ast.Call) e isinstance(e.func, ast.Name) e e.func.id in ("apri", "open") e lunghezza(e.args) == 1
-                    e se_stesso._semplice(e) e isinstance(it.optional_vars, ast.Name)):
+            elemento = it.context_expr
+            se (isinstance(elemento, ast.Call) e isinstance(elemento.func, ast.Name) e elemento.func.id in ("apri", "open") e lunghezza(elemento.args) == 1
+                    e se_stesso._semplice(elemento) e isinstance(it.optional_vars, ast.Name)):
                 m = se_stesso.nuova("con_file")
                 m.campi["var"] = it.optional_vars.id
-                se_stesso.ingresso(m, "nome", e.args[0])
+                se_stesso.ingresso(m, "nome", elemento.args[0])
                 se_stesso._riempi(m, "corpo", nodo.body)
                 ritorna [m]
         se isinstance(nodo, ast.With):

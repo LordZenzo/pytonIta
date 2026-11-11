@@ -45,11 +45,11 @@ classe Norm(ast.NodeTransformer):
     definisci visit_UnaryOp(se_stesso, n):
         se_stesso.generic_visit(n)
         se isinstance(n.op, ast.Not) e isinstance(n.operand, ast.Compare) e lunghezza(n.operand.ops) == 1:
-            o = n.operand.ops[0]
-            se isinstance(o, ast.In):
+            valore = n.operand.ops[0]
+            se isinstance(valore, ast.In):
                 n.operand.ops[0] = ast.NotIn()
                 ritorna n.operand
-            se isinstance(o, ast.Is):
+            se isinstance(valore, ast.Is):
                 n.operand.ops[0] = ast.IsNot()
                 ritorna n.operand
         ritorna n
@@ -115,10 +115,10 @@ per f in sorted(glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.a
     nuovo, av = genera_codice(p)
     prova:
         a1 = funzioni(albero(src)); a2 = funzioni(albero(nuovo))
-    eccetto SyntaxError come e:
-        stampa("NON COMPILA", os.path.basename(f), e.lineno, e)
+    eccetto SyntaxError come errore:
+        stampa("NON COMPILA", os.path.basename(f), errore.lineno, errore)
         righe = nuovo.split(chr(10))
-        stampa(chr(10).join(righe[max(0, e.lineno - 8):e.lineno + 2]))
+        stampa(chr(10).join(righe[max(0, errore.lineno - 8):errore.lineno + 2]))
         continua
     per k, n1 in a1.items():
         se "." non in k e k in ("principale",):

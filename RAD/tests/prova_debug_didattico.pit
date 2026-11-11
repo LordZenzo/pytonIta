@@ -144,7 +144,7 @@ verifica(lunghezza(fermi(soste)) == 1 e "fine 0" in uscita, "senza watchpoint il
 # compatibilità: l'elenco semplice di stringhe resta valido
 soste, uscita = corri(prog3, [["passo"], ['osserva ["i", "totale"]', "passo"]])
 f = fermi(soste)
-verifica(lunghezza(f) >= 3 e [o["espressione"] per o in f[2]["osservate"]] == ["i", "totale"], "osserva con una lista di stringhe")
+verifica(lunghezza(f) >= 3 e [elemento["espressione"] per elemento in f[2]["osservate"]] == ["i", "totale"], "osserva con una lista di stringhe")
 
 # un watchpoint dentro una funzione: quando la funzione finisce non dà falsi allarmi
 prog4 = scrivi("funzione.pit", '''definisci somma(n):

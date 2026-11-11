@@ -26,10 +26,10 @@ _COPPIE = {"(": ")", "[": "]", "{": "}"}
 definisci linguaggio_di(percorso):
     """'pit' per pytonIta, 'py' per Python classico, Nessuno per gli altri file."""
     se not_vuoto(percorso):
-        e = os.path.splitext(percorso)[1].lower()
-        se e == ".pit":
+        elemento = os.path.splitext(percorso)[1].lower()
+        se elemento == ".pit":
             ritorna "pit"
-        se e in (".py", ".pyw"):
+        se elemento in (".py", ".pyw"):
             ritorna "py"
     ritorna Nessuno
 
@@ -119,10 +119,10 @@ classe Editor(tk.Frame):
             stile.suggerisci(b, aiuto)
         se_stesso.etichetta_trovati = tk.Label(se_stesso.barra_cerca, text="")
         se_stesso.etichetta_trovati.pack(side="left", padx=6)
-        se_stesso.campo_cerca.bind("<Return>", lambda e: se_stesso.trova_successivo())
-        se_stesso.campo_cerca.bind("<KeyRelease>", lambda e: se_stesso._evidenzia_ricerca())
-        se_stesso.campo_cerca.bind("<Escape>", lambda e: se_stesso.chiudi_ricerca())
-        se_stesso.campo_sostituisci.bind("<Escape>", lambda e: se_stesso.chiudi_ricerca())
+        se_stesso.campo_cerca.bind("<Return>", lambda evento_tk: se_stesso.trova_successivo())
+        se_stesso.campo_cerca.bind("<KeyRelease>", lambda evento_tk: se_stesso._evidenzia_ricerca())
+        se_stesso.campo_cerca.bind("<Escape>", lambda evento_tk: se_stesso.chiudi_ricerca())
+        se_stesso.campo_sostituisci.bind("<Escape>", lambda evento_tk: se_stesso.chiudi_ricerca())
 
         t = se_stesso.t
         t.bind("<<Selection>>", se_stesso._ricorda_selezione)
@@ -130,18 +130,18 @@ classe Editor(tk.Frame):
         t.bind("<KeyPress>", se_stesso._alla_pressione, add="+")
         t.bind("<KeyRelease>", se_stesso._al_rilascio, add="+")
         t.bind("<ButtonRelease-1>", se_stesso._al_cursore, add="+")
-        t.bind("<Button-1>", lambda e: se_stesso.chiudi_suggerimenti(), add="+")
-        t.bind("<Configure>", lambda e: se_stesso._ridisegna_numeri())
-        t.bind("<MouseWheel>", lambda e: se_stesso.after_idle(se_stesso._ridisegna_numeri), add="+")
-        t.bind("<FocusOut>", lambda e: se_stesso.after(150, se_stesso._chiudi_se_perso), add="+")
+        t.bind("<Button-1>", lambda evento_tk: se_stesso.chiudi_suggerimenti(), add="+")
+        t.bind("<Configure>", lambda evento_tk: se_stesso._ridisegna_numeri())
+        t.bind("<MouseWheel>", lambda evento_tk: se_stesso.after_idle(se_stesso._ridisegna_numeri), add="+")
+        t.bind("<FocusOut>", lambda evento_tk: se_stesso.after(150, se_stesso._chiudi_se_perso), add="+")
         t.bind("<Control-a>", se_stesso._seleziona_tutto)
-        t.bind("<Control-z>", lambda e: se_stesso.annulla() o "break")
-        t.bind("<Control-y>", lambda e: se_stesso.ripeti() o "break")
-        t.bind("<Control-slash>", lambda e: se_stesso.commenta() o "break")
-        t.bind("<Control-d>", lambda e: se_stesso.duplica_riga() o "break")
-        t.bind("<Alt-Up>", lambda e: se_stesso.sposta_riga(-1) o "break")
-        t.bind("<Alt-Down>", lambda e: se_stesso.sposta_riga(1) o "break")
-        t.bind("<Shift-Tab>", lambda e: se_stesso.riduci_rientro() o "break")
+        t.bind("<Control-z>", lambda evento_tk: se_stesso.annulla() o "break")
+        t.bind("<Control-y>", lambda evento_tk: se_stesso.ripeti() o "break")
+        t.bind("<Control-slash>", lambda evento_tk: se_stesso.commenta() o "break")
+        t.bind("<Control-d>", lambda evento_tk: se_stesso.duplica_riga() o "break")
+        t.bind("<Alt-Up>", lambda evento_tk: se_stesso.sposta_riga(-1) o "break")
+        t.bind("<Alt-Down>", lambda evento_tk: se_stesso.sposta_riga(1) o "break")
+        t.bind("<Shift-Tab>", lambda evento_tk: se_stesso.riduci_rientro() o "break")
         t.bind("<<Paste>>", se_stesso._incolla)
 
     definisci applica_impostazioni(se_stesso):
@@ -209,27 +209,27 @@ classe Editor(tk.Frame):
         t.bind("<Button-3>", se_stesso._menu_contestuale)
         t.bind("<Control-Button-1>", se_stesso._clic_con_ctrl)
         t.bind("<Motion>", se_stesso._movimento_mouse, add="+")
-        t.bind("<Leave>", lambda e: se_stesso._nascondi_doc(), add="+")
-        t.bind("<KeyPress>", lambda e: se_stesso._nascondi_doc(), add="+")
-        t.bind("<Button-1>", lambda e: se_stesso._nascondi_doc(), add="+")
+        t.bind("<Leave>", lambda evento_tk: se_stesso._nascondi_doc(), add="+")
+        t.bind("<KeyPress>", lambda evento_tk: se_stesso._nascondi_doc(), add="+")
+        t.bind("<Button-1>", lambda evento_tk: se_stesso._nascondi_doc(), add="+")
 
     definisci parola_a_indice(se_stesso, indice="insert"):
         """Il nome (identificatore) che si trova nel punto indicato, o stringa vuota."""
         riga, colonna = [int(x) per x in se_stesso.t.index(indice).split(".")]
         ritorna navigazione.parola_a(se_stesso.t.get(f"{riga}.0", f"{riga}.0 lineend"), colonna)
 
-    definisci _clic_con_ctrl(se_stesso, e):
+    definisci _clic_con_ctrl(se_stesso, evento_tk):
         """Ctrl+clic su un nome: va alla sua definizione."""
-        indice = se_stesso.t.index(f"@{e.x},{e.y}")
+        indice = se_stesso.t.index(f"@{evento_tk.x},{evento_tk.y}")
         se se_stesso.app è non Nessuno e se_stesso.parola_a_indice(indice):
             se_stesso.t.mark_set("insert", indice)
             se_stesso.app.vai_alla_definizione(se_stesso, indice)
             ritorna "break"
 
-    definisci _menu_contestuale(se_stesso, e):
+    definisci _menu_contestuale(se_stesso, evento_tk):
         t = se_stesso.t
         se non t.tag_ranges("sel"):
-            t.mark_set("insert", f"@{e.x},{e.y}")
+            t.mark_set("insert", f"@{evento_tk.x},{evento_tk.y}")
         m = tk.Menu(se_stesso, tearoff=0)
         c = se_stesso.colori
         m.add_command(label="Taglia", accelerator="Ctrl+X", command=lambda: t.event_generate("<<Cut>>"))
@@ -247,14 +247,14 @@ classe Editor(tk.Frame):
             m.configure(background=c["pannello"], foreground=c["primo_piano"], activebackground=c["accento"], activeforeground="#ffffff")
         eccetto (tk.TclError, KeyError):
             passa
-        m.tk_popup(e.x_root, e.y_root)
+        m.tk_popup(evento_tk.x_root, evento_tk.y_root)
         ritorna "break"
 
-    definisci _movimento_mouse(se_stesso, e):
+    definisci _movimento_mouse(se_stesso, evento_tk):
         se_stesso._nascondi_doc()
         se se_stesso.fornitore_doc è Nessuno e non se_stesso._omonimi:
             ritorna
-        se_stesso._lavoro_doc = se_stesso.after(650, lambda: se_stesso._mostra_doc(e.x, e.y))
+        se_stesso._lavoro_doc = se_stesso.after(650, lambda: se_stesso._mostra_doc(evento_tk.x, evento_tk.y))
 
     definisci _mostra_doc(se_stesso, x, y):
         se_stesso._lavoro_doc = Nessuno
@@ -519,32 +519,32 @@ classe Editor(tk.Frame):
             riga, col = se_stesso.t.index("insert").split(".")
             se_stesso.sul_cursore(int(riga), int(col) + 1)
 
-    definisci _alla_pressione(se_stesso, e):
+    definisci _alla_pressione(se_stesso, evento_tk):
         t = se_stesso.t
         se se_stesso._popup:
-            se e.keysym in ("Down", "Up"):
-                se_stesso._muovi_selezione(1 se e.keysym == "Down" altrimenti -1)
+            se evento_tk.keysym in ("Down", "Up"):
+                se_stesso._muovi_selezione(1 se evento_tk.keysym == "Down" altrimenti -1)
                 ritorna "break"
-            se e.keysym in ("Return", "Tab"):
+            se evento_tk.keysym in ("Return", "Tab"):
                 se_stesso.accetta_suggerimento()
                 ritorna "break"
-            se e.keysym == "Escape":
+            se evento_tk.keysym == "Escape":
                 se_stesso.chiudi_suggerimenti()
                 ritorna "break"
-            se e.keysym in ("Prior", "Next"):
-                se_stesso._muovi_selezione(8 se e.keysym == "Next" altrimenti -8)
+            se evento_tk.keysym in ("Prior", "Next"):
+                se_stesso._muovi_selezione(8 se evento_tk.keysym == "Next" altrimenti -8)
                 ritorna "break"
-        se e.keysym == "Return" e non (e.state & 0x4):
+        se evento_tk.keysym == "Return" e non (evento_tk.state & 0x4):
             se_stesso._a_capo_con_rientro()
             ritorna "break"
-        se e.keysym == "Tab" e non (e.state & 0x1):
+        se evento_tk.keysym == "Tab" e non (evento_tk.state & 0x1):
             se t.tag_ranges("sel"):
                 se_stesso.aumenta_rientro()
             altrimenti:
                 se non se_stesso._espandi_frammento():
                     t.insert("insert", " " * se_stesso.config_.ottieni("editor.tabulazione", 4))
             ritorna "break"
-        se e.keysym == "BackSpace" e non t.tag_ranges("sel"):
+        se evento_tk.keysym == "BackSpace" e non t.tag_ranges("sel"):
             prima = t.get("insert linestart", "insert")
             se prima e prima.strip() == "" e lunghezza(prima) >= 1:
                 n = se_stesso.config_.ottieni("editor.tabulazione", 4)
@@ -558,43 +558,43 @@ classe Editor(tk.Frame):
                 se a in _COPPIE e _COPPIE[a] == b:
                     t.delete("insert-1c", "insert+1c")
                     ritorna "break"
-        se e.char e se_stesso.config_.ottieni("editor.chiudi_parentesi", Vero) e non (e.state & 0x4):
-            se e.char in _COPPIE:
-                t.insert("insert", e.char + _COPPIE[e.char])
+        se evento_tk.char e se_stesso.config_.ottieni("editor.chiudi_parentesi", Vero) e non (evento_tk.state & 0x4):
+            se evento_tk.char in _COPPIE:
+                t.insert("insert", evento_tk.char + _COPPIE[evento_tk.char])
                 t.mark_set("insert", "insert-1c")
                 ritorna "break"
-            se e.char in ")]}" e t.get("insert", "insert+1c") == e.char:
+            se evento_tk.char in ")]}" e t.get("insert", "insert+1c") == evento_tk.char:
                 t.mark_set("insert", "insert+1c")
                 ritorna "break"
-            se e.char in "\"'":
+            se evento_tk.char in "\"'":
                 dopo = t.get("insert", "insert+1c")
-                se dopo == e.char:
+                se dopo == evento_tk.char:
                     t.mark_set("insert", "insert+1c")
                     ritorna "break"
                 prima = t.get("insert-1c", "insert")
                 se non (prima.isalnum() o prima == "\\") e (dopo == "" o dopo.isspace() o dopo in ")]},:"):
-                    t.insert("insert", e.char * 2)
+                    t.insert("insert", evento_tk.char * 2)
                     t.mark_set("insert", "insert-1c")
                     ritorna "break"
         ritorna Nessuno
 
-    definisci _al_rilascio(se_stesso, e):
+    definisci _al_rilascio(se_stesso, evento_tk):
         se_stesso._al_cursore()
-        se e.keysym in ("Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R",
+        se evento_tk.keysym in ("Shift_L", "Shift_R", "Control_L", "Control_R", "Alt_L", "Alt_R",
                         "Up", "Down", "Return", "Tab", "Escape", "Prior", "Next"):
             ritorna
-        se e.keysym in ("Left", "Right", "Home", "End"):
+        se evento_tk.keysym in ("Left", "Right", "Home", "End"):
             se_stesso.chiudi_suggerimenti()
             ritorna
         se non se_stesso.config_.ottieni("editor.suggerimenti", Vero):
             ritorna
-        se e.char e (e.char.isalnum() o e.char in "_.(," o e.keysym == "BackSpace" o (e.char == " " e se_stesso._dopo_virgola())):
+        se evento_tk.char e (evento_tk.char.isalnum() o evento_tk.char in "_.(," o evento_tk.keysym == "BackSpace" o (evento_tk.char == " " e se_stesso._dopo_virgola())):
             se se_stesso._lavoro_suggerimenti:
                 se_stesso.after_cancel(se_stesso._lavoro_suggerimenti)
             se_stesso._lavoro_suggerimenti = se_stesso.after(
                 se_stesso.config_.ottieni("editor.ritardo_suggerimenti_ms", 200),
                 se_stesso.suggerisci)
-        altrimenti_se e.keysym == "BackSpace":
+        altrimenti_se evento_tk.keysym == "BackSpace":
             se_stesso.chiudi_suggerimenti()
 
     definisci _a_capo_con_rientro(se_stesso):
@@ -682,11 +682,11 @@ classe Editor(tk.Frame):
             t.insert(f"{a}.0", sotto + "\n")
             t.mark_set("insert", f"{a + 1}.0")
 
-    definisci _seleziona_tutto(se_stesso, e=Nessuno):
+    definisci _seleziona_tutto(se_stesso, evento_tk=Nessuno):
         se_stesso.t.tag_add("sel", "1.0", "end-1c")
         ritorna "break"
 
-    definisci _incolla(se_stesso, e=Nessuno):
+    definisci _incolla(se_stesso, evento_tk=Nessuno):
         prova:
             testo_ = se_stesso.clipboard_get()
         eccetto tk.TclError:
@@ -796,7 +796,7 @@ classe Editor(tk.Frame):
                                           font=se_stesso.carattere, borderwidth=0,
                                           highlightthickness=1, highlightbackground=c["bordo"])
             se_stesso._lista.pack(fill="both", expand=Vero)
-            se_stesso._lista.bind("<Double-Button-1>", lambda e: se_stesso.accetta_suggerimento())
+            se_stesso._lista.bind("<Double-Button-1>", lambda evento_tk: se_stesso.accetta_suggerimento())
             se_stesso._popup = p
         lista_ = se_stesso._lista
         lista_.configure(background=c["pannello"], foreground=c["primo_piano"],
@@ -941,9 +941,9 @@ classe Editor(tk.Frame):
         se_stesso._al_cursore()
 
     # ------------------------------------------------------------ debugger
-    definisci _clic_margine(se_stesso, e):
+    definisci _clic_margine(se_stesso, evento_tk):
         """Un clic sul margine dei numeri di riga mette o toglie un punto di arresto."""
-        indice = se_stesso.t.index(f"@0,{e.y}")
+        indice = se_stesso.t.index(f"@0,{evento_tk.y}")
         se_stesso.alterna_punto_arresto(int(indice.split(".")[0]))
 
     definisci alterna_punto_arresto(se_stesso, riga=Nessuno):
@@ -958,9 +958,9 @@ classe Editor(tk.Frame):
         se se_stesso.sui_punti_arresto:
             se_stesso.sui_punti_arresto(se_stesso)
 
-    definisci _menu_margine(se_stesso, e):
+    definisci _menu_margine(se_stesso, evento_tk):
         """Clic destro sul margine: punto di arresto semplice, con condizione/passaggi/messaggio, oppure da togliere."""
-        riga = int(se_stesso.t.index(f"@0,{e.y}").split(".")[0])
+        riga = int(se_stesso.t.index(f"@0,{evento_tk.y}").split(".")[0])
         c = se_stesso.colori
         m = tk.Menu(se_stesso, tearoff=0, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["accento"], activeforeground="#ffffff")
         c_ = riga in se_stesso.punti_arresto
@@ -969,7 +969,7 @@ classe Editor(tk.Frame):
         d = se_stesso.dettagli_punti.get(riga)
         se c_ e d:
             m.add_command(label="Togli la condizione (resta il punto semplice)", command=lambda: se_stesso.imposta_dettagli_punto(riga, Nessuno))
-        m.tk_popup(e.x_root, e.y_root)
+        m.tk_popup(evento_tk.x_root, evento_tk.y_root)
 
     definisci modifica_punto_arresto(se_stesso, riga=Nessuno):
         """Apre la finestra con condizione, passaggi e messaggio del punto di arresto (lo crea se non c'è)."""

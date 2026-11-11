@@ -54,10 +54,10 @@ definisci _inutile(nome, verso_x, verso_y):
     w = p.widget[nome]
     p._premi(Ev(w.winfo_rootx() + 3, w.winfo_rooty() + 3), nome)
     sx, sy = p.superficie.winfo_rootx(), p.superficie.winfo_rooty()
-    e = Ev(sx + verso_x, sy + verso_y)
-    p._trascina(e, nome)
+    elemento = Ev(sx + verso_x, sy + verso_y)
+    p._trascina(elemento, nome)
     radice.update()
-    p._rilascia(e, nome)
+    p._rilascia(elemento, nome)
     radice.update()
 
 

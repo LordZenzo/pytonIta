@@ -165,8 +165,8 @@ radice.destroy()
 
 # ---------------------------------------------------------------- esportato in Python
 dest = os.path.join(tempfile.mkdtemp(), "e")
-e = esporta_python.esporta(c2, dest)
-verifica(e["errori"] == [] e os.path.exists(os.path.join(dest, "grafico.py")), "esportazione: " + str(e))
+elemento = esporta_python.esporta(c2, dest)
+verifica(elemento["errori"] == [] e os.path.exists(os.path.join(dest, "grafico.py")), "esportazione: " + str(elemento))
 python_ = shutil.which("python") o shutil.which("py")
 se python_:
     open(os.path.join(dest, "p.py"), "w", encoding="utf-8").write("import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport mensile\nr = tk.Tk(); a = mensile.Mensile(r); r.update(); r.update()\ng = a.grafico_mesi\nprint(len([i for i in g.find_all() if g.type(i) == 'rectangle']))\nr.destroy()\n")

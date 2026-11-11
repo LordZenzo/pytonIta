@@ -40,12 +40,12 @@ r = c.esegui("UPDATE prodotti SET prezzo = prezzo * 2 WHERE nome LIKE 'P%'")
 stampa("update:", r.modificate, "|", r.riassunto().split(" in ")[0])
 prova:
     c.esegui("SELECT * FROM non_esiste")
-eccetto ErroreDatabase come e:
-    stampa("errore comprensibile:", e)
+eccetto ErroreDatabase come errore:
+    stampa("errore comprensibile:", errore)
 prova:
     c.esegui("SELECT 1; SELEKT 2")
-eccetto ErroreDatabase come e:
-    stampa("errore nel secondo comando:", str(e).startswith("Istruzione 2 di 2"))
+eccetto ErroreDatabase come errore:
+    stampa("errore nel secondo comando:", str(errore).startswith("Istruzione 2 di 2"))
 stampa("storia:", lunghezza(c.storia))
 
 # tabelle con chiave composta, colonna aggiunta, vista
@@ -73,14 +73,14 @@ stampa("riaperto:", [t per t, _ in c2.tabelle()], c2.esegui("SELECT COUNT(*) FRO
 c2.chiudi()
 prova:
     apri_sqlite(os.path.join(cartella, "manca.db"), crea=Falso)
-eccetto ErroreDatabase come e:
-    stampa("file mancante:", str(e).startswith("File non trovato"))
+eccetto ErroreDatabase come errore:
+    stampa("file mancante:", str(errore).startswith("File non trovato"))
 brutto = os.path.join(cartella, "testo.db")
 open(brutto, "w").write("non sono un database, sono solo testo, " * 10)
 prova:
     apri_sqlite(brutto)
-eccetto ErroreDatabase come e:
-    stampa("file che non è un database:", "Non riesco ad aprire" in str(e))
+eccetto ErroreDatabase come errore:
+    stampa("file che non è un database:", "Non riesco ad aprire" in str(errore))
 
 # utilità
 stampa("divisione SQL:", dividi_istruzioni("SELECT ';' ; -- commento; no\n UPDATE t SET a = 'x;y'; /* ; */ SELECT 2;"))
@@ -95,7 +95,7 @@ stampa(sql_my)
 stampa("citazione e segnaposto MySQL:", class_finta.citato("a`b"), class_finta.segnaposto, "| tipi:", "VARCHAR(255)" in TIPI_MYSQL)
 prova:
     apri_mysql("localhost", 3306, "x", "y", "z")
-eccetto DriverMancante come e:
-    stampa("senza pymysql:", "pymysql" in str(e))
+eccetto DriverMancante come errore:
+    stampa("senza pymysql:", "pymysql" in str(errore))
 eccetto ErroreDatabase come errore_mysql:
     stampa("pymysql presente, ma nessun server:", "MySQL" in str(errore_mysql))

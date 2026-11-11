@@ -56,10 +56,10 @@ definisci applica_aspetto(radice, nome="chiaro", font_base=Nessuno):
     _corrente.update(c)
     font_base = font_base o CARATTERE
     radice.configure(background=c["sfondo"])
-    o = radice.option_add
+    imposta_opzione = radice.option_add
     per classe_tk, opzioni in _opzioni_tk(c, font_base).items():
         per chiave, valore in opzioni.items():
-            o(f"*{classe_tk}.{NOMI_OPZIONI.get(chiave, chiave)}", valore, 60)
+            imposta_opzione(f"*{classe_tk}.{NOMI_OPZIONI.get(chiave, chiave)}", valore, 60)
     _stili_ttk(radice, c, font_base)
     ritorna c
 

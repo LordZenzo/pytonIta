@@ -119,8 +119,8 @@ radice2.destroy()
 # --- esportato in Python: menu, timer, ancoraggi e finestra secondaria funzionano senza pytonIta
 da rad importa esporta_python
 dest = os.path.join(tempfile.mkdtemp(), "export")
-e = esporta_python.esporta(cartella, dest)
-stampa("esportato:", e["file_python"], "file | errori:", e["errori"])
+elemento = esporta_python.esporta(cartella, dest)
+stampa("esportato:", elemento["file_python"], "file | errori:", elemento["errori"])
 open(os.path.join(dest, "prova_py.py"), "w", encoding="utf-8").write("""
 import os, sys, time, tkinter as tk
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

@@ -107,17 +107,17 @@ definisci converti_file(py2pit, sorgente, percorso, verifica=Vero):
     """Traduce un file. Ritorna (testo_pit, rinominati, stringhe_py, nota) oppure (Nessuno, [], [], motivo) se va lasciato in Python."""
     prova:
         albero = ast.parse(sorgente)
-    eccetto (SyntaxError, ErroreDiValore) come e:
-        ritorna Nessuno, [], [], f"errore di sintassi nell'originale (riga {getattr(e, 'lineno', '?')})"
+    eccetto (SyntaxError, ErroreDiValore) come eccezione:
+        ritorna Nessuno, [], [], f"errore di sintassi nell'originale (riga {getattr(eccezione, 'lineno', '?')})"
     rapporto = []
     prova:
         tradotto = py2pit.traduci(sorgente, rapporto)
-    eccetto Exception come e:
-        ritorna Nessuno, [], [], f"traduzione non riuscita ({tipo(e).__name__}: {e})"
+    eccetto Exception come eccezione:
+        ritorna Nessuno, [], [], f"traduzione non riuscita ({tipo(eccezione).__name__}: {eccezione})"
     prova:
         albero_pit = compile(tradotto, percorso, "exec", FLAG_ITALIANO | ast.PyCF_ONLY_AST, Vero)
-    eccetto SyntaxError come e:
-        ritorna Nessuno, [], [], f"il testo tradotto non compila (riga {e.lineno}: {e.msg})"
+    eccetto SyntaxError come eccezione:
+        ritorna Nessuno, [], [], f"il testo tradotto non compila (riga {eccezione.lineno}: {eccezione.msg})"
     se verifica e _tipi(albero) != _tipi(albero_pit):
         ritorna Nessuno, [], [], "la struttura del programma tradotto non coincide con l'originale"
     rinominati = sorted({(r[1], r[2]) per r in rapporto})
@@ -161,8 +161,8 @@ definisci converti(origine, destinazione, verifica=Vero, avanzamento=Nessuno, fe
             avanzamento(fatti, totale, rel)
         prova:
             sorgente, nota_codifica = leggi_sorgente(sorgente_path)
-        eccetto OSError come e:
-            r["mantenuti_py"].append({"file": rel, "motivo": f"non leggibile: {e}"})
+        eccetto OSError come eccezione:
+            r["mantenuti_py"].append({"file": rel, "motivo": f"non leggibile: {eccezione}"})
             fatti += 1
             continua
         tradotto, rinominati, stringhe, motivo = converti_file(py2pit, sorgente, sorgente_path, verifica)
@@ -192,8 +192,8 @@ definisci converti(origine, destinazione, verifica=Vero, avanzamento=Nessuno, fe
             prova:
                 _copia(os.path.join(origine, rel), os.path.join(destinazione, rel))
                 r["copiati"] += 1
-            eccetto OSError come e:
-                r["saltati"].append({"file": rel, "motivo": f"copia non riuscita: {e}"})
+            eccetto OSError come eccezione:
+                r["saltati"].append({"file": rel, "motivo": f"copia non riuscita: {eccezione}"})
             fatti += 1
     r["principale"] = _scrivi_manifesto(origine, destinazione, r, candidati_principale)
     r["durata_s"] = round(time.time() - inizio, 1)

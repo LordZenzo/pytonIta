@@ -53,7 +53,13 @@ r = esegui("metodi.pit", ["classe Doc:", "    definisci elimina(se_stesso):", " 
 verifica(r.returncode == 0 e r.stdout.split() == ["ok", "p"], "un metodo può avere il nome di una parola chiave (è un attributo)")
 
 r = esegui("evento.pit", ["definisci g(e):", "    ritorna e + 1", "o = g(1)", "stampa(o)"])
-verifica(r.returncode == 0 e r.stdout.split() == ["2"], "«e» e «o» come nomi (evento, oggetto) restano ammessi")
+verifica(r.returncode != 0 e "«e» è l'operatore «and»" in r.stderr e "«o» è l'operatore «or»" in r.stderr, "«e» e «o» non si possono usare come nomi (sono operatori e una lettera sola è ambigua)")
+
+r = esegui("eccezione.pit", ["prova:", "    x = 1 / 0", "eccetto ErroreDiValore come e:", "    stampa(e)"])
+verifica(r.returncode != 0 e "«e»" in r.stderr, "«come e» è bloccato")
+
+r = esegui("operatori.pit", ["a = Vero", "b = Falso", "stampa(a e non b, a o b)"])
+verifica(r.returncode == 0 e r.stdout.split() == ["Vero", "Vero"], "gli operatori e/o funzionano come prima")
 
 r = esegui("non_chiamata.pit", ['testo = "ciao"', "stampa(testo.upper())"])
 verifica(r.returncode == 0 e r.stdout.split() == ["CIAO"], "una variabile chiamata testo mai richiamata come funzione non blocca")

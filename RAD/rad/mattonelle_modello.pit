@@ -590,7 +590,7 @@ classe Area:
             lista_ = m.lista
             i = lista_.index(m)
             origine = lista_[i:] se con_seguito altrimenti [m]
-            r = Radice(x, y, pila=[Mattonella.da_dizionario(o.a_dizionario(), programma) per o in origine])
+            r = Radice(x, y, pila=[Mattonella.da_dizionario(elemento.a_dizionario(), programma) per elemento in origine])
         se_stesso.radici.append(r)
         ritorna r
 

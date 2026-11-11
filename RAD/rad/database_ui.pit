@@ -49,11 +49,11 @@ classe Griglia(tk.Frame):
     definisci selezionate(se_stesso):
         ritorna [int(i) per i in se_stesso.albero.selection()]
 
-    definisci _doppio_clic(se_stesso, e):
-        se non se_stesso.alla_modifica o se_stesso.albero.identify_region(e.x, e.y) != "cell":
+    definisci _doppio_clic(se_stesso, evento):
+        se non se_stesso.alla_modifica o se_stesso.albero.identify_region(evento.x, evento.y) != "cell":
             ritorna
-        riga = se_stesso.albero.identify_row(e.y)
-        colonna = se_stesso.albero.identify_column(e.x)
+        riga = se_stesso.albero.identify_row(evento.y)
+        colonna = se_stesso.albero.identify_column(evento.x)
         se non riga:
             ritorna
         c = int(colonna[1:]) - 1
@@ -178,10 +178,10 @@ classe DialogoTabella(DialogoBase):
              "chiave": tk.BooleanVar(value=colonna.chiave se colonna altrimenti Falso), "nn": tk.BooleanVar(value=colonna.non_nullo se colonna altrimenti Falso),
              "unica": tk.BooleanVar(value=Falso), "auto": tk.BooleanVar(value=colonna.autoincremento se colonna altrimenti Falso),
              "pred": tk.StringVar(value=colonna.predefinito se colonna altrimenti ""), "riga": riga}
-        e = tk.Entry(riga, textvariable=v["nome"], width=20, background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"], relief="flat",
+        elemento = tk.Entry(riga, textvariable=v["nome"], width=20, background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"], relief="flat",
                      highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
-        e.pack(side="left", padx=2)
-        v["nome_campo"] = e
+        elemento.pack(side="left", padx=2)
+        v["nome_campo"] = elemento
         tipo_ = ttk.Combobox(riga, textvariable=v["tipo"], values=se_stesso.conn.tipi(), width=15)
         tipo_.pack(side="left", padx=2)
         per chiave, larghezza, aiuto in (("chiave", 4, "Chiave primaria: identifica ogni riga"), ("nn", 8, "Non nulla: il valore è obbligatorio"),
@@ -428,7 +428,7 @@ classe VisoreDatabase(VisoreBase):
         se_stesso.var_filtro = tk.StringVar()
         se_stesso.campo_filtro = tk.Entry(su, textvariable=se_stesso.var_filtro, relief="flat", highlightthickness=1, width=36)
         se_stesso.campo_filtro.pack(side="left", padx=4)
-        se_stesso.campo_filtro.bind("<Return>", lambda e: se_stesso.applica_filtro())
+        se_stesso.campo_filtro.bind("<Return>", lambda evento: se_stesso.applica_filtro())
         suggerisci(se_stesso.campo_filtro, "Per esempio:  prezzo > 5 AND nome LIKE 'P%'   (Invio per applicare)", se_stesso.colori)
         se_stesso._pulsante(su, "Applica", se_stesso.applica_filtro, "Mostra solo le righe che soddisfano la condizione")
         se_stesso._pulsante(su, "✕", se_stesso.togli_filtro, "Toglie il filtro")
@@ -437,7 +437,7 @@ classe VisoreDatabase(VisoreBase):
         se_stesso._pulsante(su, "＋ Riga…", se_stesso.nuova_riga, "Aggiunge una riga inserendo i valori", "right")
         se_stesso.griglia = Griglia(f, alla_modifica=se_stesso._modifica_cella, sull_intestazione=se_stesso._ordina)
         se_stesso.griglia.pack(fill="both", expand=Vero, padx=6)
-        se_stesso.griglia.albero.bind("<Delete>", lambda e: se_stesso.elimina_righe())
+        se_stesso.griglia.albero.bind("<Delete>", lambda evento: se_stesso.elimina_righe())
         giu = tk.Frame(f)
         giu.pack(fill="x", padx=6, pady=4)
         se_stesso.cornici.append(giu)
@@ -461,7 +461,7 @@ classe VisoreDatabase(VisoreBase):
         se_stesso._pulsante(su, "Elimina la tabella…", se_stesso.elimina_tabella, "Elimina la tabella con tutti i suoi dati (non si può annullare)", "right")
         se_stesso.griglia_struttura = Griglia(f)
         se_stesso.griglia_struttura.pack(fill="both", expand=Vero, padx=6)
-        se_stesso.griglia_struttura.albero.bind("<Double-Button-1>", lambda e: se_stesso.modifica_colonna() se se_stesso.griglia_struttura.albero.identify_row(e.y) altrimenti Nessuno, add="+")
+        se_stesso.griglia_struttura.albero.bind("<Double-Button-1>", lambda evento: se_stesso.modifica_colonna() se se_stesso.griglia_struttura.albero.identify_row(evento.y) altrimenti Nessuno, add="+")
         tk.Label(f, text="Istruzione che ha creato la tabella:", anchor="w").pack(fill="x", padx=6, pady=(6, 0))
         se_stesso.etichette.append(f.winfo_children()[-1])
         se_stesso.testo_creazione = tk.Text(f, height=8, font=(FONT_MONO, 10), relief="flat", state="disabled", wrap="none")
@@ -486,8 +486,8 @@ classe VisoreDatabase(VisoreBase):
         se_stesso._pulsante(su, "Esporta CSV…", se_stesso.esporta_risultato, "Salva il risultato in un file CSV", "right")
         se_stesso.editor_sql = tk.Text(f, height=9, font=(FONT_MONO, 11), undo=Vero, relief="flat", wrap="none", highlightthickness=1)
         se_stesso.editor_sql.pack(fill="x", padx=6)
-        se_stesso.editor_sql.bind("<Control-Return>", lambda e: (se_stesso.esegui_sql(), "break")[1])
-        se_stesso.editor_sql.bind("<F5>", lambda e: (se_stesso.esegui_sql(), "break")[1])
+        se_stesso.editor_sql.bind("<Control-Return>", lambda evento: (se_stesso.esegui_sql(), "break")[1])
+        se_stesso.editor_sql.bind("<F5>", lambda evento: (se_stesso.esegui_sql(), "break")[1])
         se_stesso.editor_sql.bind("<KeyRelease>", se_stesso._suggerisci_sql)
         suggerisci(se_stesso.editor_sql, "Scrivi uno o più comandi SQL separati da «;».  Ctrl+Invio esegue.  Doppio clic su una tabella a sinistra scrive un SELECT.",
                    se_stesso.colori)
@@ -542,7 +542,7 @@ classe VisoreDatabase(VisoreBase):
         c = se_stesso.colori
         se_stesso.stato.configure(text=testo_, foreground=(c["errore"] se errore altrimenti c["tenue"]))
 
-    definisci _scelta_tabella(se_stesso, e=Nessuno):
+    definisci _scelta_tabella(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco.selection()
         se non sel:
             ritorna
@@ -555,8 +555,8 @@ classe VisoreDatabase(VisoreBase):
         se_stesso.carica_dati()
         se_stesso.carica_struttura()
 
-    definisci _menu_tabella(se_stesso, e):
-        iid = se_stesso.elenco.identify_row(e.y)
+    definisci _menu_tabella(se_stesso, evento):
+        iid = se_stesso.elenco.identify_row(evento.y)
         se non iid:
             ritorna
         se_stesso.elenco.selection_set(iid)
@@ -566,9 +566,9 @@ classe VisoreDatabase(VisoreBase):
         m.add_command(label="Scrivi un SELECT nell'editor SQL", command=se_stesso._scrivi_select)
         m.add_separator()
         m.add_command(label="Elimina…", command=se_stesso.elimina_tabella)
-        m.tk_popup(e.x_root, e.y_root)
+        m.tk_popup(evento.x_root, evento.y_root)
 
-    definisci _scrivi_select(se_stesso, e=Nessuno):
+    definisci _scrivi_select(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco.selection()
         se non sel:
             ritorna
@@ -830,7 +830,7 @@ classe VisoreDatabase(VisoreBase):
                 voci.append(riga[:120])
         se_stesso.storia.configure(values=voci)
 
-    definisci _dalla_storia(se_stesso, e=Nessuno):
+    definisci _dalla_storia(se_stesso, evento=Nessuno):
         scelto = se_stesso.var_storia.get()
         per s in reversed(se_stesso.conn.storia):
             se " ".join(s.split()).startswith(scelto[:70]):
@@ -838,9 +838,9 @@ classe VisoreDatabase(VisoreBase):
                 se_stesso.editor_sql.insert("1.0", s)
                 interrompi
 
-    definisci _suggerisci_sql(se_stesso, e):
+    definisci _suggerisci_sql(se_stesso, evento):
         """Suggerimento leggero: mostra nella barra di stato le tabelle o le colonne che iniziano come la parola scritta."""
-        se e.keysym in ("Return", "Control_L", "Control_R", "Shift_L", "Shift_R", "BackSpace", "Escape", "F5"):
+        se evento.keysym in ("Return", "Control_L", "Control_R", "Shift_L", "Shift_R", "BackSpace", "Escape", "F5"):
             ritorna
         riga = se_stesso.editor_sql.get("insert linestart", "insert")
         parola = riga.replace("(", " ").replace(",", " ").split(" ")[-1].strip('"`')

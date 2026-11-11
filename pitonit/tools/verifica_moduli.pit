@@ -6,8 +6,8 @@ errori = 0
 per nome in moduli:
     prova:
         importlib.import_module(nome)
-    eccetto Eccezione come e:
+    eccetto Eccezione come errore:
         errori += 1
-        stampa(f"ERRORE {nome}: {tipo(e).__name__}: {e}")
+        stampa(f"ERRORE {nome}: {tipo(errore).__name__}: {errore}")
 stampa(f"{lunghezza(moduli) - errori}/{lunghezza(moduli)} moduli importati correttamente")
 sistema.termina(1 se errori altrimenti 0)

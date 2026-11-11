@@ -45,6 +45,6 @@ definisci riassunto(r):
     se r["errori"]:
         righe.append("")
         righe.append(f"Non convertiti ({lunghezza(r['errori'])}):")
-        per f, e in r["errori"][:6]:
-            righe.append(f"  · {f}: {e}")
+        per f, elemento in r["errori"][:6]:
+            righe.append(f"  · {f}: {elemento}")
     ritorna "\n".join(righe)

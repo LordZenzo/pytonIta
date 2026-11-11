@@ -7,10 +7,10 @@ da rad importa converti_progetto
 
 PITONIT = os.path.join(os.path.dirname(sys.executable), "pitonit.exe")
 base = tempfile.mkdtemp()
-o = os.path.join(base, "Esempio_py")
+valore = os.path.join(base, "Esempio_py")
 
 definisci scrivi(rel, contenuto, binario=Falso):
-    p = os.path.join(o, rel)
+    p = os.path.join(valore, rel)
     os.makedirs(os.path.dirname(p), exist_ok=Vero)
     con open(p, "wb" se binario altrimenti "w", **({} se binario altrimenti {"encoding": "utf-8", "newline": "\n"})) come f:
         f.write(contenuto)
@@ -68,10 +68,10 @@ scrivi("percorsi.py", 'import subprocess\nsubprocess.run(["python", "main.py"])\
 
 # ================================================================= la conversione
 d = os.path.join(base, "Esempio_pit")
-stampa("destinazione proposta:", os.path.basename(converti_progetto.proposta_destinazione(o)))
-piano = converti_progetto.piano(o, d)
+stampa("destinazione proposta:", os.path.basename(converti_progetto.proposta_destinazione(valore)))
+piano = converti_progetto.piano(valore, d)
 stampa("piano: da convertire", sorted(piano[0]), "| da copiare", sorted(piano[1]), "| saltati", [s[0] per s in piano[2]])
-r = converti_progetto.converti(o, d, Vero)
+r = converti_progetto.converti(valore, d, Vero)
 stampa("convertiti:", sorted(c["file"] per c in r["convertiti"]), "| rimasti py:", [(m["file"], m["motivo"][:40]) per m in r["mantenuti_py"]])
 stampa("copiati:", r["copiati"], "| non copiati:", [s["file"] per s in r["saltati"]], "| principale:", r["principale"])
 stampa("file nella nuova cartella:", sorted(os.path.relpath(os.path.join(rad, n), d) per rad, cart, file in os.walk(d) per n in file))
@@ -85,10 +85,10 @@ stampa("manifesto:", manifesto["nome"], manifesto["principale"])
 rapporto = open(os.path.join(d, "CONVERSIONE.md"), encoding="utf-8").read()
 stampa("rapporto con le sezioni:", [x per x in ("File rimasti Python", "Nomi rinominati", "Stringhe che nominano file .py", "File non copiati") se x in rapporto])
 # l'originale non è stato toccato
-stampa("originale intatto:", sorted(os.listdir(o)) == sorted(["main.py", "pkg", "dati.json", "note.txt", "avvia.bat", "vecchio.exe", "__pycache__", ".git", "rotto.py", "latino.py", "percorsi.py"]))
+stampa("originale intatto:", sorted(os.listdir(valore)) == sorted(["main.py", "pkg", "dati.json", "note.txt", "avvia.bat", "vecchio.exe", "__pycache__", ".git", "rotto.py", "latino.py", "percorsi.py"]))
 
 # ================================================================= stessa uscita di prima e dopo
-a = subprocess.run([PITONIT, os.path.join(o, "main.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=o)
+a = subprocess.run([PITONIT, os.path.join(valore, "main.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=valore)
 b = subprocess.run([PITONIT, os.path.join(d, "main.pit")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=d)
 stampa("uscita .py:", a.stdout.strip().splitlines())
 stampa("uscita .pit:", b.stdout.strip().splitlines())
@@ -96,17 +96,17 @@ stampa("uguale tranne il messaggio d'errore tradotto:", a.stdout.replace("divisi
 
 # ================================================================= errori
 prova:
-    converti_progetto.converti(o, d)
+    converti_progetto.converti(valore, d)
     stampa("destinazione piena: nessun errore (sbagliato)")
-eccetto ErroreDiValore come e:
-    stampa("destinazione non vuota -> errore:", "non è vuota" in testo(e))
+eccetto ErroreDiValore come errore:
+    stampa("destinazione non vuota -> errore:", "non è vuota" in testo(errore))
 prova:
-    converti_progetto.converti(o, o)
+    converti_progetto.converti(valore, valore)
     stampa("stessa cartella: nessun errore (sbagliato)")
-eccetto ErroreDiValore come e:
-    stampa("origine = destinazione -> errore:", "diversa" in testo(e))
-dentro = os.path.join(o, "uscita")
-r2 = converti_progetto.converti(o, dentro, Falso)
+eccetto ErroreDiValore come errore:
+    stampa("origine = destinazione -> errore:", "diversa" in testo(errore))
+dentro = os.path.join(valore, "uscita")
+r2 = converti_progetto.converti(valore, dentro, Falso)
 stampa("destinazione dentro l'origine: non si converte se stessa:", non any("uscita" in c["file"] per c in r2["convertiti"]), "| creata:", os.path.isdir(dentro))
 
 # ================================================================= la finestra
@@ -116,7 +116,7 @@ radice.geometry("1200x800+10+10")
 app = Applicazione(radice, cfg)
 radice.update()
 aperti = []
-dlg = converti_progetto.DialogoConversione(radice, app.colori, o, lambda cartella: aperti.append(cartella))
+dlg = converti_progetto.DialogoConversione(radice, app.colori, valore, lambda cartella: aperti.append(cartella))
 dest2 = os.path.join(base, "DaFinestra_pit")
 dlg.var_destinazione.set(dest2)
 radice.update()
@@ -130,10 +130,10 @@ radice.update()
 stampa("finestra: rapporto ottenuto:", dlg.rapporto è non Nessuno, "| progetto aperto al termine:", [os.path.basename(x) per x in aperti])
 stampa("finestra chiusa dopo l'apertura:", non dlg.winfo_exists())
 # interruzione
-dlg2 = converti_progetto.DialogoConversione(radice, app.colori, o, Nessuno)
+dlg2 = converti_progetto.DialogoConversione(radice, app.colori, valore, Nessuno)
 dlg2.var_destinazione.set(os.path.join(base, "Interrotta_pit"))
 dlg2.fermo.set()
-r3 = converti_progetto.converti(o, os.path.join(base, "Interrotta_pit"), Vero, Nessuno, dlg2.fermo)
+r3 = converti_progetto.converti(valore, os.path.join(base, "Interrotta_pit"), Vero, Nessuno, dlg2.fermo)
 stampa("interrotta:", r3["interrotto"], "| rapporto lo dice:", "interrotta" in open(os.path.join(base, "Interrotta_pit", "CONVERSIONE.md"), encoding="utf-8").read())
 dlg2.destroy()
 radice.destroy()

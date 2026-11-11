@@ -43,7 +43,7 @@ classe DialogoAvvio(DialogoBase):
                        selectcolor=c["casella"], activebackground=c["pannello"]).grid(row=6, column=0, sticky="we", padx=20, pady=(14, 4))
         tk.Button(se_stesso, text="Chiudi", command=se_stesso.destroy, relief="flat", padx=14, background=c["pulsante"], foreground=c["primo_piano"]).grid(
             row=7, column=0, sticky="e", padx=24, pady=(4, 14))
-        se_stesso.bind("<Escape>", lambda e: se_stesso.destroy())
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
 
     definisci _scelta(se_stesso, riga, titolo, descrizione, risultato, abilitato=Vero):
         c = se_stesso.colori
@@ -55,16 +55,16 @@ classe DialogoAvvio(DialogoBase):
         d.pack(fill="x", padx=16, pady=(0, 10))
         se abilitato:
             per w in (cornice, t, d):
-                w.bind("<Button-1>", lambda e, r=risultato: se_stesso._scegli(r))
-                w.bind("<Enter>", lambda e: [x.configure(background=c["pulsante_attivo"]) per x in (cornice, t, d)])
-                w.bind("<Leave>", lambda e: [x.configure(background=c["pulsante"]) per x in (cornice, t, d)])
+                w.bind("<Button-1>", lambda evento, r=risultato: se_stesso._scegli(r))
+                w.bind("<Enter>", lambda evento: [x.configure(background=c["pulsante_attivo"]) per x in (cornice, t, d)])
+                w.bind("<Leave>", lambda evento: [x.configure(background=c["pulsante"]) per x in (cornice, t, d)])
         ritorna cornice
 
     definisci _scegli(se_stesso, risultato):
         se_stesso.risultato = risultato
         se_stesso.destroy()
 
-    definisci _apri_recente(se_stesso, e=Nessuno):
+    definisci _apri_recente(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco.curselection()
         se sel:
             se_stesso._scegli(("progetto", se_stesso.recenti[1 + sel[0]]))

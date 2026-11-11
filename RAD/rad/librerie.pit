@@ -261,13 +261,13 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso.albero.bind("<Return>", se_stesso._doppio_clic)
         se_stesso.albero.bind("<<TreeviewSelect>>", se_stesso._selezione)
         se_stesso.albero.bind("<Motion>", se_stesso._muovi)
-        se_stesso.albero.bind("<Leave>", lambda e: se_stesso._nascondi_suggerimento())
+        se_stesso.albero.bind("<Leave>", lambda evento: se_stesso._nascondi_suggerimento())
         se_stesso._suggerimento = Nessuno
         se_stesso._lavoro_sug = Nessuno
         se_stesso._riga_sug = Nessuno
         se_stesso.albero.tag_configure("categoria", font=semi(9))
         se_stesso.albero.tag_configure("assente", foreground="#9a9a9a")
-        se_stesso.bind("<Configure>", lambda e: se_stesso.descrizione.configure(wraplength=max(120, e.width - 24)))
+        se_stesso.bind("<Configure>", lambda elemento: se_stesso.descrizione.configure(wraplength=max(120, elemento.width - 24)))
         se_stesso.riempi()
 
     # ------------------------------------------------------------ dati del progetto
@@ -401,26 +401,26 @@ classe PannelloLibrerie(tk.Frame):
     definisci _nome_di(se_stesso, iid):
         ritorna iid[4:] se iid.startswith("lib:") altrimenti Nessuno
 
-    definisci _clic(se_stesso, e):
-        iid = se_stesso.albero.identify_row(e.y)
+    definisci _clic(se_stesso, evento):
+        iid = se_stesso.albero.identify_row(evento.y)
         nome_it = se_stesso._nome_di(iid) se iid altrimenti Nessuno
-        se nome_it e se_stesso.albero.identify_element(e.x, e.y) == "text" e e.x < 80:
+        se nome_it e se_stesso.albero.identify_element(evento.x, evento.y) == "text" e evento.x < 80:
             se_stesso.attiva(nome_it)
             ritorna "break"
 
-    definisci _spazio(se_stesso, e=Nessuno):
+    definisci _spazio(se_stesso, evento=Nessuno):
         sel = se_stesso.albero.selection()
         se sel e se_stesso._nome_di(sel[0]):
             se_stesso.attiva(se_stesso._nome_di(sel[0]))
         ritorna "break"
 
-    definisci _doppio_clic(se_stesso, e=Nessuno):
+    definisci _doppio_clic(se_stesso, evento=Nessuno):
         sel = se_stesso.albero.selection()
         se sel e se_stesso._nome_di(sel[0]):
             se_stesso.inserisci_importazione(se_stesso._nome_di(sel[0]))
             ritorna "break"
 
-    definisci _selezione(se_stesso, e=Nessuno):
+    definisci _selezione(se_stesso, evento=Nessuno):
         sel = se_stesso.albero.selection()
         nome_it = se_stesso._nome_di(sel[0]) se sel altrimenti Nessuno
         se non nome_it:
@@ -557,14 +557,14 @@ classe PannelloLibrerie(tk.Frame):
         se_stesso.app.info(f"Libreria «{nome_it}» ripristinata")
 
     # ------------------------------------------------------------ suggerimento al passaggio del mouse
-    definisci _muovi(se_stesso, e):
-        iid = se_stesso.albero.identify_row(e.y)
+    definisci _muovi(se_stesso, evento):
+        iid = se_stesso.albero.identify_row(evento.y)
         se iid == se_stesso._riga_sug:
             ritorna
         se_stesso._nascondi_suggerimento()
         se_stesso._riga_sug = iid
         se iid e iid.startswith("lib:"):
-            se_stesso._lavoro_sug = se_stesso.after(550, lambda: se_stesso._mostra_suggerimento(iid, e.x_root, e.y_root))
+            se_stesso._lavoro_sug = se_stesso.after(550, lambda: se_stesso._mostra_suggerimento(iid, evento.x_root, evento.y_root))
 
     definisci _mostra_suggerimento(se_stesso, iid, x, y):
         voce = [v per v in se_stesso.tutte se v[0] == iid[4:]]

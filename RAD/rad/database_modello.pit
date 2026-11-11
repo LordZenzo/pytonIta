@@ -219,8 +219,8 @@ classe Connessione:
                 cur.execute(sql, tuple(parametri))
             altrimenti:
                 cur.execute(sql)           # senza parametri: pymysql non deve trattare i «%» del testo come segnaposto
-        eccetto Exception come e:
-            solleva ErroreDatabase(testo(e)) da e
+        eccetto Exception come errore:
+            solleva ErroreDatabase(testo(errore)) da errore
         colonne = [d[0] per d in cur.description] se cur.description altrimenti []
         righe = []
         troncato = Falso
@@ -238,8 +238,8 @@ classe Connessione:
         se non colonne:
             prova:
                 se_stesso.conn.commit()
-            eccetto Exception come e:
-                solleva ErroreDatabase(testo(e)) da e
+            eccetto Exception come errore:
+                solleva ErroreDatabase(testo(errore)) da errore
         ritorna Risultato(colonne, righe, modificate se non colonne altrimenti -1, time.perf_counter() - inizio, troncato, sql)
 
     definisci esegui(se_stesso, sql):
@@ -252,9 +252,9 @@ classe Connessione:
         per i, istr in enumera(istruzioni, 1):
             prova:
                 ultimo = se_stesso.esegui_una(istr)
-            eccetto ErroreDatabase come e:
+            eccetto ErroreDatabase come errore:
                 se lunghezza(istruzioni) > 1:
-                    solleva ErroreDatabase(f"Istruzione {i} di {lunghezza(istruzioni)}: {e}") da e
+                    solleva ErroreDatabase(f"Istruzione {i} di {lunghezza(istruzioni)}: {errore}") da errore
                 solleva
             totale += ultimo.durata
         ultimo.durata = totale
@@ -484,18 +484,18 @@ classe ConnessioneSqlite(Connessione):
         creazione = se_stesso.sql_crea_tabella(provvisoria, colonne)
         esterne = {}
         per riga in se_stesso._leggi(f"PRAGMA foreign_key_list({se_stesso.citato(tabella)})"):
-            e = esterne.setdefault(riga[0], {"tabella": riga[2], "da": [], "a": [], "aggiorna": riga[5], "elimina": riga[6]})
-            e["da"].append(riga[3])
-            e["a"].append(riga[4])
+            elemento = esterne.setdefault(riga[0], {"tabella": riga[2], "da": [], "a": [], "aggiorna": riga[5], "elimina": riga[6]})
+            elemento["da"].append(riga[3])
+            elemento["a"].append(riga[4])
         clausole = []
-        per e in esterne.values():
-            da_ = ", ".join(se_stesso.citato(x) per x in e["da"])
-            a_ = ", ".join(se_stesso.citato(x) per x in e["a"] se x)
-            t_ = f"  FOREIGN KEY ({da_}) REFERENCES {se_stesso.citato(e['tabella'])}" + (f" ({a_})" se a_ altrimenti "")
-            se e["aggiorna"] e e["aggiorna"] != "NO ACTION":
-                t_ += " ON UPDATE " + e["aggiorna"]
-            se e["elimina"] e e["elimina"] != "NO ACTION":
-                t_ += " ON DELETE " + e["elimina"]
+        per elemento in esterne.values():
+            da_ = ", ".join(se_stesso.citato(x) per x in elemento["da"])
+            a_ = ", ".join(se_stesso.citato(x) per x in elemento["a"] se x)
+            t_ = f"  FOREIGN KEY ({da_}) REFERENCES {se_stesso.citato(elemento['tabella'])}" + (f" ({a_})" se a_ altrimenti "")
+            se elemento["aggiorna"] e elemento["aggiorna"] != "NO ACTION":
+                t_ += " ON UPDATE " + elemento["aggiorna"]
+            se elemento["elimina"] e elemento["elimina"] != "NO ACTION":
+                t_ += " ON DELETE " + elemento["elimina"]
             clausole.append(t_)
         se clausole:
             creazione = creazione[:-2] + ",\n" + ",\n".join(clausole) + "\n)"
@@ -545,20 +545,20 @@ classe ConnessioneSqlite(Connessione):
                             se_stesso.conn.execute(passo)
                             eseguite.append(passo)
                     se_stesso.conn.execute("COMMIT")
-                eccetto Exception come e:
+                eccetto Exception come errore:
                     prova:
                         se_stesso.conn.execute("ROLLBACK")
                     eccetto Exception:
                         passa
-                    solleva ErroreDatabase(f"Modifica annullata, la tabella è com'era: {e}") da e
+                    solleva ErroreDatabase(f"Modifica annullata, la tabella è com'era: {errore}") da errore
             infine:
                 prova:
                     se_stesso.conn.execute("PRAGMA legacy_alter_table = OFF")
                     se_stesso.conn.execute("PRAGMA foreign_keys = ON")
                 eccetto Exception:
                     passa
-        eccetto sqlite3.Error come e:
-            solleva ErroreDatabase(testo(e)) da e
+        eccetto sqlite3.Error come errore:
+            solleva ErroreDatabase(testo(errore)) da errore
         se_stesso.storia.append(";\n".join(eseguite) + ";")
 
     definisci sql_crea_tabella(se_stesso, nome, colonne):
@@ -649,8 +649,8 @@ definisci apri_sqlite(percorso, crea=Vero):
         conn = sqlite3.connect(percorso)
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("SELECT name FROM sqlite_master LIMIT 1")          # controlla che sia davvero un database
-    eccetto sqlite3.Error come e:
-        solleva ErroreDatabase(f"Non riesco ad aprire il database: {e}") da e
+    eccetto sqlite3.Error come errore:
+        solleva ErroreDatabase(f"Non riesco ad aprire il database: {errore}") da errore
     ritorna ConnessioneSqlite(conn, percorso)
 
 
@@ -659,9 +659,9 @@ definisci driver_mysql():
     prova:
         importa pymysql
         ritorna pymysql
-    eccetto ImportError come e:
+    eccetto ImportError come errore:
         solleva DriverMancante("Per MySQL serve il pacchetto «pymysql».\nInstallalo dal menu Database › Installa il driver MySQL, "
-                               "oppure con:  pip install pymysql") da e
+                               "oppure con:  pip install pymysql") da errore
 
 
 definisci apri_mysql(server, porta, utente, password, database="", carattere="utf8mb4"):
@@ -670,8 +670,8 @@ definisci apri_mysql(server, porta, utente, password, database="", carattere="ut
     prova:
         conn = pm.connect(host=server, port=int(porta), user=utente, password=password, database=database o Nessuno, charset=carattere,
                           connect_timeout=8, autocommit=Falso)
-    eccetto Exception come e:
-        solleva ErroreDatabase(f"Collegamento a MySQL non riuscito: {e}") da e
+    eccetto Exception come errore:
+        solleva ErroreDatabase(f"Collegamento a MySQL non riuscito: {errore}") da errore
     c = ConnessioneMysql(conn, f"{utente}@{server}" + (f"/{database}" se database altrimenti ""))
     c.parametri = (server, int(porta), utente, database)          # senza la password
     ritorna c
@@ -684,6 +684,6 @@ definisci installa_driver_mysql(interprete=Nessuno):
     comando = [interprete o sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "pymysql"]
     prova:
         r = subprocess.run(comando, capture_output=Vero, text=Vero, encoding="utf-8", errors="replace", timeout=300)
-    eccetto Exception come e:
-        ritorna Falso, testo(e)
+    eccetto Exception come errore:
+        ritorna Falso, testo(errore)
     ritorna r.returncode == 0, (r.stdout + "\n" + r.stderr).strip()[-1500:]

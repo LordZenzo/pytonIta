@@ -31,7 +31,7 @@ Nei file `.pit` le parole chiave inglesi NON esistono. Usa solo quelle italiane:
 - Le opzioni con nome sono accettate anche in italiano: `ordinato(x, chiave=f, inverso=Vero)`, `massimo(x, predefinito=0)`,
   `apri(nome, modalita="w", codifica="utf-8")`, `stampa(a, b, separatore="-", fine="")`, `enumera(x, inizio=1)`,
   `testo.separa(separatore=",", max_divisioni=1)`. Quelle inglesi funzionano ancora.
-- `e` e `o` sono operatori solo tra due operandi: `eccetto Errore come e:` è permesso.
+- `e` e `o` sono gli operatori «and» e «or»: non si possono usare come nomi di variabile (scrivi `errore`, `evento`, `elemento`…).
 - Per `self` si usa per convenzione `se_stesso`; `__inizializza__` = `__init__`, `__testo__` = `__str__`,
   `__lunghezza__` = `__len__`, `__uguale__`, `__somma__`, `__chiama__`, `__entra__`/`__esci__`, `__nome__` = `__name__`.
 - Funzioni predefinite: stampa, leggi (input), lunghezza, intervallo, intero, decimale, testo (str), booleano, lista,

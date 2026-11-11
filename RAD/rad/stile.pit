@@ -101,7 +101,7 @@ classe Suggerimento:
         widget.bind("<Leave>", se_stesso._nascondi, add="+")
         widget.bind("<ButtonPress>", se_stesso._nascondi, add="+")
 
-    definisci _programma(se_stesso, e=Nessuno):
+    definisci _programma(se_stesso, evento=Nessuno):
         se_stesso._nascondi()
         se_stesso._lavoro = se_stesso.widget.after(se_stesso.ritardo, se_stesso._mostra)
 
@@ -119,7 +119,7 @@ classe Suggerimento:
         f.wm_geometry(f"+{x}+{y}")
         se_stesso._finestra = f
 
-    definisci _nascondi(se_stesso, e=Nessuno):
+    definisci _nascondi(se_stesso, evento=Nessuno):
         se se_stesso._lavoro:
             prova:
                 se_stesso.widget.after_cancel(se_stesso._lavoro)
@@ -209,22 +209,22 @@ classe PulsanteIcona(tk.Frame):
         se_stesso.configure(cursor="hand2" se attivo altrimenti "arrow")
         se_stesso.applica_colori(se_stesso.colori)
 
-    definisci _entra(se_stesso, e=Nessuno):
+    definisci _entra(se_stesso, evento=Nessuno):
         se se_stesso._attivo:
             c = se_stesso.colori
             se_stesso._colora(c["accento"] se se_stesso.accento altrimenti c["pulsante_attivo"], "#ffffff" se se_stesso.accento altrimenti (se_stesso.colore_testo o c["primo_piano"]))
 
-    definisci _esci(se_stesso, e=Nessuno):
+    definisci _esci(se_stesso, evento=Nessuno):
         se_stesso.applica_colori(se_stesso.colori)
 
-    definisci _premi(se_stesso, e=Nessuno):
+    definisci _premi(se_stesso, evento=Nessuno):
         se se_stesso._attivo:
             se_stesso._colora(se_stesso.colori["accento"], "#ffffff")
 
-    definisci _rilascia(se_stesso, e=Nessuno):
+    definisci _rilascia(se_stesso, evento=Nessuno):
         se_stesso._entra()
-        se se_stesso._attivo e se_stesso.comando e e è non Nessuno:
-            se 0 <= e.x_root - se_stesso.winfo_rootx() <= se_stesso.winfo_width() e 0 <= e.y_root - se_stesso.winfo_rooty() <= se_stesso.winfo_height():
+        se se_stesso._attivo e se_stesso.comando e evento è non Nessuno:
+            se 0 <= evento.x_root - se_stesso.winfo_rootx() <= se_stesso.winfo_width() e 0 <= evento.y_root - se_stesso.winfo_rooty() <= se_stesso.winfo_height():
                 se_stesso.comando()
 
 
@@ -353,9 +353,9 @@ classe SchedeChiudibili(ttk.Notebook):
         s.map("SchedeX.TNotebook.Tab", background=[("selected", c["editor"]), ("active", c["pulsante"])],
               foreground=[("selected", c["primo_piano"]), ("active", c["primo_piano"])])
 
-    definisci _movimento(se_stesso, e):
+    definisci _movimento(se_stesso, evento):
         """Suggerimento sulla X delle linguette: compare solo quando il mouse è sopra la X."""
-        sopra = "chiudi" in se_stesso.identify(e.x, e.y)
+        sopra = "chiudi" in se_stesso.identify(evento.x, evento.y)
         se sopra e non se_stesso._sul_x:
             se_stesso._sul_x = Vero
             se_stesso._suggerimento_x._programma()
@@ -363,27 +363,27 @@ classe SchedeChiudibili(ttk.Notebook):
             se_stesso._sul_x = Falso
             se_stesso._suggerimento_x._nascondi()
 
-    definisci _premi(se_stesso, e):
-        elemento = se_stesso.identify(e.x, e.y)
+    definisci _premi(se_stesso, evento):
+        elemento = se_stesso.identify(evento.x, evento.y)
         se "chiudi" in elemento:
             prova:
-                se_stesso._premuta = se_stesso.index(f"@{e.x},{e.y}")
+                se_stesso._premuta = se_stesso.index(f"@{evento.x},{evento.y}")
             eccetto tk.TclError:
                 se_stesso._premuta = Nessuno
                 ritorna Nessuno
             se_stesso.state(["pressed"])
             ritorna "break"
 
-    definisci _rilascia(se_stesso, e):
+    definisci _rilascia(se_stesso, evento):
         se non se_stesso.instate(["pressed"]):
             ritorna
         se_stesso.state(["!pressed"])
-        elemento = se_stesso.identify(e.x, e.y)
+        elemento = se_stesso.identify(evento.x, evento.y)
         se "chiudi" non in elemento:
             se_stesso._premuta = Nessuno
             ritorna
         prova:
-            indice = se_stesso.index(f"@{e.x},{e.y}")
+            indice = se_stesso.index(f"@{evento.x},{evento.y}")
         eccetto tk.TclError:
             ritorna
         se indice == se_stesso._premuta e se_stesso.quando_chiudi:

@@ -12,8 +12,8 @@ stampa("forms:", p.forms(), "tipi:", {r: tipo_file(p.assoluto(r)) per r in p.tut
 stampa("cerca:", p.cerca("saluta")[:3])
 prova:
     p.assoluto("../fuori.txt")
-eccetto ErroreDiValore come e:
-    stampa("sicurezza:", e)
+eccetto ErroreDiValore come errore:
+    stampa("sicurezza:", errore)
 p.rinomina("LEGGIMI.md", "LEGGI.md")
 p.cancella("LEGGI.md")
 stampa(sorted(n per n, d in p.elenca()))

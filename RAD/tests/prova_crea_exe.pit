@@ -32,8 +32,8 @@ open(os.path.join(sorgente, "finestra.py"), "w").write("import tkinter as tk\n")
 stampa("... e ora sì:", crea_exe.usa_tkinter(sorgente))
 
 # comando di PyInstaller
-o = crea_exe.Opzioni("Saluto", un_file=Vero, senza_console=Falso, icona="")
-c = crea_exe.comando_pyinstaller("py.exe", "Saluto", "src/principale.py", "dist", "lavoro", "build", o, dati)
+valore = crea_exe.Opzioni("Saluto", un_file=Vero, senza_console=Falso, icona="")
+c = crea_exe.comando_pyinstaller("py.exe", "Saluto", "src/principale.py", "dist", "lavoro", "build", valore, dati)
 stampa("comando:", c[:4], "...", c[-1], "| onefile:", "--onefile" in c, "| console:", "--console" in c, "| add-data:", c.count("--add-data"))
 o2 = crea_exe.Opzioni("App", un_file=Falso, senza_console=Vero)
 c2 = crea_exe.comando_pyinstaller("py.exe", "App", "x.py", "dist", "lavoro", "build", o2, [])

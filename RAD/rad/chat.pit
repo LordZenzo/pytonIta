@@ -93,7 +93,7 @@ classe PannelloChat(tk.Frame):
         se_stesso.ingresso = tk.Text(riga, height=4, wrap="word", borderwidth=0, highlightthickness=1,
                                      padx=6, pady=4, undo=Vero)
         se_stesso.ingresso._tema_proprio = Vero
-        se_stesso.ingresso.bind("<Control-Return>", lambda e: se_stesso.invia() o "break")
+        se_stesso.ingresso.bind("<Control-Return>", lambda evento: se_stesso.invia() o "break")
         se_stesso.ingresso.bind("<Return>", se_stesso._invio_semplice)
         colonna = tk.Frame(riga)
         colonna.pack(side="right", padx=(6, 0))
@@ -118,9 +118,9 @@ classe PannelloChat(tk.Frame):
         by.pack(side="right", fill="y")
         se_stesso.t.pack(fill="both", expand=Vero)
 
-    definisci _invio_semplice(se_stesso, e):
+    definisci _invio_semplice(se_stesso, evento):
         # Invio = invia, Maiusc+Invio = a capo
-        se e.state & 0x1:
+        se evento.state & 0x1:
             ritorna Nessuno
         se_stesso.invia()
         ritorna "break"
@@ -234,7 +234,7 @@ classe PannelloChat(tk.Frame):
         ritorna bool(ai.crea_cliente(se_stesso.config_).chiave())
 
     # ------------------------------------------------------------ invio e agente
-    definisci _cambia_modello(se_stesso, e=Nessuno):
+    definisci _cambia_modello(se_stesso, evento=Nessuno):
         se_stesso.config_.imposta(ai.chiave_modello(se_stesso.config_), se_stesso.var_modello.get().strip())
         se_stesso.config_.salva()
 

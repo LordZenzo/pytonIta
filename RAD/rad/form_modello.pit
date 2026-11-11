@@ -644,24 +644,24 @@ definisci _codice_dati(form):
     r = []
     per f in form.fonti():
         v = f.valori
-        o = [f"radice", "se_stesso.cartella", _lit(v.get("dialetto") o "sqlite"), _lit(v.get("database") o ""), _lit(v.get("tabella") o "")]
+        opzioni = [f"radice", "se_stesso.cartella", _lit(v.get("dialetto") o "sqlite"), _lit(v.get("database") o ""), _lit(v.get("tabella") o "")]
         se v.get("dialetto") == "mysql":
-            o += [f"server={_lit(v.get('server') o 'localhost')}", f"porta={int(v.get('porta') o 3306)}", f"utente={_lit(v.get('utente') o 'root')}"]
+            opzioni += [f"server={_lit(v.get('server') o 'localhost')}", f"porta={int(v.get('porta') o 3306)}", f"utente={_lit(v.get('utente') o 'root')}"]
         se (v.get("filtro") o "").strip():
-            o.append(f"filtro={_lit(v['filtro'].strip())}")
+            opzioni.append(f"filtro={_lit(v['filtro'].strip())}")
         se v.get("ordina_per"):
-            o.append(f"ordina_per={_lit(v['ordina_per'])}")
+            opzioni.append(f"ordina_per={_lit(v['ordina_per'])}")
             se v.get("decrescente"):
-                o.append("decrescente=Vero")
+                opzioni.append("decrescente=Vero")
         g = (v.get("al_cambio") o "").strip()
         se g e nome_valido(g):
-            o.append(f"al_cambio=se_stesso.{g}")
+            opzioni.append(f"al_cambio=se_stesso.{g}")
         se non v.get("salva_da_solo", Vero):
-            o.append("salva_da_solo=Falso")
+            opzioni.append("salva_da_solo=Falso")
         se v.get("transazione"):
-            o.append("transazione=Vero")
+            opzioni.append("transazione=Vero")
         r.append(f"{ind}# --- dati: {f.nome} ({v.get('tabella') o 'tabella da scegliere'})")
-        r.append(f"{ind}se_stesso.{f.nome} = dati.Collegamento.crea({', '.join(o)})")
+        r.append(f"{ind}se_stesso.{f.nome} = dati.Collegamento.crea({', '.join(opzioni)})")
         per c in form.componenti:
             se c.tipo == "FonteDati" o c.valori.get("fonte") != f.nome:
                 continua
@@ -725,8 +725,8 @@ definisci genera_ui(form):
     r.append(f'                radice.geometry("{form.larghezza}x{form.altezza}" + open(_pos).read().strip())')
     r.append("            eccetto (OSError, tk.TclError):")
     r.append("                passa")
-    r.append("            definisci _ricorda(e, _pos=_pos):")
-    r.append("                se e.widget è radice e radice.winfo_x() > -10000:")
+    r.append("            definisci _ricorda(evento, _pos=_pos):")
+    r.append("                se evento.widget è radice e radice.winfo_x() > -10000:")
     r.append("                    prova:")
     r.append('                        con open(_pos, "w") come f:')
     r.append('                            f.write(f"+{radice.winfo_x()}+{radice.winfo_y()}")')
@@ -848,17 +848,17 @@ definisci font_tk(testo_):
 
 
 definisci _opzioni_comuni(c):
-    o = []
+    opzioni = []
     v = c.valori
     se v.get("sfondo"):
-        o.append(f"sfondo={_lit(v['sfondo'])}")
+        opzioni.append(f"sfondo={_lit(v['sfondo'])}")
     se v.get("primo_piano"):
-        o.append(f"primo_piano={_lit(v['primo_piano'])}")
+        opzioni.append(f"primo_piano={_lit(v['primo_piano'])}")
     se v.get("carattere"):
-        o.append(f"carattere={_lit(font_tk(v['carattere']))}")
+        opzioni.append(f"carattere={_lit(font_tk(v['carattere']))}")
     se v.get("stato") e v["stato"] != "normale":
-        o.append(f"stato={_lit('disabled' se v['stato'] == 'disabilitato' altrimenti 'normal')}")
-    ritorna o
+        opzioni.append(f"stato={_lit('disabled' se v['stato'] == 'disabilitato' altrimenti 'normal')}")
+    ritorna opzioni
 
 
 definisci padre_codice(c):
@@ -950,29 +950,29 @@ definisci _codice_componente(c, form=Nessuno):
     gestore = lambda chiave: f"se_stesso.{ev(chiave)}" se ev(chiave) e nome_valido(ev(chiave)) altrimenti Nessuno
     opz = _opzioni_comuni(c)
     se c.tipo == "Pulsante":
-        o = [f"testo={_lit(v['testo'])}"] + opz
+        opzioni = [f"testo={_lit(v['testo'])}"] + opz
         apre = (v.get("apre") o "").strip()
         se apre e nome_valido(apre):
-            o.append(f"comando=se_stesso._apri_{apre}")
+            opzioni.append(f"comando=se_stesso._apri_{apre}")
         altrimenti_se gestore("al_clic"):
-            o.append(f"comando={gestore('al_clic')}")
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+            opzioni.append(f"comando={gestore('al_clic')}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
     altrimenti_se c.tipo == "Etichetta":
-        o = [f"testo={_lit(v['testo'])}", f"justify={_lit({'sinistra': 'left', 'centro': 'center', 'destra': 'right'}[v['allineamento']])}",
+        opzioni = [f"testo={_lit(v['testo'])}", f"justify={_lit({'sinistra': 'left', 'centro': 'center', 'destra': 'right'}[v['allineamento']])}",
              f"anchor={_lit(v['ancora'])}"] + opz
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
     altrimenti_se c.tipo == "CampoTesto":
-        o = opz[:]
+        opzioni = opz[:]
         se v.get("nascondi"):
-            o.append('show="*"')
-        r.append(f"{ind}{nome_att} = {cl}(radice{', ' + ', '.join(o) se o altrimenti ''})")
+            opzioni.append('show="*"')
+        r.append(f"{ind}{nome_att} = {cl}(radice{', ' + ', '.join(opzioni) se opzioni altrimenti ''})")
         se v.get("testo"):
             r.append(f"{ind}{nome_att}.inserisci(0, {_lit(v['testo'])})")
         se gestore("al_invio"):
             r.append(f"{ind}{nome_att}.associa('<Return>', {gestore('al_invio')})")
     altrimenti_se c.tipo == "AreaTesto":
-        o = [f"wrap={_lit('word' se v.get('a_capo') altrimenti 'none')}"] + opz
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+        opzioni = [f"wrap={_lit('word' se v.get('a_capo') altrimenti 'none')}"] + opz
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
         se v.get("testo"):
             r.append(f"{ind}{nome_att}.inserisci('1.0', {_lit(v['testo'])})")
     altrimenti_se c.tipo == "Elenco":
@@ -983,26 +983,26 @@ definisci _codice_componente(c, form=Nessuno):
             r.append(f"{ind}{nome_att}.associa('<<ListboxSelect>>', {gestore('al_selezione')})")
     altrimenti_se c.tipo == "CasellaSelezione":
         r.append(f"{ind}se_stesso.var_{n} = tk.VariabileBooleana(value={_lit(bool(v.get('selezionata')))})")
-        o = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{n}", "anchor='w'"] + opz
+        opzioni = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{n}", "anchor='w'"] + opz
         se gestore("al_clic"):
-            o.append(f"comando={gestore('al_clic')}")
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+            opzioni.append(f"comando={gestore('al_clic')}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
     altrimenti_se c.tipo == "PulsanteOpzione":
         g = v.get("gruppo") o "gruppo1"
         r.append(f"{ind}se non hasattr(se_stesso, 'var_{g}'):")
         r.append(f"{ind}    se_stesso.var_{g} = tk.VariabileTesto(value='')")
-        o = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{g}", f"value={_lit(v['valore'])}", "anchor='w'"] + opz
+        opzioni = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{g}", f"value={_lit(v['valore'])}", "anchor='w'"] + opz
         se gestore("al_clic"):
-            o.append(f"comando={gestore('al_clic')}")
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+            opzioni.append(f"comando={gestore('al_clic')}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
         se v.get("selezionata"):
             r.append(f"{ind}se_stesso.var_{g}.imposta({_lit(v['valore'])})")
     altrimenti_se c.tipo == "Cursore":
-        o = [f"from_={v['da']}", f"to={v['a']}",
+        opzioni = [f"from_={v['da']}", f"to={v['a']}",
              f"orient={_lit('horizontal' se v['orientamento'] == 'orizzontale' altrimenti 'vertical')}"] + opz
         se gestore("al_cambio"):
-            o.append(f"command=lambda valore: {gestore('al_cambio')}(valore)")
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+            opzioni.append(f"command=lambda valore: {gestore('al_cambio')}(valore)")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
         r.append(f"{ind}{nome_att}.imposta({v['valore']})")
     altrimenti_se c.tipo == "CasellaCombinata":
         r.append(f"{ind}{nome_att} = {cl}(radice, values={_lit(list(v.get('valori', [])))})")
@@ -1024,23 +1024,23 @@ definisci _codice_componente(c, form=Nessuno):
         se gestore("al_selezione"):
             r.append(f"{ind}{nome_att}.associa('<<TreeviewSelect>>', {gestore('al_selezione')})")
     altrimenti_se c.tipo == "Grafico":
-        o = [f"tipo={_lit(v.get('tipo') o 'barre')}", f"titolo={_lit(v.get('titolo') o '')}", f"dati={_lit(lista(v.get('dati', [])))}",
+        opzioni = [f"tipo={_lit(v.get('tipo') o 'barre')}", f"titolo={_lit(v.get('titolo') o '')}", f"dati={_lit(lista(v.get('dati', [])))}",
              f"mostra_valori={_lit(bool(v.get('mostra_valori', Vero)))}"]
         se v.get("colore"):
-            o.append(f"colore={_lit(v['colore'])}")
+            opzioni.append(f"colore={_lit(v['colore'])}")
         se v.get("sfondo"):
-            o.append(f"sfondo={_lit(v['sfondo'])}")
+            opzioni.append(f"sfondo={_lit(v['sfondo'])}")
         se v.get("primo_piano"):
-            o.append(f"testo_={_lit(v['primo_piano'])}")
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+            opzioni.append(f"testo_={_lit(v['primo_piano'])}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
     altrimenti_se c.tipo == "Tela":
         r.append(f"{ind}{nome_att} = {cl}(radice, background={_lit(v.get('sfondo') o '#ffffff')}, highlightthickness=0)")
     altrimenti_se c.tipo == "Riquadro":
         rilievo = {"piatto": "flat", "rialzato": "raised", "incavato": "sunken", "solido": "solid"}[v["rilievo"]]
-        o = [f"relief={_lit(rilievo)}", f"borderwidth={v['bordo']}"]
+        opzioni = [f"relief={_lit(rilievo)}", f"borderwidth={v['bordo']}"]
         se v.get("sfondo"):
-            o.append(f"background={_lit(v['sfondo'])}")
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
+            opzioni.append(f"background={_lit(v['sfondo'])}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
     altrimenti_se c.tipo == "Schede":
         r.append(f"{ind}{nome_att} = {cl}(radice)")
         per i, nome_pagina in enumera(lista(v.get("pagine", [])) o ["Pagina 1"]):
@@ -1075,7 +1075,7 @@ definisci _codice_componente(c, form=Nessuno):
             r.append(f"{ind}se_stesso.{n}_avvia()")
         ritorna r
     altrimenti_se c.tipo == "Stampa":
-        o = [f"se_stesso", f"{_lit((v.get('sorgente') o '').strip())}", f"titolo={_lit(v.get('titolo') o '')}", f"intestazione={_lit(v.get('intestazione') o '')}",
+        opzioni = [f"se_stesso", f"{_lit((v.get('sorgente') o '').strip())}", f"titolo={_lit(v.get('titolo') o '')}", f"intestazione={_lit(v.get('intestazione') o '')}",
              f"orientamento={_lit(v.get('orientamento') o 'verticale')}", f"numeri_pagina={_lit(bool(v.get('numeri_pagina', Vero)))}"]
         # le impostazioni di stampa diverse da quelle predefinite
         imp = {}
@@ -1086,13 +1086,13 @@ definisci _codice_componente(c, form=Nessuno):
             se valore != predefinito e valore è non Nessuno:
                 imp[nome_imp] = valore
         se imp:
-            o.append("impostazioni={" + ", ".join(f"{_lit(k)}: {_lit(x)}" per k, x in imp.items()) + "}")
+            opzioni.append("impostazioni={" + ", ".join(f"{_lit(k)}: {_lit(x)}" per k, x in imp.items()) + "}")
         se v.get("chiedi"):
-            o.append("chiedi=Vero")
+            opzioni.append("chiedi=Vero")
         se v.get("ricorda"):
-            o.append(f"nome={_lit(n)}")
-            o.append("ricorda=Vero")
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})          # {n}.finestra_stampa(), {n}.stampa(), {n}.anteprima(), {n}.salva_pdf(), {n}.imposta(copie=2)")
+            opzioni.append(f"nome={_lit(n)}")
+            opzioni.append("ricorda=Vero")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})          # {n}.finestra_stampa(), {n}.stampa(), {n}.anteprima(), {n}.salva_pdf(), {n}.imposta(copie=2)")
         ritorna r
     altrimenti_se c.tipo == "FonteDati":
         ritorna r                     # si crea in fondo (_codice_dati), quando i componenti legati esistono

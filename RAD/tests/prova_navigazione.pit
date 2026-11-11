@@ -121,7 +121,7 @@ ed.t.mark_set("insert", "4.14")
 testo_doc = app.documentazione_di(ed, "somma_doppia")
 stampa("documentazione:", repr(testo_doc))
 ed._mostra_doc  # esiste
-ed.fornitore_doc = lambda e, n: "doc di prova: " + n
+ed.fornitore_doc = lambda evento, n: "doc di prova: " + n
 radice.update()
 ed.t.mark_set("insert", "4.14")
 x, y, _, _ = ed.t.bbox("4.14")

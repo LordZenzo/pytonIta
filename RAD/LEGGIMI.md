@@ -20,6 +20,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 - L'interprete controlla ogni programma `.pit` (e ogni modulo `.pit` importato) **prima di eseguirlo** e lo blocca se trova un errore grave: una parola chiave usata come nome (`pass`, `classe = ...`, `definisci f(da, a)`) oppure una funzione predefinita nascosta da una variabile e poi richiamata (`testo = "a"` ... `testo(5)`).
 - `pitonit -m _controlla programma.pit` mostra anche gli avvisi (nomi inglesi come `print`, nomi non definiti). `# controlla: ok` salta una riga, `# controlla: ignora-file` un file, `PITONIT_SENZA_CONTROLLO=1` il controllo.
+- Anche `e` e `o` non si possono usare come nomi di variabile (sono gli operatori «and» e «or»): al loro posto `evento`, `errore`, `elemento`… Tutto il codice, gli esempi e le lezioni di PitStudio sono stati aggiornati.
 - I messaggi d'errore spiegano le parole inglesi (`pass` → `passa`) e «Forse intendevi» è in italiano.
 - `pitonit	oolserifica_tutto.py` esegue tutte le verifiche prima di una release.
 

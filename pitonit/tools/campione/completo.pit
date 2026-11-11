@@ -120,8 +120,8 @@ definisci principale():
         stampe.append(n)
     prova:
         intero("x")
-    eccetto (ErroreDiValore, ErroreDiTipo) come e:
-        stampe.append(tipo(e).__name__)
+    eccetto (ErroreDiValore, ErroreDiTipo) come errore:
+        stampe.append(tipo(errore).__name__)
     infine:
         stampe.append(ordinato({3, 1, 2}, reverse=Vero))
     con apri(__file__, encoding="utf-8") come f:

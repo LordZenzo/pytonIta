@@ -53,9 +53,9 @@ definisci _in_grigio(m):
 
 definisci larghezza_carattere(c, grassetto=Falso):
     tabella = _GRASSETTO se grassetto altrimenti _REGOLARE
-    o = ord(c)
-    se 32 <= o <= 126:
-        ritorna tabella[o - 32]
+    dato = ord(c)
+    se 32 <= dato <= 126:
+        ritorna tabella[dato - 32]
     base = unicodedata.normalize("NFD", c)[:1]
     se base e 32 <= ord(base) <= 126:
         ritorna tabella[ord(base) - 32]
@@ -291,7 +291,7 @@ classe Documento:
 
     definisci grafico(se_stesso, voci, tipo="barre", titolo="", altezza=210, mostra_valori=Vero):
         """Un grafico a barre, a linee o a torta (voci: [(etichetta, valore)])."""
-        voci = [(testo(e), numero(v)) per e, v in voci]
+        voci = [(testo(elemento), numero(v)) per elemento, v in voci]
         se_stesso._serve(altezza + 24)
         x0 = se_stesso.margine
         larghezza = se_stesso.utile
@@ -354,7 +354,7 @@ classe Documento:
                 se_stesso._rettangolo(cx - 2, cy - 2, 4, 4, riempimento=colore)
 
     definisci _torta(se_stesso, voci, x, y, larghezza, altezza, mostra_valori):
-        positive = [(e, v) per e, v in voci se v > 0]
+        positive = [(elemento, v) per elemento, v in voci se v > 0]
         totale = sum(v per _, v in positive)
         se totale <= 0:
             se_stesso._scrivi_centro(x + larghezza / 2, y + altezza / 2, "Nessun valore positivo", 10)
@@ -428,10 +428,10 @@ classe Documento:
 
         definisci py(y):
             ritorna alto - y * s
-        per e in elementi:
-            t = e.get("tipo")
-            p = e.get("punti") o []
-            r_, b_, sp = e.get("riempimento"), e.get("bordo"), max(0.3, float(e.get("spessore", 1)) * s)
+        per elemento in elementi:
+            t = elemento.get("tipo")
+            p = elemento.get("punti") o []
+            r_, b_, sp = elemento.get("riempimento"), elemento.get("bordo"), max(0.3, float(elemento.get("spessore", 1)) * s)
             se t == "line" e lunghezza(p) >= 4:
                 b_ = b_ o (0, 0, 0)
                 percorso = f"{px(p[0]):.2f} {py(p[1]):.2f} m " + " ".join(f"{px(p[i]):.2f} {py(p[i + 1]):.2f} l" per i in intervallo(2, lunghezza(p) - 1, 2))
@@ -452,12 +452,12 @@ classe Documento:
                     c.append(f"{b_[0]:.3f} {b_[1]:.3f} {b_[2]:.3f} RG {sp:.2f} w")
                 se r_ o b_:
                     se_stesso.pagine[-1].append(" ".join(c) + f" {percorso} " + ("B" se r_ e b_ altrimenti ("f" se r_ altrimenti "S")))
-            altrimenti_se t == "text" e e.get("testo") e lunghezza(p) >= 2:
-                dimensione = max(4.0, float(e.get("dimensione", 10)) * s / 0.75)
-                grassetto = bool(e.get("grassetto"))
-                ancora = e.get("ancora") o "center"
+            altrimenti_se t == "text" e elemento.get("testo") e lunghezza(p) >= 2:
+                dimensione = max(4.0, float(elemento.get("dimensione", 10)) * s / 0.75)
+                grassetto = bool(elemento.get("grassetto"))
+                ancora = elemento.get("ancora") o "center"
                 colore = r_ o (0, 0, 0)
-                righe_t = e["testo"].split("\n")
+                righe_t = elemento["testo"].split("\n")
                 alta = dimensione * 1.2 * lunghezza(righe_t)
                 yb = py(p[1])
                 se "n" in ancora:

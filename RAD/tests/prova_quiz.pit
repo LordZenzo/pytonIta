@@ -61,13 +61,13 @@ d = {"domanda": "Quanto fa 1+1?", "giusta": "2", "sbagliate": [{"testo": "3", "i
 visti = set()
 per seme in intervallo(30):
     p = quiz.prepara(d, random.Random(seme))
-    verifica(sum(1 per o in p["opzioni"] se o["giusta"]) == 1 e lunghezza(p["opzioni"]) == 3, "una sola giusta")
-    visti.add(tuple(o["testo"] per o in p["opzioni"]))
+    verifica(sum(1 per elemento in p["opzioni"] se elemento["giusta"]) == 1 e lunghezza(p["opzioni"]) == 3, "una sola giusta")
+    visti.add(tuple(elemento["testo"] per elemento in p["opzioni"]))
 verifica(lunghezza(visti) > 1, "le risposte si mescolano")
 p = quiz.prepara(d, random.Random(1))
-i_giusta = [i per i, o in enumera(p["opzioni"]) se o["giusta"]][0]
-i_tre = [i per i, o in enumera(p["opzioni"]) se o["testo"] == "3"][0]
-i_undici = [i per i, o in enumera(p["opzioni"]) se o["testo"] == "11"][0]
+i_giusta = [i per i, elemento in enumera(p["opzioni"]) se elemento["giusta"]][0]
+i_tre = [i per i, elemento in enumera(p["opzioni"]) se elemento["testo"] == "3"][0]
+i_undici = [i per i, elemento in enumera(p["opzioni"]) se elemento["testo"] == "11"][0]
 ok, m = quiz.valuta(p, i_giusta)
 verifica(ok e m.startswith("Giusto!") e "Uno più uno" in m, "risposta giusta: " + m)
 ok, m = quiz.valuta(p, i_tre)

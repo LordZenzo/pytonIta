@@ -139,8 +139,8 @@ definisci radice(n):
 prova:
     stampa(radice(16))
     stampa(radice(-4))
-eccetto ErroreDiValore come e:
-    stampa("Errore:", e)
+eccetto ErroreDiValore come errore:
+    stampa("Errore:", errore)
 ```
 
 ```output
