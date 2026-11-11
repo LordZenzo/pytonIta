@@ -72,6 +72,21 @@ eccetto ai.ErroreAI come e:
     sollevato = "SAFETY" in testo(e)
 verifica(sollevato, "richiesta bloccata = errore chiaro")
 
+# ----------------------------------------------------------------- cambio di fornitore a metà conversazione
+mista = [{"role": "user", "content": [{"type": "text", "text": "ciao"}]},
+         {"role": "assistant", "content": [{"type": "ragionamento", "text": "penso"}, {"type": "text", "text": "Ecco.", "firma": "F1"},
+                                           {"type": "tool_use", "id": "gem_1", "name": "stato_ide", "input": {}, "firma": "F2"}]},
+         {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "gem_1", "content": "ok"}]},
+         {"role": "assistant", "content": [{"type": "ragionamento", "text": "solo ragionamento"}]}]
+pulita = ai.pulisci_per_claude(mista)
+verifica(pulita[1]["content"] == [{"type": "text", "text": "Ecco."}, {"type": "tool_use", "id": "gem_1", "name": "stato_ide", "input": {}}], "firme e ragionamento tolti per Claude: " + str(pulita[1]))
+verifica(lunghezza(pulita) == 3, "un messaggio fatto solo di ragionamento sparisce: " + str(lunghezza(pulita)))
+verifica("firma" in mista[1]["content"][1] e lunghezza(mista[1]["content"]) == 3, "l'originale non cambia")
+verifica(tutti("firma" non in b per m in pulita per b in m["content"]), "nessuna firma rimasta")
+# e gli altri fornitori ignorano ciò che non li riguarda
+verifica(lunghezza(ai.messaggi_a_gemini(mista)) >= 2, "Gemini accetta la conversazione mista")
+verifica(ai.messaggi_a_openai(mista, "S")[2]["tool_calls"][0]["id"] == "gem_1", "DeepSeek accetta la conversazione mista")
+
 # ----------------------------------------------------------------- server finti
 richieste = {"deepseek": [], "gemini": []}
 

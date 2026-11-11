@@ -19,6 +19,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 ## Novità della 1.39
 
 - **Assistente AI con più fornitori**: oltre a Claude (che resta il predefinito) si possono usare **Gemini** (Google) e **DeepSeek**. In *Impostazioni → Assistente AI* si sceglie il fornitore e si mette la sua chiave API (o la variabile `GEMINI_API_KEY` / `DEEPSEEK_API_KEY`). Ogni fornitore ha il suo modello e il suo modello economico; la casella dei modelli nella chat segue il fornitore. L'assistente usa gli stessi strumenti con tutti e tre. La cache dei prompt è solo di Claude, e la stima dei costi si calcola solo per i modelli di cui si conosce il prezzo.
+- **Cambio di fornitore a metà chat**: si può passare da Gemini o DeepSeek a Claude senza errore (le firme di Gemini e il ragionamento di DeepSeek non vengono più inviati a Claude).
 - **Gemini**: modelli aggiornati a `gemini-3.6-flash` (economico `gemini-3.5-flash-lite`), perché i 2.5 non sono più disponibili per i nuovi utenti. Chi li aveva già salvati passa in automatico ai successori.
 - **Impostazioni**: le pagine ora scorrono (rotella e barra a destra) quando le voci non ci stanno, così si raggiungono tutte le opzioni dell'Assistente AI.
 - **Chat**: la casella «⚡ economico» parte attiva.

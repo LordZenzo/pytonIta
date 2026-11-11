@@ -161,6 +161,21 @@ definisci con_cache(messaggi):
     ritorna copia
 
 
+definisci pulisci_per_claude(messaggi):
+    """Copia della conversazione senza ciò che Claude non accetta: le firme di Gemini («firma») e il ragionamento di DeepSeek.
+    Serve quando si cambia fornitore a metà conversazione."""
+    risultato = []
+    per m in messaggi:
+        c = m.get("content")
+        se isinstance(c, lista):
+            blocchi = [{k: v per k, v in b.items() se k != "firma"} per b in c se b.get("type") != "ragionamento"]
+            se non blocchi:
+                continua
+            m = dict(m, content=blocchi)
+        risultato.append(m)
+    ritorna risultato
+
+
 FORNITORI = {"claude": "Claude (Anthropic)", "gemini": "Gemini (Google)", "deepseek": "DeepSeek"}
 
 
@@ -231,6 +246,7 @@ classe ClienteClaude(ClienteBase):
 
     definisci chiama(se_stesso, messaggi, sistema, strumenti):
         chiave = se_stesso._chiave_o_errore()
+        messaggi = pulisci_per_claude(messaggi)
         se se_stesso.config_.ottieni("ai.cache_cronologia", Vero):
             messaggi = con_cache(messaggi)
         corpo = {"model": se_stesso.modello(),
