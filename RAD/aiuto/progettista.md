@@ -122,6 +122,12 @@ Di solito i componenti stanno dove li metti (**libero**). Con la **griglia** inv
 
 **Nel programma.** Il codice generato usa il file `griglia.pit` (che PitStudio mette nel progetto) e dispone i componenti con lo stesso calcolo del progettista: quello che vedi è quello che ottieni, anche ridimensionando la finestra. Le finestre già disegnate restano libere finché non scegli la griglia. Nell'esportazione in Python e nell'eseguibile la griglia funziona allo stesso modo.
 
+## Guide di allineamento
+
+Quando trascini un componente (o più componenti selezionati) compaiono delle **linee rosa** appena un suo bordo o il suo centro coincide con quello di un altro componente dello stesso contenitore, o con i bordi e il centro del contenitore; a quel punto il componente si **aggancia**. Si spegne con la casella **Guide** della barra del progettista; tieni premuto **Alt** mentre trascini per non agganciare solo quella volta. Valgono nel modo libero: in un contenitore a griglia la posizione la decidono le celle.
+
+Per allineare componenti già disposti usa **Allinea ▾** (sinistra, destra, centri, stessa larghezza o altezza, **Distribuisci** in orizzontale e in verticale in modo uniforme).
+
 ## Modelli di finestra
 
 **File → Nuova finestra** chiede il nome e un **modello di partenza**:

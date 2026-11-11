@@ -477,6 +477,8 @@ classe Progettista(tk.Frame):
         se_stesso.indice_cronologia = 0
         se_stesso.appunti = []
         se_stesso.griglia_attiva = tk.BooleanVar(value=Vero)
+        se_stesso.guide_attive = tk.BooleanVar(value=Vero)
+        se_stesso._linee_guida = []
         se_stesso._trascinamento = Nessuno
         se_stesso._costruisci()
         se_stesso.applica_colori(colori)
@@ -503,6 +505,9 @@ classe Progettista(tk.Frame):
                                  command=se_stesso._disegna_griglia)
         casella.pack(side="left", padx=8)
         stile_suggerisci(casella, "Mostra la griglia e fa agganciare i componenti")
+        casella_guide = tk.Checkbutton(barra, text="Guide", variable=se_stesso.guide_attive)
+        casella_guide.pack(side="left", padx=2)
+        stile_suggerisci(casella_guide, "Mentre trascini compaiono linee quando un bordo o il centro coincide con un altro componente, e il componente si aggancia (tieni premuto Alt per non agganciare)")
         se_stesso.menu_allinea = tk.Menubutton(barra, text="Allinea ▾", relief="flat")
         stile_suggerisci(se_stesso.menu_allinea, "Allinea o distribuisce i componenti selezionati")
         m = tk.Menu(se_stesso.menu_allinea, tearoff=0)
@@ -1276,17 +1281,110 @@ classe Progettista(tk.Frame):
             se_stesso._evidenzia_cella(c.genitore, riga, colonna, padre)
             se_stesso._suggerisci_rilascio(e, d)
             ritorna "break"
+        cx, cy, linee = se_stesso._guide(d, dx, dy, e)
         per n, (x0, y0) in d["inizio"].items():
             c = se_stesso.form.trova(n)
             se n in getattr(se_stesso, "_rett", {}):
                 continua
-            c.x = max(0, se_stesso._aggancia(x0 + dx))
-            c.y = max(0, se_stesso._aggancia(y0 + dy))
+            c.x = max(0, se_stesso._aggancia(x0 + dx) + cx)
+            c.y = max(0, se_stesso._aggancia(y0 + dy) + cy)
             se_stesso.widget[n].place_configure(x=c.x, y=c.y)
         se_stesso._riposiziona_maniglie()
         se_stesso._aggiorna_stato()
+        se_stesso._disegna_guide(nome, linee)
         se_stesso._suggerisci_rilascio(e, d)
         ritorna "break"
+
+    # ------------------------------------------------------------ guide di allineamento
+    SOGLIA_GUIDE = 5          # a quanti pixel dal bordo (o dal centro) di un altro componente si aggancia
+
+    definisci _area_contenitore(se_stesso, chiave):
+        """(larghezza, altezza) dello spazio in cui stanno i componenti del contenitore `chiave` ('' = la finestra)."""
+        f = se_stesso.form
+        se non chiave:
+            ritorna f.larghezza, f.altezza
+        padre = f.trova(chiave.split("#")[0])
+        se padre è Nessuno:
+            ritorna f.larghezza, f.altezza
+        se padre.tipo == "Schede":
+            ritorna padre.larghezza - form_modello.AREA_PAGINA[0], padre.altezza - form_modello.AREA_PAGINA[1]
+        b = int(padre.valori.get("bordo", 0) o 0)
+        ritorna padre.larghezza - 2 * b, padre.altezza - 2 * b
+
+    definisci _guide(se_stesso, d, dx, dy, e):
+        """Aggancio alle guide durante il trascinamento: (correzione x, correzione y, linee) dove le linee sono [("v", x), ("o", y)].
+        Si confrontano sinistra, centro e destra (alto, centro, basso) di quello che si trascina con quelli degli altri componenti dello stesso contenitore e con i bordi e il centro del contenitore."""
+        se non se_stesso.guide_attive.get() o (e.state & 0x20000):          # Alt: niente aggancio
+            ritorna 0, 0, []
+        mossi = [se_stesso.form.trova(n) per n in d["inizio"] se n non in getattr(se_stesso, "_rett", {})]
+        mossi = [c per c in mossi se c è non Nessuno]
+        se non mossi:
+            ritorna 0, 0, []
+        genitore = mossi[0].genitore
+        rettangoli = []
+        per c in mossi:
+            x0, y0 = d["inizio"][c.nome]
+            rettangoli.append((max(0, se_stesso._aggancia(x0 + dx)), max(0, se_stesso._aggancia(y0 + dy)), c.larghezza, c.altezza))
+        sx0 = min(r[0] per r in rettangoli)
+        sy0 = min(r[1] per r in rettangoli)
+        sx1 = max(r[0] + r[2] per r in rettangoli)
+        sy1 = max(r[1] + r[3] per r in rettangoli)
+        mie_x = [sx0, (sx0 + sx1) / 2, sx1]
+        mie_y = [sy0, (sy0 + sy1) / 2, sy1]
+        nomi_mossi = set(c.nome per c in mossi)
+        L, H = se_stesso._area_contenitore(genitore)
+        guide_x = [0, L / 2, L]
+        guide_y = [0, H / 2, H]
+        per c in se_stesso.form.componenti:
+            se c.nome in nomi_mossi o c.genitore != genitore o non e_visivo(c.tipo) o c.nome in getattr(se_stesso, "_rett", {}):
+                continua
+            guide_x += [c.x, c.x + c.larghezza / 2, c.x + c.larghezza]
+            guide_y += [c.y, c.y + c.altezza / 2, c.y + c.altezza]
+
+        definisci migliore(mie, guide):
+            scelta = Nessuno
+            per m in mie:
+                per g in guide:
+                    se abs(m - g) <= se_stesso.SOGLIA_GUIDE e (scelta è Nessuno o abs(m - g) < abs(scelta)):
+                        scelta = g - m
+            ritorna int(round(scelta)) se scelta è non Nessuno altrimenti 0
+        cx = migliore(mie_x, guide_x)
+        cy = migliore(mie_y, guide_y)
+        linee = []
+        per m in mie_x:
+            per g in guide_x:
+                se abs(m + cx - g) < 0.75 e ("v", g) non in linee:
+                    linee.append(("v", g))
+        per m in mie_y:
+            per g in guide_y:
+                se abs(m + cy - g) < 0.75 e ("o", g) non in linee:
+                    linee.append(("o", g))
+        ritorna cx, cy, linee
+
+    definisci _disegna_guide(se_stesso, nome, linee):
+        """Mostra le linee guida nel contenitore del componente trascinato."""
+        se_stesso._togli_guide()
+        c = se_stesso.form.trova(nome)
+        se c è Nessuno o non linee:
+            ritorna
+        padre = se_stesso._padre_widget(c)
+        L, H = se_stesso._area_contenitore(c.genitore)
+        per verso, g in linee:
+            linea = tk.Frame(padre, background="#ff4fa3")
+            se verso == "v":
+                linea.place(x=int(g), y=0, width=1, height=max(1, H))
+            altrimenti:
+                linea.place(x=0, y=int(g), width=max(1, L), height=1)
+            linea.tk.call("raise", linea._w)
+            se_stesso._linee_guida.append(linea)
+
+    definisci _togli_guide(se_stesso):
+        per linea in se_stesso._linee_guida:
+            prova:
+                linea.destroy()
+            eccetto tk.TclError:
+                passa
+        se_stesso._linee_guida = []
 
     # ------------------------------------------------------------ spostare un componente dentro o fuori da un contenitore
     definisci _contenitore_sotto(se_stesso, e, spostati):
@@ -1353,6 +1451,7 @@ classe Progettista(tk.Frame):
         d = se_stesso._trascinamento
         se_stesso._trascinamento = Nessuno
         se_stesso._togli_evidenza()
+        se_stesso._togli_guide()
         se d e d["mosso"]:
             c_ = se_stesso.form.trova(nome)
             bersaglio = se_stesso._contenitore_sotto(e, d["inizio"])

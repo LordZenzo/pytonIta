@@ -1,0 +1,170 @@
+"""Le guide di allineamento del progettista: mentre si trascina un componente compaiono le linee e ci si aggancia ai bordi e ai centri degli altri."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.form_modello importa Form
+da rad importa form_modello come fm
+da rad.progettista importa Progettista
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci apri_file(se_stesso, p): passa
+    definisci apri_file_a_funzione(se_stesso, p, f): passa
+    definisci esegui_file(se_stesso, p): passa
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+
+
+classe Ev:
+    definisci __init__(se_stesso, x, y, stato=0):
+        se_stesso.x_root = x
+        se_stesso.y_root = y
+        se_stesso.x = x
+        se_stesso.y = y
+        se_stesso.state = stato
+
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x650")
+configura_stile(radice, c)
+d = tempfile.mkdtemp()
+f = Form("Demo", "Demo")
+p = Progettista(radice, os.path.join(d, "demo.form.json"), f, c, cfg, Az())
+p.pack(fill="both", expand=Vero)
+applica(radice, c)
+radice.update()
+
+
+definisci _inutile(nome, verso_x, verso_y):
+    """Prende il componente e lo rilascia nel punto (verso_x, verso_y) della superficie."""
+    w = p.widget[nome]
+    p._premi(Ev(w.winfo_rootx() + 3, w.winfo_rooty() + 3), nome)
+    sx, sy = p.superficie.winfo_rootx(), p.superficie.winfo_rooty()
+    e = Ev(sx + verso_x, sy + verso_y)
+    p._trascina(e, nome)
+    radice.update()
+    p._rilascia(e, nome)
+    radice.update()
+
+
+f.larghezza = 800
+f.altezza = 500
+p._disegna_griglia()
+p.griglia_attiva.set(Falso)
+radice.update()
+a = p.aggiungi_componente("Pulsante", 100, 100)
+b = p.aggiungi_componente("Pulsante", 300, 220)
+radice.update()
+verifica((a.x, a.y) == (100, 100) e (b.x, b.y) == (300, 220), "posizioni di partenza: " + str(((a.x, a.y), (b.x, b.y))))
+
+
+definisci trascina(nome, dx, dy, stato=0, rilascia=Vero):
+    w = p.widget[nome]
+    e0 = Ev(w.winfo_rootx() + 3, w.winfo_rooty() + 3)
+    p._premi(e0, nome)
+    e1 = Ev(e0.x_root + dx, e0.y_root + dy, stato)
+    p._trascina(e1, nome)
+    radice.update()
+    se rilascia:
+        p._rilascia(e1, nome)
+        radice.update()
+
+
+# b a sinistra: a 3 pixel dal bordo sinistro di a -> si aggancia a x = 100
+trascina(b.nome, -197, 0)
+verifica(b.x == 100, "il bordo sinistro si aggancia a quello dell'altro: x = " + str(b.x))
+verifica(non p._linee_guida, "a rilascio le linee spariscono")
+
+# durante il trascinamento compare la linea
+trascina(b.nome, -98, 10, rilascia=Falso)
+verifica(lunghezza(p._linee_guida) >= 1, "la linea guida compare durante il trascinamento")
+w_linea = p._linee_guida[0]
+verifica(w_linea.winfo_width() == 1 o w_linea.winfo_height() == 1, "è una linea sottile")
+p._rilascia(Ev(0, 0), b.nome)
+verifica(non p._linee_guida, "tolte al rilascio")
+
+# allineamento in verticale: stessa altezza del primo pulsante
+b.x, b.y = 300, 220
+p.ricostruisci()
+radice.update()
+trascina(b.nome, 0, -118)
+verifica(b.y == 100 o b.y == a.y, "il bordo alto si aggancia a quello dell'altro: y = " + str(b.y))
+
+# centro con centro
+b.x, b.y = 300, 220
+p.ricostruisci()
+radice.update()
+a.larghezza, a.altezza = 100, 30
+b.larghezza, b.altezza = 60, 30
+p.ricostruisci()
+radice.update()
+# il centro di a è a x = 150: b centrata a x = 120..180 -> sposto a 124 (centro 154) e deve agganciarsi a 120
+b.x, b.y = 300, 220
+p.ricostruisci()
+radice.update()
+trascina(b.nome, -176, 0)
+verifica(b.x == 120, "il centro si aggancia al centro dell'altro: x = " + str(b.x))
+
+# bordi della finestra
+b.x, b.y = 300, 220
+p.ricostruisci()
+radice.update()
+trascina(b.nome, -297, 0)
+verifica(b.x == 0, "il bordo sinistro della finestra: x = " + str(b.x))
+
+# Alt: niente aggancio
+b.x, b.y = 300, 220
+p.ricostruisci()
+radice.update()
+trascina(b.nome, -197, 0, stato=0x20000)
+verifica(b.x == 103, "con Alt non si aggancia: x = " + str(b.x))
+
+# guide spente
+p.guide_attive.set(Falso)
+b.x, b.y = 300, 220
+p.ricostruisci()
+radice.update()
+trascina(b.nome, -197, 0)
+verifica(b.x == 103, "con le guide spente non si aggancia: x = " + str(b.x))
+p.guide_attive.set(Vero)
+
+# fuori portata: niente aggancio
+b.x, b.y = 300, 220
+p.ricostruisci()
+radice.update()
+trascina(b.nome, -190, 0)
+verifica(b.x == 110, "a 10 pixel non si aggancia: x = " + str(b.x))
+
+# più componenti selezionati: l'insieme si aggancia
+c_ = p.aggiungi_componente("Pulsante", 300, 300)
+b.x, b.y = 300, 220
+p.ricostruisci()
+radice.update()
+p.seleziona([b.nome, c_.nome])
+trascina(b.nome, -197, 0)
+verifica(b.x == 100 e c_.x == 100, "il gruppo si aggancia insieme e resta unito: " + str((b.x, c_.x)))
+
+# dentro un riquadro: le guide valgono tra i componenti dello stesso riquadro
+rq = p.aggiungi_componente("Riquadro", 400, 40, larghezza=300, altezza=200)
+e1 = p.aggiungi_componente("Etichetta", 10, 10, genitore=rq.nome)
+e2 = p.aggiungi_componente("Etichetta", 150, 80, genitore=rq.nome)
+radice.update()
+trascina(e2.nome, -137, 0)
+verifica(e2.x == e1.x, "nel riquadro si aggancia all'altro componente del riquadro: " + str((e2.x, e1.x)))
+
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.48
+
+- **Guide di allineamento** nel progettista: trascinando un componente compaiono linee rosa quando un bordo o il centro coincide con quello di un altro componente (o del contenitore) e il componente si aggancia; casella **Guide** nella barra, Alt per non agganciare. («Distribuisci in modo uniforme» c'era già nel menu Allinea.)
+
 ## Novità della 1.47
 
 - **Controllo delle variabili omonime**: l'editor evidenzia con uno sfondo colorato la parola dove un nome ne nasconde un altro (parametro o variabile locale con lo stesso nome di una del modulo o della funzione che la contiene, variabile con lo stesso nome di una funzione o classe, nome di una funzione del linguaggio che poi chiami). Il suggerimento al passaggio del mouse dice cosa nasconde. Non blocca nulla e si spegne in Impostazioni → Editor. **F2** avvisa quando rinomini un nome omonimo.
