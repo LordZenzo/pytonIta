@@ -45,6 +45,28 @@ definisci autotest(percorso_rapporto):
     r = subprocess.run([interprete, "-u", programma], capture_output=Vero, text=Vero, encoding="utf-8")
     righe.append("esecuzione: codice " + testo(r.returncode) + " -> " + r.stdout.strip() + " " + r.stderr.strip())
     righe.append("librerie spuntabili: " + testo(lunghezza(app.pannello_librerie.tutte)))
+    # l'esportazione in Python (e quindi «Crea l'eseguibile») gira nell'interprete incorporato, dove os.__file__ non esiste
+    prova:
+        da rad importa esporta_python
+        progetto_prova = os.path.join(d, "ProgettoProva")
+        os.makedirs(progetto_prova)
+        con open(os.path.join(progetto_prova, "progetto.rad.json"), "w", encoding="utf-8") come f:
+            f.write('{"nome": "ProgettoProva", "principale": "principale.pit"}')
+        con open(os.path.join(progetto_prova, "principale.pit"), "w", encoding="utf-8") come f:
+            f.write('stampa("ciao", lunghezza("abc"))' + chr(10))
+        esito = esporta_python.esporta(progetto_prova, os.path.join(d, "sorgente_python"))
+        righe.append("esportazione in Python: " + ("ok" se esito["file_python"] == 1 e non esito["errori"] altrimenti "ERRORE " + testo(esito["errori"])))
+    eccetto Exception come errore:
+        righe.append("esportazione in Python: ERRORE " + tipo(errore).__name__ + ": " + testo(errore))
+    # con RAD_PROVA_EXE=1 si prova anche la costruzione vera dell'eseguibile e del Setup dall'interprete incorporato (lenta, serve internet la prima volta)
+    se os.environ.get("RAD_PROVA_EXE") == "1":
+        prova:
+            da rad importa crea_exe
+            registro = []
+            esito = crea_exe.costruisci(progetto_prova, crea_exe.Opzioni("ProgettoProva", un_file=Vero, senza_console=Falso, versione="1.2.3", autore="Prova", crea_setup=Vero), registro.append)
+            righe.append("costruzione dell'exe: " + ("ok" se esito["ok"] e os.path.exists(esito["setup"]) altrimenti "ERRORE " + esito["errore"]))
+        eccetto Exception come errore:
+            righe.append("costruzione dell'exe: ERRORE " + tipo(errore).__name__ + ": " + testo(errore))
     con open(percorso_rapporto, "w", encoding="utf-8") come f:
         f.write("\n".join(righe) + "\n")
     radice.destroy()

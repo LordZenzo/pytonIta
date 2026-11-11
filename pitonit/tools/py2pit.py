@@ -43,12 +43,24 @@ RISERVATE = ({v for k, v in KEYWORDS.items() if v != k and v not in ("e", "o")}
              | {"confronta", "caso"})
 
 
+def lib_in_uso():
+    """La cartella Lib dell'interprete in uso. Nell'interprete incorporato di PitStudio.exe os.__file__ non esiste: si chiede a sysconfig."""
+    try:
+        import sysconfig
+        percorso = sysconfig.get_path("stdlib")
+        if percorso:
+            return percorso
+    except Exception:
+        pass
+    return os.path.dirname(getattr(os, "__file__", "") or sys.executable)
+
+
 def _percorsi_italiano():
     """Dove cercare _italiano.py: accanto all'interprete (installazione) o nei sorgenti di sviluppo."""
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))          # .../pitonit
     return [os.path.join(base, 'Lib', '_italiano.py'),
             os.path.join(base, 'installazione', 'Lib', '_italiano.py'),
-            os.path.join(os.path.dirname(os.__file__), '_italiano.py'),      # la Lib dell'interprete in uso (Linux e macOS)
+            os.path.join(lib_in_uso(), '_italiano.py'),      # la Lib dell'interprete in uso (Linux e macOS)
             SRC_ITALIANO]
 
 

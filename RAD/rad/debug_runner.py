@@ -219,7 +219,12 @@ class Debugger(bdb.Bdb):
         self.passaggi = {}               # (file, riga) -> quante volte si è passati (con la condizione vera)
         self.avviso = ""
         self.primo = True
-        self.cartella_stdlib = os.path.normcase(os.path.dirname(os.__file__))
+        try:
+            import sysconfig
+            stdlib = sysconfig.get_path("stdlib") or os.path.dirname(os.__file__)
+        except Exception:
+            stdlib = os.path.dirname(getattr(os, "__file__", "") or sys.executable)
+        self.cartella_stdlib = os.path.normcase(stdlib)
         self.questo = os.path.normcase(os.path.abspath(__file__))
         self.imposta_punti(punti)
 

@@ -1,0 +1,30 @@
+"""L'esportazione in Python (e la creazione dell'exe) deve funzionare anche nell'interprete incorporato di PitStudio.exe, dove os.__file__ non esiste."""
+importa sys, os, tempfile, json, importlib
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa esporta_python
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+base = tempfile.mkdtemp()
+origine = os.path.join(base, "Saluto")
+os.makedirs(origine)
+open(os.path.join(origine, "progetto.rad.json"), "w", encoding="utf-8").write(json.dumps({"nome": "Saluto", "principale": "principale.pit"}))
+open(os.path.join(origine, "principale.pit"), "w", encoding="utf-8").write('nome = "Anna"\nstampa(f"Ciao, {nome}!", lunghezza(nome))\n')
+
+# come in PitStudio.exe: il modulo os non ha __file__
+salvato = os.__file__
+elimina os.__file__
+prova:
+    r = esporta_python.esporta(origine, os.path.join(base, "src"))
+    verifica(r["errori"] == [] e r["file_python"] == 1, "esportazione senza os.__file__: " + testo(r))
+    verifica("print(f\"Ciao, {nome}!\", len(nome))" in open(os.path.join(base, "src", "principale.py"), encoding="utf-8").read(), "il codice Python è convertito bene")
+infine:
+    os.__file__ = salvato
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

@@ -9,6 +9,7 @@ Tutto viene letto con ast: nessun modulo viene importato.
 import ast
 import glob
 import os
+import sys
 
 KEYWORDS = {
     "False": "Falso", "None": "Nessuno", "True": "Vero", "and": "e",
@@ -26,12 +27,24 @@ KW_IT2EN = {v: k for k, v in KEYWORDS.items() if v != k}
 SOFT = {"confronta": "match", "caso": "case", "tipo": "type"}
 
 
+def lib_in_uso():
+    """La cartella Lib dell'interprete in uso. Nell'interprete incorporato di PitStudio.exe os.__file__ non esiste: si chiede a sysconfig."""
+    try:
+        import sysconfig
+        percorso = sysconfig.get_path("stdlib")
+        if percorso:
+            return percorso
+    except Exception:
+        pass
+    return os.path.dirname(getattr(os, "__file__", "") or sys.executable)
+
+
 def cartelle_lib():
     """Le cartelle Lib di pitonit: sviluppo (installazione\\Lib) o installato (pitonit\\Lib)."""
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     candidati = [os.path.join(base, "installazione", "Lib"), os.path.join(base, "Lib"),
                  os.path.join(os.path.dirname(base), "Lib"),
-                 os.path.dirname(os.__file__)]      # la Lib dell'interprete in uso (Linux e macOS)
+                 lib_in_uso()]      # la Lib dell'interprete in uso (Linux e macOS)
     return [c for c in candidati if os.path.exists(os.path.join(c, "_mappa_moduli.py"))]
 
 
