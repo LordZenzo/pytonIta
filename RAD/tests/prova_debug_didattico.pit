@@ -1,0 +1,173 @@
+"""Debug didattico: watchpoint («ferma quando cambia»), valori cambiati evidenziati e valutazione passo-passo della riga. Dialoga col runner senza finestra."""
+importa sys, os, tempfile, json, subprocess, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.debug importa RUNNER, INIZIO_EVENTO, FINE_EVENTO, PREFISSO_COMANDO
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+PITONIT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "pitonit", "installazione", "pitonit.exe")
+cartella = tempfile.mkdtemp()
+
+
+definisci scrivi(nome, sorgente):
+    p = os.path.join(cartella, nome)
+    open(p, "w", encoding="utf-8").write(sorgente)
+    ritorna p
+
+
+definisci corri(programma, comandi, inizio=Vero, punti=Nessuno):
+    """Avvia il runner e risponde a ogni sosta con i comandi della lista (poi «continua»). Ritorna (eventi di sosta, testo stampato)."""
+    argomenti = [PITONIT, "-u", RUNNER, programma]
+    se punti:
+        f = os.path.join(cartella, "punti.json")
+        json.dump(punti, open(f, "w"))
+        argomenti += ["--punti", f]
+    se inizio:
+        argomenti.append("--inizio")
+    p = subprocess.Popen(argomenti, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    soste = []
+    uscita = ""
+    buffer = ""
+    k = 0
+    t0 = time.time()
+    mentre time.time() - t0 < 15:
+        blocco = p.stdout.read1(4096).decode("utf-8", "replace")
+        se non blocco:
+            interrompi
+        buffer += blocco
+        mentre INIZIO_EVENTO in buffer e FINE_EVENTO in buffer:
+            i = buffer.index(INIZIO_EVENTO)
+            j = buffer.index(FINE_EVENTO, i)
+            uscita += buffer[:i]
+            ev = json.loads(buffer[i + len(INIZIO_EVENTO):j])
+            buffer = buffer[j + 1:]
+            se ev["evento"] in ("fermo", "frame"):
+                soste.append(ev)
+                se ev["evento"] == "fermo":
+                    per cmd in (comandi[k] se k < lunghezza(comandi) altrimenti ["continua"]):
+                        p.stdin.write((PREFISSO_COMANDO + cmd + "\n").encode("utf-8"))
+                    p.stdin.flush()
+                    k += 1
+        se p.poll() è non Nessuno e non blocco:
+            interrompi
+    uscita += buffer
+    prova:
+        p.wait(10)
+    eccetto Exception:
+        p.kill()
+    ritorna soste, uscita
+
+
+definisci fermi(soste):
+    ritorna [s per s in soste se s["evento"] == "fermo"]
+
+
+# ----------------------------------------------------------------- valutazione passo-passo
+prog = scrivi("calcoli.pit", '''a = 3
+b = 4
+totale = a + b * 2
+se totale > 10 e a < 5:
+    stampa(f"grande {totale}")
+nomi = ["Anna", "Luca"]
+n = lunghezza(nomi) + 1
+per i in intervallo(2):
+    totale = totale + i
+saluta = "ciao"
+stampa(saluta.maiuscolo())
+''')
+soste, uscita = corri(prog, [["passo"]] * 12)
+f = fermi(soste)
+per_riga = {}
+per s in f:
+    per_riga.setdefault(s["riga"], s["valutazione"])
+verifica(per_riga[1] == [] e per_riga[2] == [], "una costante da sola non si spiega")
+verifica(per_riga[3] == ["a + b * 2", "3 + 4 * 2", "3 + 8", "11"], "somma e prodotto, un livello alla volta: " + str(per_riga[3]))
+verifica(per_riga[4] == ["totale > 10 e a < 5", "11 > 10 e 3 < 5", "Vero e Vero", "Vero"], "condizione con Vero/Falso in italiano: " + str(per_riga[4]))
+verifica(per_riga[5][0] == 'stampa(f"grande {totale}")' e per_riga[5][-1] == "stampa('grande 11')", "chiamata non sicura: si riducono gli argomenti: " + str(per_riga[5]))
+verifica(per_riga[7] == ["lunghezza(nomi) + 1", "lunghezza(['Anna', 'Luca']) + 1", "2 + 1", "3"], "funzione predefinita: " + str(per_riga[7]))
+verifica(per_riga[8][-1] == "intervallo(0, 2)", "intervallo: " + str(per_riga[8]))
+verifica(per_riga[9] == ["totale + i", "11 + 0", "11"], "dentro il ciclo: " + str(per_riga[9]))
+# variabili cambiate dall'ultima sosta
+per_riga_cambiate = {}
+per s in f:
+    per_riga_cambiate.setdefault(s["riga"], [v["nome"] per v in s["variabili"] se v["cambiata"]])
+verifica(per_riga_cambiate[1] == [] e per_riga_cambiate[2] == ["a"] e per_riga_cambiate[3] == ["b"], "dopo ogni riga si vede cosa è cambiato: " + str(per_riga_cambiate))
+verifica("totale" in per_riga_cambiate[4], "totale cambiato dopo la riga 3")
+
+# una chiamata a una funzione dell'utente non viene eseguita per spiegarla
+prog2 = scrivi("effetti.pit", '''contatore = [0]
+definisci tocca():
+    contatore[0] += 1
+    ritorna contatore[0]
+x = tocca() + tocca()
+stampa(x, contatore[0])
+''')
+soste, uscita = corri(prog2, [["passo"]] * 6)
+f = fermi(soste)
+riga5 = [s per s in f se s["riga"] == 5][0]
+verifica(riga5["valutazione"] == [] o riga5["valutazione"][-1].startswith("tocca()"), "la funzione dell'utente non si esegue per spiegare: " + str(riga5["valutazione"]))
+verifica("3 2" in uscita, "il programma ha fatto le sue due chiamate soltanto: " + uscita.strip())
+
+# ----------------------------------------------------------------- watchpoint
+prog3 = scrivi("watch.pit", '''totale = 0
+per i in intervallo(5):
+    se i == 2:
+        totale = totale + 10
+    stampa("giro", i)
+se totale > 5:
+    totale = 0
+stampa("fine", totale)
+''')
+soste, uscita = corri(prog3, [['osserva [{"e": "totale", "ferma": true}]', "continua"]])
+f = fermi(soste)
+righe = [(s["riga"], s["avviso"]) per s in f]
+stampa("watch:", righe)
+verifica(f[0]["riga"] == 1, "parte dalla prima riga")
+verifica(lunghezza(f) == 4, "tre soste del watchpoint dopo la prima: " + str(righe))
+verifica("totale è stata creata: 0" in f[1]["avviso"] e "dopo la riga 1" in f[1]["avviso"] e f[1]["riga"] == 2, "la variabile creata: " + str(righe[1]))
+verifica("totale è cambiata: 0 → 10" in f[2]["avviso"] e "dopo la riga 4" in f[2]["avviso"] e f[2]["riga"] == 5, "il valore cambia: " + str(righe[2]))
+verifica("totale è cambiata: 10 → 0" in f[3]["avviso"] e f[3]["riga"] == 8, "cambia ancora: " + str(righe[3]))
+verifica("👁 totale" in uscita, "il messaggio compare anche nella console: " + uscita[:120])
+verifica("giro 4" in uscita e "fine 0" in uscita, "alla fine il programma arriva in fondo")
+verifica(f[2]["osservate"][0]["ferma"] e f[2]["osservate"][0]["cambiata"], "l'osservata è segnata come «ferma» e «cambiata»")
+
+# senza «ferma» il «continua» corre fino in fondo
+soste, uscita = corri(prog3, [['osserva ["totale"]', "continua"]])
+verifica(lunghezza(fermi(soste)) == 1 e "fine 0" in uscita, "senza watchpoint il continua non si ferma: " + testo(lunghezza(fermi(soste))))
+# compatibilità: l'elenco semplice di stringhe resta valido
+soste, uscita = corri(prog3, [["passo"], ['osserva ["i", "totale"]', "passo"]])
+f = fermi(soste)
+verifica(lunghezza(f) >= 3 e [o["espressione"] per o in f[2]["osservate"]] == ["i", "totale"], "osserva con una lista di stringhe")
+
+# un watchpoint dentro una funzione: quando la funzione finisce non dà falsi allarmi
+prog4 = scrivi("funzione.pit", '''definisci somma(n):
+    parziale = 0
+    per k in intervallo(n):
+        parziale += k
+    ritorna parziale
+r = somma(4)
+stampa(r)
+''')
+# ci si ferma dentro la funzione, alla riga 3 (parziale esiste già), e si osserva parziale
+soste, uscita = corri(prog4, [['osserva [{"e": "parziale", "ferma": true}]', "continua"]], inizio=Falso,
+                      punti={os.path.join(cartella, "funzione.pit"): [3]})
+f = fermi(soste)
+cambi = [s["avviso"] per s in f se s["avviso"]]
+stampa("funzione:", cambi)
+verifica(lunghezza(cambi) >= 2 e all("parziale" in c per c in cambi), "il watch segue la variabile dentro la funzione: " + str(cambi))
+verifica(non any("non esiste più" in c per c in cambi), "all'uscita dalla funzione non c'è un falso allarme: " + str(cambi))
+verifica("6" in uscita, "il programma arriva in fondo: " + uscita.strip()[-30:])
+
+# un punto di arresto interrompe comunque il controllo
+soste, uscita = corri(prog3, [['osserva [{"e": "i", "ferma": false}, {"e": "totale", "ferma": true}]', "continua"]], punti={os.path.join(cartella, "watch.pit"): [5]})
+f = fermi(soste)
+verifica(lunghezza(f) >= 3, "tra le soste del watch c'è anche il punto di arresto: " + str([(s["riga"], s["avviso"][:20]) per s in f]))
+
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

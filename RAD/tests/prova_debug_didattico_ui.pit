@@ -1,0 +1,86 @@
+"""Pannello del debug: riga di valutazione, valori cambiati evidenziati, doppio clic su una osservata per «ferma quando cambia»."""
+importa sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.debug importa PannelloDebug, SessioneDebug
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+classe AppFinta:
+    definisci __inizializza__(se_stesso):
+        se_stesso.invii = []
+
+
+classe Esecutore:
+    definisci __inizializza__(se_stesso):
+        se_stesso.invii = []
+
+    definisci invia(se_stesso, testo_):
+        se_stesso.invii.append(testo_)
+
+
+classe Consolina:
+    definisci __inizializza__(se_stesso):
+        se_stesso.esecutore = Esecutore()
+
+
+app = AppFinta()
+app.console = Consolina()
+sessione = SessioneDebug(app)
+sessione.attiva = Vero
+sessione.fermo = Vero
+r = tk.Tk()
+p = PannelloDebug(r, sessione)
+p.pack(fill="both", expand=Vero)
+sessione.pannello = p
+p.applica_colori({"pannello": "#222222", "primo_piano": "#eeeeee", "tenue": "#999999", "pulsante": "#333333", "pulsante_attivo": "#444444",
+                  "sfondo": "#111111", "accento": "#3377ff"})
+r.update()
+verifica(non p.valutazione.winfo_manager(), "senza spiegazione la riga non compare")
+
+ev = {"evento": "fermo", "file": "x.pit", "riga": 3, "funzione": "<module>", "pila": [{"file": "x.pit", "riga": 3, "funzione": "<module>"}],
+      "variabili": [{"nome": "a", "valore": "3", "tipo": "int", "cambiata": Falso}, {"nome": "b", "valore": "4", "tipo": "int", "cambiata": Vero}],
+      "osservate": [{"espressione": "a + b", "valore": "7", "cambiata": Vero, "ferma": Falso}], "avviso": "",
+      "valutazione": ["a + b * 2", "3 + 8", "11"]}
+sessione.osservate = ["a + b"]
+p.mostra_stato(ev)
+r.update()
+verifica(p.valutazione.winfo_manager() == "pack" e p.valutazione.cget("text") == "Riga a + b * 2  →  3 + 8  →  11", "riga di valutazione: " + p.valutazione.cget("text"))
+righe = p.variabili.get_children()
+verifica(p.variabili.item(righe[0], "tags") in ((), ("",), "") e "cambiata" in p.variabili.item(righe[1], "tags"), "le variabili cambiate sono evidenziate")
+o = p.osservate.get_children()[0]
+verifica("cambiata" in p.osservate.item(o, "tags") e p.osservate.item(o, "values")[1] in ("", " "), "l'osservata cambiata è evidenziata, senza 👁")
+p.mostra_stato(dict(ev, valutazione=[]))
+r.update()
+verifica(non p.valutazione.winfo_manager(), "la riga sparisce quando non c'è niente da spiegare")
+
+# watchpoint dal pannello: doppio clic sulla riga dell'osservata
+o = p.osservate.get_children()[0]
+r.update()
+bbox = p.osservate.bbox(o, "#0")
+classe Clic:
+    x = bbox[0] + 5
+    y = bbox[1] + 5
+p._commuta_ferma(Clic())
+verifica("a + b" in sessione.ferma_su, "doppio clic: ferma quando cambia")
+verifica(app.console.esecutore.invii[-1] == chr(1) + 'CMD osserva ' + '[{"e": "a + b", "ferma": true}]', "il runner riceve l'osservata con «ferma»: " + app.console.esecutore.invii[-1])
+p.aggiorna_osservate([{"espressione": "a + b", "valore": "7"}])
+verifica(p.osservate.item(p.osservate.get_children()[0], "values")[1] == "👁", "segno 👁 sulla riga")
+p._commuta_ferma(Clic())
+verifica("a + b" non in sessione.ferma_su, "un altro doppio clic lo toglie")
+sessione.rimuovi_osservata("a + b")
+verifica(sessione.osservate == [] e app.console.esecutore.invii[-1] == chr(1) + "CMD osserva []", "togliendo l'osservata si aggiorna il runner")
+sessione.osservate = ["x", "y"]
+sessione.ferma_su = {"y"}
+verifica(sessione.osservate_per_il_runner() == [{"e": "x", "ferma": Falso}, {"e": "y", "ferma": Vero}], "formato inviato al runner")
+sessione.commuta_ferma("zzz")
+verifica("zzz" non in sessione.ferma_su, "solo le espressioni osservate si possono marcare")
+r.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

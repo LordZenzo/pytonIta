@@ -44,6 +44,21 @@ Appare sotto l'editor quando parte il debugger.
 
 La riga in cui il programma è fermo è evidenziata di giallo e segnata con ▶ nel margine.
 
+## Per capire meglio: valutazione e cosa è cambiato
+
+Appena il programma si ferma, il pannello ti aiuta a seguire il ragionamento:
+
+- **La riga in blu** sopra le variabili mostra come si calcola la riga che sta per essere eseguita, un passo alla volta. Per esempio `a + b * 2  →  3 + 4 * 2  →  3 + 8  →  11`, oppure per una condizione `totale > 10 e a < 5  →  11 > 10 e 3 < 5  →  Vero e Vero  →  Vero`. Per non cambiare il comportamento del programma, le funzioni scritte da te non vengono eseguite per spiegare la riga: si riducono solo i loro argomenti.
+- **I valori in arancione** (variabili ed espressioni osservate) sono quelli **cambiati dall'ultima sosta**, nella stessa funzione.
+
+## Fermarsi quando una variabile cambia (watchpoint)
+
+Aggiungi un'espressione alle osservate (per esempio `totale`) e fai **doppio clic** sulla sua riga: compare 👁. Adesso **Continua** fa girare il programma riga per riga e si ferma appena quel valore cambia, con un messaggio come «👁 totale è cambiata: 0 → 10 (dopo la riga 4)» (scritto anche nella console). Nuovo doppio clic per toglierlo.
+
+- Il programma va più **lento** finché c'è un 👁 (si controlla a ogni riga): per i programmi didattici non si nota.
+- Se l'espressione non esiste ancora, ti ferma quando viene **creata**.
+- I punti di arresto continuano a valere anche con i watchpoint.
+
 ## I comandi
 
 | Comando | Tasto | Cosa fa |
