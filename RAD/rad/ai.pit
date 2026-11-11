@@ -433,6 +433,10 @@ definisci risposta_da_gemini(r, da_json=Nessuno):
                        "cache_read_input_tokens": letti}}
 
 
+# i modelli 2.5 non sono più disponibili per i nuovi utenti: chi li ha ancora salvati nella configurazione passa ai successori
+MODELLI_GEMINI_RITIRATI = {"gemini-2.5-flash": "gemini-3.6-flash", "gemini-2.5-pro": "gemini-3.6-flash", "gemini-2.5-flash-lite": "gemini-3.5-flash-lite"}
+
+
 classe ClienteGemini(ClienteBase):
     """Gemini di Google (API generateContent)."""
     nome = "Gemini"
@@ -440,8 +444,16 @@ classe ClienteGemini(ClienteBase):
     variabili_ambiente = ("GEMINI_API_KEY", "GOOGLE_API_KEY")
     chiave_modello = "ai.modello_gemini"
     chiave_economico = "ai.modello_economico_gemini"
-    modello_predefinito = "gemini-2.5-flash"
-    economico_predefinito = "gemini-2.5-flash-lite"
+    modello_predefinito = "gemini-3.6-flash"
+    economico_predefinito = "gemini-3.5-flash-lite"
+
+    definisci modello(se_stesso):
+        m = ClienteBase.modello(se_stesso)
+        ritorna MODELLI_GEMINI_RITIRATI.get(m, m)
+
+    definisci modello_economico(se_stesso):
+        m = ClienteBase.modello_economico(se_stesso)
+        ritorna MODELLI_GEMINI_RITIRATI.get(m, m)
 
     definisci chiama(se_stesso, messaggi, sistema, strumenti):
         chiave = se_stesso._chiave_o_errore()
@@ -476,7 +488,11 @@ definisci modelli_di(config):
     """I modelli suggeriti per il fornitore scelto (elenco della casella nella chat)."""
     f = fornitore_di(config)
     chiave = {"claude": "ai.modelli", "gemini": "ai.modelli_gemini", "deepseek": "ai.modelli_deepseek"}[f]
-    ritorna config.ottieni(chiave, [])
+    elenco = config.ottieni(chiave, [])
+    se f == "gemini":
+        elenco = [MODELLI_GEMINI_RITIRATI.get(m, m) per m in elenco]
+        elenco = [m per i, m in enumera(elenco) se m non in elenco[:i]]
+    ritorna elenco
 
 
 definisci _tronca(testo_, limite=LIMITE_RISULTATO):
