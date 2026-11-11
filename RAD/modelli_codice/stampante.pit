@@ -584,6 +584,8 @@ classe Impostazioni:
     definisci imposta(se_stesso, **valori):
         """Cambia le impostazioni indicate (i valori fuori misura si riportano dentro i limiti; un nome sconosciuto è un errore)."""
         per k, v in valori.items():
+            se k == "formato":                       # «formato» è un altro nome di «carta»
+                k = "carta"
             se k == "margine":                       # scorciatoia: lo stesso margine su tutti i lati
                 per lato in ("alto", "basso", "sinistro", "destro"):
                     setattr(se_stesso, "margine_" + lato, v)
