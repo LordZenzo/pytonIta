@@ -252,12 +252,12 @@ classe VisoreJson(VisoreBase):
         se profondita > 12:
             ritorna
         se isinstance(valore, dict):
-            n = se_stesso.albero.insert(genitore, "end", text=chiave, values=(f"{{{lunghezza(valore)}}}", "oggetto"),
+            n = se_stesso.albero.insert(genitore, "end", text=chiave, values=(f"{{{lunghezza_di(valore)}}}", "oggetto"),
                                         open=profondita < 2, tags=(percorso,))
             per k, v in valore.items():
-                se_stesso._riempi(n, testo(k), v, f"{percorso}.{k}", profondita + 1)
+                se_stesso._riempi(n, tipo_testo(k), v, f"{percorso}.{k}", profondita + 1)
         altrimenti_se isinstance(valore, list):
-            n = se_stesso.albero.insert(genitore, "end", text=chiave, values=(f"[{lunghezza(valore)}]", "elenco"),
+            n = se_stesso.albero.insert(genitore, "end", text=chiave, values=(f"[{lunghezza_di(valore)}]", "elenco"),
                                         open=profondita < 2, tags=(percorso,))
             per i, v in enumera(valore[:500]):
                 se_stesso._riempi(n, f"[{i}]", v, f"{percorso}[{i}]", profondita + 1)
@@ -287,7 +287,7 @@ classe VisoreJson(VisoreBase):
                 nuovo_valore = json.loads(nuovo)
             se_stesso._imposta_percorso(dati, percorso, nuovo_valore)
         eccetto (ValueError, KeyError, IndexError) come errore:
-            messagebox.showerror("Errore", testo(errore), parent=se_stesso)
+            messagebox.showerror("Errore", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso.t.delete("1.0", "end")
         se_stesso.t.insert("1.0", json.dumps(dati, indent=2, ensure_ascii=Falso))
@@ -388,15 +388,15 @@ classe VisoreTabella(VisoreBase):
         se non righe:
             se_stesso.info.configure(text="file vuoto")
             ritorna
-        colonne = [f"c{i}" per i in intervallo(max(lunghezza(r) per r in righe))]
+        colonne = [f"c{i}" per i in intervallo_di(max(lunghezza_di(r) per r in righe))]
         se_stesso.albero.configure(columns=colonne)
         per i, c in enumera(colonne):
-            se_stesso.albero.heading(c, text=righe[0][i] se i < lunghezza(righe[0]) altrimenti "")
+            se_stesso.albero.heading(c, text=righe[0][i] se i < lunghezza_di(righe[0]) altrimenti "")
             se_stesso.albero.column(c, width=110, minwidth=50)
         per r in righe[1:]:
             se_stesso.albero.insert("", "end", values=r)
-        se_stesso.info.configure(text=f"{os.path.basename(se_stesso.percorso)}   {lunghezza(righe) - 1} righe × {lunghezza(colonne)} colonne   separatore «{separatore}»"
-                                      + ("   (anteprima limitata)" se lunghezza(righe) > se_stesso.MASSIMO_RIGHE altrimenti ""))
+        se_stesso.info.configure(text=f"{os.path.basename(se_stesso.percorso)}   {lunghezza_di(righe) - 1} righe × {lunghezza_di(colonne)} colonne   separatore «{separatore}»"
+                                      + ("   (anteprima limitata)" se lunghezza_di(righe) > se_stesso.MASSIMO_RIGHE altrimenti ""))
 
 
 classe VisoreBinario(VisoreBase):
@@ -418,7 +418,7 @@ classe VisoreBinario(VisoreBase):
             dati, totale = b"", 0
             se_stesso.t.insert("end", f"Errore: {errore}")
         righe = [f"{totale} byte" + (" (mostrati i primi 65536)" se totale > 65536 altrimenti ""), ""]
-        per i in intervallo(0, lunghezza(dati), 16):
+        per i in intervallo_di(0, lunghezza_di(dati), 16):
             blocco = dati[i:i + 16]
             esa = " ".join(f"{b:02x}" per b in blocco)
             asc = "".join(chr(b) se 32 <= b < 127 altrimenti "." per b in blocco)

@@ -27,7 +27,7 @@ radice.update()
 stampa("convertito:", percorsi)
 stampa(rapporto.splitlines()[0], "|", rapporto.splitlines()[1])
 ed = [w per w in app.schede.values() se isinstance(w, EditorMattonelle)][0]
-stampa("finestre di lavoro:", lista(ed.viste))
+stampa("finestre di lavoro:", tipo_lista(ed.viste))
 r1 = subprocess.run([sys.executable, os.path.join(cart, "esempio.pit")], capture_output=Vero, text=Vero, cwd=cart)
 r2 = subprocess.run([sys.executable, os.path.join(cart, "esempio_mattonelle.pit")], capture_output=Vero, text=Vero, cwd=cart)
 stampa("stesso output dell'originale:", r1.stdout == r2.stdout, r2.returncode)

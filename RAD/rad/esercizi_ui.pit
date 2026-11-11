@@ -76,7 +76,7 @@ classe FinestraEsercizi(tk.Toplevel):
         se_stesso.risultato.grid(row=5, column=0, sticky="nsew")
         se_stesso.risultato.tag_configure("ok", foreground="#2e7d32", font=(FONT_MONO, 10, "bold"))
         se_stesso.risultato.tag_configure("no", foreground=c["errore"], font=(FONT_MONO, 10, "bold"))
-        se_stesso.barra = ttk.Progressbar(destra, maximum=max(1, lunghezza(lista_esercizi)))
+        se_stesso.barra = ttk.Progressbar(destra, maximum=max(1, lunghezza_di(lista_esercizi)))
         se_stesso.barra.grid(row=6, column=0, sticky="we", pady=(8, 0))
         se_stesso.riga_progressi = tk.Label(destra, text="", anchor="w", background=c["pannello"], foreground=c["tenue"])
         se_stesso.riga_progressi.grid(row=7, column=0, sticky="we")
@@ -165,9 +165,9 @@ classe FinestraEsercizi(tk.Toplevel):
         elemento = se_stesso.corrente
         se non elemento o non elemento["suggerimenti"]:
             ritorna
-        se_stesso.suggerimenti_mostrati = min(se_stesso.suggerimenti_mostrati + 1, lunghezza(elemento["suggerimenti"]))
+        se_stesso.suggerimenti_mostrati = min(se_stesso.suggerimenti_mostrati + 1, lunghezza_di(elemento["suggerimenti"]))
         testo_ = "\n".join(f"💡 {i}. {s}" per i, s in enumera(elemento["suggerimenti"][:se_stesso.suggerimenti_mostrati], 1))
-        se se_stesso.suggerimenti_mostrati < lunghezza(elemento["suggerimenti"]):
+        se se_stesso.suggerimenti_mostrati < lunghezza_di(elemento["suggerimenti"]):
             testo_ += "\n\n(Premi ancora «Suggerimento» per un aiuto più preciso.)"
         se_stesso._imposta_testo(se_stesso.risultato, testo_)
 

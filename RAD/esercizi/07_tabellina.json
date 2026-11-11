@@ -4,7 +4,7 @@
   "argomento": "Cicli",
   "livello": "Principiante",
   "consegna": "Leggi un numero n e stampa la sua tabellina da 1 a 10, una riga per moltiplicazione, in questo formato:\n\n3 x 1 = 3\n3 x 2 = 6\n...",
-  "iniziale": "n = intero(leggi(\"\"))\n",
+  "iniziale": "n = tipo_intero(leggi_tastiera(\"\"))\n",
   "prove": [
     {
       "ingresso": "3\n",
@@ -16,10 +16,10 @@
     }
   ],
   "suggerimenti": [
-    "Un ciclo `per i in intervallo(1, 11):` ripete 10 volte.",
+    "Un ciclo `per i in intervallo_di(1, 11):` ripete 10 volte.",
     "Con una f-string: `stampa(f\"{n} x {i} = {n * i}\")`."
   ],
-  "soluzione": "n = intero(leggi(\"\"))\nper i in intervallo(1, 11):\n    stampa(f\"{n} x {i} = {n * i}\")\n",
+  "soluzione": "n = tipo_intero(leggi_tastiera(\"\"))\nper i in intervallo_di(1, 11):\n    stampa(f\"{n} x {i} = {n * i}\")\n",
   "confronto": "esatto",
   "ordine": 7
 }

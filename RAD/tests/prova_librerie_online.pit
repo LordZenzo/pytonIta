@@ -21,7 +21,7 @@ qui = os.path.dirname(os.path.abspath(__file__))
 origine = Path(os.path.join(qui, "..", "..", "librerie")).resolve().as_uri() + "/"
 lo.FILE_CACHE = os.path.join(tempfile.mkdtemp(), "cache.json")     # non toccare la cache vera dell'utente
 indice = lo.scarica_indice(origine)
-verifica(lunghezza(indice["librerie"]) > 100, "indice troppo corto")
+verifica(lunghezza_di(indice["librerie"]) > 100, "indice troppo corto")
 nomi = {v["nome"]: v per v in indice["librerie"]}
 verifica("matematica" in nomi, "matematica manca")
 
@@ -54,7 +54,7 @@ verifica(lo.e_scaricata(nomi["casuale"], utente), "casuale ora è scaricata")
 verifica(lo.file_attivo("casuale.py", utente, runtime).startswith(utente), "la copia scaricata deve vincere")
 
 # un pacchetto va intero
-pacchetto = [v per v in indice["librerie"] se lunghezza(v["file"]) > 1][0]
+pacchetto = [v per v in indice["librerie"] se lunghezza_di(v["file"]) > 1][0]
 lo.installa(pacchetto, origine, utente)
 verifica(all(os.path.isfile(os.path.join(utente, *f["percorso"].split("/"))) per f in pacchetto["file"]), "pacchetto incompleto")
 verifica(lo.stato(pacchetto, utente, runtime) == "aggiornata", "pacchetto deve essere aggiornato")

@@ -110,7 +110,7 @@ stampa("anteprima: sfondo del tema:", p.superficie.cget("background") == sc["sfo
 p.seleziona([])
 r2.update()
 combo = [w per w in p.righe_ispettore.winfo_children() se isinstance(w, ttk.Combobox) e "scuro" in w.cget("values")]
-stampa("l'ispettore ha la scelta «Aspetto»:", lunghezza(combo), "valore:", combo[0].get() se combo altrimenti "")
+stampa("l'ispettore ha la scelta «Aspetto»:", lunghezza_di(combo), "valore:", combo[0].get() se combo altrimenti "")
 p.form.aspetto = "classico"
 p.ricostruisci()
 r2.update()

@@ -34,9 +34,9 @@ PROGRAMMA_CONSOLE = '''"""{nome} - programma da console pytonIta."""
 
 
 definisci principale():
-    nome = leggi("Come ti chiami? ")
+    nome = leggi_tastiera("Come ti chiami? ")
     stampa(f"Ciao, {{nome}}!")
-    per i in intervallo(1, 4):
+    per i in intervallo_di(1, 4):
         stampa("Conto:", i)
 
 
@@ -353,7 +353,7 @@ classe Progetto:
                 (_unisci(cartella_, base + "_ui.pit"), "il codice dell'aspetto (si rigenera dal disegno)"),
                 (_unisci(cartella_, base + ".pit"), "il codice della finestra (il tuo)")]
         trovate = [(r, d) per r, d in voci se os.path.exists(se_stesso.assoluto(r))]
-        ritorna trovate se lunghezza(trovate) >= 2 altrimenti []
+        ritorna trovate se lunghezza_di(trovate) >= 2 altrimenti []
 
     definisci rinomina_finestra(se_stesso, relativo, nuovo_nome):
         """Rinomina insieme i file di una finestra e aggiorna i nomi che ne dipendono (modulo, classi, importazioni, nome nel disegno).
@@ -408,7 +408,7 @@ classe Progetto:
         per p, testo_nuovo in scritture.items():
             con open(p, "w", encoding="utf-8", newline="") come f:
                 f.write(testo_nuovo)
-        ritorna coppie, lista(scritture)
+        ritorna coppie, tipo_lista(scritture)
 
     definisci aggiungi_risorse(se_stesso, file_origine, sottocartella="risorse"):
         destinazione = se_stesso.assoluto(sottocartella)
@@ -445,7 +445,7 @@ classe Progetto:
                 se estensioni e os.path.splitext(n)[1].lower() non in estensioni:
                     continua
                 risultato.append(se_stesso.relativo(os.path.join(radice, n)))
-                se lunghezza(risultato) >= massimo:
+                se lunghezza_di(risultato) >= massimo:
                     ritorna risultato
         ritorna sorted(risultato)
 
@@ -467,7 +467,7 @@ classe Progetto:
             per n, riga in enumera(righe, 1):
                 se chiave in (riga se maiuscole altrimenti riga.lower()):
                     trovati.append((rel, n, riga.strip()[:200]))
-                    se lunghezza(trovati) >= massimo:
+                    se lunghezza_di(trovati) >= massimo:
                         ritorna trovati
         ritorna trovati
 
@@ -489,7 +489,7 @@ classe DialogoGruppoFinestra(tk.Toplevel):
         se_stesso._voci = voci
         se_stesso._var = []
         ttk.Label(se_stesso, justify="left",
-                  text=f"La finestra «{nome}» è fatta di {lunghezza(voci)} file.\nSpunta quelli da eliminare definitivamente:").pack(anchor="w", padx=14, pady=(12, 6))
+                  text=f"La finestra «{nome}» è fatta di {lunghezza_di(voci)} file.\nSpunta quelli da eliminare definitivamente:").pack(anchor="w", padx=14, pady=(12, 6))
         per rel, descrizione in voci:
             v = tk.BooleanVar(value=Vero)
             v.trace_add("write", lambda *a: se_stesso._aggiorna())
@@ -603,7 +603,7 @@ classe PannelloProgetto(tk.Frame):
             se n.endswith(".form.json"):
                 base = n[:-len(".form.json")]
                 membri = [x per x in (base + ".form.json", base + "_ui.pit", base + ".pit") se x in file_]
-                se base e lunghezza(membri) >= 2:
+                se base e lunghezza_di(membri) >= 2:
                     per x in membri:
                         gruppi[x] = (base, membri)
         fatti = set()
@@ -626,7 +626,7 @@ classe PannelloProgetto(tk.Frame):
 
     definisci _carica_figli(se_stesso, nodo):
         figli = se_stesso.albero.get_children(nodo)
-        se lunghezza(figli) == 1 e se_stesso.albero.item(figli[0], "values")[1] == "ph":
+        se lunghezza_di(figli) == 1 e se_stesso.albero.item(figli[0], "values")[1] == "ph":
             se_stesso.albero.delete(figli[0])
             rel = se_stesso.albero.item(nodo, "values")[0]
             se_stesso._riempi(nodo, rel)
@@ -711,7 +711,7 @@ classe PannelloProgetto(tk.Frame):
         prova:
             p = se_stesso.progetto.crea_file(rel, "")
         eccetto (OSError, ErroreDiValore) come errore:
-            messagebox.showerror("Errore", testo(errore), parent=se_stesso)
+            messagebox.showerror("Errore", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso.aggiorna()
         se_stesso.azioni.apri_file(p)
@@ -753,7 +753,7 @@ classe PannelloProgetto(tk.Frame):
             ritorna
         se_stesso.progetto.aggiungi_risorse(file)
         se_stesso.aggiorna()
-        se_stesso.azioni.info(f"{lunghezza(file)} risorse aggiunte a risorse/")
+        se_stesso.azioni.info(f"{lunghezza_di(file)} risorse aggiunte a risorse/")
 
     definisci rinomina(se_stesso):
         rel, e_cartella = se_stesso._selezionato()
@@ -771,7 +771,7 @@ classe PannelloProgetto(tk.Frame):
         prova:
             nuovo_p = se_stesso.progetto.rinomina(rel, nuovo)
         eccetto OSError come errore:
-            messagebox.showerror("Errore", testo(errore), parent=se_stesso)
+            messagebox.showerror("Errore", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso.azioni.file_rinominato(vecchio, nuovo_p)
         se_stesso.aggiorna()
@@ -779,7 +779,7 @@ classe PannelloProgetto(tk.Frame):
     definisci _rinomina_finestra(se_stesso, rel, gruppo):
         """Rinomina una finestra disegnata: i suoi file cambiano nome insieme, e con loro i nomi che ne dipendono."""
         base = se_stesso.progetto._base_finestra(rel)[1]
-        nuovo = simpledialog.askstring("Rinomina finestra", f"Nuovo nome della finestra (rinomino insieme i suoi {lunghezza(gruppo)} file):",
+        nuovo = simpledialog.askstring("Rinomina finestra", f"Nuovo nome della finestra (rinomino insieme i suoi {lunghezza_di(gruppo)} file):",
                                        initialvalue=base, parent=se_stesso)
         se non nuovo o nuovo.strip() == base:
             ritorna
@@ -787,18 +787,18 @@ classe PannelloProgetto(tk.Frame):
         prova:
             coppie, riscritti = se_stesso.progetto.rinomina_finestra(rel, nuovo)
         eccetto (OSError, ErroreDiValore) come errore:
-            messagebox.showerror("Rinomina finestra", testo(errore), parent=se_stesso)
+            messagebox.showerror("Rinomina finestra", tipo_testo(errore), parent=se_stesso)
             ritorna
         per v, n in coppie:
             se_stesso.azioni.file_rinominato(v, n)
-        per w in lista(se_stesso.azioni.schede.values()):
+        per w in tipo_lista(se_stesso.azioni.schede.values()):
             se hasattr(w, "ricarica_se_cambiato_su_disco"):
                 prova:
                     w.ricarica_se_cambiato_su_disco()
                 eccetto Exception:
                     passa
         se_stesso.aggiorna()
-        se_stesso.azioni.info(f"Finestra rinominata in «{nuovo.strip()}»: {lunghezza(coppie)} file, {lunghezza(riscritti)} riscritti.")
+        se_stesso.azioni.info(f"Finestra rinominata in «{nuovo.strip()}»: {lunghezza_di(coppie)} file, {lunghezza_di(riscritti)} riscritti.")
 
     definisci cancella(se_stesso):
         rel, e_cartella = se_stesso._selezionato()
@@ -819,7 +819,7 @@ classe PannelloProgetto(tk.Frame):
             prova:
                 se_stesso.progetto.cancella(r)
             eccetto OSError come errore:
-                messagebox.showerror("Errore", testo(errore), parent=se_stesso)
+                messagebox.showerror("Errore", tipo_testo(errore), parent=se_stesso)
                 interrompi
             se_stesso.azioni.file_eliminato(p)
         se_stesso.aggiorna()

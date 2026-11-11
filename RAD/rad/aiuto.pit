@@ -24,16 +24,16 @@ KEYWORDS = {
     "altrimenti": ("else", "Il blocco da eseguire se nessuna condizione è vera (anche dopo `per` e `mentre`).", "se piove:\n    stampa(\"ombrello\")\naltrimenti:\n    stampa(\"occhiali da sole\")"),
     "per": ("for", "Ripete il blocco per ogni elemento di una sequenza.", "per nome in [\"Anna\", \"Luca\"]:\n    stampa(nome)"),
     "mentre": ("while", "Ripete il blocco finché la condizione è vera.", "n = 3\nmentre n > 0:\n    stampa(n)\n    n -= 1"),
-    "interrompi": ("break", "Esce subito dal ciclo.", "per i in intervallo(10):\n    se i == 3:\n        interrompi"),
-    "continua": ("continue", "Salta al prossimo giro del ciclo.", "per i in intervallo(5):\n    se i % 2:\n        continua\n    stampa(i)"),
+    "interrompi": ("break", "Esce subito dal ciclo.", "per i in intervallo_di(10):\n    se i == 3:\n        interrompi"),
+    "continua": ("continue", "Salta al prossimo giro del ciclo.", "per i in intervallo_di(5):\n    se i % 2:\n        continua\n    stampa(i)"),
     "definisci": ("def", "Crea una funzione.", "definisci saluta(nome):\n    stampa(\"Ciao\", nome)"),
     "ritorna": ("return", "Termina la funzione restituendo un valore.", "definisci doppio(n):\n    ritorna n * 2"),
-    "produci": ("yield", "Fa produrre alla funzione un valore alla volta (generatore).", "definisci conta(n):\n    per i in intervallo(n):\n        produci i"),
+    "produci": ("yield", "Fa produrre alla funzione un valore alla volta (generatore).", "definisci conta(n):\n    per i in intervallo_di(n):\n        produci i"),
     "classe": ("class", "Crea una classe.", "classe Cane:\n    definisci __inizializza__(se_stesso, nome):\n        se_stesso.nome = nome"),
     "importa": ("import", "Usa un modulo.", "importa matematica\nstampa(matematica.radice_quadrata(9))"),
     "da": ("from", "Importa solo alcuni nomi da un modulo (`da modulo importa nome`).", "da percorso importa Percorso"),
     "come": ("as", "Dà un altro nome a ciò che importi o a un errore/file aperto.", "importa interfaccia come tk\ncon apri(\"a.txt\") come f:\n    stampa(f.leggi_tutto())"),
-    "prova": ("try", "Prova a eseguire il blocco; se c'è un errore passa a `eccetto`.", "prova:\n    n = intero(leggi())\neccetto ErroreDiValore:\n    stampa(\"non è un numero\")"),
+    "prova": ("try", "Prova a eseguire il blocco; se c'è un errore passa a `eccetto`.", "prova:\n    n = tipo_intero(leggi_tastiera())\neccetto ErroreDiValore:\n    stampa(\"non è un numero\")"),
     "eccetto": ("except", "Gestisce un errore sollevato nel blocco `prova`.", "prova:\n    1 / 0\neccetto DivisionePerZero come errore:\n    stampa(errore)"),
     "infine": ("finally", "Si esegue sempre, con o senza errori.", "prova:\n    lavora()\ninfine:\n    stampa(\"fatto\")"),
     "solleva": ("raise", "Provoca un errore.", "se età < 0:\n    solleva ErroreDiValore(\"età negativa\")"),
@@ -51,34 +51,34 @@ KEYWORDS = {
     "nonlocale": ("nonlocal", "Come `globale`, ma per una variabile della funzione che contiene questa.", "definisci esterna():\n    n = 0\n    definisci interna():\n        nonlocale n\n        n += 1"),
     "lambda": ("lambda", "Funzione breve senza nome.", "doppio = lambda x: x * 2"),
     "asserisci": ("assert", "Verifica una condizione e segnala un errore se è falsa.", "asserisci n > 0, \"n deve essere positivo\""),
-    "elimina": ("del", "Elimina un nome, un elemento di lista o una chiave di dizionario.", "elimina lista[0]"),
+    "elimina": ("del", "Elimina un nome, un elemento di lista o una chiave di dizionario.", "elimina elenco[0]"),
     "asincrono": ("async", "Dichiara una funzione asincrona.", "asincrono definisci scarica():\n    passa"),
     "attendi": ("await", "Aspetta il risultato di un'operazione asincrona.", "asincrono definisci principale():\n    risultato = attendi scarica()"),
     "confronta": ("match", "Confronta un valore con vari schemi (usato con `caso`).", "confronta comando:\n    caso \"via\":\n        stampa(\"parto\")\n    caso _:\n        stampa(\"?\")"),
     "caso": ("case", "Uno degli schemi di un `confronta`.", "confronta punto:\n    caso [x, y]:\n        stampa(x, y)"),
-    "tipo": ("type", "Definisce un alias di tipo (`tipo Punto = tupla`); `tipo(x)` dice di che tipo è x.", "tipo Numeri = lista[intero]"),
+    "tipo": ("type", "Definisce un alias di tipo (`tipo Punto = tipo_tupla`); `tipo_di(x)` dice di che tipo è x.", "tipo Numeri = tipo_lista[tipo_intero]"),
 }
 
 DESCRIZIONI = {
-    "stampa": "Mostra uno o più valori a video.", "leggi": "Legge una riga scritta dall'utente.",
-    "lunghezza": "Quanti elementi ha una lista, un testo, un dizionario…", "intervallo": "La sequenza di numeri da inizio a fine (esclusa).",
-    "intero": "Converte in numero intero.", "decimale": "Converte in numero con la virgola.", "testo": "Converte in testo.",
-    "booleano": "Converte in Vero/Falso.", "lista": "Crea una lista.", "dizionario": "Crea un dizionario.", "insieme": "Crea un insieme.",
-    "tupla": "Crea una tupla.", "somma": "Somma gli elementi di una sequenza.", "minimo": "Il più piccolo.", "massimo": "Il più grande.",
-    "ordinato": "Una nuova lista con gli elementi in ordine.", "assoluto": "Il valore senza segno.", "arrotonda": "Arrotonda un numero.",
-    "apri": "Apre un file.", "tipo": "Di che tipo è un valore.", "enumera": "Coppie (posizione, elemento).",
-    "mappa": "Applica una funzione a ogni elemento.", "filtra": "Tiene gli elementi per cui la funzione dà Vero.",
-    "qualsiasi": "Vero se almeno un elemento è vero.", "tutti": "Vero se tutti gli elementi sono veri.", "inverso": "Gli elementi in ordine inverso.",
+    "stampa": "Mostra uno o più valori a video.", "leggi_tastiera": "Legge una riga scritta dall'utente.",
+    "lunghezza_di": "Quanti elementi ha una lista, un testo, un dizionario…", "intervallo_di": "La sequenza di numeri da inizio a fine (esclusa).",
+    "tipo_intero": "Converte in numero intero.", "tipo_decimale": "Converte in numero con la virgola.", "tipo_testo": "Converte in testo.",
+    "booleano": "Converte in Vero/Falso.", "tipo_lista": "Crea una lista.", "tipo_dizionario": "Crea un dizionario.", "tipo_insieme": "Crea un insieme.",
+    "tipo_tupla": "Crea una tupla.", "somma_di": "Somma gli elementi di una sequenza.", "minimo_di": "Il più piccolo.", "massimo_di": "Il più grande.",
+    "ordinato_di": "Una nuova lista con gli elementi in ordine.", "valore_assoluto": "Il valore senza segno.", "arrotonda": "Arrotonda un numero.",
+    "apri": "Apre un file.", "tipo_di": "Di che tipo è un valore.", "enumera": "Coppie (posizione, elemento).",
+    "mappa_funzione": "Applica una funzione a ogni elemento.", "filtra": "Tiene gli elementi per cui la funzione dà Vero.",
+    "almeno_uno_vero": "Vero se almeno un elemento è vero.", "tutti_veri": "Vero se tutti gli elementi sono veri.", "inverso_di": "Gli elementi in ordine inverso.",
     "abbina": "Mette insieme più sequenze elemento per elemento.", "è_istanza": "Vero se l'oggetto è di quella classe.",
     "ha_attributo": "Vero se l'oggetto ha quell'attributo.", "ottieni_attributo": "Legge un attributo per nome.",
-    "imposta_attributo": "Scrive un attributo per nome.", "genitore": "Accede alla classe madre (usato dentro i metodi).",
-    "valuta": "Calcola il valore di un'espressione scritta come testo.", "esegui": "Esegue codice scritto come testo.",
-    "potenza": "Elevamento a potenza.", "divisione_resto": "Quoziente e resto di una divisione.", "carattere": "Il carattere di un codice Unicode.",
-    "codice_carattere": "Il codice Unicode di un carattere.", "aiuto": "Mostra la documentazione di un oggetto.", "elenca": "Elenca i nomi di un oggetto.",
-    "iteratore": "Crea un iteratore da una sequenza.", "prossimo": "Prossimo elemento di un iteratore.", "identità": "Numero che identifica un oggetto.",
-    "formatta": "Formatta un valore secondo un modello.", "binario": "Un numero come testo binario.", "esadecimale": "Un numero come testo esadecimale.",
-    "variabili": "Il dizionario delle variabili di un oggetto.", "globali": "Le variabili globali.", "locali": "Le variabili locali.",
-    "Eccezione": "Base di quasi tutti gli errori.", "ErroreDiValore": "Valore giusto per il tipo ma non accettabile (es. `intero(\"a\")`).",
+    "imposta_attributo": "Scrive un attributo per nome.", "classe_base": "Accede alla classe madre (usato dentro i metodi).",
+    "valuta_espressione": "Calcola il valore di un'espressione scritta come testo.", "esegui": "Esegue codice scritto come testo.",
+    "potenza_di": "Elevamento a potenza.", "divisione_resto": "Quoziente e resto di una divisione.", "carattere_da_codice": "Il carattere di un codice Unicode.",
+    "codice_carattere": "Il codice Unicode di un carattere.", "mostra_aiuto": "Mostra la documentazione di un oggetto.", "elenca": "Elenca i nomi di un oggetto.",
+    "iteratore_di": "Crea un iteratore da una sequenza.", "prossimo_elemento": "Prossimo elemento di un iteratore.", "identità_di": "Numero che identifica un oggetto.",
+    "formatta": "Formatta un valore secondo un modello.", "in_binario": "Un numero come testo binario.", "in_esadecimale": "Un numero come testo esadecimale.",
+    "variabili_di": "Il dizionario delle variabili di un oggetto.", "nomi_globali": "Le variabili globali.", "nomi_locali": "Le variabili locali.",
+    "Eccezione": "Base di quasi tutti gli errori.", "ErroreDiValore": "Valore giusto per il tipo ma non accettabile (es. `tipo_intero(\"a\")`).",
     "ErroreDiTipo": "Operazione su un tipo sbagliato.", "ErroreDiIndice": "Posizione fuori dalla lista.", "ErroreDiChiave": "Chiave non presente nel dizionario.",
     "ErroreDiNome": "Nome non definito.", "ErroreDiAttributo": "Attributo inesistente.", "DivisionePerZero": "Divisione per zero.",
     "FileNonTrovato": "Il file non esiste.", "ErroreDiSistema": "Errore del sistema operativo.", "ModuloNonTrovato": "Il modulo non esiste.",
@@ -313,7 +313,7 @@ classe FinestraAiuto(tk.Toplevel):
         se registra:
             elimina se_stesso.storia[se_stesso.posizione + 1:]
             se_stesso.storia.append((destinazione, evidenzia))
-            se_stesso.posizione = lunghezza(se_stesso.storia) - 1
+            se_stesso.posizione = lunghezza_di(se_stesso.storia) - 1
         se_stesso.mostra(destinazione, evidenzia)
         se_stesso._aggiorna_pulsanti()
 
@@ -325,7 +325,7 @@ classe FinestraAiuto(tk.Toplevel):
             se_stesso._aggiorna_pulsanti()
 
     definisci avanti(se_stesso):
-        se se_stesso.posizione < lunghezza(se_stesso.storia) - 1:
+        se se_stesso.posizione < lunghezza_di(se_stesso.storia) - 1:
             se_stesso.posizione += 1
             d, ev = se_stesso.storia[se_stesso.posizione]
             se_stesso.mostra(d, ev)
@@ -333,7 +333,7 @@ classe FinestraAiuto(tk.Toplevel):
 
     definisci _aggiorna_pulsanti(se_stesso):
         se_stesso.pulsanti[0].imposta_attivo(se_stesso.posizione > 0)
-        se_stesso.pulsanti[1].imposta_attivo(se_stesso.posizione < lunghezza(se_stesso.storia) - 1)
+        se_stesso.pulsanti[1].imposta_attivo(se_stesso.posizione < lunghezza_di(se_stesso.storia) - 1)
 
     # ------------------------------------------------------------ disegno dell'argomento
     definisci mostra(se_stesso, destinazione, evidenzia="", mantieni=Falso):
@@ -341,7 +341,7 @@ classe FinestraAiuto(tk.Toplevel):
         t = se_stesso.t
         t.configure(state="normal")
         t.delete("1.0", "end")
-        per w in lista(se_stesso.t.winfo_children()):
+        per w in tipo_lista(se_stesso.t.winfo_children()):
             w.destroy()
         se_stesso._immagini = []
         se_stesso._tabelle = []
@@ -470,10 +470,10 @@ classe FinestraAiuto(tk.Toplevel):
         t = se_stesso.t
         c = se_stesso.colori
         cornice = tk.Frame(t, background=c["bordo"])
-        colonne = max(lunghezza(r) per r in righe)
+        colonne = max(lunghezza_di(r) per r in righe)
         per i, riga in enumera(righe):
-            per j in intervallo(colonne):
-                cella = riga[j] se j < lunghezza(riga) altrimenti ""
+            per j in intervallo_di(colonne):
+                cella = riga[j] se j < lunghezza_di(riga) altrimenti ""
                 testo_ = markdown_mini.testo_semplice(cella)
                 intestazione = i == 0
                 l = tk.Label(cornice, text=testo_, anchor="w", justify="left", padx=8, pady=4, wraplength=300,
@@ -481,7 +481,7 @@ classe FinestraAiuto(tk.Toplevel):
                              foreground=c["primo_piano"] se intestazione altrimenti c["editor_testo"],
                              font=semi(10) se intestazione altrimenti ((FONT_MONO, 9) se "`" in cella altrimenti (FONT_UI, 10)))
                 l.grid(row=i, column=j, sticky="nsew", padx=(0, 1), pady=(0, 1))
-        per j in intervallo(colonne):
+        per j in intervallo_di(colonne):
             cornice.grid_columnconfigure(j, weight=1 se j == colonne - 1 altrimenti 0)
         t.insert("end", "\n", ("p",))
         t.window_create("end", window=cornice, stretch=Vero)
@@ -518,7 +518,7 @@ classe FinestraAiuto(tk.Toplevel):
         per a in se_stesso.indice:
             testo_ = markdown_mini.testo_dei_blocchi(markdown_mini.analizza(se_stesso._testo(a["id"]))).lower()
             titolo = a["titolo"].lower()
-            se tutti(p in testo_ o p in titolo per p in parole):
+            se tutti_veri(p in testo_ o p in titolo per p in parole):
                 punti = sum(testo_.count(p) per p in parole) + 25 * sum(1 per p in parole se p in titolo)
                 i = testo_.find(parole[0])
                 brano = testo_[max(0, i - 40):i + 70].replace("\n", " ").strip() se i >= 0 altrimenti ""
@@ -541,7 +541,7 @@ classe FinestraAiuto(tk.Toplevel):
 
     definisci _scelta_risultato(se_stesso, evento=Nessuno):
         sel = se_stesso.risultati.curselection()
-        se sel e sel[0] < lunghezza(se_stesso._risultati):
+        se sel e sel[0] < lunghezza_di(se_stesso._risultati):
             d, q = se_stesso._risultati[sel[0]]
             se_stesso.vai(d, evidenzia=q)
 
@@ -559,7 +559,7 @@ classe FinestraAiuto(tk.Toplevel):
                 i = t.search(parola, i, stopindex="end", nocase=Vero)
                 se non i:
                     interrompi
-                fine = f"{i}+{lunghezza(parola)}c"
+                fine = f"{i}+{lunghezza_di(parola)}c"
                 t.tag_add("evidenzia", i, fine)
                 se primo è Nessuno:
                     primo = i
@@ -660,7 +660,7 @@ definisci genera_html(destinazione=Nessuno):
             navigazione.append(f'<a{att} data-id="{b["id"]}" href="{b["id"]}.html">{html.escape(b["titolo"])}</a>')
         corpo = markdown_mini.in_html(testi[a["id"]], prefisso_immagini="")
         prec = indice[n - 1] se n > 0 altrimenti Nessuno
-        succ = indice[n + 1] se n + 1 < lunghezza(indice) altrimenti Nessuno
+        succ = indice[n + 1] se n + 1 < lunghezza_di(indice) altrimenti Nessuno
         a_prec = (f'<a href="{prec["id"]}.html">← {html.escape(prec["titolo"])}</a>' se prec altrimenti "")
         a_succ = (f'<a href="{succ["id"]}.html">{html.escape(succ["titolo"])} →</a>' se succ altrimenti "")
         pn = f'<div class="pn"><span>{a_prec}</span><span>{a_succ}</span></div>'

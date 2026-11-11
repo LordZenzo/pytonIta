@@ -73,7 +73,7 @@ definisci esegui_test(interprete, cartella, relativo, tempo_massimo=120, control
                              env=_ambiente_test(cartella), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                              start_new_session=piattaforma.NUOVA_SESSIONE)
     eccetto OSError come errore:
-        ritorna {"stato": "fallito", "secondi": 0, "uscita": testo(errore), "codice": -1}
+        ritorna {"stato": "fallito", "secondi": 0, "uscita": tipo_testo(errore), "codice": -1}
     controllo.processo = p
     se controllo.fermata:               # «Ferma» è stato premuto mentre il processo partiva
         esecuzione.termina_albero(p)
@@ -179,7 +179,7 @@ classe PannelloTest(tk.Frame):
         per s in selezionati:
             se s in se_stesso.esiti:
                 se_stesso.albero.selection_add(s)
-        n = lunghezza(se_stesso.esiti)
+        n = lunghezza_di(se_stesso.esiti)
         riusciti = sum(1 per x in se_stesso.esiti.values() se x["stato"] == "ok")
         falliti = sum(1 per x in se_stesso.esiti.values() se x["stato"] in ("fallito", "scaduto"))
         se_stesso.riassunto.configure(text=("nessuna prova trovata" se n == 0 altrimenti f"{n} prove  ·  {riusciti} ✔  ·  {falliti} ✘" se (riusciti o falliti) altrimenti f"{n} prove"))
@@ -196,7 +196,7 @@ classe PannelloTest(tk.Frame):
 
     # ------------------------------------------------------------ esecuzione
     definisci esegui_tutti(se_stesso):
-        se_stesso._avvia(lista(se_stesso.esiti))
+        se_stesso._avvia(tipo_lista(se_stesso.esiti))
 
     definisci esegui_selezionati(se_stesso):
         se_stesso._avvia([s per s in se_stesso.albero.selection() se s in se_stesso.esiti])
@@ -210,7 +210,7 @@ classe PannelloTest(tk.Frame):
         se se_stesso.app.config_.ottieni("esecuzione.salva_prima", Vero):
             se_stesso.app.salva_tutto()
         se_stesso.in_corso = Vero
-        se_stesso._coda = lista(elenco)
+        se_stesso._coda = tipo_lista(elenco)
         se_stesso._prova = Prova()
         per rel in elenco:
             se_stesso.esiti[rel] = {"stato": "attesa"}
@@ -240,7 +240,7 @@ classe PannelloTest(tk.Frame):
             se riuscito:
                 se_stesso.esiti[rel] = risultato
             altrimenti:
-                se_stesso.esiti[rel] = {"stato": "fallito", "secondi": 0, "uscita": testo(risultato), "codice": -1}
+                se_stesso.esiti[rel] = {"stato": "fallito", "secondi": 0, "uscita": tipo_testo(risultato), "codice": -1}
             se_stesso._ridisegna()
             se_stesso._mostra_uscita()
             se_stesso._prossimo()

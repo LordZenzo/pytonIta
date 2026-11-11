@@ -14,7 +14,7 @@ definisci verifica(c, m):
 
 
 lezioni = quiz.elenco_lezioni()
-verifica(lunghezza(lezioni) == 16 e [v["numero"] per v in lezioni] == lista(intervallo(1, 17)), "16 lezioni in ordine: " + str(lunghezza(lezioni)))
+verifica(lunghezza_di(lezioni) == 16 e [v["numero"] per v in lezioni] == tipo_lista(intervallo_di(1, 17)), "16 lezioni in ordine: " + str(lunghezza_di(lezioni)))
 verifica(lezioni[7]["titolo"] == "I dizionari" e lezioni[7]["id"] == "lezione-08" e lezioni[7]["obiettivo"], "titolo e obiettivo della lezione 8: " + str(lezioni[7]))
 verifica("dizionario" in quiz.testo_lezione(8), "testo della lezione")
 
@@ -30,8 +30,8 @@ per v in lezioni:
     con open(percorso, encoding="utf-8") come f:
         grezze = json.load(f)["domande"]
     valide = quiz.carica_quiz(n)
-    verifica(lunghezza(valide) == lunghezza(grezze), f"lezione {n}: {lunghezza(grezze) - lunghezza(valide)} domande non valide")
-    verifica(4 <= lunghezza(valide) <= 8, f"lezione {n}: numero di domande {lunghezza(valide)}")
+    verifica(lunghezza_di(valide) == lunghezza_di(grezze), f"lezione {n}: {lunghezza_di(grezze) - lunghezza_di(valide)} domande non valide")
+    verifica(4 <= lunghezza_di(valide) <= 8, f"lezione {n}: numero di domande {lunghezza_di(valide)}")
     titoli = {riga[3:].strip() per riga in quiz.testo_lezione(n).split("\n") se riga.startswith("## ")}
     per d in valide:
         totale += 1
@@ -59,11 +59,11 @@ verifica(quiz.carica_quiz(99) == [], "senza file niente domande")
 # preparazione e valutazione
 d = {"domanda": "Quanto fa 1+1?", "giusta": "2", "sbagliate": [{"testo": "3", "indizio": "Hai sommato due volte."}, "11"], "spiegazione": "Uno più uno fa due.", "sezione": "S"}
 visti = set()
-per seme in intervallo(30):
+per seme in intervallo_di(30):
     p = quiz.prepara(d, random.Random(seme))
-    verifica(sum(1 per elemento in p["opzioni"] se elemento["giusta"]) == 1 e lunghezza(p["opzioni"]) == 3, "una sola giusta")
+    verifica(sum(1 per elemento in p["opzioni"] se elemento["giusta"]) == 1 e lunghezza_di(p["opzioni"]) == 3, "una sola giusta")
     visti.add(tuple(elemento["testo"] per elemento in p["opzioni"]))
-verifica(lunghezza(visti) > 1, "le risposte si mescolano")
+verifica(lunghezza_di(visti) > 1, "le risposte si mescolano")
 p = quiz.prepara(d, random.Random(1))
 i_giusta = [i per i, elemento in enumera(p["opzioni"]) se elemento["giusta"]][0]
 i_tre = [i per i, elemento in enumera(p["opzioni"]) se elemento["testo"] == "3"][0]
@@ -86,7 +86,7 @@ verifica(quiz.registra(cfg, 1, 5, 6) == Vero e quiz.stato(cfg, 1) == "✔ 5/6" e
 verifica(quiz.registra(cfg, 1, 2, 6) == Falso e quiz.stato(cfg, 1) == "✔ 5/6", "un risultato peggiore non toglie il ✔ né il migliore: " + quiz.stato(cfg, 1))
 verifica(quiz.progressi(cfg)["1"]["tentativi"] == 3, "conta i tentativi")
 verifica(cfg.ottieni("lezioni.ultima") == 1, "ricorda l'ultima lezione")
-per n in intervallo(2, 17):
+per n in intervallo_di(2, 17):
     quiz.registra(cfg, n, 4, 5)
 verifica(quiz.prossima(cfg, lezioni) == 16, "finite tutte: resta l'ultima")
 c1 = quiz.consiglio(5, 5, [])

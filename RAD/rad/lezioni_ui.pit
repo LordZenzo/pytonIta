@@ -62,7 +62,7 @@ classe DialogoQuiz(DialogoBase):
         c = se_stesso.colori
         p = se_stesso.domande[se_stesso.indice]
         se_stesso.controllata = Falso
-        se_stesso.avanzamento.configure(text=f"Domanda {se_stesso.indice + 1} di {lunghezza(se_stesso.domande)}")
+        se_stesso.avanzamento.configure(text=f"Domanda {se_stesso.indice + 1} di {lunghezza_di(se_stesso.domande)}")
         se_stesso.testo_domanda.configure(text=p["domanda"])
         se_stesso.codice.configure(state="normal")
         se_stesso.codice.delete("1.0", "end")
@@ -93,7 +93,7 @@ classe DialogoQuiz(DialogoBase):
         """Da tastiera: i numeri 1-9 scelgono la risposta, le frecce su/giù la spostano, Invio controlla e va avanti."""
         se se_stesso.fatto o se_stesso.controllata o non se_stesso.radio:
             ritorna
-        n = lunghezza(se_stesso.radio)
+        n = lunghezza_di(se_stesso.radio)
         se evento.char e evento.char in "123456789" e int(evento.char) <= n:
             se_stesso.var_scelta.set(int(evento.char) - 1)
         altrimenti_se evento.keysym in ("Up", "Down"):
@@ -121,18 +121,18 @@ classe DialogoQuiz(DialogoBase):
                 # dopo il controllo le risposte non si cambiano: la giusta diventa verde, quella sbagliata scelta rossa
                 r.configure(state="disabled", disabledforeground=(VERDE se p["opzioni"][k]["giusta"] altrimenti c["errore"] se k == i altrimenti c["primo_piano"]))
             se_stesso.esito.configure(text=("✔ " se giusta altrimenti "✖ ") + messaggio, foreground=VERDE se giusta altrimenti c["errore"])
-            ultimo = se_stesso.indice == lunghezza(se_stesso.domande) - 1
+            ultimo = se_stesso.indice == lunghezza_di(se_stesso.domande) - 1
             se_stesso.pulsante.configure(text="Vedi il risultato" se ultimo altrimenti "Avanti")
             ritorna
         se_stesso.indice += 1
-        se se_stesso.indice >= lunghezza(se_stesso.domande):
+        se se_stesso.indice >= lunghezza_di(se_stesso.domande):
             se_stesso._finale()
         altrimenti:
             se_stesso._mostra()
 
     definisci _finale(se_stesso):
         c = se_stesso.colori
-        su = lunghezza(se_stesso.domande)
+        su = lunghezza_di(se_stesso.domande)
         superata = quiz.registra(se_stesso.config_, se_stesso.lezione["numero"], se_stesso.punti, su)
         se_stesso.risultato = (se_stesso.punti, su, superata)
         se_stesso.fatto = Vero
@@ -214,10 +214,10 @@ classe FinestraLezioni(tk.Toplevel):
         corrente = se_stesso.numero_scelto()
         se_stesso.elenco.delete(*se_stesso.elenco.get_children())
         per v in se_stesso.lezioni:
-            se_stesso.elenco.insert("", "end", iid=testo(v["numero"]), text=f"  {v['numero']}. {v['titolo']}",
+            se_stesso.elenco.insert("", "end", iid=tipo_testo(v["numero"]), text=f"  {v['numero']}. {v['titolo']}",
                                     values=(quiz.stato(se_stesso.app.config_, v["numero"]),))
-        fatte = sum(1 per v in se_stesso.lezioni se quiz.progressi(se_stesso.app.config_).get(testo(v["numero"]), {}).get("completata"))
-        se_stesso.progresso.configure(text=f"Lezioni superate: {fatte} su {lunghezza(se_stesso.lezioni)}   ·   ✔ = quiz superato (almeno l'80%)")
+        fatte = sum(1 per v in se_stesso.lezioni se quiz.progressi(se_stesso.app.config_).get(tipo_testo(v["numero"]), {}).get("completata"))
+        se_stesso.progresso.configure(text=f"Lezioni superate: {fatte} su {lunghezza_di(se_stesso.lezioni)}   ·   ✔ = quiz superato (almeno l'80%)")
         se corrente:
             se_stesso.seleziona(corrente)
 
@@ -226,10 +226,10 @@ classe FinestraLezioni(tk.Toplevel):
         ritorna int(sel[0]) se sel altrimenti Nessuno
 
     definisci seleziona(se_stesso, numero):
-        se se_stesso.elenco.exists(testo(numero)):
-            se_stesso.elenco.selection_set(testo(numero))
-            se_stesso.elenco.focus(testo(numero))
-            se_stesso.elenco.see(testo(numero))
+        se se_stesso.elenco.exists(tipo_testo(numero)):
+            se_stesso.elenco.selection_set(tipo_testo(numero))
+            se_stesso.elenco.focus(tipo_testo(numero))
+            se_stesso.elenco.see(tipo_testo(numero))
         se_stesso._scelta()
 
     definisci lezione_scelta(se_stesso):
@@ -245,7 +245,7 @@ classe FinestraLezioni(tk.Toplevel):
         se_stesso.obiettivo.configure(text="Obiettivo: " + v["obiettivo"] se v["obiettivo"] altrimenti "")
         s = quiz.stato(se_stesso.app.config_, v["numero"])
         se_stesso.stato_lezione.configure(text=(f"Il tuo risultato migliore: {s}" se s altrimenti "Non hai ancora fatto il quiz di questa lezione.")
-                                          + (f"   ({lunghezza(domande)} domande)" se domande altrimenti "   (questa lezione non ha un quiz)"))
+                                          + (f"   ({lunghezza_di(domande)} domande)" se domande altrimenti "   (questa lezione non ha un quiz)"))
         se_stesso.pulsanti["quiz"].configure(state="normal" se domande altrimenti "disabled")
         pronta = se_stesso.ai_pronta()
         se_stesso.pulsanti["professore"].configure(text="🎓  Chiedi al professore (AI)" se pronta altrimenti "🎓  Chiedi al professore (serve l'AI)")

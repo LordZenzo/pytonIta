@@ -209,13 +209,13 @@ LARGHEZZA_COLONNA = 200       # predefinita di Tk
 
 definisci colonne_albero(valori):
     """[(nome, larghezza, ancora)] delle colonne di un Albero; larghezze e allineamenti mancanti prendono i valori predefiniti di Tk."""
-    nomi = lista(valori.get("colonne", []))
-    larghezze = lista(valori.get("larghezze") o [])
-    ancore = lista(valori.get("allineamenti") o [])
+    nomi = tipo_lista(valori.get("colonne", []))
+    larghezze = tipo_lista(valori.get("larghezze") o [])
+    ancore = tipo_lista(valori.get("allineamenti") o [])
     risultato = []
     per i, nome in enumera(nomi):
-        larghezza = larghezze[i] se i < lunghezza(larghezze) e larghezze[i] altrimenti LARGHEZZA_COLONNA
-        ancora = ancore[i] se i < lunghezza(ancore) e ancore[i] in ALLINEAMENTI_COLONNA altrimenti "w"
+        larghezza = larghezze[i] se i < lunghezza_di(larghezze) e larghezze[i] altrimenti LARGHEZZA_COLONNA
+        ancora = ancore[i] se i < lunghezza_di(ancore) e ancore[i] in ALLINEAMENTI_COLONNA altrimenti "w"
         risultato.append((nome, int(larghezza), ancora))
     ritorna risultato
 
@@ -348,7 +348,7 @@ classe Form:
         c.nome = nuovo
         per f in se_stesso.componenti:
             se f.genitore.split("#")[0] == vecchio:
-                f.genitore = nuovo + f.genitore[lunghezza(vecchio):]
+                f.genitore = nuovo + f.genitore[lunghezza_di(vecchio):]
             se c.tipo == "FonteDati" e f.valori.get("fonte") == vecchio:
                 f.valori["fonte"] = nuovo
             se f.tipo == "Stampa" e f.valori.get("sorgente") == vecchio:
@@ -452,7 +452,7 @@ definisci voci_menu(testo_):
     per riga in (testo_ o "").split("\n"):
         se non riga.strip():
             continua
-        rientro = lunghezza(riga) - lunghezza(riga.lstrip())
+        rientro = lunghezza_di(riga) - lunghezza_di(riga.lstrip())
         se rientro == 0:
             menu.append((riga.strip(), []))
         altrimenti_se menu:
@@ -478,7 +478,7 @@ definisci finestre_aperte(form):
                 per etichetta, gestore in voci:
                     se gestore.startswith("@") e gestore[1:].strip():
                         nomi.append(gestore[1:].strip())
-    ritorna lista(dict.fromkeys(nomi))
+    ritorna tipo_lista(dict.fromkeys(nomi))
 
 
 # ---------------------------------------------------------------- layout a griglia
@@ -527,7 +527,7 @@ definisci figli_in_griglia(form, genitore):
 definisci pagine_di(c):
     """Le chiavi dei contenitori interni di un componente: «nome» per un riquadro, «nome#0», «nome#1»… per le pagine di una Schede."""
     se c.tipo == "Schede":
-        ritorna [f"{c.nome}#{i}" per i in intervallo(max(1, lunghezza(lista(c.valori.get("pagine", [])))))]
+        ritorna [f"{c.nome}#{i}" per i in intervallo_di(max(1, lunghezza_di(tipo_lista(c.valori.get("pagine", [])))))]
     ritorna [c.nome]
 
 
@@ -583,14 +583,14 @@ definisci cella_vuota(form, genitore, colonna=Nessuno, escludi=Nessuno):
     occupate = set()
     per c in figli:
         k = cella_di(c)
-        per r in intervallo(k["riga"], k["riga"] + k["righe"]):
-            per col in intervallo(k["colonna"], k["colonna"] + k["colonne"]):
+        per r in intervallo_di(k["riga"], k["riga"] + k["righe"]):
+            per col in intervallo_di(k["colonna"], k["colonna"] + k["colonne"]):
                 occupate.add((r, col))
     se non figli:
         ritorna 0, colonna o 0
     ultima = max(r per r, _ in occupate)
     colonna = colonna o 0
-    per r in intervallo(0, ultima + 1):
+    per r in intervallo_di(0, ultima + 1):
         se (r, colonna) non in occupate:
             ritorna r, colonna
     ritorna ultima + 1, colonna
@@ -774,7 +774,7 @@ definisci genera_ui(form):
                     se c.tipo == "Pulsante" e (c.valori.get("apre") o "").strip() == nome_f e (c.valori.get("al_clic") o "").strip() e nome_valido(c.valori["al_clic"].strip())]
         r.append(f"    definisci _apri_{nome_f}(se_stesso, evento=Nessuno):")
         r.append(f'        """Apre la finestra {nome_f} (disegnata in {nome_f.lower()}.form.json)."""')
-        per g in lista(dict.fromkeys(chiamate)):
+        per g in tipo_lista(dict.fromkeys(chiamate)):
             r.append(f"        se_stesso.{g}()")
         r.append(f"        da {nome_f.lower()} importa {_nome_classe(nome_f)}")
         r.append("        finestra = tk.Toplevel(se_stesso.radice)")
@@ -817,7 +817,7 @@ definisci font_componi(famiglia, dimensione, stili):
     se stili e non dimensione:
         dimensione = 10
     se dimensione:
-        parti.append(testo(dimensione))
+        parti.append(tipo_testo(dimensione))
     parti += [s per s in STILI_CARATTERE se s in stili]
     ritorna " ".join(parti)
 
@@ -875,10 +875,10 @@ definisci ordine_creazione(form):
     """I componenti con i contenitori prima di quello che contengono."""
     fatti = []
     nomi = {c.nome per c in form.componenti}
-    in_attesa = lista(form.componenti)
+    in_attesa = tipo_lista(form.componenti)
     mentre in_attesa:
         avanzato = Falso
-        per c in lista(in_attesa):
+        per c in tipo_lista(in_attesa):
             padre = c.genitore.split("#")[0]
             se non padre o padre non in nomi o any(f.nome == padre per f in fatti):
                 fatti.append(c)
@@ -1024,7 +1024,7 @@ definisci _codice_componente(c, form=Nessuno):
         se gestore("al_selezione"):
             r.append(f"{ind}{nome_att}.associa('<<TreeviewSelect>>', {gestore('al_selezione')})")
     altrimenti_se c.tipo == "Grafico":
-        opzioni = [f"tipo={_lit(v.get('tipo') o 'barre')}", f"titolo={_lit(v.get('titolo') o '')}", f"dati={_lit(lista(v.get('dati', [])))}",
+        opzioni = [f"tipo={_lit(v.get('tipo') o 'barre')}", f"titolo={_lit(v.get('titolo') o '')}", f"dati={_lit(tipo_lista(v.get('dati', [])))}",
              f"mostra_valori={_lit(bool(v.get('mostra_valori', Vero)))}"]
         se v.get("colore"):
             opzioni.append(f"colore={_lit(v['colore'])}")
@@ -1043,7 +1043,7 @@ definisci _codice_componente(c, form=Nessuno):
         r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
     altrimenti_se c.tipo == "Schede":
         r.append(f"{ind}{nome_att} = {cl}(radice)")
-        per i, nome_pagina in enumera(lista(v.get("pagine", [])) o ["Pagina 1"]):
+        per i, nome_pagina in enumera(tipo_lista(v.get("pagine", [])) o ["Pagina 1"]):
             r.append(f"{ind}{nome_att}_pagina{i + 1} = tk.Riquadro({nome_att})")
             r.append(f"{ind}{nome_att}.add({nome_att}_pagina{i + 1}, text={_lit(nome_pagina)})")
     altrimenti_se c.tipo == "Immagine":
@@ -1131,7 +1131,7 @@ definisci genera_ui_completa(form):
         etichetta.configura(image=foto)
 '''
         marca = "        ritorna radice\n"
-        punto = codice.index(marca) + lunghezza(marca)
+        punto = codice.index(marca) + lunghezza_di(marca)
         codice = codice[:punto] + aiuto + codice[punto:]
     ritorna codice
 

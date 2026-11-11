@@ -20,9 +20,9 @@ per nome in ("a.png", "dati.json", "t.csv", "b.bin"):
     v = crea_visore(radice, os.path.join(d, nome), colori(cfg), cfg, Az())
     v.pack(fill="both", expand=Vero)
     radice.update()
-    stampa(nome, tipo(v).__name__, v.modificato)
+    stampa(nome, tipo_di(v).__name__, v.modificato)
     se nome == "dati.json":
-        stampa("albero:", lunghezza(v.albero.get_children("")), v.stato.cget("text"))
+        stampa("albero:", lunghezza_di(v.albero.get_children("")), v.stato.cget("text"))
         v.t.insert("end", "x")
         radice.update()
         stampa(v.stato.cget("text"))

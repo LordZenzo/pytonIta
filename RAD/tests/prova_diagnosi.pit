@@ -9,7 +9,7 @@ casi = [
     ("ErroreDiIndice: indice di list fuori intervallo", "", "gli indici partono da 0"),
     ("ErroreDiChiave: 'b'", "", "ottieni"),
     ("ModuloNonTrovato: nessun modulo chiamato 'matematic'", "", "matematica"),
-    ("ErroreDiValore: letterale non valido per intero() in base 10: 'abc'", "", "non rappresenta un numero"),
+    ("ErroreDiValore: letterale non valido per tipo_intero() in base 10: 'abc'", "", "non rappresenta un numero"),
     ("ErroreDiIndentazione: indentazione inattesa", "", "rientrata"),
     ("ErroreVariabileNonAssegnata: impossibile accedere alla variabile locale 'a' prima dell'assegnazione", "", "globale"),
     ("FileNonTrovato: [Errno 2] File o cartella inesistente: 'x.txt'", "", "cartella"),
@@ -21,7 +21,7 @@ per testo_errore, _, atteso in casi:
     ok += 1 se bene altrimenti 0
     se non bene:
         stampa("MANCA", atteso, "in", h)
-stampa(f"diagnosi traceback: {ok}/{lunghezza(casi)}")
+stampa(f"diagnosi traceback: {ok}/{lunghezza_di(casi)}")
 sint = [
     ("if 1:\n    passa\n", "if", "se"),
     ("se x\n    passa\n", ":", ""),
@@ -36,5 +36,5 @@ per codice, atteso, _ in sint:
     ok2 += 1 se bene altrimenti 0
     se non bene:
         stampa("MANCA sintassi", atteso, "in", errore)
-stampa(f"diagnosi sintassi: {ok2}/{lunghezza(sint)}")
+stampa(f"diagnosi sintassi: {ok2}/{lunghezza_di(sint)}")
 stampa("python classico:", esecuzione.controlla_sintassi("if x\n    pass\n", "a.py")[2])

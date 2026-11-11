@@ -94,7 +94,7 @@ classe DialogoAggiornamento(DialogoBase):
         se non riuscito:
             se non se_stesso._interrompi:
                 se_stesso.stato.configure(text="Download non riuscito.")
-                messagebox.showwarning("Aggiornamento", testo(risultato), parent=se_stesso)
+                messagebox.showwarning("Aggiornamento", tipo_testo(risultato), parent=se_stesso)
                 se_stesso.scarica.configure(state="normal")
                 se_stesso.chiudi.configure(text="Più tardi")
             ritorna

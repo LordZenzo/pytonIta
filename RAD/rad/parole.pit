@@ -38,7 +38,7 @@ definisci _builtin_italiani():
         nomi |= set(_italiano.FUNZIONI.values()) | set(_italiano.ECCEZIONI.values())
     eccetto ImportError:
         passa
-    nomi |= {"se_stesso", "genitore"}
+    nomi |= {"se_stesso"}
     ritorna nomi
 
 
@@ -122,7 +122,7 @@ definisci alias_importati(sorgente, linguaggio="pit"):
                 continua
             pezzi = voce.split()
             nome = pezzi[0]
-            alias = pezzi[2] se lunghezza(pezzi) >= 3 e pezzi[1] == parola_come altrimenti nome
+            alias = pezzi[2] se lunghezza_di(pezzi) >= 3 e pezzi[1] == parola_come altrimenti nome
             mappa[alias] = modulo + "." + nome
     ritorna mappa
 
@@ -149,7 +149,7 @@ definisci _risolvi(percorso, cartelle_progetto):
     """Importa 'a.b.c' risolvendo moduli e attributi; Nessuno se non possibile."""
     parti = percorso.split(".")
     oggetto = Nessuno
-    per i in range(lunghezza(parti), 0, -1):
+    per i in range(lunghezza_di(parti), 0, -1):
         nome_modulo = ".".join(parti[:i])
         se non _modulo_sicuro(nome_modulo, cartelle_progetto):
             continua
@@ -186,7 +186,7 @@ definisci membri_di(espressione, sorgente, cartelle_progetto=(), linguaggio="pit
     alias.update(alias_importati(sorgente, linguaggio))
     prima = espressione.split(".")[0]
     se prima in alias:
-        percorso = alias[prima] + espressione[lunghezza(prima):]
+        percorso = alias[prima] + espressione[lunghezza_di(prima):]
         oggetto = _risolvi(percorso, cartelle_progetto)
         se oggetto è non Nessuno:
             nomi = [n per n in dir(oggetto) se non n.startswith("_")]
@@ -242,7 +242,7 @@ definisci suggerisci(prefisso, sorgente, locali=Vero, linguaggio="pit"):
         aggiungi_voce(nome_lib, "libreria", "spuntata nel progetto")
     se locali:
         per parola in sorted(definizioni(sorgente, linguaggio) | parole_del_testo(sorgente)):
-            se lunghezza(parola) > 1:
+            se lunghezza_di(parola) > 1:
                 aggiungi_voce(parola, "nel file")
     # ordine: prefisso esatto di caso, poi tipo, poi alfabetico
     ordine_tipo = {"libreria": 0, "frammento": 0, "parola chiave": 1, "predefinito": 2, "nel file": 3}

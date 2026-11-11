@@ -23,7 +23,7 @@ eseguito dall'interprete **pitonit** (un CPython vero, senza traduzione intermed
 - Funzioni predefinite in italiano: `stampa`, `leggi` (input), `lunghezza`, `intervallo`, `intero`, `decimale`, `testo`, `lista`, `dizionario`, `insieme`,
   `somma`, `massimo`, `minimo`, `ordinato`, `enumera`, `abbina`, `apri`, `tipo`, `arrotonda`. Metodi: `lista.aggiungi/estrai/ordina`, `testo.separa/unisci/maiuscolo/sostituisci`,
   `dizionario.chiavi/valori/elementi/ottieni`. I nomi inglesi continuano a funzionare.
-- Opzioni anche in italiano: `ordinato(x, chiave=f, inverso=Vero)`, `massimo(x, predefinito=0)`, `apri(nome, modalita="w", codifica="utf-8")`, `stampa(a, b, separatore="-", fine="")`.
+- Opzioni anche in italiano: `ordinato_di(x, chiave=f, inverso=Vero)`, `massimo_di(x, predefinito=0)`, `apri(nome, modalita="w", codifica="utf-8")`, `stampa(a, b, separatore="-", fine="")`.
 - `True`, `False`, `None` nei `.pit` sono un errore: usa `Vero`, `Falso`, `Nessuno`.
 - Parole come `classe`, `con`, `da`, `prova` sono accettate come nomi di variabile dove non c'è ambiguità, ma a inizio istruzione sono parole chiave: preferisci nomi diversi.
 - `elimina(x)` attaccato alla parentesi è una chiamata di funzione; `elimina x` cancella il nome.

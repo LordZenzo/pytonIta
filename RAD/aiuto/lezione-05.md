@@ -4,10 +4,10 @@
 
 ## per e intervallo
 
-`intervallo(n)` produce i numeri da 0 a n−1. Il ciclo `per` li prende uno alla volta:
+`intervallo_di(n)` produce i numeri da 0 a n−1. Il ciclo `per` li prende uno alla volta:
 
 ```pit
-per i in intervallo(5):
+per i in intervallo_di(5):
     stampa("giro numero", i)
 ```
 
@@ -21,13 +21,13 @@ giro numero 4
 
 Anche qui: i due punti e il **rientro**. Tutto ciò che è rientrato si ripete.
 
-`intervallo(inizio, fine)` e `intervallo(inizio, fine, passo)` danno più controllo (la fine è **esclusa**):
+`intervallo_di(inizio, fine)` e `intervallo_di(inizio, fine, passo)` danno più controllo (la fine è **esclusa**):
 
 ```pit
-per n in intervallo(1, 6):
+per n in intervallo_di(1, 6):
     stampa(n, "per 3 fa", n * 3)
 
-per d in intervallo(10, 0, -3):
+per d in intervallo_di(10, 0, -3):
     stampa(d)
 ```
 
@@ -65,7 +65,7 @@ Un ciclo serve spesso a costruire un totale:
 
 ```pit
 totale = 0
-per n in intervallo(1, 101):
+per n in intervallo_di(1, 101):
     totale += n
 stampa("La somma da 1 a 100 è", totale)
 ```
@@ -103,7 +103,7 @@ Attenzione al **ciclo infinito**: se la condizione non diventa mai falsa, il pro
 - `continua` salta al giro successivo.
 
 ```pit
-per n in intervallo(1, 20):
+per n in intervallo_di(1, 20):
     se n % 2 == 0:
         continua          # salta i pari
     se n > 9:
@@ -122,8 +122,8 @@ per n in intervallo(1, 20):
 ## Cicli dentro i cicli
 
 ```pit
-per riga in intervallo(1, 4):
-    per colonna in intervallo(1, 4):
+per riga in intervallo_di(1, 4):
+    per colonna in intervallo_di(1, 4):
         stampa(riga * colonna, fine="\t")
     stampa()
 ```
@@ -147,7 +147,7 @@ per riga in intervallo(1, 4):
 ## Soluzioni
 
 ```pit
-per n in intervallo(1, 11):
+per n in intervallo_di(1, 11):
     stampa(n)
 ```
 
@@ -165,7 +165,7 @@ per n in intervallo(1, 11):
 ```
 
 ```pit
-per n in intervallo(1, 11):
+per n in intervallo_di(1, 11):
     stampa(f"7 x {n} = {7 * n}")
 ```
 
@@ -184,7 +184,7 @@ per n in intervallo(1, 11):
 
 ```pit
 fattoriale = 1
-per n in intervallo(1, 7):
+per n in intervallo_di(1, 7):
     fattoriale *= n
 stampa(fattoriale)
 ```
@@ -211,7 +211,7 @@ mentre valore > 10:
 ```
 
 ```pit
-per i in intervallo(1, 6):
+per i in intervallo_di(1, 6):
     stampa("*" * i)
 ```
 

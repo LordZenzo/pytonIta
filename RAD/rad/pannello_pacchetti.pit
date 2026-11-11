@@ -134,7 +134,7 @@ classe PannelloPacchetti(tk.Frame):
         per s in sel:
             se se_stesso.albero.exists(s):
                 se_stesso.albero.selection_set(s)
-        se_stesso.contatore.configure(text=f"{lunghezza(se_stesso.pacchetti)} installati")
+        se_stesso.contatore.configure(text=f"{lunghezza_di(se_stesso.pacchetti)} installati")
         se_stesso._attiva()
 
     definisci _lavora(se_stesso, funzione, dopo, messaggio_attesa="Un momento…", aggiorna_dopo=Falso):
@@ -147,7 +147,7 @@ classe PannelloPacchetti(tk.Frame):
         definisci finito(riuscito, risultato):
             se_stesso.occupato = Falso
             se non riuscito:
-                se_stesso._scrivi("⚠ " + testo(risultato))
+                se_stesso._scrivi("⚠ " + tipo_testo(risultato))
                 se_stesso._attiva()
                 ritorna
             dopo(risultato)
@@ -198,7 +198,7 @@ classe PannelloPacchetti(tk.Frame):
 
         definisci dopo(r):
             se_stesso.nuovi = r
-            se_stesso._scrivi(f"{lunghezza(r)} pacchetti hanno una versione più nuova (colonna «Disponibile»)." se r altrimenti "Tutto è aggiornato.")
+            se_stesso._scrivi(f"{lunghezza_di(r)} pacchetti hanno una versione più nuova (colonna «Disponibile»)." se r altrimenti "Tutto è aggiornato.")
             se_stesso._riempi()
         se_stesso._lavora(lambda: pacchetti_uso.obsoleti(interprete, bersaglio), dopo, "Controllo gli aggiornamenti (serve la rete)…")
 

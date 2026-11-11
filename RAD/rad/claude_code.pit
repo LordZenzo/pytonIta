@@ -58,7 +58,7 @@ definisci _gestore(pitonit):
 
 definisci _e_nostro(gruppo):
     per h in gruppo.get("hooks", []):
-        se SCRIPT_HOOK.lower() in " ".join(testo(a) per a in h.get("args", [])).lower() o "claude_hook.py" in " ".join(testo(a) per a in h.get("args", [])):
+        se SCRIPT_HOOK.lower() in " ".join(tipo_testo(a) per a in h.get("args", [])).lower() o "claude_hook.py" in " ".join(tipo_testo(a) per a in h.get("args", [])):
             ritorna Vero
     ritorna Falso
 
@@ -66,7 +66,7 @@ definisci _e_nostro(gruppo):
 definisci _aggiornato(gruppo, pitonit):
     """Vero se l'hook è quello di questa installazione (se PitStudio è stato spostato o aggiornato i percorsi cambiano)."""
     per h in gruppo.get("hooks", []):
-        se h.get("command") == pitonit e [os.path.normcase(testo(a)) per a in h.get("args", [])] == [os.path.normcase(SCRIPT_HOOK)]:
+        se h.get("command") == pitonit e [os.path.normcase(tipo_testo(a)) per a in h.get("args", [])] == [os.path.normcase(SCRIPT_HOOK)]:
             ritorna Vero
     ritorna Falso
 
@@ -80,7 +80,7 @@ definisci preparato(cartella, config=Nessuno):
             hooks = json.load(f).get("hooks", {})
     eccetto (OSError, ValueError):
         ritorna Falso
-    ritorna tutti(any(_e_nostro(g) e _aggiornato(g, pitonit) per g in hooks.get(elemento, [])) per elemento in EVENTI)
+    ritorna tutti_veri(any(_e_nostro(g) e _aggiornato(g, pitonit) per g in hooks.get(elemento, [])) per elemento in EVENTI)
 
 
 definisci _scrivi_impostazioni(cartella, pitonit):
@@ -122,7 +122,7 @@ definisci _scrivi_claude_md(cartella, pitonit, nome_progetto):
             attuale = f.read()
         i, j = attuale.find(MARCATORE_INIZIO), attuale.find(MARCATORE_FINE)
         se i >= 0 e j > i:
-            nuovo = attuale[:i] + blocco.rstrip("\n") + attuale[j + lunghezza(MARCATORE_FINE):]
+            nuovo = attuale[:i] + blocco.rstrip("\n") + attuale[j + lunghezza_di(MARCATORE_FINE):]
         altrimenti:
             nuovo = attuale.rstrip("\n") + "\n\n" + blocco
     altrimenti:

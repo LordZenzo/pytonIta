@@ -4,7 +4,7 @@
   "argomento": "Stringhe",
   "livello": "Intermedio",
   "consegna": "Una parola è palindroma se si legge uguale da destra a sinistra (come «anna»). Leggi una parola e stampa `si` se è palindroma, `no` altrimenti. Ignora maiuscole e minuscole.",
-  "iniziale": "parola = leggi(\"\").lower()\n",
+  "iniziale": "parola = leggi_tastiera(\"\").lower()\n",
   "prove": [
     {
       "ingresso": "anna\n",
@@ -27,7 +27,7 @@
     "Una stringa si inverte con `parola[::-1]`.",
     "Confronta la parola con la sua inversa: `se parola == parola[::-1]:`."
   ],
-  "soluzione": "parola = leggi(\"\").lower()\nse parola == parola[::-1]:\n    stampa(\"si\")\naltrimenti:\n    stampa(\"no\")\n",
+  "soluzione": "parola = leggi_tastiera(\"\").lower()\nse parola == parola[::-1]:\n    stampa(\"si\")\naltrimenti:\n    stampa(\"no\")\n",
   "confronto": "esatto",
   "ordine": 11
 }

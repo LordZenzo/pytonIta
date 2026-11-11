@@ -44,12 +44,12 @@ TENTATIVI = 7
 definisci gioca():
     segreto = random.randint(1, 100)
     stampa(f"Ho pensato a un numero da 1 a 100. Hai {TENTATIVI} tentativi!")
-    per tentativo in intervallo(1, TENTATIVI + 1):
-        risposta = leggi(f"Tentativo {tentativo}: ")
+    per tentativo in intervallo_di(1, TENTATIVI + 1):
+        risposta = leggi_tastiera(f"Tentativo {tentativo}: ")
         se non risposta.isdigit():
             stampa("Scrivi un numero intero.")
             continua
-        numero = intero(risposta)
+        numero = tipo_intero(risposta)
         se numero == segreto:
             stampa(f"Bravo! L'hai indovinato in {tentativo} tentativi.")
             ritorna Vero
@@ -61,8 +61,8 @@ definisci gioca():
     ritorna Falso
 
 
-se lunghezza(sys.argv) > 1:
-    random.seed(intero(sys.argv[1]))        # per ripetere sempre la stessa partita (prova: principale.pit 5)
+se lunghezza_di(sys.argv) > 1:
+    random.seed(tipo_intero(sys.argv[1]))        # per ripetere sempre la stessa partita (prova: principale.pit 5)
 gioca()
 ''')
 
@@ -74,18 +74,18 @@ scrivi(c, "principale.pit", '''
 
 definisci tabellina(n, fino_a=10):
     """Le righe della tabellina di n, da 1 a fino_a."""
-    ritorna [f"{n} x {i:>2} = {n * i:>3}" per i in intervallo(1, fino_a + 1)]
+    ritorna [f"{n} x {i:>2} = {n * i:>3}" per i in intervallo_di(1, fino_a + 1)]
 
 
 mentre Vero:
-    risposta = leggi("Di che numero vuoi la tabellina? (invio per uscire) ")
+    risposta = leggi_tastiera("Di che numero vuoi la tabellina? (invio per uscire) ")
     se risposta == "":
         interrompi
     se non risposta.isdigit():
         stampa("Serve un numero intero positivo.")
         continua
     stampa(f"--- Tabellina del {risposta} ---")
-    per riga in tabellina(intero(risposta)):
+    per riga in tabellina(tipo_intero(risposta)):
         stampa(riga)
 stampa("Ciao!")
 ''')
@@ -113,17 +113,17 @@ definisci salva(contatti):
 
 
 definisci aggiungi(contatti):
-    nome = leggi("Nome: ").strip()
+    nome = leggi_tastiera("Nome: ").strip()
     se non nome:
         stampa("Il nome non può essere vuoto.")
         ritorna
-    contatti[nome] = {"telefono": leggi("Telefono: ").strip(), "email": leggi("Email: ").strip()}
+    contatti[nome] = {"telefono": leggi_tastiera("Telefono: ").strip(), "email": leggi_tastiera("Email: ").strip()}
     salva(contatti)
     stampa(f"Salvato: {nome}")
 
 
 definisci cerca(contatti):
-    parte = leggi("Cerca: ").strip().lower()
+    parte = leggi_tastiera("Cerca: ").strip().lower()
     trovati = [n per n in contatti se parte in n.lower()]
     se non trovati:
         stampa("Nessun contatto trovato.")
@@ -140,7 +140,7 @@ definisci elenco(contatti):
 
 contatti = carica()
 mentre Vero:
-    scelta = leggi("[a]ggiungi, [c]erca, [e]lenco, [u]sci: ").strip().lower()
+    scelta = leggi_tastiera("[a]ggiungi, [c]erca, [e]lenco, [u]sci: ").strip().lower()
     se scelta == "a":
         aggiungi(contatti)
     altrimenti_se scelta == "c":
@@ -176,12 +176,12 @@ definisci frequenze(parole):
 stampa("Scrivi il testo (una riga vuota per finire):")
 righe = []
 mentre Vero:
-    riga = leggi("")
+    riga = leggi_tastiera("")
     se riga == "":
         interrompi
     righe.append(riga)
 parole = parole_di(" ".join(righe))
-stampa(f"Parole: {lunghezza(parole)}   Diverse: {lunghezza(set(parole))}")
+stampa(f"Parole: {lunghezza_di(parole)}   Diverse: {lunghezza_di(set(parole))}")
 conteggio = frequenze(parole)
 piu_usate = sorted(conteggio.items(), key=lambda coppia: (-coppia[1], coppia[0]))[:5]
 per parola, quante in piu_usate:
@@ -348,7 +348,7 @@ classe Spesa(SpesaUI):
         se_stesso._aggiorna_conto()
 
     definisci _aggiorna_conto(se_stesso):
-        n = lunghezza(se_stesso.voci)
+        n = lunghezza_di(se_stesso.voci)
         se_stesso.etichetta_conto.configure(text=f"{n} voc{'e' se n == 1 altrimenti 'i'}")
 
     definisci aggiungi_clic(se_stesso, evento=Nessuno):

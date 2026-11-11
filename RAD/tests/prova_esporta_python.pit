@@ -23,7 +23,7 @@ classe Conto:
         se_stesso.movimenti.append(importo)
 
     definisci totale(se_stesso):
-        ritorna somma(se_stesso.movimenti)
+        ritorna somma_di(se_stesso.movimenti)
 ''')
 open(os.path.join(origine, "principale.pit"), "w", encoding="utf-8").write('''"""Programma di prova."""
 importa matematica
@@ -39,10 +39,10 @@ cifre.estendi([1, 2])
 cifre.ordina(inverso=Vero)
 d = {"b": 2, "a": 1}
 parole = "ciao mondo".maiuscolo().separa()
-stampa(c.titolare, c.totale(), cifre, ordinato(d.chiavi()), parole)
+stampa(c.titolare, c.totale(), cifre, ordinato_di(d.chiavi()), parole)
 stampa(arrotonda(matematica.radice_quadrata(16) + matematica.pigreco, 2))
 a = n.matrice([[1, 2], [3, 4]])
-stampa("numpy:", a.somma(), lunghezza(a.forma))
+stampa("numpy:", a.somma(), lunghezza_di(a.forma))
 se c.totale() > 40 e non c.movimenti == []:
     stampa(f"ok {c.totale():>5}")
 per i, x in enumera(cifre, inizio=1):

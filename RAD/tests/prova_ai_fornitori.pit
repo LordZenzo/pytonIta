@@ -69,7 +69,7 @@ sollevato = Falso
 prova:
     ai.risposta_da_gemini({"candidates": [], "promptFeedback": {"blockReason": "SAFETY"}})
 eccetto ai.ErroreAI come errore:
-    sollevato = "SAFETY" in testo(errore)
+    sollevato = "SAFETY" in tipo_testo(errore)
 verifica(sollevato, "richiesta bloccata = errore chiaro")
 
 # ----------------------------------------------------------------- cambio di fornitore a metà conversazione
@@ -80,11 +80,11 @@ mista = [{"role": "user", "content": [{"type": "text", "text": "ciao"}]},
          {"role": "assistant", "content": [{"type": "ragionamento", "text": "solo ragionamento"}]}]
 pulita = ai.pulisci_per_claude(mista)
 verifica(pulita[1]["content"] == [{"type": "text", "text": "Ecco."}, {"type": "tool_use", "id": "gem_1", "name": "stato_ide", "input": {}}], "firme e ragionamento tolti per Claude: " + str(pulita[1]))
-verifica(lunghezza(pulita) == 3, "un messaggio fatto solo di ragionamento sparisce: " + str(lunghezza(pulita)))
-verifica("firma" in mista[1]["content"][1] e lunghezza(mista[1]["content"]) == 3, "l'originale non cambia")
-verifica(tutti("firma" non in b per m in pulita per b in m["content"]), "nessuna firma rimasta")
+verifica(lunghezza_di(pulita) == 3, "un messaggio fatto solo di ragionamento sparisce: " + str(lunghezza_di(pulita)))
+verifica("firma" in mista[1]["content"][1] e lunghezza_di(mista[1]["content"]) == 3, "l'originale non cambia")
+verifica(tutti_veri("firma" non in b per m in pulita per b in m["content"]), "nessuna firma rimasta")
 # e gli altri fornitori ignorano ciò che non li riguarda
-verifica(lunghezza(ai.messaggi_a_gemini(mista)) >= 2, "Gemini accetta la conversazione mista")
+verifica(lunghezza_di(ai.messaggi_a_gemini(mista)) >= 2, "Gemini accetta la conversazione mista")
 verifica(ai.messaggi_a_openai(mista, "S")[2]["tool_calls"][0]["id"] == "gem_1", "DeepSeek accetta la conversazione mista")
 
 # ----------------------------------------------------------------- server finti
@@ -99,18 +99,18 @@ classe Finto(BaseHTTPRequestHandler):
         corpo = json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])).decode("utf-8"))
         se "deepseek" in se_stesso.server.nome:
             richieste["deepseek"].append((se_stesso.path, {k.lower(): v per k, v in se_stesso.headers.items()}, corpo))
-            primo = lunghezza(richieste["deepseek"]) == 1
+            primo = lunghezza_di(richieste["deepseek"]) == 1
             risposta = ({"choices": [{"message": {"content": "Guardo.", "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "leggi_file", "arguments": '{"percorso": "a.pit"}'}}]}, "finish_reason": "tool_calls"}], "usage": {"prompt_tokens": 10, "completion_tokens": 2}}
                         se primo altrimenti {"choices": [{"message": {"content": "Letto: tutto bene."}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 20, "completion_tokens": 4}})
         altrimenti:
             richieste["gemini"].append((se_stesso.path, {k.lower(): v per k, v in se_stesso.headers.items()}, corpo))
-            primo = lunghezza(richieste["gemini"]) == 1
+            primo = lunghezza_di(richieste["gemini"]) == 1
             risposta = ({"candidates": [{"content": {"role": "model", "parts": [{"functionCall": {"name": "leggi_file", "args": {"percorso": "a.pit"}}, "thoughtSignature": "FIRMA9"}]}, "finishReason": "STOP"}], "usageMetadata": {"promptTokenCount": 10, "candidatesTokenCount": 2}}
                         se primo altrimenti {"candidates": [{"content": {"role": "model", "parts": [{"text": "Letto: tutto bene."}]}, "finishReason": "STOP"}], "usageMetadata": {"promptTokenCount": 20, "candidatesTokenCount": 4}})
         dati = json.dumps(risposta).encode("utf-8")
         se_stesso.send_response(200)
         se_stesso.send_header("Content-Type", "application/json")
-        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.send_header("Content-Length", tipo_testo(lunghezza_di(dati)))
         se_stesso.end_headers()
         se_stesso.wfile.write(dati)
 
@@ -150,7 +150,7 @@ definisci giro(fornitore, **impostazioni):
 
 # DeepSeek
 cliente, st, eventi, messaggi = giro("deepseek", ai__chiave_deepseek="chiave-ds", ai__url_deepseek=f"http://127.0.0.1:{server['deepseek'].server_port}")
-verifica(tipo(cliente).__name__ == "ClienteDeepSeek" e cliente.modello() == "deepseek-chat", "cliente DeepSeek")
+verifica(tipo_di(cliente).__name__ == "ClienteDeepSeek" e cliente.modello() == "deepseek-chat", "cliente DeepSeek")
 verifica(st.chiamate == [("leggi_file", {"percorso": "a.pit"})], "lo strumento è stato eseguito: " + str(st.chiamate))
 verifica([d per t, d in eventi se t == "testo"] == ["Guardo.", "Letto: tutto bene."], "testi: " + str([d per t, d in eventi se t == "testo"]))
 percorso, intestazioni, corpo = richieste["deepseek"][0]
@@ -162,7 +162,7 @@ verifica(messaggi[-1]["content"][0]["text"] == "Letto: tutto bene.", "la convers
 
 # Gemini
 cliente, st, eventi, messaggi = giro("gemini", ai__chiave_gemini="chiave-gm", ai__url_gemini=f"http://127.0.0.1:{server['gemini'].server_port}/v1beta")
-verifica(tipo(cliente).__name__ == "ClienteGemini" e cliente.modello() == "gemini-3.6-flash", "cliente Gemini")
+verifica(tipo_di(cliente).__name__ == "ClienteGemini" e cliente.modello() == "gemini-3.6-flash", "cliente Gemini")
 verifica(st.chiamate == [("leggi_file", {"percorso": "a.pit"})], "gemini: strumento eseguito")
 percorso, intestazioni, corpo = richieste["gemini"][0]
 verifica(percorso == "/v1beta/models/gemini-3.6-flash:generateContent" e intestazioni.get("x-goog-api-key") == "chiave-gm", "percorso e chiave gemini: " + percorso)
@@ -200,7 +200,7 @@ sollevato = Falso
 prova:
     ai.crea_cliente(cfg).chiama([], "S", [])
 eccetto ai.ErroreAI come errore:
-    sollevato = "DeepSeek" in testo(errore) e "DEEPSEEK_API_KEY" in testo(errore)
+    sollevato = "DeepSeek" in tipo_testo(errore) e "DEEPSEEK_API_KEY" in tipo_testo(errore)
 verifica(sollevato, "senza chiave l'errore nomina il fornitore")
 
 # le Impostazioni mostrano le voci dei fornitori

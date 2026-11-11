@@ -59,8 +59,8 @@ nomi.aggiungi("Sara")
 stampa("fattoriale di 5:", fattoriale(5))
 stampa(somma_lista([1, 2, 3]), somma_lista([1], 5))
 per nome in nomi:
-    stampa(f"Ciao {nome}!", lunghezza(nome))
-per _ in intervallo(LIMITE):
+    stampa(f"Ciao {nome}!", lunghezza_di(nome))
+per _ in intervallo_di(LIMITE):
     usa_globale()
 stampa("conta =", conta)
 i = 0
@@ -72,11 +72,11 @@ mentre i < 3 e non i == 5:
 stampa(con_errore(0), con_errore(5))
 c = Contatore()
 c.incrementa()
-stampa("contatore:", c.incrementa(), sqrt(16), testo(3).maiuscolo(), (1, 2), json.dumps({"a": 1}))
+stampa("contatore:", c.incrementa(), sqrt(16), tipo_testo(3).maiuscolo(), (1, 2), json.dumps({"a": 1}))
 con apri("prova_conv.txt", "w", encoding="utf-8") come f:
     f.write("ciao")
-x = intero("7") + 1 se Vero altrimenti 0
-stampa("x =", x, nomi[0], assoluto(-4), massimo(3, 9))
+x = tipo_intero("7") + 1 se Vero altrimenti 0
+stampa("x =", x, nomi[0], valore_assoluto(-4), massimo_di(3, 9))
 
 se __nome__ == "__main__":
     stampa("fine programma")

@@ -19,7 +19,7 @@ stampa("pila principale:", [m.tipo per m in cap.lista])
 ripeti = cap.lista[2]
 chiama = ripeti.corpi["corpo"][0]
 r1 = a.stacca(chiama, x=300, y=40)
-stampa("dopo stacca:", ripeti.corpi["corpo"], [x.tipo per x in r1.pila], lunghezza(a.radici))
+stampa("dopo stacca:", ripeti.corpi["corpo"], [x.tipo per x in r1.pila], lunghezza_di(a.radici))
 a.attacca_dopo(r1, cap.lista[1])
 stampa("ricollegata:", [m.tipo per m in cap.lista])
 imposta = cap.lista[1]
@@ -29,7 +29,7 @@ stampa("valore staccato:", imposta.ingressi["valore"], rv.valore.tipo, rv.è_val
 g, av2 = genera_codice(q)
 stampa("avvisi con ingresso vuoto:", av2)
 a.inserisci_in_ingresso(rv, imposta, "valore")
-stampa("rimesso:", imposta.ingressi["valore"].tipo, lunghezza(a.radici))
+stampa("rimesso:", imposta.ingressi["valore"].tipo, lunghezza_di(a.radici))
 radice_ripeti = a.stacca(ripeti, x=10, y=300)
 stampa("pila ripeti staccata:", [m.tipo per m in radice_ripeti.pila], [m.tipo per m in cap.lista])
 se_ = Mattonella("se", q)
@@ -38,4 +38,4 @@ a.radici.append(r_se)
 a.attacca_in_corpo(radice_ripeti, se_, "corpo")
 stampa("dentro il se:", [m.tipo per m in se_.corpi["corpo"]])
 stampa("rinomina:", q.rinomina_funzione("saluta", "dai_il_benvenuto"), "dai_il_benvenuto" in genera_codice(q)[0])
-stampa("tipi:", lunghezza(TIPI), "categorie", lunghezza(CATEGORIE))
+stampa("tipi:", lunghezza_di(TIPI), "categorie", lunghezza_di(CATEGORIE))

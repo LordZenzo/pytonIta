@@ -44,7 +44,7 @@ definisci spinbox(w):
 p.seleziona(["cursore1"])
 radice.update()
 sp = spinbox(p.righe_ispettore)
-stampa("campi numerici con freccette nell'ispettore del cursore:", lunghezza(sp), "(x, y, larghezza, altezza, minimo, massimo, valore)")
+stampa("campi numerici con freccette nell'ispettore del cursore:", lunghezza_di(sp), "(x, y, larghezza, altezza, minimo, massimo, valore)")
 cur = f.trova("cursore1")
 valore = [s per s in sp se s.get() == "9"]
 valore[-1].invoke("buttonup")
@@ -76,7 +76,7 @@ p.seleziona(["barraProgresso1"])
 radice.update()
 sp = spinbox(p.righe_ispettore)
 v = [s per s in sp se s.get() == "50"]
-stampa("campi della barra (massimo e valore):", lunghezza(v))
+stampa("campi della barra (massimo e valore):", lunghezza_di(v))
 v[-1].delete(0, "end")
 v[-1].insert(0, "999")
 v[-1].event_generate("<Return>")
@@ -122,7 +122,7 @@ radice.update()
 prima = (f.larghezza, f.altezza)
 a = p.area
 maniglie = a.find_withtag("mf_se")
-stampa("maniglie della finestra:", lunghezza(a.find_withtag("mf")), "(destra, sotto, angolo)")
+stampa("maniglie della finestra:", lunghezza_di(a.find_withtag("mf")), "(destra, sotto, angolo)")
 se os.name == "nt":
     importa ctypes
     u = ctypes.windll.user32

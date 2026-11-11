@@ -104,7 +104,7 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
                     w.column(nome_col, width=larghezza_col, anchor=ancora_col)
                     w.heading(nome_col, anchor=ancora_col)
         altrimenti_se t == "Grafico":
-            w = grafico.Grafico(genitore, tipo=v.get("tipo") o "barre", titolo=v.get("titolo") o "", dati=(lista(v.get("dati", [])) se non v.get("fonte") altrimenti
+            w = grafico.Grafico(genitore, tipo=v.get("tipo") o "barre", titolo=v.get("titolo") o "", dati=(tipo_lista(v.get("dati", [])) se non v.get("fonte") altrimenti
                                 ["Gen=12", "Feb=19", "Mar=7", "Apr=15"]), mostra_valori=bool(v.get("mostra_valori", Vero)), colore=v.get("colore") o "",
                                 sfondo=v.get("sfondo") o "#ffffff", testo_=v.get("primo_piano") o "#1f2933")
         altrimenti_se t == "Tela":
@@ -144,7 +144,7 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
         altrimenti_se t == "Schede":
             w = ttk.Notebook(genitore)
             w._pagine = []
-            per nome_pagina in (lista(v.get("pagine", [])) o ["Pagina 1"]):
+            per nome_pagina in (tipo_lista(v.get("pagine", [])) o ["Pagina 1"]):
                 pagina = tk.Frame(w, background="#ffffff")
                 w.add(pagina, text=nome_pagina)
                 w._pagine.append(pagina)
@@ -226,7 +226,7 @@ classe DialogoColonne(tk.Toplevel):
         se_stesso.minsize(520, 300)
         se_stesso.risultato = Nessuno
         se_stesso.colori = c
-        se_stesso.righe = [lista(r) per r in colonne]           # [nome, larghezza, ancora]
+        se_stesso.righe = [tipo_lista(r) per r in colonne]           # [nome, larghezza, ancora]
         se_stesso._corrente = Nessuno
         se_stesso._aggiorna = Falso
 
@@ -255,7 +255,7 @@ classe DialogoColonne(tk.Toplevel):
                 ("Nome", tk.Entry(destra, textvariable=se_stesso.var_nome, width=22)),
                 ("Larghezza (pixel)", tk.Spinbox(destra, from_=20, to=2000, increment=10, textvariable=se_stesso.var_larghezza, width=8,
                                                  command=se_stesso._applica)),
-                ("Allineamento", ttk.Combobox(destra, textvariable=se_stesso.var_allineamento, values=lista(NOMI_ALLINEAMENTO.values()),
+                ("Allineamento", ttk.Combobox(destra, textvariable=se_stesso.var_allineamento, values=tipo_lista(NOMI_ALLINEAMENTO.values()),
                                               state="readonly", width=10)))):
             tk.Label(destra, text=etichetta, anchor="w", background=c["pannello"], foreground=c["tenue"]).grid(row=n * 2, column=0, sticky="w", pady=(0 se n == 0 altrimenti 10, 0))
             widget.grid(row=n * 2 + 1, column=0, sticky="w")
@@ -291,13 +291,13 @@ classe DialogoColonne(tk.Toplevel):
         se non se_stesso.righe:
             se_stesso._corrente = Nessuno
             ritorna
-        i = max(0, min(lunghezza(se_stesso.righe) - 1, i))
+        i = max(0, min(lunghezza_di(se_stesso.righe) - 1, i))
         se_stesso._corrente = i
         se_stesso.elenco.selection_clear(0, "end")
         se_stesso.elenco.selection_set(i)
         nome, larghezza, ancora = se_stesso.righe[i]
         se_stesso.var_nome.set(nome)
-        se_stesso.var_larghezza.set(testo(larghezza))
+        se_stesso.var_larghezza.set(tipo_testo(larghezza))
         se_stesso.var_allineamento.set(NOMI_ALLINEAMENTO[ancora])
 
     definisci _scelta(se_stesso, evento=Nessuno):
@@ -308,7 +308,7 @@ classe DialogoColonne(tk.Toplevel):
     definisci _applica(se_stesso):
         """Riporta nei dati della riga scelta quello che c'è nei campi."""
         i = se_stesso._corrente
-        se i è Nessuno o i >= lunghezza(se_stesso.righe):
+        se i è Nessuno o i >= lunghezza_di(se_stesso.righe):
             ritorna
         nome = se_stesso.var_nome.get().strip() o se_stesso.righe[i][0]
         prova:
@@ -325,12 +325,12 @@ classe DialogoColonne(tk.Toplevel):
     definisci aggiungi(se_stesso):
         se_stesso._applica()
         usati = {r[0] per r in se_stesso.righe}
-        n = lunghezza(se_stesso.righe) + 1
+        n = lunghezza_di(se_stesso.righe) + 1
         mentre f"Colonna{n}" in usati:
             n += 1
         se_stesso.righe.append([f"Colonna{n}", 120, "w"])
         se_stesso.riempi()
-        se_stesso.seleziona(lunghezza(se_stesso.righe) - 1)
+        se_stesso.seleziona(lunghezza_di(se_stesso.righe) - 1)
 
     definisci rimuovi(se_stesso):
         i = se_stesso._corrente
@@ -340,12 +340,12 @@ classe DialogoColonne(tk.Toplevel):
         elimina se_stesso.righe[i]
         se_stesso.riempi()
         se se_stesso.righe:
-            se_stesso.seleziona(min(i, lunghezza(se_stesso.righe) - 1))
+            se_stesso.seleziona(min(i, lunghezza_di(se_stesso.righe) - 1))
 
     definisci sposta(se_stesso, passo):
         se_stesso._applica()
         i = se_stesso._corrente
-        se i è Nessuno o non (0 <= i + passo < lunghezza(se_stesso.righe)):
+        se i è Nessuno o non (0 <= i + passo < lunghezza_di(se_stesso.righe)):
             ritorna
         se_stesso.righe[i], se_stesso.righe[i + passo] = se_stesso.righe[i + passo], se_stesso.righe[i]
         se_stesso.riempi()
@@ -355,7 +355,7 @@ classe DialogoColonne(tk.Toplevel):
     definisci conferma(se_stesso):
         se_stesso._applica()
         nomi = [r[0] per r in se_stesso.righe]
-        se lunghezza(set(nomi)) != lunghezza(nomi):
+        se lunghezza_di(set(nomi)) != lunghezza_di(nomi):
             messagebox.showwarning("Colonne", "I nomi delle colonne devono essere tutti diversi.", parent=se_stesso)
             ritorna
         se_stesso.risultato = [tuple(r) per r in se_stesso.righe]
@@ -415,7 +415,7 @@ classe DialogoOrdine(tk.Toplevel):
         se_stesso.geometry("360x480")
         se_stesso.risultato = Nessuno
         c = colori
-        se_stesso.nomi = lista(nomi)
+        se_stesso.nomi = tipo_lista(nomi)
         tk.Label(se_stesso, text="Il tasto Tab passa dai componenti in questo ordine, dall'alto in basso.", background=c["pannello"], foreground=c["tenue"],
                  anchor="w", wraplength=330, justify="left").pack(fill="x", padx=12, pady=(10, 4))
         centro = tk.Frame(se_stesso, background=c["pannello"])
@@ -449,12 +449,12 @@ classe DialogoOrdine(tk.Toplevel):
             ritorna
         i = sel[0]
         j = i + passo
-        se 0 <= j < lunghezza(se_stesso.nomi):
+        se 0 <= j < lunghezza_di(se_stesso.nomi):
             se_stesso.nomi[i], se_stesso.nomi[j] = se_stesso.nomi[j], se_stesso.nomi[i]
             se_stesso.riempi(j)
 
     definisci conferma(se_stesso):
-        se_stesso.risultato = lista(se_stesso.nomi)
+        se_stesso.risultato = tipo_lista(se_stesso.nomi)
         se_stesso.destroy()
 
     definisci mostra(se_stesso):
@@ -681,8 +681,8 @@ classe Progettista(tk.Frame):
                                             outline=se_stesso.colori["bordo"], tags=("mf", etichetta_))
         se se_stesso.griglia_attiva.get():
             colore = "#c8c8c8" se (se_stesso.form.sfondo o se_stesso._sfondo_aspetto()) >= "#808080" altrimenti "#555555"
-            per x in intervallo(0, se_stesso.form.larghezza, GRIGLIA * 2):
-                per y in intervallo(0, se_stesso.form.altezza, GRIGLIA * 2):
+            per x in intervallo_di(0, se_stesso.form.larghezza, GRIGLIA * 2):
+                per y in intervallo_di(0, se_stesso.form.altezza, GRIGLIA * 2):
                     s.create_rectangle(x, y, x, y, outline=colore, tags="griglia")
         se_stesso.area.configure(scrollregion=(0, 0, se_stesso.form.larghezza + 80, se_stesso.form.altezza + 80))
         se_stesso.titolo.configure(text=f"{se_stesso.form.nome}  —  {se_stesso.form.larghezza}×{se_stesso.form.altezza}")
@@ -782,7 +782,7 @@ classe Progettista(tk.Frame):
 
         definisci indice(p, inizi, misure):
             ultima = -1
-            per i in intervallo(lunghezza(inizi)):
+            per i in intervallo_di(lunghezza_di(inizi)):
                 se misure[i] <= 0:
                     continua
                 ultima = i
@@ -798,7 +798,7 @@ classe Progettista(tk.Frame):
         se non t o d è Nessuno o non t[0]:
             ritorna 10, 10, 60, 24
         definisci tratto(indice, inizi, misure):
-            se indice < lunghezza(inizi):
+            se indice < lunghezza_di(inizi):
                 ritorna inizi[indice], max(6, misure[indice])
             ritorna inizi[-1] + misure[-1] + d["spazio"], 60
         x, l = tratto(colonna, t[0], t[1])
@@ -835,8 +835,8 @@ classe Progettista(tk.Frame):
         per a in form_modello.figli_in_griglia(f, c.genitore):
             se a.nome != c.nome:
                 k = form_modello.cella_di(a)
-                per r in intervallo(k["riga"], k["riga"] + k["righe"]):
-                    per col in intervallo(k["colonna"], k["colonna"] + k["colonne"]):
+                per r in intervallo_di(k["riga"], k["riga"] + k["righe"]):
+                    per col in intervallo_di(k["colonna"], k["colonna"] + k["colonne"]):
                         occupate.add((r, col))
         se x è non Nessuno:
             r, col = se_stesso._cella_a(c.genitore, x, y)
@@ -904,9 +904,9 @@ classe Progettista(tk.Frame):
                     messi.add(c.nome)
                     a.insert(iid_padre, "end", iid=c.nome, text=f"{TIPI[c.tipo]['icona']}  {c.nome}", open=Vero)
                     se c.tipo == "Schede":
-                        titoli = lista(c.valori.get("pagine", []))
+                        titoli = tipo_lista(c.valori.get("pagine", []))
                         per i, chiave in enumera(form_modello.pagine_di(c)):
-                            a.insert(c.nome, "end", iid=chiave, text="▤  " + (titoli[i] se i < lunghezza(titoli) altrimenti f"Pagina {i + 1}"), open=Vero)
+                            a.insert(c.nome, "end", iid=chiave, text="▤  " + (titoli[i] se i < lunghezza_di(titoli) altrimenti f"Pagina {i + 1}"), open=Vero)
                             aggiungi(chiave, chiave)
                     altrimenti_se e_contenitore(c.tipo):
                         aggiungi(c.nome, c.nome)
@@ -990,7 +990,7 @@ classe Progettista(tk.Frame):
         chiave = se_stesso._chiave_contenitore(se_stesso.albero.identify_row(ev.y))
         se chiave è Nessuno:
             ritorna
-        nomi = lista(se_stesso.selezione_) se d["item"] in se_stesso.selezione_ altrimenti [d["item"]]
+        nomi = tipo_lista(se_stesso.selezione_) se d["item"] in se_stesso.selezione_ altrimenti [d["item"]]
         se_stesso.sposta_in(nomi, chiave)
 
     definisci _con_discendenti(se_stesso, nomi):
@@ -1047,7 +1047,7 @@ classe Progettista(tk.Frame):
         w = se_stesso.widget.get(nome)
         se w è Nessuno:
             ritorna se_stesso.superficie
-        se indice e hasattr(w, "_pagine") e int(indice) < lunghezza(w._pagine):
+        se indice e hasattr(w, "_pagine") e int(indice) < lunghezza_di(w._pagine):
             ritorna w._pagine[int(indice)]
         ritorna w
 
@@ -1078,7 +1078,7 @@ classe Progettista(tk.Frame):
     # ------------------------------------------------------------ selezione e maniglie
     definisci seleziona(se_stesso, nomi, aggiungi=Falso):
         se aggiungi:
-            nomi = lista(dict.fromkeys(se_stesso.selezione_ + lista(nomi)))
+            nomi = tipo_lista(dict.fromkeys(se_stesso.selezione_ + tipo_lista(nomi)))
         se_stesso.selezione_ = [n per n in nomi se se_stesso.form.trova(n)]
         se_stesso._sincronizza_albero()
         se_stesso._aggiorna_maniglie()
@@ -1090,7 +1090,7 @@ classe Progettista(tk.Frame):
         altrimenti il mouse non le manda più i movimenti e il ridimensionamento si ferma dopo il primo passo."""
         bordi = getattr(se_stesso, "_bordi", {})
         pomelli = getattr(se_stesso, "_pomelli", {})
-        se lista(bordi) != lista(se_stesso.selezione_) o (lunghezza(se_stesso.selezione_) == 1 e lunghezza(pomelli) != lunghezza(MANIGLIE)):
+        se tipo_lista(bordi) != tipo_lista(se_stesso.selezione_) o (lunghezza_di(se_stesso.selezione_) == 1 e lunghezza_di(pomelli) != lunghezza_di(MANIGLIE)):
             se_stesso._aggiorna_maniglie()
             ritorna
         per nome, bordo in bordi.items():
@@ -1098,7 +1098,7 @@ classe Progettista(tk.Frame):
             se c:
                 x_, y_, l_, a_ = se_stesso._geom(c)
                 bordo.place_configure(x=x_ - 1, y=y_ - 1, width=l_ + 2, height=a_ + 2)
-        se pomelli e lunghezza(se_stesso.selezione_) == 1:
+        se pomelli e lunghezza_di(se_stesso.selezione_) == 1:
             c = se_stesso.form.trova(se_stesso.selezione_[0])
             x_, y_, l_, a_ = se_stesso._geom(c)
             per chiave, (cursore, ax, ay) in MANIGLIE.items():
@@ -1125,7 +1125,7 @@ classe Progettista(tk.Frame):
             bordo.place(x=x_ - 1, y=y_ - 1, width=l_ + 2, height=a_ + 2)
             bordo.tk.call("lower", bordo._w, w._w)
             w.tk.call("raise", w._w)
-            se lunghezza(se_stesso.selezione_) == 1:
+            se lunghezza_di(se_stesso.selezione_) == 1:
                 per chiave, (cursore, ax, ay) in MANIGLIE.items():
                     m = tk.Frame(se_stesso._padre_widget(c), background=se_stesso.colori["accento"], width=8, height=8,
                                  cursor=cursore, borderwidth=1, relief="solid")
@@ -1139,8 +1139,8 @@ classe Progettista(tk.Frame):
 
     definisci _aggiorna_stato(se_stesso):
         se non se_stesso.selezione_:
-            se_stesso.stato.configure(text=f"{lunghezza(se_stesso.form.componenti)} componenti")
-        altrimenti_se lunghezza(se_stesso.selezione_) == 1:
+            se_stesso.stato.configure(text=f"{lunghezza_di(se_stesso.form.componenti)} componenti")
+        altrimenti_se lunghezza_di(se_stesso.selezione_) == 1:
             c = se_stesso.form.trova(se_stesso.selezione_[0])
             x_, y_, l_, a_ = se_stesso._geom(c)
             se c.nome in getattr(se_stesso, "_rett", {}):
@@ -1149,7 +1149,7 @@ classe Progettista(tk.Frame):
             altrimenti:
                 se_stesso.stato.configure(text=f"{c.nome}  x={c.x} y={c.y}  {c.larghezza}×{c.altezza}")
         altrimenti:
-            se_stesso.stato.configure(text=f"{lunghezza(se_stesso.selezione_)} selezionati")
+            se_stesso.stato.configure(text=f"{lunghezza_di(se_stesso.selezione_)} selezionati")
 
     # ------------------------------------------------------------ palette
     definisci _palette_scelta(se_stesso, evento=Nessuno):
@@ -1162,7 +1162,7 @@ classe Progettista(tk.Frame):
     definisci _palette_doppio(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco_palette.curselection()
         se sel:
-            n = lunghezza(se_stesso.form.componenti)
+            n = lunghezza_di(se_stesso.form.componenti)
             se_stesso.aggiungi_componente(ORDINE_PALETTE[sel[0]], 20 + (n % 8) * 16, 20 + (n % 8) * 16)
             se_stesso._annulla_aggiunta()
 
@@ -1192,8 +1192,8 @@ classe Progettista(tk.Frame):
                 eccetto tk.TclError:
                     indice = 0
                 se pagine:
-                    pagina = pagine[min(indice, lunghezza(pagine) - 1)]
-                    ritorna f"{nome}#{min(indice, lunghezza(pagine) - 1)}", evento.x_root - pagina.winfo_rootx(), evento.y_root - pagina.winfo_rooty()
+                    pagina = pagine[min(indice, lunghezza_di(pagine) - 1)]
+                    ritorna f"{nome}#{min(indice, lunghezza_di(pagine) - 1)}", evento.x_root - pagina.winfo_rootx(), evento.y_root - pagina.winfo_rooty()
             altrimenti:
                 ritorna nome, evento.x_root - w.winfo_rootx(), evento.y_root - w.winfo_rooty()
         se c è non Nessuno e c.genitore:
@@ -1213,7 +1213,7 @@ classe Progettista(tk.Frame):
             se_stesso.aggiungi_componente(se_stesso.da_aggiungere, evento.x, evento.y)
             se_stesso._annulla_aggiunta()
         altrimenti:
-            base = lista(se_stesso.selezione_) se evento.state & 0x1 altrimenti []       # Maiusc: il rettangolo si aggiunge alla selezione
+            base = tipo_lista(se_stesso.selezione_) se evento.state & 0x1 altrimenti []       # Maiusc: il rettangolo si aggiunge alla selezione
             se non base:
                 se_stesso.seleziona([])
             se_stesso._lazo = {"x": evento.x, "y": evento.y, "base": base, "ultimi": Nessuno}
@@ -1235,7 +1235,7 @@ classe Progettista(tk.Frame):
             x, y, l, a = se_stesso._geom(c)
             se x < x1 e x + l > x0 e y < y1 e y + a > y0:
                 toccati.append(c.nome)
-        nuovi = lista(dict.fromkeys(z["base"] + toccati))
+        nuovi = tipo_lista(dict.fromkeys(z["base"] + toccati))
         se nuovi != z["ultimi"]:
             z["ultimi"] = nuovi
             se_stesso.seleziona(nuovi)
@@ -1410,7 +1410,7 @@ classe Progettista(tk.Frame):
                 se non pagine:
                     continua
                 prova:
-                    indice = min(w.index(w.select()), lunghezza(pagine) - 1)
+                    indice = min(w.index(w.select()), lunghezza_di(pagine) - 1)
                 eccetto tk.TclError:
                     indice = 0
                 chiave, area = f"{c.nome}#{indice}", pagine[indice]
@@ -1449,7 +1449,7 @@ classe Progettista(tk.Frame):
             c.y = max(0, se_stesso._aggancia(sy + dy - bersaglio.winfo_rooty() - bordo))
             se_stesso._cella_nuova(c, x_puntatore - bersaglio.winfo_rootx() - bordo, y_puntatore - bersaglio.winfo_rooty() - bordo)
         se_stesso.ricostruisci()
-        se_stesso.seleziona(lista(nomi))
+        se_stesso.seleziona(tipo_lista(nomi))
         se_stesso._registra()
         ritorna Vero
 
@@ -1462,7 +1462,7 @@ classe Progettista(tk.Frame):
             c_ = se_stesso.form.trova(nome)
             bersaglio = se_stesso._contenitore_sotto(evento, d["inizio"])
             se c_ è non Nessuno e bersaglio è non Nessuno e bersaglio[0] != c_.genitore:
-                se_stesso.sposta_in_contenitore(lista(d["inizio"]), bersaglio[0], evento.x_root, evento.y_root, d["schermo"], evento.x_root - d["x"], evento.y_root - d["y"])
+                se_stesso.sposta_in_contenitore(tipo_lista(d["inizio"]), bersaglio[0], evento.x_root, evento.y_root, d["schermo"], evento.x_root - d["x"], evento.y_root - d["y"])
                 se_stesso._riempi_ispettore()
                 ritorna "break"
             se d.get("cella") e nome in getattr(se_stesso, "_rett", {}):
@@ -1581,9 +1581,9 @@ classe Progettista(tk.Frame):
             ritorna
         elimina se_stesso.cronologia[se_stesso.indice_cronologia + 1:]
         se_stesso.cronologia.append(stato_)
-        se lunghezza(se_stesso.cronologia) > 120:
+        se lunghezza_di(se_stesso.cronologia) > 120:
             se_stesso.cronologia.pop(0)
-        se_stesso.indice_cronologia = lunghezza(se_stesso.cronologia) - 1
+        se_stesso.indice_cronologia = lunghezza_di(se_stesso.cronologia) - 1
         se_stesso._segna_modificato(Vero)
         se_stesso._aggiorna_albero()
         se_stesso._anteprima_dal_vivo()
@@ -1616,12 +1616,12 @@ classe Progettista(tk.Frame):
             se_stesso._ripristina()
 
     definisci ripeti(se_stesso):
-        se se_stesso.indice_cronologia < lunghezza(se_stesso.cronologia) - 1:
+        se se_stesso.indice_cronologia < lunghezza_di(se_stesso.cronologia) - 1:
             se_stesso.indice_cronologia += 1
             se_stesso._ripristina()
 
     definisci _ripristina(se_stesso):
-        nomi = lista(se_stesso.selezione_)
+        nomi = tipo_lista(se_stesso.selezione_)
         se_stesso.form = Form.da_json(se_stesso.cronologia[se_stesso.indice_cronologia])
         se_stesso.ricostruisci()
         se_stesso.seleziona([n per n in nomi se se_stesso.form.trova(n)])
@@ -1632,7 +1632,7 @@ classe Progettista(tk.Frame):
     definisci elimina_selezionati(se_stesso):
         se non se_stesso.selezione_:
             ritorna
-        per n in lista(se_stesso.selezione_):
+        per n in tipo_lista(se_stesso.selezione_):
             se_stesso.form.rimuovi(n)
             w = se_stesso.widget.pop(n, Nessuno)
             se w:
@@ -1714,15 +1714,15 @@ classe Progettista(tk.Frame):
 
     definisci allinea(se_stesso, modo):
         comp = [se_stesso.form.trova(n) per n in se_stesso.selezione_]
-        se lunghezza(comp) < 1:
+        se lunghezza_di(comp) < 1:
             ritorna
-        se modo in ("centro_x", "centro_y") e lunghezza(comp) == 1:
+        se modo in ("centro_x", "centro_y") e lunghezza_di(comp) == 1:
             c = comp[0]
             se modo == "centro_x":
                 c.x = (se_stesso.form.larghezza - c.larghezza) // 2
             altrimenti:
                 c.y = (se_stesso.form.altezza - c.altezza) // 2
-        altrimenti_se lunghezza(comp) >= 2:
+        altrimenti_se lunghezza_di(comp) >= 2:
             se modo == "sinistra":
                 x = min(c.x per c in comp)
                 per c in comp: c.x = x
@@ -1736,22 +1736,22 @@ classe Progettista(tk.Frame):
                 y = max(c.y + c.altezza per c in comp)
                 per c in comp: c.y = y - c.altezza
             altrimenti_se modo == "centro_x":
-                m = sum(c.x + c.larghezza / 2 per c in comp) / lunghezza(comp)
+                m = sum(c.x + c.larghezza / 2 per c in comp) / lunghezza_di(comp)
                 per c in comp: c.x = int(m - c.larghezza / 2)
             altrimenti_se modo == "centro_y":
-                m = sum(c.y + c.altezza / 2 per c in comp) / lunghezza(comp)
+                m = sum(c.y + c.altezza / 2 per c in comp) / lunghezza_di(comp)
                 per c in comp: c.y = int(m - c.altezza / 2)
             altrimenti_se modo == "stessa_larghezza":
                 per c in comp: c.larghezza = comp[0].larghezza
             altrimenti_se modo == "stessa_altezza":
                 per c in comp: c.altezza = comp[0].altezza
-            altrimenti_se modo == "distribuisci_x" e lunghezza(comp) >= 3:
+            altrimenti_se modo == "distribuisci_x" e lunghezza_di(comp) >= 3:
                 ordinati = sorted(comp, key=lambda c: c.x)
-                spazio = (ordinati[-1].x - ordinati[0].x) / (lunghezza(ordinati) - 1)
+                spazio = (ordinati[-1].x - ordinati[0].x) / (lunghezza_di(ordinati) - 1)
                 per i, c in enumera(ordinati): c.x = int(ordinati[0].x + i * spazio)
-            altrimenti_se modo == "distribuisci_y" e lunghezza(comp) >= 3:
+            altrimenti_se modo == "distribuisci_y" e lunghezza_di(comp) >= 3:
                 ordinati = sorted(comp, key=lambda c: c.y)
-                spazio = (ordinati[-1].y - ordinati[0].y) / (lunghezza(ordinati) - 1)
+                spazio = (ordinati[-1].y - ordinati[0].y) / (lunghezza_di(ordinati) - 1)
                 per i, c in enumera(ordinati): c.y = int(ordinati[0].y + i * spazio)
         per c in comp:
             se_stesso.widget[c.nome].place_configure(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
@@ -1808,8 +1808,8 @@ classe Progettista(tk.Frame):
                                                                  anchor="w", background=c_["pannello"],
                                                                  foreground=c_["avviso"], wraplength=160))
             ritorna
-        se lunghezza(se_stesso.selezione_) > 1:
-            se_stesso.intestazione_ispettore.configure(text=f"{lunghezza(se_stesso.selezione_)} componenti")
+        se lunghezza_di(se_stesso.selezione_) > 1:
+            se_stesso.intestazione_ispettore.configure(text=f"{lunghezza_di(se_stesso.selezione_)} componenti")
             aggiungi_riga("", lambda p: tk.Label(p, text="Usa «Allinea» per disporli.\nCanc per eliminarli.",
                                                   justify="left", anchor="w", background=c_["pannello"],
                                                   foreground=c_["tenue"]))
@@ -1852,7 +1852,7 @@ classe Progettista(tk.Frame):
                         highlightbackground=c_["bordo"], highlightcolor=c_["accento"], buttonbackground=c_["pulsante"],
                         command=lambda: alla_conferma(sp.get()))
         sp.delete(0, "end")
-        sp.insert(0, testo(valore))
+        sp.insert(0, tipo_testo(valore))
         sp.bind("<Return>", lambda ev: alla_conferma(sp.get()))
         sp.bind("<FocusOut>", lambda ev: alla_conferma(sp.get()))
 
@@ -1955,7 +1955,7 @@ classe Progettista(tk.Frame):
         altrimenti_se tipo_ == "numero":
             aggiungi_riga(etichetta, lambda p: se_stesso._spin(p, getattr(f, attributo), cambia, minimo_, massimo_))
         altrimenti:
-            aggiungi_riga(etichetta, lambda p: se_stesso._entry(p, testo(getattr(f, attributo)), cambia))
+            aggiungi_riga(etichetta, lambda p: se_stesso._entry(p, tipo_testo(getattr(f, attributo)), cambia))
 
     definisci _campo_colore(se_stesso, genitore, valore, alla_conferma):
         cornice = tk.Frame(genitore, background=se_stesso.colori["pannello"])
@@ -2031,7 +2031,7 @@ classe Progettista(tk.Frame):
         definisci azzera():
             cb.set("")
             sp.delete(0, "end")
-            sp.insert(0, testo(predefinita))
+            sp.insert(0, tipo_testo(predefinita))
             per v in variabili.values():
                 v.set(Falso)
             stato["corrente"] = ""
@@ -2113,7 +2113,7 @@ classe Progettista(tk.Frame):
             stile_suggerisci(b, "Scrivi i menu e le loro voci", c_)
             ritorna cornice
         se tipo_ == "elenco":
-            ritorna se_stesso._entry(genitore, ", ".join(testo(x) per x in (valore o [])),
+            ritorna se_stesso._entry(genitore, ", ".join(tipo_testo(x) per x in (valore o [])),
                                      lambda v: se_stesso._modifica(c, chiave, [x.strip() per x in v.split(",") se x.strip()]))
         se tipo_ == "numero":
             minimo, massimo = se_stesso.limiti_proprieta(c, chiave)
@@ -2198,7 +2198,7 @@ classe Progettista(tk.Frame):
             b.pack(side="left", padx=2)
             stile_suggerisci(b, "Crea il gestore nel file della logica e ci va", c_)
             ritorna cornice
-        ritorna se_stesso._entry(genitore, testo(valore se valore è non Nessuno altrimenti ""),
+        ritorna se_stesso._entry(genitore, tipo_testo(valore se valore è non Nessuno altrimenti ""),
                                  lambda v: se_stesso._modifica(c, chiave, v))
 
     # ------------------------------------------------------------ dati: fonte, tabella, campo
@@ -2226,7 +2226,7 @@ classe Progettista(tk.Frame):
                 elenco, errore = schema_dati.elenco_colonne(f.valori, se_stesso.cartella, se_stesso._chiedi_password)
             se errore:
                 se_stesso.azioni.info(errore)
-            cb["values"] = [""] + lista(elenco)
+            cb["values"] = [""] + tipo_lista(elenco)
 
         definisci scelto(ev=Nessuno):
             nuovo = cb.get().strip()
@@ -2250,11 +2250,11 @@ classe Progettista(tk.Frame):
         elenco, errore = schema_dati.elenco_colonne(f.valori, se_stesso.cartella, se_stesso._chiedi_password)
         se errore o non elenco o any(n in elenco per n in c.valori.get("colonne", [])):
             ritorna Falso
-        nomi = lista(elenco)[:8]
-        larghezza = max(60, min(200, (c.larghezza - 30) // lunghezza(nomi)))
+        nomi = tipo_lista(elenco)[:8]
+        larghezza = max(60, min(200, (c.larghezza - 30) // lunghezza_di(nomi)))
         c.valori["colonne"] = nomi
-        c.valori["larghezze"] = [larghezza] * lunghezza(nomi)
-        c.valori["allineamenti"] = ["w"] * lunghezza(nomi)
+        c.valori["larghezze"] = [larghezza] * lunghezza_di(nomi)
+        c.valori["allineamenti"] = ["w"] * lunghezza_di(nomi)
         se_stesso._aggiorna_widget(c)
         se_stesso._registra()
         se_stesso.after_idle(se_stesso._riempi_ispettore)
@@ -2400,7 +2400,7 @@ classe Progettista(tk.Frame):
         se_stesso._segna_modificato(Falso)
         se_stesso.azioni.file_scritti(scritti)
         se_stesso.azioni.info("Salvato: " + ", ".join(os.path.basename(p) per p in scritti)
-                              + (f"   ⚠ {lunghezza(problemi)} avvisi" se problemi altrimenti ""))
+                              + (f"   ⚠ {lunghezza_di(problemi)} avvisi" se problemi altrimenti ""))
         ritorna Vero
 
     definisci ricarica_se_cambiato_su_disco(se_stesso):
@@ -2412,7 +2412,7 @@ classe Progettista(tk.Frame):
         eccetto (OSError, ValueError, KeyError):
             ritorna Falso
         se nuovo.a_json() != se_stesso.form.a_json():
-            nomi = lista(se_stesso.selezione_)
+            nomi = tipo_lista(se_stesso.selezione_)
             se_stesso.form = nuovo
             se_stesso.cronologia = [nuovo.a_json()]
             se_stesso.indice_cronologia = 0

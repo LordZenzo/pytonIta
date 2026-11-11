@@ -196,7 +196,7 @@ classe Studente:
         se_stesso.voti = voti
 
     definisci media(se_stesso):
-        ritorna somma(se_stesso.voti) / lunghezza(se_stesso.voti)
+        ritorna somma_di(se_stesso.voti) / lunghezza_di(se_stesso.voti)
 
 stampa(Studente("Anna", [8, 9, 10]).media())
 ```

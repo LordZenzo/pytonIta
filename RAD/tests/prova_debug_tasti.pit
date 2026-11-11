@@ -7,7 +7,7 @@ da rad.finestra importa Applicazione
 da rad.progetto importa Progetto
 
 cartella_temp = tempfile.mkdtemp()
-tema_scelto = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti "scuro"
+tema_scelto = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti "scuro"
 cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
 cfg.imposta("tema", tema_scelto, notifica=Falso)
 radice = tk.Tk()
@@ -21,9 +21,9 @@ p.crea_file("principale.pit", '''definisci somma(a, b):
     ritorna r
 
 
-nome = leggi("Nome? ")
+nome = leggi_tastiera("Nome? ")
 totale = 0
-per i in intervallo(3):
+per i in intervallo_di(3):
     totale = somma(totale, i)
     stampa("giro", i, totale)
 stampa("ciao", nome, totale)
@@ -95,7 +95,7 @@ stampa("F5 prosegue, si ferma di nuovo:", aspetta_che(lambda: app.debug.fermo), 
 tasto(ed.t, "<Shift-F5>")
 stampa("Maiusc+F5 ferma:", aspetta_che(lambda: non app.debug.attiva))
 radice.update()
-stampa("pannello debug nascosto dopo lo stop:", str(app.debug.pannello) non in [testo(x) per x in app.centro.panes()])
+stampa("pannello debug nascosto dopo lo stop:", str(app.debug.pannello) non in [tipo_testo(x) per x in app.centro.panes()])
 # --- file .py
 py = os.path.join(cart, "classico.py")
 edp = app.apri_file(py)

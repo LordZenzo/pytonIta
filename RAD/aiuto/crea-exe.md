@@ -9,7 +9,7 @@ Un programma pytonIta gira dentro PitStudio. Per darlo a chi **non ha né PitStu
    - **Nome del programma**: è il nome del file `.exe`.
    - **Icona**: un file `.ico` (facoltativa).
    - **Un solo file .exe**: comodo da spedire; parte un po' più lentamente. Senza la spunta ottieni una cartella con l'`.exe` e i suoi file.
-   - **Senza finestra nera**: lascia la spunta per i programmi con finestre; toglila per i programmi da console (quelli che usano `leggi()` e `stampa()`).
+   - **Senza finestra nera**: lascia la spunta per i programmi con finestre; toglila per i programmi da console (quelli che usano `leggi_tastiera()` e `stampa()`).
    - **Versione, autore, descrizione**: finiscono nelle *informazioni del file* (clic destro sull'`.exe` → *Proprietà* → *Dettagli*): nome del prodotto, versione, autore/azienda e «© autore». PitStudio ricorda le tue scelte nel progetto.
    - **Crea anche il programma di installazione**: vedi sotto.
    - **Firma**: facoltativa, vedi sotto.

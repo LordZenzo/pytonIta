@@ -41,7 +41,7 @@ db.chiudi()
 
 # argparse
 a = argomenti.AnalizzatoreArgomenti(descrizione="prova")
-a.aggiungi_argomento("--n", tipo=intero, predefinito=3, aiuto="numero")
+a.aggiungi_argomento("--n", tipo=tipo_intero, predefinito=3, aiuto="numero")
 a.aggiungi_argomento("--v", azione="memorizza_vero")
 r = a.analizza_argomenti(["--n", "7", "--v"])
 stampa("args:", r.n, r.v)

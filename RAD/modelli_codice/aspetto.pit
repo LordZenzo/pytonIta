@@ -66,9 +66,9 @@ definisci _immagine_scelta(radice, tipo_, acceso, bordo, riempimento, segno):
     n = 16
     img = tk.PhotoImage(master=radice, width=n, height=n)
     vuoti = []
-    per y in intervallo(n):
+    per y in intervallo_di(n):
         riga = []
-        per x in intervallo(n):
+        per x in intervallo_di(n):
             se tipo_ == "check":
                 se x < 1 o x > 14 o y < 1 o y > 14:
                     colore = riempimento

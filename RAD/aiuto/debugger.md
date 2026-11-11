@@ -29,7 +29,7 @@ Il pallino è **rosso** (semplice), **arancione** (con condizione o passaggi) o 
 | **F6** o il pulsante 🐞 | esegue il file principale (o il file aperto) e si ferma sui punti di arresto |
 | *Esegui → Debug: avvia passo passo dalla prima riga* | si ferma subito alla prima riga |
 
-Mentre il debugger è in funzione, il programma è un processo normale: puoi rispondere a `leggi()` nella console.
+Mentre il debugger è in funzione, il programma è un processo normale: puoi rispondere a `leggi_tastiera()` nella console.
 
 ## Il pannello Debug
 
@@ -40,7 +40,7 @@ Appare sotto l'editor quando parte il debugger.
 | **Barra dei comandi** | Continua, Passo, Entra, Esci, Ferma |
 | **Variabili** | le variabili visibili nel punto in cui il programma è fermo: nome, valore, tipo |
 | **Pila delle chiamate** | l'elenco delle funzioni attive; un clic su una riga mostra quel punto nell'editor **e le variabili e le espressioni osservate di quella funzione** (per capire con quali valori è stata chiamata) |
-| **Espressioni osservate** | scrivi un'espressione (per esempio `totale / lunghezza(voti)`) e premi Invio: il suo valore si aggiorna a ogni sosta. Per toglierla: seleziona e premi Canc |
+| **Espressioni osservate** | scrivi un'espressione (per esempio `totale / lunghezza_di(voti)`) e premi Invio: il suo valore si aggiorna a ogni sosta. Per toglierla: seleziona e premi Canc |
 
 La riga in cui il programma è fermo è evidenziata di giallo e segnata con ▶ nel margine.
 

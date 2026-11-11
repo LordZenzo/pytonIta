@@ -155,7 +155,7 @@ classe FonteDati:
             altrimenti:
                 cur.execute(sql)
         eccetto Exception come eccezione:
-            solleva ErroreDati(testo(eccezione))
+            solleva ErroreDati(tipo_testo(eccezione))
         ritorna cur
 
     definisci _leggi_struttura(se_stesso):
@@ -163,12 +163,12 @@ classe FonteDati:
             righe = se_stesso._esegui(f"SHOW COLUMNS FROM {se_stesso._n(se_stesso.tabella)}").fetchall()
             per r in righe:
                 se_stesso.colonne.append(r[0])
-                se_stesso.tipi[r[0]] = testo(r[1]).upper()
+                se_stesso.tipi[r[0]] = tipo_testo(r[1]).upper()
                 se r[3] == "PRI":
                     se_stesso.chiave.append(r[0])
-                se "auto_increment" in testo(r[5]):
+                se "auto_increment" in tipo_testo(r[5]):
                     se_stesso.automatiche.append(r[0])
-                se r[2] == "NO" e r[4] è Nessuno e "auto_increment" non in testo(r[5]):
+                se r[2] == "NO" e r[4] è Nessuno e "auto_increment" non in tipo_testo(r[5]):
                     se_stesso.obbligatorie.append(r[0])
         altrimenti:
             righe = se_stesso._esegui(f"PRAGMA table_info({se_stesso._n(se_stesso.tabella)})").fetchall()
@@ -179,7 +179,7 @@ classe FonteDati:
                     se_stesso.chiave.append(r[1])
                 se r[3] e r[4] è Nessuno e r[5] == 0:
                     se_stesso.obbligatorie.append(r[1])
-            se lunghezza(se_stesso.chiave) == 1 e "INT" in se_stesso.tipi[se_stesso.chiave[0]]:
+            se lunghezza_di(se_stesso.chiave) == 1 e "INT" in se_stesso.tipi[se_stesso.chiave[0]]:
                 se_stesso.automatiche.append(se_stesso.chiave[0])
         se non se_stesso.colonne:
             solleva ErroreDati(f"La tabella «{se_stesso.tabella}» non esiste.")
@@ -195,7 +195,7 @@ classe FonteDati:
         se ricerca:
             tipo_testo = "CHAR" se se_stesso.è_mysql altrimenti "TEXT"
             condizioni.append("(" + " OR ".join(f"CAST({se_stesso._n(c)} AS {tipo_testo}) LIKE {se_stesso.segnaposto}" per c in se_stesso.colonne) + ")")
-            par = ["%" + ricerca + "%"] * lunghezza(se_stesso.colonne)
+            par = ["%" + ricerca + "%"] * lunghezza_di(se_stesso.colonne)
         dove = (" WHERE " + " AND ".join(condizioni)) se condizioni altrimenti ""
         ordine = ""
         se ordina_per e ordina_per in se_stesso.colonne:
@@ -235,7 +235,7 @@ classe FonteDati:
         se se_stesso.è_mysql:
             se id_ è Nessuno:
                 solleva ErroreDati("La tabella non ha una chiave primaria: non posso individuare il record.")
-            ritorna " AND ".join(f"{se_stesso._n(c)} = {se_stesso.segnaposto}" per c in se_stesso.chiave), lista(id_)
+            ritorna " AND ".join(f"{se_stesso._n(c)} = {se_stesso.segnaposto}" per c in se_stesso.chiave), tipo_lista(id_)
         ritorna f"rowid = {se_stesso.segnaposto}", [id_]
 
     definisci salva(se_stesso, valori_testo, id_=Nessuno):
@@ -246,7 +246,7 @@ classe FonteDati:
             valori = [se_stesso._converti(c, valori_testo.get(c, "")) per c in nomi]
             se nomi:
                 elenco_nomi = ", ".join(se_stesso._n(c) per c in nomi)
-                segnaposti = ", ".join([se_stesso.segnaposto] * lunghezza(nomi))
+                segnaposti = ", ".join([se_stesso.segnaposto] * lunghezza_di(nomi))
                 cur = se_stesso._esegui(f"INSERT INTO {t} ({elenco_nomi}) VALUES ({segnaposti})", valori)
             altrimenti:
                 cur = se_stesso._esegui(f"INSERT INTO {t} DEFAULT VALUES" se non se_stesso.è_mysql altrimenti f"INSERT INTO {t} () VALUES ()")
@@ -281,7 +281,7 @@ classe FonteDati:
         prova:
             se_stesso.conn.commit()
         eccetto Exception come problema:
-            solleva ErroreDati(testo(problema))
+            solleva ErroreDati(tipo_testo(problema))
         se_stesso.in_sospeso = 0
 
     definisci annulla_tutto(se_stesso):
@@ -289,7 +289,7 @@ classe FonteDati:
         prova:
             se_stesso.conn.rollback()
         eccetto Exception come problema:
-            solleva ErroreDati(testo(problema))
+            solleva ErroreDati(tipo_testo(problema))
         se_stesso.in_sospeso = 0
 
     # ------------------------------------------------------------ copia di sicurezza e ripristino (solo SQLite)
@@ -370,7 +370,7 @@ classe MascheraDati:
         se_stesso.elenco = elenco
         se_stesso.campi = campi                # {colonna: campo di testo}
         se_stesso.stato = stato
-        se_stesso.colonne_elenco = lista(colonne_elenco) se colonne_elenco altrimenti lista(elenco["columns"])
+        se_stesso.colonne_elenco = tipo_lista(colonne_elenco) se colonne_elenco altrimenti tipo_lista(elenco["columns"])
         se_stesso.record = []
         se_stesso.id_corrente = Nessuno
         se_stesso.ricerca = ""
@@ -384,23 +384,23 @@ classe MascheraDati:
         prova:
             se_stesso.record = se_stesso.fonte.record(se_stesso.ricerca)
         eccetto ErroreDati come errore:
-            messagebox.showerror("Database", testo(errore))
+            messagebox.showerror("Database", tipo_testo(errore))
             ritorna
         se_stesso.elenco.delete(*se_stesso.elenco.get_children())
         indice = Nessuno
         per i, (id_, valori) in enumera(se_stesso.record):
-            se_stesso.elenco.insert("", "end", iid=testo(i), values=["" se valori.get(c) è Nessuno altrimenti valori.get(c) per c in se_stesso.colonne_elenco])
+            se_stesso.elenco.insert("", "end", iid=tipo_testo(i), values=["" se valori.get(c) è Nessuno altrimenti valori.get(c) per c in se_stesso.colonne_elenco])
             se seleziona è non Nessuno e id_ == seleziona:
                 indice = i
         se indice è Nessuno e se_stesso.record e seleziona è Nessuno:
             indice = 0
         se indice è non Nessuno:
-            se_stesso.elenco.selection_set(testo(indice))
-            se_stesso.elenco.see(testo(indice))
+            se_stesso.elenco.selection_set(tipo_testo(indice))
+            se_stesso.elenco.see(tipo_testo(indice))
             se_stesso.mostra(indice)
         altrimenti:
             se_stesso.nuovo()
-        n = lunghezza(se_stesso.record)
+        n = lunghezza_di(se_stesso.record)
         se_stesso._messaggio(f"{n} record" + (f"  ·  ricerca: «{se_stesso.ricerca}»" se se_stesso.ricerca altrimenti "") + (f"  (mostrati i primi {MASSIMO_RECORD})" se n >= MASSIMO_RECORD altrimenti ""))
 
     definisci mostra(se_stesso, indice):
@@ -412,7 +412,7 @@ classe MascheraDati:
         per colonna, campo in se_stesso.campi.items():
             v = valori.get(colonna)
             campo.delete(0, "end")
-            campo.insert(0, "" se v è Nessuno altrimenti testo(v))
+            campo.insert(0, "" se v è Nessuno altrimenti tipo_testo(v))
 
     definisci scelta_riga(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco.selection()
@@ -435,7 +435,7 @@ classe MascheraDati:
         prova:
             id_ = se_stesso.fonte.salva(valori, se_stesso.id_corrente)
         eccetto ErroreDati come errore:
-            messagebox.showwarning("Il record non è stato salvato", testo(errore))
+            messagebox.showwarning("Il record non è stato salvato", tipo_testo(errore))
             ritorna
         se_stesso.ricarica(id_)
         se_stesso._messaggio("Salvato.")
@@ -449,7 +449,7 @@ classe MascheraDati:
         prova:
             se_stesso.fonte.elimina(se_stesso.id_corrente)
         eccetto ErroreDati come errore:
-            messagebox.showwarning("Il record non è stato eliminato", testo(errore))
+            messagebox.showwarning("Il record non è stato eliminato", tipo_testo(errore))
             ritorna
         se_stesso.id_corrente = Nessuno
         se_stesso.ricarica()
@@ -542,7 +542,7 @@ classe BarraDati(tk.Frame):
         prova:
             f.copia_di_sicurezza(scelto)
         eccetto ErroreDati come errore:
-            messagebox.showerror("Copia di sicurezza", testo(errore), parent=se_stesso)
+            messagebox.showerror("Copia di sicurezza", tipo_testo(errore), parent=se_stesso)
             ritorna
         messagebox.showinfo("Copia di sicurezza", "Copia salvata:\n" + scelto + "\n\nPer tornare a questi dati usa «Ripristina da una copia…».", parent=se_stesso)
 
@@ -556,7 +556,7 @@ classe BarraDati(tk.Frame):
         prova:
             f.controlla_copia(scelto)
         eccetto ErroreDati come errore:
-            messagebox.showerror("Ripristino", testo(errore), parent=se_stesso)
+            messagebox.showerror("Ripristino", tipo_testo(errore), parent=se_stesso)
             ritorna
         se non messagebox.askyesno("Ripristina da una copia", "I dati attuali verranno sostituiti con quelli della copia.\n\nPrima di sostituirli salvo una copia automatica dei dati di adesso "
                                    "accanto al database, così puoi tornare indietro. Procedo?", parent=se_stesso, icon="warning"):
@@ -565,7 +565,7 @@ classe BarraDati(tk.Frame):
             automatica = f.copia_automatica()
             f.ripristina_da(scelto)
         eccetto ErroreDati come errore:
-            messagebox.showerror("Ripristino", testo(errore), parent=se_stesso)
+            messagebox.showerror("Ripristino", tipo_testo(errore), parent=se_stesso)
             ritorna
         se se_stesso.collegamento:
             se_stesso.collegamento.ricarica()
@@ -667,7 +667,7 @@ classe Collegamento:
                     solleva ErroreDati(f"Il database «{database}» non esiste.")
                 fonte = FonteDati.sqlite(percorso, tabella)
         eccetto ErroreDati come problema:
-            errore = testo(problema)
+            errore = tipo_testo(problema)
             messagebox.showwarning("Database", errore, parent=radice)
         ritorna Collegamento(radice, fonte, filtro, ordina_per, decrescente, al_cambio, errore, salva_da_solo, transazione)
 
@@ -699,7 +699,7 @@ classe Collegamento:
             voci = []
             per i, (id_, valori) in enumera(se_stesso.record):
                 etichetta = valori.get(colonna_etichette) se colonna_etichette altrimenti i + 1
-                voci.append(("" se etichetta è Nessuno altrimenti testo(etichetta), valori.get(colonna_valori) se colonna_valori altrimenti 1))
+                voci.append(("" se etichetta è Nessuno altrimenti tipo_testo(etichetta), valori.get(colonna_valori) se colonna_valori altrimenti 1))
             prova:
                 grafico.imposta_dati(voci)
             eccetto tk.TclError:
@@ -718,16 +718,16 @@ classe Collegamento:
         se classe_tk == "Text":
             ritorna w.get("1.0", "end-1c")
         se classe_tk == "Checkbutton":
-            ritorna "1" se testo(w.getvar(testo(w.cget("variable")))) in ("1", "True", "true") altrimenti "0"
+            ritorna "1" se tipo_testo(w.getvar(tipo_testo(w.cget("variable")))) in ("1", "True", "true") altrimenti "0"
         se classe_tk == "Scale":
             x = float(w.get())
-            ritorna testo(int(x)) se x == int(x) altrimenti testo(x)
+            ritorna tipo_testo(int(x)) se x == int(x) altrimenti tipo_testo(x)
         ritorna w.get()
 
     @staticmethod
     definisci _scrivi(w, valore):
         classe_tk = w.winfo_class()
-        testo_ = "" se valore è Nessuno altrimenti testo(valore)
+        testo_ = "" se valore è Nessuno altrimenti tipo_testo(valore)
         se classe_tk == "Label":
             w.configure(text=testo_)
         altrimenti_se classe_tk == "Checkbutton":
@@ -744,7 +744,7 @@ classe Collegamento:
         altrimenti_se classe_tk == "TCombobox":
             w.set(testo_)
         altrimenti_se classe_tk == "Text":
-            disattivo = testo(w.cget("state")) == "disabled"
+            disattivo = tipo_testo(w.cget("state")) == "disabled"
             se disattivo:
                 w.configure(state="normal")
             w.delete("1.0", "end")
@@ -752,7 +752,7 @@ classe Collegamento:
             se disattivo:
                 w.configure(state="disabled")
         altrimenti:
-            disattivo = testo(w.cget("state")) == "disabled"
+            disattivo = tipo_testo(w.cget("state")) == "disabled"
             se disattivo:
                 w.configure(state="normal")
             w.delete(0, "end")
@@ -767,11 +767,11 @@ classe Collegamento:
 
     # ------------------------------------------------------------ record
     definisci numero_record(se_stesso):
-        ritorna lunghezza(se_stesso.record)
+        ritorna lunghezza_di(se_stesso.record)
 
     definisci corrente(se_stesso):
         """Il record corrente come dizionario {colonna: valore} (vuoto se si sta scrivendo un record nuovo)."""
-        se 0 <= se_stesso.indice < lunghezza(se_stesso.record) e non se_stesso.in_nuovo:
+        se 0 <= se_stesso.indice < lunghezza_di(se_stesso.record) e non se_stesso.in_nuovo:
             ritorna dict(se_stesso.record[se_stesso.indice][1])
         ritorna {}
 
@@ -790,7 +790,7 @@ classe Collegamento:
         prova:
             se_stesso.record = se_stesso.fonte.record(se_stesso.ricerca, se_stesso.filtro, se_stesso.ordina_per, se_stesso.decrescente)
         eccetto ErroreDati come problema:
-            messagebox.showerror("Database", testo(problema), parent=se_stesso.radice)
+            messagebox.showerror("Database", tipo_testo(problema), parent=se_stesso.radice)
             ritorna
         se_stesso._riempi_griglie()
         se_stesso._riempi_grafici()
@@ -812,28 +812,28 @@ classe Collegamento:
             per w, colonna in se_stesso.griglie:
                 se w.winfo_class() == "Treeview":
                     w.delete(*w.get_children())
-                    nomi = lista(w["columns"])
+                    nomi = tipo_lista(w["columns"])
                     per i, (id_, valori) in enumera(se_stesso.record):
-                        w.insert("", "end", iid=testo(i), values=["" se valori.get(n) è Nessuno altrimenti valori.get(n) per n in nomi],
+                        w.insert("", "end", iid=tipo_testo(i), values=["" se valori.get(n) è Nessuno altrimenti valori.get(n) per n in nomi],
                                  tags=("sporca",) se id_ in se_stesso._sporche altrimenti ())
                 altrimenti:
                     w.delete(0, "end")
                     per id_, valori in se_stesso.record:
-                        w.insert("end", "" se valori.get(colonna) è Nessuno altrimenti testo(valori.get(colonna)))
+                        w.insert("end", "" se valori.get(colonna) è Nessuno altrimenti tipo_testo(valori.get(colonna)))
         infine:
             se_stesso._muovo = Falso
 
     definisci _seleziona_nelle_griglie(se_stesso):
-        valido = 0 <= se_stesso.indice < lunghezza(se_stesso.record) e non se_stesso.in_nuovo
+        valido = 0 <= se_stesso.indice < lunghezza_di(se_stesso.record) e non se_stesso.in_nuovo
         se_stesso._muovo = Vero
         prova:
             per w, colonna in se_stesso.griglie:
                 se w.winfo_class() == "Treeview":
-                    voluta = (testo(se_stesso.indice),) se valido altrimenti ()
+                    voluta = (tipo_testo(se_stesso.indice),) se valido altrimenti ()
                     se tuple(w.selection()) != voluta:           # (se è già così non la tocco: ogni cambio rimanda un evento)
                         w.selection_set(voluta) se valido altrimenti w.selection_remove(*w.selection())
                     se valido:
-                        w.see(testo(se_stesso.indice))
+                        w.see(tipo_testo(se_stesso.indice))
                 altrimenti:
                     voluta = (se_stesso.indice,) se valido altrimenti ()
                     se tuple(w.curselection()) != voluta:
@@ -880,13 +880,13 @@ classe Collegamento:
     definisci _apri_editor(se_stesso, w, riga, numero_colonna):
         """Una casella di testo sopra la cella: Invio/Tab confermano, Esc annulla. Le colonne che il database riempie da solo non si scrivono."""
         se_stesso._chiudi_editor()
-        nomi = lista(w["columns"])
-        se numero_colonna < 0 o numero_colonna >= lunghezza(nomi):
+        nomi = tipo_lista(w["columns"])
+        se numero_colonna < 0 o numero_colonna >= lunghezza_di(nomi):
             ritorna
         nome = nomi[numero_colonna]
         nuova = riga == "nuova"
         se nome in se_stesso.fonte.automatiche:               # salto alla prossima colonna scrivibile
-            per k in range(numero_colonna + 1, lunghezza(nomi)):
+            per k in range(numero_colonna + 1, lunghezza_di(nomi)):
                 se nomi[k] non in se_stesso.fonte.automatiche:
                     se_stesso._apri_editor(w, riga, k)
                     ritorna
@@ -898,7 +898,7 @@ classe Collegamento:
             ritorna
         x, y, larghezza, altezza = riquadro
         id_ = Nessuno se nuova altrimenti se_stesso.record[int(riga)][0]
-        attuale = testo(w.set(riga, nome))
+        attuale = tipo_testo(w.set(riga, nome))
         casella = tk.Entry(w)
         casella.insert(0, attuale)
         casella.select_range(0, "end")
@@ -928,15 +928,15 @@ classe Collegamento:
 
     definisci _cella_dopo(se_stesso, w, id_, riga, numero_colonna):
         """Apre l'editor della cella a destra (nella stessa riga) dopo aver scritto la precedente."""
-        nomi = lista(w["columns"])
-        se numero_colonna + 1 >= lunghezza(nomi):
+        nomi = tipo_lista(w["columns"])
+        se numero_colonna + 1 >= lunghezza_di(nomi):
             ritorna
         iid = riga
         se riga != "nuova" e id_ è non Nessuno:
             iid = Nessuno
             per i, (rid, valori) in enumera(se_stesso.record):
                 se rid == id_:
-                    iid = testo(i)
+                    iid = tipo_testo(i)
             se iid è Nessuno:
                 ritorna
         altrimenti_se riga == "nuova" e "nuova" non in w.get_children():
@@ -957,7 +957,7 @@ classe Collegamento:
             eccetto ErroreObbligatorio:
                 ritorna           # mancano ancora dei campi: si aspetta
             eccetto ErroreDati come problema:
-                messagebox.showwarning("Il record non è stato salvato", testo(problema), parent=se_stesso.radice)
+                messagebox.showwarning("Il record non è stato salvato", tipo_testo(problema), parent=se_stesso.radice)
                 ritorna
             se_stesso._riga_nuova = {}
             se_stesso._segna(nuovo_id)
@@ -969,7 +969,7 @@ classe Collegamento:
         prova:
             se_stesso.fonte.salva({nome: nuovo_testo}, id_)
         eccetto ErroreDati come problema:
-            messagebox.showwarning("Il valore non è stato salvato", testo(problema), parent=se_stesso.radice)
+            messagebox.showwarning("Il valore non è stato salvato", tipo_testo(problema), parent=se_stesso.radice)
             ritorna
         se_stesso._segna(id_)
         se_stesso.ricarica(id_)
@@ -984,8 +984,8 @@ classe Collegamento:
         se "nuova" in w.get_children():
             w.delete("nuova")
         se_stesso._riga_nuova = {}
-        nomi = lista(w["columns"])
-        w.insert("", "end", iid="nuova", values=[""] * lunghezza(nomi), tags=("sporca",))
+        nomi = tipo_lista(w["columns"])
+        w.insert("", "end", iid="nuova", values=[""] * lunghezza_di(nomi), tags=("sporca",))
         w.see("nuova")
         per k, n in enumera(nomi):
             se n non in se_stesso.fonte.automatiche:
@@ -1016,7 +1016,7 @@ classe Collegamento:
         prova:
             nuovo_id = se_stesso.fonte.salva(valori, id_)
         eccetto ErroreDati come problema:
-            messagebox.showwarning("Il record non è stato salvato", testo(problema), parent=se_stesso.radice)
+            messagebox.showwarning("Il record non è stato salvato", tipo_testo(problema), parent=se_stesso.radice)
             ritorna Falso, Nessuno
         se_stesso._segna(nuovo_id)
         ritorna Vero, nuovo_id
@@ -1054,7 +1054,7 @@ classe Collegamento:
                     altrimenti:
                         se_stesso.fonte.annulla_tutto()
                 eccetto ErroreDati come problema:
-                    messagebox.showwarning("Database", testo(problema), parent=se_stesso.radice)
+                    messagebox.showwarning("Database", tipo_testo(problema), parent=se_stesso.radice)
                     ritorna
             se precedente:
                 finestra.tk.call(precedente)
@@ -1073,7 +1073,7 @@ classe Collegamento:
         """Va al record numero `indice` (da 0); se il record attuale è stato modificato lo salva prima."""
         se non se_stesso.record:
             ritorna
-        indice = max(0, min(lunghezza(se_stesso.record) - 1, indice))
+        indice = max(0, min(lunghezza_di(se_stesso.record) - 1, indice))
         destinazione = se_stesso.record[indice][0]
         riuscito, id_ = se_stesso._conferma()
         se non riuscito:
@@ -1089,7 +1089,7 @@ classe Collegamento:
     definisci _vai(se_stesso, indice):
         se non se_stesso.record:
             ritorna
-        indice = max(0, min(lunghezza(se_stesso.record) - 1, indice))
+        indice = max(0, min(lunghezza_di(se_stesso.record) - 1, indice))
         se_stesso.indice = indice
         se_stesso.in_nuovo = Falso
         se_stesso._mostra_campi(se_stesso.record[indice][1])
@@ -1100,13 +1100,13 @@ classe Collegamento:
         se_stesso.vai(0)
 
     definisci precedente(se_stesso):
-        se_stesso.vai(lunghezza(se_stesso.record) - 1 se se_stesso.in_nuovo altrimenti se_stesso.indice - 1)
+        se_stesso.vai(lunghezza_di(se_stesso.record) - 1 se se_stesso.in_nuovo altrimenti se_stesso.indice - 1)
 
     definisci successivo(se_stesso):
         se_stesso.vai(se_stesso.indice + 1)
 
     definisci ultimo(se_stesso):
-        se_stesso.vai(lunghezza(se_stesso.record) - 1)
+        se_stesso.vai(lunghezza_di(se_stesso.record) - 1)
 
     # ------------------------------------------------------------ modifiche
     definisci nuovo(se_stesso):
@@ -1146,12 +1146,12 @@ classe Collegamento:
         prova:
             se_stesso.fonte.elimina(se_stesso.record[se_stesso.indice][0])
         eccetto ErroreDati come problema:
-            messagebox.showwarning("Il record non è stato eliminato", testo(problema), parent=se_stesso.radice)
+            messagebox.showwarning("Il record non è stato eliminato", tipo_testo(problema), parent=se_stesso.radice)
             ritorna
         posto = se_stesso.indice
         se_stesso.ricarica()
         se se_stesso.record:
-            se_stesso._vai(min(posto, lunghezza(se_stesso.record) - 1))
+            se_stesso._vai(min(posto, lunghezza_di(se_stesso.record) - 1))
 
     definisci annulla(se_stesso):
         """Torna ai valori salvati del record (o svuota i campi di uno nuovo)."""
@@ -1183,7 +1183,7 @@ classe Collegamento:
         prova:
             se_stesso.fonte.conferma()
         eccetto ErroreDati come problema:
-            messagebox.showwarning("Le modifiche non sono state confermate", testo(problema), parent=se_stesso.radice)
+            messagebox.showwarning("Le modifiche non sono state confermate", tipo_testo(problema), parent=se_stesso.radice)
             ritorna Falso
         se_stesso._sporche.clear()
         se_stesso._ritrova(id_ se id_ è non Nessuno altrimenti se_stesso._id_corrente())
@@ -1198,14 +1198,14 @@ classe Collegamento:
         prova:
             se_stesso.fonte.annulla_tutto()
         eccetto ErroreDati come problema:
-            messagebox.showwarning("Le modifiche non sono state annullate", testo(problema), parent=se_stesso.radice)
+            messagebox.showwarning("Le modifiche non sono state annullate", tipo_testo(problema), parent=se_stesso.radice)
             ritorna Falso
         se_stesso._sporche.clear()
         se_stesso._ritrova(id_)
         ritorna Vero
 
     definisci _id_corrente(se_stesso):
-        se 0 <= se_stesso.indice < lunghezza(se_stesso.record) e non se_stesso.in_nuovo:
+        se 0 <= se_stesso.indice < lunghezza_di(se_stesso.record) e non se_stesso.in_nuovo:
             ritorna se_stesso.record[se_stesso.indice][0]
         ritorna Nessuno
 

@@ -9,7 +9,7 @@ da rad.progetto importa Progetto
 QUI = os.path.dirname(os.path.abspath(__file__))
 d = tempfile.mkdtemp()
 cfg = Configurazione(os.path.join(d, "config.json"))
-tema_scelto = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti "scuro"
+tema_scelto = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti "scuro"
 cfg.imposta("tema", tema_scelto, notifica=Falso)
 Progetto.nuovo(os.path.join(d, "Anagrafica"), "Anagrafica", "finestra")
 Progetto.nuovo(os.path.join(d, "Calcolatrice"), "Calcolatrice", "mattonelle")

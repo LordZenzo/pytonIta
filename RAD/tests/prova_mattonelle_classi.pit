@@ -42,7 +42,7 @@ classe Punto:
 
     definisci __init__(self, x, y=0):
         self.x, self.y = x, y
-        self.nome = "p" + testo(x)
+        self.nome = "p" + tipo_testo(x)
         Punto.contatore += 1
 
     @property
@@ -60,9 +60,9 @@ classe Punto:
         ritorna Punto(0, 0)
 
     definisci descrivi(self, **opz):
-        parti = [testo(v) per v in (self.x, self.y) se v >= 0]
-        quadrati = insieme(v * v per v in (self.x, self.y) se v)
-        ritorna ", ".join(parti) + " " + testo(lunghezza(quadrati)) + (" nome" se self.nome altrimenti "-")
+        parti = [tipo_testo(v) per v in (self.x, self.y) se v >= 0]
+        quadrati = tipo_insieme(v * v per v in (self.x, self.y) se v)
+        ritorna ", ".join(parti) + " " + tipo_testo(lunghezza_di(quadrati)) + (" nome" se self.nome altrimenti "-")
 
 
 classe Cerchio(Punto):
@@ -86,7 +86,7 @@ definisci principale():
     stampa(p.descrivi())
     c = Cerchio(3, 4, 5)
     stampa(c.dentro(2), c.dentro(9), c.dentro(99), c.fette(), c.dati)
-    ordine = ordinato([3, 1, 2], chiave=lambda v: -v)
+    ordine = ordinato_di([3, 1, 2], chiave=lambda v: -v)
     stampa(ordine)
     prova:
         1 / 0
@@ -112,7 +112,7 @@ se __nome__ == "__main__":
     principale()
 '''
 prog, rap = converti_sorgente(sorgente, "prova")
-stampa("classi convertite:", [x.nome per x in prog.classi], "| metodi:", lunghezza([f per f in prog.funzioni se f.classe]))
+stampa("classi convertite:", [x.nome per x in prog.classi], "| metodi:", lunghezza_di([f per f in prog.funzioni se f.classe]))
 stampa("base e decoratori:", prog.classe_("Cerchio").base, "|", prog.funzione("Punto.doppio").decoratori, prog.funzione("Punto.origine").decoratori)
 stampa("attributi di classe:", "contatore = 0" in prog.classe_("Punto").attributi)
 stampa("righe libere:", rap["righe_libere"], "espressioni libere:", rap["espressioni_libere"], "| elenco:", rap["libere"])
@@ -154,7 +154,7 @@ ed = mattonelle_ui.EditorMattonelle(radice, os.path.join(tempfile.mkdtemp(), "p.
 ed.pack(fill="both", expand=Vero)
 applica(radice, col)
 radice.update()
-stampa("una pagina per metodo:", [n per n in ed.viste se "." in n][:4], lunghezza([n per n in ed.viste se "." in n]))
+stampa("una pagina per metodo:", [n per n in ed.viste se "." in n][:4], lunghezza_di([n per n in ed.viste se "." in n]))
 ed.vai_alla_funzione("Cerchio.dentro"); radice.update()
 stampa("pagina corrente:", ed.vista_corrente().nome_area, "| classe corrente:", ed._classe_corrente())
 # nuova classe e nuovo metodo (finestre pilotate)

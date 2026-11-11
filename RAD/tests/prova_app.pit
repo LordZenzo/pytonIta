@@ -20,7 +20,7 @@ classe FalsoServer(BaseHTTPRequestHandler):
     definisci do_POST(se_stesso):
         corpo = json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])))
         FalsoServer.chiamate.append(corpo)
-        passo = lunghezza(FalsoServer.chiamate)
+        passo = lunghezza_di(FalsoServer.chiamate)
         se se_stesso.headers.get("x-api-key") != "chiave-di-prova":
             r = (401, {"error": {"type": "authentication_error", "message": "chiave non valida"}})
         altrimenti_se passo == 1:
@@ -41,7 +41,7 @@ classe FalsoServer(BaseHTTPRequestHandler):
         dati = json.dumps(r[1]).encode()
         se_stesso.send_response(r[0])
         se_stesso.send_header("Content-Type", "application/json")
-        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.send_header("Content-Length", tipo_testo(lunghezza_di(dati)))
         se_stesso.end_headers()
         se_stesso.wfile.write(dati)
 
@@ -55,7 +55,7 @@ cfg.imposta("ai.conferma_esecuzione", Falso, notifica=Falso)
 radice = tk.Tk()
 app = Applicazione(radice, cfg)
 radice.update()
-stampa("avvio ok; schede:", lunghezza(app.schede))
+stampa("avvio ok; schede:", lunghezza_di(app.schede))
 
 # --- progetto con finestra
 cart = os.path.join(cartella_temp, "ProgettoProva")
@@ -63,17 +63,17 @@ Progetto.nuovo(cart, "ProgettoProva", "finestra")
 app.apri_progetto(cart)
 radice.update()
 stampa("schede dopo apertura:", sorted(os.path.basename(p) per p in app.schede))
-stampa("albero:", lunghezza(app.pannello_progetto.albero.get_children("")))
+stampa("albero:", lunghezza_di(app.pannello_progetto.albero.get_children("")))
 
 # --- apri form e codice, esegui
 form_p = os.path.join(cart, "principale.form.json")
 w = app.apri_file(form_p)
-stampa("progettista:", isinstance(w, Progettista), lunghezza(w.form.componenti))
+stampa("progettista:", isinstance(w, Progettista), lunghezza_di(w.form.componenti))
 ed = app.apri_file(os.path.join(cart, "principale.pit"))
 stampa("editor:", isinstance(ed, Editor), "al_clic_saluta" in ed.contenuto())
 
 # --- esecuzione di un programma da console
-Progetto(cart).crea_file("somma.pit", "n = intero(leggi())\nstampa('somma', n + 1)\n")
+Progetto(cart).crea_file("somma.pit", "n = tipo_intero(leggi_tastiera())\nstampa('somma', n + 1)\n")
 app.esegui_file(os.path.join(cart, "somma.pit"))
 app.console.esecutore.invia("41")
 t0 = time.time()
@@ -88,10 +88,10 @@ ed.t.insert("end", "\nse Vero\n    passa\n")
 radice.update()
 time.sleep(0.9)
 radice.update()
-stampa("errore sintassi segnato:", lunghezza(ed._righe_errore) > 0)
+stampa("errore sintassi segnato:", lunghezza_di(ed._righe_errore) > 0)
 
 # --- assistente AI con falso server
-app.mostra_chat() se testo(app.chat) non in [testo(x) per x in app.corpo.panes()] altrimenti Nessuno
+app.mostra_chat() se tipo_testo(app.chat) non in [tipo_testo(x) per x in app.corpo.panes()] altrimenti Nessuno
 app.chat.invia("Crea un file e una finestra")
 t0 = time.time()
 mentre (app.chat.lavoro.is_alive() o (non app.chat.eventi.empty())) e time.time() - t0 < 30:
@@ -100,13 +100,13 @@ mentre (app.chat.lavoro.is_alive() o (non app.chat.eventi.empty())) e time.time(
 radice.update()
 radice.update()
 cr = app.chat.t.get("1.0", "end")
-stampa("chiamate API:", lunghezza(FalsoServer.chiamate), "token:", app.chat.token_ingresso, app.chat.token_uscita)
+stampa("chiamate API:", lunghezza_di(FalsoServer.chiamate), "token:", app.chat.token_ingresso, app.chat.token_uscita)
 stampa("chat mostra strumenti:", "🛠 elenca_file" in cr, "🛠 scrivi_file" in cr, "Fatto!" in cr)
 stampa("file creato dall'AI:", open(os.path.join(cart, "nuovo.pit")).read().strip())
 stampa("finestra creata:", sorted(f per f in os.listdir(cart) se f.startswith("dialogo")))
 stampa("scheda dialogo aperta:", any(os.path.basename(p) == "dialogo.form.json" per p in app.schede))
 primo = FalsoServer.chiamate[0]
-stampa("richiesta: modello", primo["model"], "strumenti", lunghezza(primo["tools"]), "sistema ha manuale:", "pytonIta" in primo["system"][0]["text"])
+stampa("richiesta: modello", primo["model"], "strumenti", lunghezza_di(primo["tools"]), "sistema ha manuale:", "pytonIta" in primo["system"][0]["text"])
 ultimo = FalsoServer.chiamate[-1]["messages"][-1]["content"]
 stampa("risultati strumenti:", [(r["tool_use_id"], r.get("is_error", Falso)) per r in ultimo])
 # chiave sbagliata

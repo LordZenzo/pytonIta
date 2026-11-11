@@ -53,7 +53,7 @@ Usare lo stesso nome per due cose diverse è un errore che si scopre tardi. Quan
 Viene segnalato:
 - un **parametro o una variabile locale che nasconde un nome del modulo** (o della funzione che la contiene): `totale` globale e `totale` dentro una funzione;
 - una **variabile con lo stesso nome di una funzione o classe** dello stesso ambito;
-- un nome che coincide con una **funzione del linguaggio che poi chiami** nello stesso ambito (`lista = lista(x)`).
+- un nome che coincide con una **funzione del linguaggio che poi chiami** nello stesso ambito (`tipo_lista = tipo_lista(x)`).
 
 Non viene segnalato lo stesso nome in due funzioni separate (`i`, `x`, `risultato`), i nomi che iniziano con `_`, `se_stesso` e le variabili del blocco `se __nome__ == "__main__":`. Non blocca nulla, e si spegne in [Impostazioni](#impostazioni) → Editor. Se rinomini con **F2** un nome evidenziato come omonimo, la conferma ti avvisa che il cambio tocca tutte le cose che hanno quel nome.
 

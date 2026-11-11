@@ -46,8 +46,8 @@ classe Risultato:
     """L'esito di un'istruzione SQL: colonne e righe (se restituisce dati), righe modificate, durata."""
 
     definisci __inizializza__(se_stesso, colonne=(), righe=(), modificate=-1, durata=0.0, troncato=Falso, sql=""):
-        se_stesso.colonne = lista(colonne)
-        se_stesso.righe = lista(righe)
+        se_stesso.colonne = tipo_lista(colonne)
+        se_stesso.righe = tipo_lista(righe)
         se_stesso.modificate = modificate
         se_stesso.durata = durata
         se_stesso.troncato = troncato
@@ -55,7 +55,7 @@ classe Risultato:
 
     definisci riassunto(se_stesso):
         se se_stesso.colonne:
-            n = lunghezza(se_stesso.righe)
+            n = lunghezza_di(se_stesso.righe)
             ritorna f"{n} righe" + (" (limitato)" se se_stesso.troncato altrimenti "") + f" in {se_stesso.durata * 1000:.0f} ms"
         se se_stesso.modificate >= 0:
             ritorna f"{se_stesso.modificate} righe modificate in {se_stesso.durata * 1000:.0f} ms"
@@ -68,7 +68,7 @@ definisci dividi_istruzioni(sql):
     istruzioni = []
     corrente = []
     i = 0
-    n = lunghezza(sql)
+    n = lunghezza_di(sql)
     apice = Nessuno
     mentre i < n:
         c = sql[i]
@@ -143,7 +143,7 @@ definisci valore_sql(testo_):
 definisci predefinito_utente(p):
     """Il valore predefinito come lo scrive l'utente: quello letto dal database arriva con gli apici («'abc'»), qui senza."""
     t = (p o "").strip()
-    se lunghezza(t) >= 2 e t[0] == t[-1] e t[0] in "'\"":
+    se lunghezza_di(t) >= 2 e t[0] == t[-1] e t[0] in "'\"":
         ritorna t[1:-1].replace(t[0] * 2, t[0])
     ritorna t
 
@@ -153,8 +153,8 @@ definisci a_testo(valore):
     se valore è Nessuno:
         ritorna "NULL"
     se isinstance(valore, (bytes, bytearray)):
-        ritorna f"<BLOB {lunghezza(valore)} byte>"
-    ritorna testo(valore)
+        ritorna f"<BLOB {lunghezza_di(valore)} byte>"
+    ritorna tipo_testo(valore)
 
 
 definisci da_testo(valore_testo, tipo=""):
@@ -220,16 +220,16 @@ classe Connessione:
             altrimenti:
                 cur.execute(sql)           # senza parametri: pymysql non deve trattare i «%» del testo come segnaposto
         eccetto Exception come errore:
-            solleva ErroreDatabase(testo(errore)) da errore
+            solleva ErroreDatabase(tipo_testo(errore)) da errore
         colonne = [d[0] per d in cur.description] se cur.description altrimenti []
         righe = []
         troncato = Falso
         se colonne:
             righe = cur.fetchmany(MASSIMO_RIGHE_RISULTATO + 1)
-            se lunghezza(righe) > MASSIMO_RIGHE_RISULTATO:
+            se lunghezza_di(righe) > MASSIMO_RIGHE_RISULTATO:
                 righe = righe[:MASSIMO_RIGHE_RISULTATO]
                 troncato = Vero
-        ritorna cur, colonne, [lista(r) per r in righe], cur.rowcount, troncato
+        ritorna cur, colonne, [tipo_lista(r) per r in righe], cur.rowcount, troncato
 
     definisci esegui_una(se_stesso, sql, parametri=()):
         """Esegue UNA istruzione, conferma le modifiche e ritorna un Risultato."""
@@ -239,7 +239,7 @@ classe Connessione:
             prova:
                 se_stesso.conn.commit()
             eccetto Exception come errore:
-                solleva ErroreDatabase(testo(errore)) da errore
+                solleva ErroreDatabase(tipo_testo(errore)) da errore
         ritorna Risultato(colonne, righe, modificate se non colonne altrimenti -1, time.perf_counter() - inizio, troncato, sql)
 
     definisci esegui(se_stesso, sql):
@@ -253,8 +253,8 @@ classe Connessione:
             prova:
                 ultimo = se_stesso.esegui_una(istr)
             eccetto ErroreDatabase come errore:
-                se lunghezza(istruzioni) > 1:
-                    solleva ErroreDatabase(f"Istruzione {i} di {lunghezza(istruzioni)}: {errore}") da errore
+                se lunghezza_di(istruzioni) > 1:
+                    solleva ErroreDatabase(f"Istruzione {i} di {lunghezza_di(istruzioni)}: {errore}") da errore
                 solleva
             totale += ultimo.durata
         ultimo.durata = totale
@@ -287,7 +287,7 @@ classe Connessione:
         se isinstance(id_riga, dict):
             se non id_riga:
                 solleva ErroreDatabase("La tabella non ha una chiave primaria: non posso individuare la riga.")
-            ritorna " AND ".join(f"{se_stesso.citato(k)} = {se_stesso.segnaposto}" per k in id_riga), lista(id_riga.values())
+            ritorna " AND ".join(f"{se_stesso.citato(k)} = {se_stesso.segnaposto}" per k in id_riga), tipo_lista(id_riga.values())
         se id_riga è Nessuno:
             solleva ErroreDatabase("La tabella non ha una chiave primaria: non posso individuare la riga.")
         ritorna f"rowid = {se_stesso.segnaposto}", [id_riga]
@@ -305,8 +305,8 @@ classe Connessione:
         q = se_stesso.citato(tabella)
         se valori:
             nomi = ", ".join(se_stesso.citato(k) per k in valori)
-            segn = ", ".join([se_stesso.segnaposto] * lunghezza(valori))
-            se_stesso.esegui_una(f"INSERT INTO {q} ({nomi}) VALUES ({segn})", lista(valori.values()))
+            segn = ", ".join([se_stesso.segnaposto] * lunghezza_di(valori))
+            se_stesso.esegui_una(f"INSERT INTO {q} ({nomi}) VALUES ({segn})", tipo_lista(valori.values()))
         altrimenti:
             se_stesso.esegui_una(f"INSERT INTO {q} DEFAULT VALUES" se se_stesso.dialetto == "sqlite" altrimenti f"INSERT INTO {q} () VALUES ()")
 
@@ -373,11 +373,11 @@ classe Connessione:
             n = 0
             q = se_stesso.citato(tabella)
             nomi = ", ".join(se_stesso.citato(c) per c in intestazione)
-            segn = ", ".join([se_stesso.segnaposto] * lunghezza(intestazione))
+            segn = ", ".join([se_stesso.segnaposto] * lunghezza_di(intestazione))
             per riga in lettore:
                 se non riga:
                     continua
-                se_stesso.esegui_una(f"INSERT INTO {q} ({nomi}) VALUES ({segn})", [(v se v != "" altrimenti Nessuno) per v in riga[:lunghezza(intestazione)]])
+                se_stesso.esegui_una(f"INSERT INTO {q} ({nomi}) VALUES ({segn})", [(v se v != "" altrimenti Nessuno) per v in riga[:lunghezza_di(intestazione)]])
                 n += 1
             ritorna n
 
@@ -406,7 +406,7 @@ classe ConnessioneSqlite(Connessione):
         r = se_stesso.esegui_una(f"PRAGMA table_info({se_stesso.citato(tabella)})")
         risultato = []
         per cid, nome, tipo, nonnullo, pred, pk in r.righe:
-            risultato.append(Colonna(nome, tipo o "", bool(nonnullo), "" se pred è Nessuno altrimenti testo(pred), pk > 0))
+            risultato.append(Colonna(nome, tipo o "", bool(nonnullo), "" se pred è Nessuno altrimenti tipo_testo(pred), pk > 0))
         ritorna risultato
 
     definisci _con_rowid(se_stesso, tabella):
@@ -439,7 +439,7 @@ classe ConnessioneSqlite(Connessione):
     # per tipo, «non nulla» e predefinito si ricostruisce la tabella, tutto in una transazione: se qualcosa va storto non cambia niente.
     definisci _leggi(se_stesso, sql, parametri=()):
         """Legge righe senza toccare la transazione in corso (esegui_una confermerebbe)."""
-        ritorna [lista(r) per r in se_stesso.conn.execute(sql, tuple(parametri)).fetchall()]
+        ritorna [tipo_lista(r) per r in se_stesso.conn.execute(sql, tuple(parametri)).fetchall()]
 
     definisci _colonne_complete(se_stesso, tabella):
         """Le colonne con anche «unica» e «auto-incremento» (che PRAGMA table_info non dice). Solleva ErroreDatabase se la tabella ha
@@ -456,14 +456,14 @@ classe ConnessioneSqlite(Connessione):
         per riga in se_stesso._leggi(f"PRAGMA index_list({se_stesso.citato(tabella)})"):
             se riga[3] == "u":
                 nomi = [x[2] per x in se_stesso._leggi(f"PRAGMA index_info({se_stesso.citato(riga[1])})")]
-                se lunghezza(nomi) > 1:
+                se lunghezza_di(nomi) > 1:
                     solleva ErroreDatabase(f"La tabella «{tabella}» ha un vincolo di unicità su più colonne: ricostruendola si perderebbe. "
                                            "Per cambiare questa colonna usa la scheda SQL.")
                 per c in colonne:
                     se nomi e c.nome == nomi[0]:
                         c.unica = Vero
         chiavi = [c per c in colonne se c.chiave]
-        se lunghezza(chiavi) == 1 e "AUTOINCREMENT" in alto e chiavi[0].tipo.upper() == "INTEGER":
+        se lunghezza_di(chiavi) == 1 e "AUTOINCREMENT" in alto e chiavi[0].tipo.upper() == "INTEGER":
             chiavi[0].autoincremento = Vero
         per c in colonne:
             c.predefinito = predefinito_utente(c.predefinito)
@@ -558,7 +558,7 @@ classe ConnessioneSqlite(Connessione):
                 eccetto Exception:
                     passa
         eccetto sqlite3.Error come errore:
-            solleva ErroreDatabase(testo(errore)) da errore
+            solleva ErroreDatabase(tipo_testo(errore)) da errore
         se_stesso.storia.append(";\n".join(eseguite) + ";")
 
     definisci sql_crea_tabella(se_stesso, nome, colonne):
@@ -567,9 +567,9 @@ classe ConnessioneSqlite(Connessione):
         se non colonne:
             solleva ErroreDatabase("Servono almeno una colonna.")
         chiavi = [c per c in colonne se c.chiave]
-        una = lunghezza(chiavi) == 1
+        una = lunghezza_di(chiavi) == 1
         righe = ["  " + se_stesso._definizione_colonna(c, solo_una_chiave=una) per c in colonne]
-        se lunghezza(chiavi) > 1:
+        se lunghezza_di(chiavi) > 1:
             righe.append("  PRIMARY KEY (" + ", ".join(se_stesso.citato(c.nome) per c in chiavi) + ")")
         ritorna f"CREATE TABLE {se_stesso.citato(nome)} (\n" + ",\n".join(righe) + "\n)"
 
@@ -598,8 +598,8 @@ classe ConnessioneMysql(Connessione):
         r = se_stesso.esegui_una(f"SHOW COLUMNS FROM {se_stesso.citato(tabella)}")
         risultato = []
         per campo, tipo, nullo, chiave, pred, extra in [riga[:6] per riga in r.righe]:
-            risultato.append(Colonna(campo, a_testo(tipo) se isinstance(tipo, (bytes, bytearray)) altrimenti testo(tipo), nullo == "NO",
-                                     "" se pred è Nessuno altrimenti testo(pred), chiave == "PRI", chiave == "UNI", "auto_increment" in testo(extra)))
+            risultato.append(Colonna(campo, a_testo(tipo) se isinstance(tipo, (bytes, bytearray)) altrimenti tipo_testo(tipo), nullo == "NO",
+                                     "" se pred è Nessuno altrimenti tipo_testo(pred), chiave == "PRI", chiave == "UNI", "auto_increment" in tipo_testo(extra)))
         ritorna risultato
 
     definisci chiavi_esterne(se_stesso, tabella):
@@ -685,5 +685,5 @@ definisci installa_driver_mysql(interprete=Nessuno):
     prova:
         r = subprocess.run(comando, capture_output=Vero, text=Vero, encoding="utf-8", errors="replace", timeout=300)
     eccetto Exception come errore:
-        ritorna Falso, testo(errore)
+        ritorna Falso, tipo_testo(errore)
     ritorna r.returncode == 0, (r.stdout + "\n" + r.stderr).strip()[-1500:]

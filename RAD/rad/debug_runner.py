@@ -61,7 +61,7 @@ def valore_it(valore, breve_max=40):
         return "Nessuno"
     try:
         if isinstance(valore, range):
-            testo = "intervallo(%d, %d)" % (valore.start, valore.stop) if valore.step == 1 else "intervallo(%d, %d, %d)" % (valore.start, valore.stop, valore.step)
+            testo = "intervallo_di(%d, %d)" % (valore.start, valore.stop) if valore.step == 1 else "intervallo_di(%d, %d, %d)" % (valore.start, valore.stop, valore.step)
         elif isinstance(valore, (list, tuple)) and len(valore) <= 8:
             apri, chiudi = ("[", "]") if isinstance(valore, list) else ("(", ")" if len(valore) != 1 else ",)")
             testo = apri + ", ".join(valore_it(x, 20) for x in valore) + chiudi

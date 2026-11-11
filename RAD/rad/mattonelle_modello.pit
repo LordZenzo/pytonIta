@@ -63,7 +63,7 @@ TIPI = {
                    corpi=[("corpo", ""), ("altro", "se non si interrompe")], intestazioni=["per {var} in {elenco}:", "altrimenti:"],
                    descrizione="Ripete per ogni elemento"),
     "ripeti": _d("blocco", "flusso", ["ripeti", ("i", "n", "numero", "10"), "volte"], corpi=[("corpo", "")],
-                 intestazioni=["per _ in intervallo({n}):"], descrizione="Ripete N volte"),
+                 intestazioni=["per _ in intervallo_di({n}):"], descrizione="Ripete N volte"),
     "mentre": _d("blocco", "flusso", ["mentre", ("i", "cond", "booleano", "")], corpi=[("corpo", ""), ("altro", "se non si interrompe")],
                  intestazioni=["mentre {cond}:", "altrimenti:"], descrizione="Ripete finché la condizione è vera"),
     "prova": _d("blocco", "flusso", ["prova", "eccetto", ("c", "tipo", "Eccezione", "testo"), "come", ("c", "come", "errore", "testo")],
@@ -92,7 +92,7 @@ TIPI = {
     "stampa": _d("istruzione", "io", ["scrivi", ("i", "valore", "valore", "ciao"), ("i", "valore2", "valore", ""),
                                       ("i", "valore3", "valore", "")], codice="@stampa",
                  descrizione="Mostra uno, due o tre valori (gli ingressi vuoti dopo il primo si ignorano)"),
-    "leggi": _d("valore", "io", ["chiedi", ("i", "messaggio", "testo", "")], codice="leggi({messaggio})",
+    "leggi": _d("valore", "io", ["chiedi", ("i", "messaggio", "testo", "")], codice="leggi_tastiera({messaggio})",
                 descrizione="Legge una riga scritta dall'utente"),
     # --- valori e operatori
     "numero": _d("valore", "operatori", [("c", "valore", "0", "numero")], codice="{valore}"),
@@ -117,27 +117,27 @@ TIPI = {
     "o_logico": _d("booleano", "operatori", [("i", "a", "booleano", ""), "o", ("i", "b", "booleano", "")], codice="({a} o {b})"),
     "non_logico": _d("booleano", "operatori", ["non", ("i", "a", "booleano", "")], codice="(non {a})"),
     "contiene": _d("booleano", "operatori", [("i", "a", "valore", ""), "è in", ("i", "b", "valore", "")], codice="({a} in {b})"),
-    "intero_di": _d("valore", "operatori", ["intero di", ("i", "v", "valore", "")], codice="intero({v})"),
-    "decimale_di": _d("valore", "operatori", ["decimale di", ("i", "v", "valore", "")], codice="decimale({v})"),
+    "intero_di": _d("valore", "operatori", ["intero di", ("i", "v", "valore", "")], codice="tipo_intero({v})"),
+    "decimale_di": _d("valore", "operatori", ["decimale di", ("i", "v", "valore", "")], codice="tipo_decimale({v})"),
     "arrotonda": _d("valore", "operatori", ["arrotonda", ("i", "v", "valore", "")], codice="arrotonda({v})"),
-    "assoluto": _d("valore", "operatori", ["valore assoluto di", ("i", "v", "valore", "")], codice="assoluto({v})"),
-    "massimo_di": _d("valore", "operatori", ["massimo tra", ("i", "a", "valore", ""), "e", ("i", "b", "valore", "")], codice="massimo({a}, {b})"),
-    "minimo_di": _d("valore", "operatori", ["minimo tra", ("i", "a", "valore", ""), "e", ("i", "b", "valore", "")], codice="minimo({a}, {b})"),
+    "assoluto": _d("valore", "operatori", ["valore assoluto di", ("i", "v", "valore", "")], codice="valore_assoluto({v})"),
+    "massimo_di": _d("valore", "operatori", ["massimo tra", ("i", "a", "valore", ""), "e", ("i", "b", "valore", "")], codice="massimo_di({a}, {b})"),
+    "minimo_di": _d("valore", "operatori", ["minimo tra", ("i", "a", "valore", ""), "e", ("i", "b", "valore", "")], codice="minimo_di({a}, {b})"),
     "casuale_tra": _d("valore", "operatori", ["numero a caso tra", ("i", "a", "numero", "1"), "e", ("i", "b", "numero", "10")],
                       codice="casuale.intero_casuale({a}, {b})", moduli=["casuale"]),
     "intervallo": _d("valore", "operatori", ["numeri da", ("i", "a", "numero", "0"), "a", ("i", "b", "numero", "10")],
-                     codice="intervallo({a}, {b})"),
+                     codice="intervallo_di({a}, {b})"),
     # --- testo
     "unisci": _d("valore", "testo", ["unisci", ("i", "a", "valore", "ciao "), "e", ("i", "b", "valore", "mondo")],
-                 codice="(testo({a}) + testo({b}))"),
-    "testo_di": _d("valore", "testo", ["testo di", ("i", "v", "valore", "")], codice="testo({v})"),
-    "lunghezza_di": _d("valore", "testo", ["lunghezza di", ("i", "v", "valore", "")], codice="lunghezza({v})"),
-    "maiuscolo": _d("valore", "testo", ["maiuscolo", ("i", "v", "valore", "")], codice="testo({v}).maiuscolo()"),
-    "minuscolo": _d("valore", "testo", ["minuscolo", ("i", "v", "valore", "")], codice="testo({v}).minuscolo()"),
+                 codice="(tipo_testo({a}) + tipo_testo({b}))"),
+    "testo_di": _d("valore", "testo", ["testo di", ("i", "v", "valore", "")], codice="tipo_testo({v})"),
+    "lunghezza_di": _d("valore", "testo", ["lunghezza di", ("i", "v", "valore", "")], codice="lunghezza_di({v})"),
+    "maiuscolo": _d("valore", "testo", ["maiuscolo", ("i", "v", "valore", "")], codice="tipo_testo({v}).maiuscolo()"),
+    "minuscolo": _d("valore", "testo", ["minuscolo", ("i", "v", "valore", "")], codice="tipo_testo({v}).minuscolo()"),
     "sostituisci": _d("valore", "testo", ["in", ("i", "v", "valore", ""), "sostituisci", ("i", "a", "testo", ""), "con", ("i", "b", "testo", "")],
-                      codice="testo({v}).sostituisci({a}, {b})"),
+                      codice="tipo_testo({v}).sostituisci({a}, {b})"),
     "separa": _d("valore", "testo", ["separa", ("i", "v", "valore", ""), "con", ("i", "sep", "testo", " ")],
-                 codice="testo({v}).separa({sep})"),
+                 codice="tipo_testo({v}).separa({sep})"),
     # --- liste
     "lista_vuota": _d("valore", "liste", ["lista vuota"], codice="[]"),
     "lista_di": _d("valore", "liste", ["lista di", ("i", "a", "valore", ""), ("i", "b", "valore", ""), ("i", "c", "valore", ""),
@@ -146,8 +146,8 @@ TIPI = {
     "aggiungi_a_lista": _d("istruzione", "liste", ["aggiungi", ("i", "valore", "valore", ""), "alla lista", ("i", "lista", "valore", "")],
                            codice="{lista}.aggiungi({valore})"),
     "elemento_di": _d("valore", "liste", ["elemento", ("i", "n", "numero", "0"), "di", ("i", "lista", "valore", "")], codice="{lista}[{n}]"),
-    "ordina_lista": _d("valore", "liste", ["ordina", ("i", "lista", "valore", "")], codice="ordinato({lista})"),
-    "somma_lista": _d("valore", "liste", ["somma di", ("i", "lista", "valore", "")], codice="somma({lista})"),
+    "ordina_lista": _d("valore", "liste", ["ordina", ("i", "lista", "valore", "")], codice="ordinato_di({lista})"),
+    "somma_lista": _d("valore", "liste", ["somma di", ("i", "lista", "valore", "")], codice="somma_di({lista})"),
     # --- oggetti, classi e costrutti avanzati
     "attributo": _d("valore", "oggetti", [("i", "obj", "valore", ""), ".", ("c", "nome", "x", "testo")], codice="{obj}.{nome}",
                     descrizione="Un attributo di un oggetto (es. se_stesso.nome)"),
@@ -170,7 +170,7 @@ TIPI = {
                 codice="@fetta", descrizione="Una parte di una lista o di un testo: da…a (gli ingressi vuoti = inizio/fine)"),
     "testo_f": _d("valore", "testo", ["frase", ("c", "modello", "", "testo"), "con", ("i", "a", "valore", ""), ("i", "b", "valore", ""),
                                       ("i", "c", "valore", ""), ("i", "d", "valore", ""), ("i", "e", "valore", ""), ("i", "f", "valore", "")],
-                  codice="@testo_f", opzionali=lista("abcdef"),
+                  codice="@testo_f", opzionali=tipo_lista("abcdef"),
                   descrizione="Un testo con dei valori dentro: nel modello scrivi {a}, {b}… dove vanno i valori (anche {a:.2f})"),
     "con_blocco": _d("blocco", "flusso", ["con", ("i", "espr", "valore", ""), "come", ("c", "var", "", "testo")], corpi=[("corpo", "")],
                      intestazioni=["con {espr} come {var}:"], descrizione="Usa una risorsa (file, blocco…) e la chiude alla fine"),
@@ -185,11 +185,11 @@ TIPI = {
     "coppia": _d("valore", "liste", [("i", "k", "valore", ""), ":", ("i", "v", "valore", "")], codice="{k}: {v}",
                  descrizione="Una coppia chiave: valore, da mettere in un dizionario"),
     "dizionario": _d("valore", "liste", ["dizionario"] + _ingressi_vari(), codice="@dizionario",
-                     opzionali=lista(SLOT_VARI), descrizione="Mettici delle «coppie» (chiave: valore)"),
+                     opzionali=tipo_lista(SLOT_VARI), descrizione="Mettici delle «coppie» (chiave: valore)"),
     "dizionario_da": _d("valore", "liste", ["dizionario di", ("i", "k", "valore", ""), ":", ("i", "v", "valore", ""), "per", ("c", "var", "x", "testo"),
                                             "in", ("i", "elenco", "valore", ""), "se", ("i", "cond", "booleano", "")], codice="@dizionario_da"),
     "insieme_di": _d("valore", "liste", ["insieme di"] + _ingressi_vari(), codice="@insieme_di",
-                     opzionali=lista(SLOT_VARI)),
+                     opzionali=tipo_lista(SLOT_VARI)),
     "spacchetta": _d("valore", "oggetti", ["*", ("i", "v", "valore", "")], codice="*{v}",
                      descrizione="Spacchetta una lista negli argomenti (*args)"),
     "spacchetta_dizionario": _d("valore", "oggetti", ["**", ("i", "v", "valore", "")], codice="**{v}",
@@ -226,7 +226,7 @@ TIPI = {
                           codice="{fin}.titolo({titolo})"),
     "finestra_misure": _d("istruzione", "finestre", ["misure della finestra", ("i", "fin", "valore", "finestra"), "larga",
                                                      ("i", "larghezza", "numero", "400"), "alta", ("i", "altezza", "numero", "300")],
-                          codice='{fin}.geometria(testo({larghezza}) + "x" + testo({altezza}))'),
+                          codice='{fin}.geometria(tipo_testo({larghezza}) + "x" + tipo_testo({altezza}))'),
     "etichetta_nuova": _d("istruzione", "finestre", ["crea etichetta", ("c", "var", "etichetta", "variabile_nuova"), "in", ("i", "dentro", "valore", "finestra"),
                                                     "con testo", ("i", "testo", "testo", "Ciao")],
                           codice="{var} = interfaccia.Etichetta({dentro}, testo={testo})", moduli=["interfaccia"],
@@ -284,7 +284,7 @@ PREFERITE_PER_CATEGORIA = {c: [t per t, d in TIPI.items() se d["cat"] == c] per 
 
 definisci _slot_vari(tipo_, prima, dopo, n=12):
     TIPI[tipo_]["seg"] = prima + _ingressi_vari(n) + dopo
-    TIPI[tipo_]["opzionali"] = lista(SLOT_VARI[:n])
+    TIPI[tipo_]["opzionali"] = tipo_lista(SLOT_VARI[:n])
 
 
 _slot_vari("chiama", ["chiama", ("c", "nome", "funzione", "testo"), "("], [")"])
@@ -421,7 +421,7 @@ classe Radice:
         ritorna se_stesso.valore è non Nessuno
 
     definisci mattonelle_di_testa(se_stesso):
-        ritorna [se_stesso.valore] se se_stesso.valore è non Nessuno altrimenti lista(se_stesso.pila)
+        ritorna [se_stesso.valore] se se_stesso.valore è non Nessuno altrimenti tipo_lista(se_stesso.pila)
 
     definisci a_dizionario(se_stesso):
         d = {"x": se_stesso.x, "y": se_stesso.y}
@@ -533,7 +533,7 @@ classe Area:
         catena = radice.pila
         se_stesso.radici.remove(radice)
         corpo = blocco.corpi[nome_corpo]
-        resto = lista(corpo)
+        resto = tipo_lista(corpo)
         corpo.clear()
         corpo.extend(catena)
         corpo.extend(resto)
@@ -608,12 +608,12 @@ classe Area:
 
     # --- serializzazione
     definisci a_dizionario(se_stesso):
-        ritorna {"radici": [r.a_dizionario() per r in se_stesso.radici], "dichiarate": lista(se_stesso.dichiarate)}
+        ritorna {"radici": [r.a_dizionario() per r in se_stesso.radici], "dichiarate": tipo_lista(se_stesso.dichiarate)}
 
     @staticmethod
     definisci da_dizionario(d, tipo_cappello, programma=Nessuno):
         a = Area.__new__(Area)
-        a.dichiarate = lista(d.get("dichiarate", []))
+        a.dichiarate = tipo_lista(d.get("dichiarate", []))
         a.radici = [Radice.da_dizionario(r, programma) per r in d.get("radici", [])]
         a.cappello = Nessuno
         per m in a.tutte():
@@ -649,7 +649,7 @@ definisci senza_parentesi(codice):
             profondita += 1
         altrimenti_se c == ")":
             profondita -= 1
-            se profondita == 0 e i < lunghezza(codice) - 1:
+            se profondita == 0 e i < lunghezza_di(codice) - 1:
                 ritorna codice
     ritorna codice[1:-1] se codice[1:-1].strip() altrimenti codice
 
@@ -848,7 +848,7 @@ classe Programma:
     # --- serializzazione
     definisci a_dizionario(se_stesso):
         ritorna {"versione": se_stesso.versione, "nome": se_stesso.nome, "variabili_globali": se_stesso.variabili_globali,
-                 "importazioni": lista(se_stesso.importazioni), "codice_iniziale": se_stesso.codice_iniziale,
+                 "importazioni": tipo_lista(se_stesso.importazioni), "codice_iniziale": se_stesso.codice_iniziale,
                  "principale": se_stesso.principale.a_dizionario(),
                  "classi": [c.a_dizionario() per c in se_stesso.classi],
                  "funzioni": [dict(f.area.a_dizionario(), **({"classe": f.classe} se f.classe altrimenti {}),
@@ -860,8 +860,8 @@ classe Programma:
     @staticmethod
     definisci da_dizionario(d):
         p = Programma(d.get("nome", "programma"))
-        p.variabili_globali = lista(d.get("variabili_globali", []))
-        p.importazioni = lista(d.get("importazioni", []))
+        p.variabili_globali = tipo_lista(d.get("variabili_globali", []))
+        p.importazioni = tipo_lista(d.get("importazioni", []))
         p.codice_iniziale = d.get("codice_iniziale", "")
         p.classi = [Classe(c["nome"], c.get("base", ""), c.get("attributi", "")) per c in d.get("classi", [])]
         dati = d.get("funzioni", [])
@@ -980,7 +980,7 @@ classe Generatore:
             ritorna "{" + ", ".join(se_stesso._voci(m, SLOT_VARI)) + "}"
         se modello == "@insieme_di":
             voci = se_stesso._voci(m, SLOT_VARI)
-            ritorna "{" + ", ".join(voci) + "}" se voci altrimenti "insieme()"
+            ritorna "{" + ", ".join(voci) + "}" se voci altrimenti "tipo_insieme()"
         se modello == "@dizionario_da":
             testo_ = (se_stesso.ingresso(m, "k", "valore") + ": " + se_stesso.ingresso(m, "v", "valore") +
                       f" per {(m.campi.get('var') o 'x').strip()} in " + se_stesso.ingresso(m, "elenco", "valore"))
@@ -997,7 +997,7 @@ classe Generatore:
         se modello == "@tupla":
             voci = [se_stesso.ingresso(m, slot, "valore") per slot in SLOT_VARI
                     se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip()]
-            ritorna "(" + ", ".join(voci) + ("," se lunghezza(voci) == 1 altrimenti "") + ")"
+            ritorna "(" + ", ".join(voci) + ("," se lunghezza_di(voci) == 1 altrimenti "") + ")"
         se modello == "@chiama_su":
             argomenti = [se_stesso.ingresso(m, slot, "valore") per slot in SLOT_VARI
                          se m.ingressi.get(slot) è non Nessuno o (m.letterali.get(slot) o "").strip()]
@@ -1022,7 +1022,7 @@ classe Generatore:
             ritorna (m.campi.get("testo") o "").strip() o "Nessuno"
         se modello.startswith("@chiamata:"):
             nome = modello.split(":", 1)[1]
-            argomenti = [se_stesso.ingresso(m, f"p{i}", "valore") per i in intervallo(lunghezza(ingressi_di(d)))]
+            argomenti = [se_stesso.ingresso(m, f"p{i}", "valore") per i in intervallo_di(lunghezza_di(ingressi_di(d)))]
             ritorna f"{nome}({', '.join(argomenti)})"
         ritorna se_stesso._applica(modello, m, d)
 
@@ -1034,7 +1034,7 @@ classe Generatore:
         per k, v in m.campi.items():
             valori[k] = v
         # {campo!r} = repr del valore del campo
-        def_sost = lambda mm: (repr(testo(valori.get(mm.group(1), ""))) se mm.group(2) == "!r" altrimenti testo(valori.get(mm.group(1), "")))
+        def_sost = lambda mm: (repr(tipo_testo(valori.get(mm.group(1), ""))) se mm.group(2) == "!r" altrimenti tipo_testo(valori.get(mm.group(1), "")))
         ritorna re.sub(r"\{(\w+)(!r)?\}", def_sost, modello)
 
     # --- istruzioni
@@ -1064,7 +1064,7 @@ classe Generatore:
                 righe.extend(pad + riga per riga in (testo_.split("\n") se testo_ altrimenti ["passa"]))
             altrimenti_se d["codice"].startswith("@chiamata:") o m.tipo.startswith("fn:"):
                 nome = m.tipo.split(":", 1)[1]
-                argomenti = [se_stesso.ingresso(m, f"p{i}", "valore") per i in intervallo(lunghezza(ingressi_di(d)))]
+                argomenti = [se_stesso.ingresso(m, f"p{i}", "valore") per i in intervallo_di(lunghezza_di(ingressi_di(d)))]
                 righe.append(pad + f"{nome}({', '.join(argomenti)})")
             altrimenti_se d["forma"] in FORME_VALORE:
                 se_stesso.avvisi.append(f"{se_stesso._area}: un valore ({m.tipo}) è finito tra le istruzioni")
@@ -1082,7 +1082,7 @@ classe Generatore:
             se r.è_valore:
                 se_stesso.avvisi.append(f"{nome_area}: valore sciolto «{r.valore.tipo}» non collegato")
             altrimenti_se r.pila e r.pila[0].tipo non in ("avvio", "definisci_funzione"):
-                se_stesso.avvisi.append(f"{nome_area}: gruppo di {lunghezza(r.pila)} mattonelle non collegato a nulla (non verrà eseguito)")
+                se_stesso.avvisi.append(f"{nome_area}: gruppo di {lunghezza_di(r.pila)} mattonelle non collegato a nulla (non verrà eseguito)")
 
     definisci dichiarazioni_globali(se_stesso, area, parametri):
         """Righe 'globale x' per le variabili globali che l'area modifica."""
@@ -1115,11 +1115,11 @@ classe Generatore:
         per riga in c.attributi.rstrip().splitlines():
             righe.append(se_stesso.RIENTRO + riga se riga.strip() altrimenti "")
         per f in se_stesso.programma.metodi_di(c.nome):
-            se lunghezza(righe) > 1:
+            se lunghezza_di(righe) > 1:
                 righe.append("")
             per riga in se_stesso.testo_funzione(f).splitlines():
                 righe.append(se_stesso.RIENTRO + riga se riga.strip() altrimenti "")
-        se lunghezza(righe) == 1:
+        se lunghezza_di(righe) == 1:
             righe.append(se_stesso.RIENTRO + "passa")
         ritorna "\n".join(righe)
 

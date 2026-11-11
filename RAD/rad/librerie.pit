@@ -301,7 +301,7 @@ classe PannelloLibrerie(tk.Frame):
             se non voci:
                 continua
             attive = sum(1 per v in voci se v[0] in spuntate)
-            nodo = se_stesso.albero.insert("", "end", iid="cat:" + categoria, text=f"{categoria}  ({attive}/{lunghezza(voci)})", tags=("categoria",),
+            nodo = se_stesso.albero.insert("", "end", iid="cat:" + categoria, text=f"{categoria}  ({attive}/{lunghezza_di(voci)})", tags=("categoria",),
                                            open=Vero se (q o solo o prima_volta o categoria in aperte) altrimenti Falso)
             se_stesso._nodi[categoria] = "cat:" + categoria
             per nome_it, cat, descr, orig in voci:
@@ -316,7 +316,7 @@ classe PannelloLibrerie(tk.Frame):
                     marca = "" se presente altrimenti "  ⚠"
                 tag = () se presente o stato_ == "nuova" altrimenti ("assente",)
                 se_stesso.albero.insert(nodo, "end", iid="lib:" + nome_it, text=f"{simbolo}  {nome_it}{marca}  —  {descr}", tags=tag)
-        se_stesso.contatore.configure(text=f"{lunghezza(spuntate)} attive")
+        se_stesso.contatore.configure(text=f"{lunghezza_di(spuntate)} attive")
         se scelta e se_stesso.albero.exists(scelta[0]):
             se_stesso.albero.selection_set(scelta[0])      # dopo aver ricostruito la lista la voce resta selezionata
 
@@ -329,7 +329,7 @@ classe PannelloLibrerie(tk.Frame):
         se se_stesso.albero.exists(iid):
             vecchio = se_stesso.albero.item(iid, "text")
             se_stesso.albero.item(iid, text=(SPUNTATO se nome_it in se_stesso._attive() altrimenti VUOTO) + vecchio[1:])
-        se_stesso.contatore.configure(text=f"{lunghezza(se_stesso._attive())} attive")
+        se_stesso.contatore.configure(text=f"{lunghezza_di(se_stesso._attive())} attive")
 
     # ------------------------------------------------------------ librerie già in uso nel file aperto
     definisci aggiorna_uso(se_stesso, subito=Falso):
@@ -494,12 +494,12 @@ classe PannelloLibrerie(tk.Frame):
             ritorna
         nuove = [v["nome"] per v in voci se se_stesso.stati.get(v["nome"]) == "nuova"]
         se_stesso._occupato(Vero)
-        se_stesso.descrizione.configure(text="Scarico " + ", ".join(v["nome"] per v in voci[:4]) + ("…" se lunghezza(voci) > 4 altrimenti ""))
+        se_stesso.descrizione.configure(text="Scarico " + ", ".join(v["nome"] per v in voci[:4]) + ("…" se lunghezza_di(voci) > 4 altrimenti ""))
 
         definisci lavoro():
             per v in voci:
                 online.installa(v)
-            ritorna lunghezza(voci)
+            ritorna lunghezza_di(voci)
 
         definisci fine(riuscito, risultato):
             se_stesso._occupato(Falso)
@@ -538,8 +538,8 @@ classe PannelloLibrerie(tk.Frame):
         se non da_fare:
             se_stesso.descrizione.configure(text="Nessuna libreria da aggiornare." se se_stesso.online altrimenti "Prima premi «⟳ Novità» per leggere l'elenco online.")
             ritorna
-        domanda = (f"Aggiorno {lunghezza(da_fare)} librerie con la versione online?\n\n" + ", ".join(da_fare[:12])
-                   + ("…" se lunghezza(da_fare) > 12 altrimenti "")
+        domanda = (f"Aggiorno {lunghezza_di(da_fare)} librerie con la versione online?\n\n" + ", ".join(da_fare[:12])
+                   + ("…" se lunghezza_di(da_fare) > 12 altrimenti "")
                    + "\n\nLe copie scaricate vanno in ~/.rad/librerie; «Ripristina» riporta quella inclusa.")
         se messagebox.askokcancel("Aggiorna le librerie", domanda, parent=se_stesso):
             se_stesso._installa_nomi(da_fare)
@@ -620,7 +620,7 @@ classe PannelloLibrerie(tk.Frame):
             ritorna 0
         righe_ = {f"importa {nome_it}", f"import {originale_di(nome_it)}", f"import {nome_it}", f"importa {originale_di(nome_it)}"}
         tolte = 0
-        per numero in lista(intervallo(1, lunghezza(ed.contenuto().split("\n")) + 1))[::-1]:
+        per numero in tipo_lista(intervallo_di(1, lunghezza_di(ed.contenuto().split("\n")) + 1))[::-1]:
             riga = ed.t.get(f"{numero}.0", f"{numero}.0 lineend")
             se riga.strip() in righe_ e non riga.startswith((" ", "\t")):
                 ed.t.delete(f"{numero}.0", f"{numero + 1}.0")

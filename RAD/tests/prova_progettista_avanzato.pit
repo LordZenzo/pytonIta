@@ -51,9 +51,9 @@ app = modulo.Principale(radice)
 radice.update()
 stampa("titolo e menu:", radice.title(), "| ha un menu:", bool(radice.cget("menu")))
 m = radice.nametowidget(radice.cget("menu"))
-stampa("menu:", [m.entrycget(i, "label") per i in intervallo(m.index("end") + 1) se m.type(i) == "cascade"])
+stampa("menu:", [m.entrycget(i, "label") per i in intervallo_di(m.index("end") + 1) se m.type(i) == "cascade"])
 sotto = radice.nametowidget(m.entrycget(1, "menu")) se m.type(0) != "cascade" altrimenti radice.nametowidget(m.entrycget(0, "menu"))
-etichette = [sotto.entrycget(i, "label") se sotto.type(i) != "separator" altrimenti "---" per i in intervallo(sotto.index("end") + 1)]
+etichette = [sotto.entrycget(i, "label") se sotto.type(i) != "separator" altrimenti "---" per i in intervallo_di(sotto.index("end") + 1)]
 stampa("voci di «File»:", etichette)
 # voce «Nuovo» -> gestore dell'utente
 sotto.invoke(0)
@@ -85,7 +85,7 @@ prima = [w per w in radice.winfo_children() se isinstance(w, tk.Toplevel)]
 app.pulsante_apri.invoke()
 radice.update()
 dopo = [w per w in radice.winfo_children() se isinstance(w, tk.Toplevel)]
-stampa("si è aperta una finestra:", lunghezza(dopo) - lunghezza(prima), "| titolo:", dopo[-1].title() se dopo altrimenti "", "| scritta:", [x.cget("text") per x in dopo[-1].winfo_children() se x.winfo_class() == "Label"] se dopo altrimenti "")
+stampa("si è aperta una finestra:", lunghezza_di(dopo) - lunghezza_di(prima), "| titolo:", dopo[-1].title() se dopo altrimenti "", "| scritta:", [x.cget("text") per x in dopo[-1].winfo_children() se x.winfo_class() == "Label"] se dopo altrimenti "")
 radice.destroy()
 
 # --- il progettista: tipi senza aspetto, ordine, editor delle nuove proprietà
@@ -110,7 +110,7 @@ stampa("ispettore della barra dei menu:", [w.cget("text") per w in p.righe_ispet
 ordine = [c.nome per c in p.form.componenti]
 nuovo = [ordine[-1]] + ordine[:-1]
 p.imposta_ordine(nuovo)
-stampa("ordine cambiato:", [c.nome per c in p.form.componenti][:2], "| i widget ci sono ancora:", lunghezza(p.widget) == lunghezza(ordine))
+stampa("ordine cambiato:", [c.nome per c in p.form.componenti][:2], "| i widget ci sono ancora:", lunghezza_di(p.widget) == lunghezza_di(ordine))
 p.annulla()
 radice2.update()
 stampa("annulla rimette l'ordine:", [c.nome per c in p.form.componenti] == ordine)
@@ -211,12 +211,12 @@ stampa("dopo aver scelto la seconda scheda:", p4.form.componenti[-1].genitore)
 radice4.update()
 p4.seleziona([nuovo.nome])
 radice4.update()
-stampa("contorno e maniglie nello stesso contenitore:", lunghezza(p4.maniglie), "|", p4._bordi[nuovo.nome].master == p4.widget["riquadro1"])
+stampa("contorno e maniglie nello stesso contenitore:", lunghezza_di(p4.maniglie), "|", p4._bordi[nuovo.nome].master == p4.widget["riquadro1"])
 p4.seleziona(["riquadro1"])
 p4.elimina_selezionati()
 radice4.update()
 stampa("eliminato il riquadro: spariscono anche i figli:", [c.nome per c in p4.form.componenti se c.genitore.startswith("riquadro1")], "| widget:", sorted(p4.widget))
 p4.annulla()
 radice4.update()
-stampa("annulla li rimette:", "in_riquadro" in p4.widget, lunghezza(p4.form.componenti))
+stampa("annulla li rimette:", "in_riquadro" in p4.widget, lunghezza_di(p4.form.componenti))
 radice4.destroy()

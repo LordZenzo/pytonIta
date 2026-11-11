@@ -281,7 +281,7 @@ classe PannelloChat(tk.Frame):
         strumenti.registro = se_stesso.agente.registro = registro
         strumenti.id_richiesta = se_stesso.agente.id_richiesta = id_richiesta
         registro.scrivi("richiesta", richiesta=id_richiesta, modello=cliente.modello(),
-                        domanda=domanda[:80], con_contesto=lunghezza(contenuto) > 1)
+                        domanda=domanda[:80], con_contesto=lunghezza_di(contenuto) > 1)
         se se_stesso.professore:
             lezione = se_stesso.professore
             sistema = se_stesso.ponte.esegui(lambda: ai.prompt_professore(se_stesso.config_, se_stesso.ambiente.progetto, lezione))
@@ -313,9 +313,9 @@ classe PannelloChat(tk.Frame):
         prova:
             se_stesso.agente.esegui(se_stesso.messaggi, sistema)
         eccetto ai.ErroreAI come errore:
-            se_stesso.eventi.put(("errore", testo(errore)))
+            se_stesso.eventi.put(("errore", tipo_testo(errore)))
         eccetto Eccezione come errore:
-            se_stesso.eventi.put(("errore", f"{tipo(errore).__name__}: {errore}"))
+            se_stesso.eventi.put(("errore", f"{tipo_di(errore).__name__}: {errore}"))
         infine:
             se_stesso.eventi.put(("fine", Nessuno))
 
@@ -373,7 +373,7 @@ classe PannelloChat(tk.Frame):
             se_stesso._scrivi("⚠ " + dati + "\n", "errore")
             # lascia la conversazione coerente: toglie l'ultimo messaggio utente se senza risposta
             se se_stesso.messaggi e se_stesso.messaggi[-1]["role"] == "user" e isinstance(se_stesso.messaggi[-1]["content"], list) \
-                    e tutti(b.get("type") == "text" per b in se_stesso.messaggi[-1]["content"]):
+                    e tutti_veri(b.get("type") == "text" per b in se_stesso.messaggi[-1]["content"]):
                 se_stesso.messaggi.pop()
         altrimenti_se tipo_ == "fine":
             se_stesso._scrivi("\n", "ai")
@@ -387,7 +387,7 @@ classe PannelloChat(tk.Frame):
         per k, v in parametri.items():
             s = json.dumps(v, ensure_ascii=Falso) se non isinstance(v, str) altrimenti v
             s = s.replace("\n", "↵")
-            pezzi.append(f"{k}={s[:60] + '…' se lunghezza(s) > 60 altrimenti s}")
+            pezzi.append(f"{k}={s[:60] + '…' se lunghezza_di(s) > 60 altrimenti s}")
         ritorna "  ".join(pezzi)
 
     # ------------------------------------------------------------ conversazioni

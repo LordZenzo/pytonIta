@@ -47,7 +47,7 @@ definisci leggi_sorgente(percorso):
         testo_ = dati.decode("cp1252", "replace")
         nota = "il file non era UTF-8: letto come Windows-1252 e salvato in UTF-8"
     righe = testo_.split("\n")
-    per i in intervallo(min(2, lunghezza(righe))):
+    per i in intervallo_di(min(2, lunghezza_di(righe))):
         se _RE_CODIFICA.match(righe[i]):
             righe[i] = ""
     ritorna "\n".join(righe), nota
@@ -90,14 +90,14 @@ definisci piano(origine, destinazione=Nessuno):
 
 
 definisci _tipi(albero):
-    ritorna [tipo(n).__name__ per n in ast.walk(albero)]
+    ritorna [tipo_di(n).__name__ per n in ast.walk(albero)]
 
 
 definisci _stringhe_con_py(albero):
     """(riga, testo) delle stringhe che nominano file .py: dopo la conversione vanno cambiate a mano se puntano a file convertiti."""
     trovate = []
     per n in ast.walk(albero):
-        se isinstance(n, ast.Constant) e isinstance(n.value, testo) e ".py" in n.value e lunghezza(n.value) < 200:
+        se isinstance(n, ast.Constant) e isinstance(n.value, tipo_testo) e ".py" in n.value e lunghezza_di(n.value) < 200:
             se re.search(r"\w\.pyw?\b", n.value):
                 trovate.append((n.lineno, n.value))
     ritorna trovate
@@ -113,7 +113,7 @@ definisci converti_file(py2pit, sorgente, percorso, verifica=Vero):
     prova:
         tradotto = py2pit.traduci(sorgente, rapporto)
     eccetto Exception come eccezione:
-        ritorna Nessuno, [], [], f"traduzione non riuscita ({tipo(eccezione).__name__}: {eccezione})"
+        ritorna Nessuno, [], [], f"traduzione non riuscita ({tipo_di(eccezione).__name__}: {eccezione})"
     prova:
         albero_pit = compile(tradotto, percorso, "exec", FLAG_ITALIANO | ast.PyCF_ONLY_AST, Vero)
     eccetto SyntaxError come eccezione:
@@ -146,7 +146,7 @@ definisci converti(origine, destinazione, verifica=Vero, avanzamento=Nessuno, fe
         solleva ErroreDiValore("la cartella di destinazione esiste già e non è vuota")
     py2pit = carica_py2pit()
     da_convertire, da_copiare, saltati = piano(origine, destinazione)
-    totale = lunghezza(da_convertire) + lunghezza(da_copiare)
+    totale = lunghezza_di(da_convertire) + lunghezza_di(da_copiare)
     r = {"origine": origine, "destinazione": destinazione, "convertiti": [], "mantenuti_py": [], "copiati": 0,
          "saltati": [{"file": f, "motivo": m} per f, m in saltati], "stringhe_py": [], "principale": "", "interrotto": Falso}
     os.makedirs(destinazione, exist_ok=Vero)
@@ -225,7 +225,7 @@ definisci _scrivi_manifesto(origine, destinazione, r, candidati):
         principale = ""
     se non principale:
         preferiti = [c per c in candidati se os.path.basename(c).lower() in ("main.pit", "app.pit", "__main__.pit", "run.pit")]
-        scelta = preferiti o (candidati se lunghezza(candidati) == 1 altrimenti [])
+        scelta = preferiti o (candidati se lunghezza_di(candidati) == 1 altrimenti [])
         principale = scelta[0] se scelta altrimenti ""
     dati["principale"] = principale
     dati.setdefault("descrizione", "Convertito da " + os.path.basename(origine))
@@ -244,9 +244,9 @@ definisci testo_rapporto(r):
     nome = os.path.basename(r["origine"])
     righe = [f"# Conversione di «{nome}» in pytonIta", "",
              f"- Origine: `{r['origine']}`", f"- Destinazione: `{r['destinazione']}`",
-             f"- File Python convertiti in `.pit`: **{lunghezza(r['convertiti'])}**",
-             f"- File rimasti Python (`.py`): **{lunghezza(r['mantenuti_py'])}**",
-             f"- Altri file copiati: **{r['copiati']}**", f"- File non copiati: **{lunghezza(r['saltati'])}**",
+             f"- File Python convertiti in `.pit`: **{lunghezza_di(r['convertiti'])}**",
+             f"- File rimasti Python (`.py`): **{lunghezza_di(r['mantenuti_py'])}**",
+             f"- Altri file copiati: **{r['copiati']}**", f"- File non copiati: **{lunghezza_di(r['saltati'])}**",
              f"- File principale impostato: `{r['principale'] o '(nessuno: impostalo dal menu Progetto)'}`", ""]
     se r.get("interrotto"):
         righe += ["> ⚠ La conversione è stata interrotta: il progetto è incompleto.", ""]
@@ -262,7 +262,7 @@ definisci testo_rapporto(r):
         righe += ["## Nomi rinominati", "",
                   "Questi nomi coincidono con parole chiave o funzioni italiane e sono stati cambiati (aggiunto `_`). "
                   "Se compaiono dentro stringhe o nei file di dati, vanno adeguati a mano.", ""]
-        righe += [f"- `{v}` → `{n}`  ({lunghezza(set(f))} file)" per (v, n), f in sorted(nomi.items())] + [""]
+        righe += [f"- `{v}` → `{n}`  ({lunghezza_di(set(f))} file)" per (v, n), f in sorted(nomi.items())] + [""]
     se r["stringhe_py"]:
         righe += ["## Stringhe che nominano file .py", "",
                   "Dopo la conversione questi file si chiamano `.pit`: se la stringa serve a lanciarli o aprirli, aggiornala.", ""]
@@ -371,8 +371,8 @@ classe DialogoConversione(DialogoBase):
             se_stesso.etichetta_piano.configure(text="Scegli la cartella del progetto Python.")
             ritorna
         da_convertire, da_copiare, saltati = piano(origine, se_stesso.var_destinazione.get().strip() o Nessuno)
-        se_stesso.etichetta_piano.configure(text=f"Verranno convertiti {lunghezza(da_convertire)} file Python, copiati {lunghezza(da_copiare)} altri file"
-                                                 + (f", non copiati {lunghezza(saltati)} (eseguibili e file generati)." se saltati altrimenti "."))
+        se_stesso.etichetta_piano.configure(text=f"Verranno convertiti {lunghezza_di(da_convertire)} file Python, copiati {lunghezza_di(da_copiare)} altri file"
+                                                 + (f", non copiati {lunghezza_di(saltati)} (eseguibili e file generati)." se saltati altrimenti "."))
 
     definisci _scrivi(se_stesso, riga):
         se_stesso.log.configure(state="normal")
@@ -403,7 +403,7 @@ classe DialogoConversione(DialogoBase):
                              lambda fatti, totale, testo_: se_stesso.coda.put(("avanza", (fatti, totale, testo_))), se_stesso.fermo)
                 se_stesso.coda.put(("fine", r))
             eccetto Exception come errore:
-                se_stesso.coda.put(("errore", f"{tipo(errore).__name__}: {errore}"))
+                se_stesso.coda.put(("errore", f"{tipo_di(errore).__name__}: {errore}"))
         se_stesso.lavoro = threading.Thread(target=lavora, daemon=Vero)
         se_stesso.lavoro.start()
         se_stesso._pompa()
@@ -436,8 +436,8 @@ classe DialogoConversione(DialogoBase):
             ritorna
         se_stesso.rapporto = r
         se_stesso._scrivi("")
-        se_stesso._scrivi(f"Fatto in {r['durata_s']} s: {lunghezza(r['convertiti'])} file convertiti in .pit, {lunghezza(r['mantenuti_py'])} rimasti Python, "
-                          f"{r['copiati']} copiati, {lunghezza(r['saltati'])} non copiati.")
+        se_stesso._scrivi(f"Fatto in {r['durata_s']} s: {lunghezza_di(r['convertiti'])} file convertiti in .pit, {lunghezza_di(r['mantenuti_py'])} rimasti Python, "
+                          f"{r['copiati']} copiati, {lunghezza_di(r['saltati'])} non copiati.")
         per m in r["mantenuti_py"][:15]:
             se_stesso._scrivi(f"  • {m['file']} resta .py: {m['motivo']}")
         se r["principale"]:

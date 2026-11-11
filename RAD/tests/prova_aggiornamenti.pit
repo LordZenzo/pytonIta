@@ -59,7 +59,7 @@ release["assets"][1]["browser_download_url"] = "https://github.com/LordZenzo/pyt
 release["tarball_url"] = "https://api.github.com/repos/LordZenzo/pytonIta/tarball/v1.99"
 file_release.write_text(json.dumps(release), encoding="utf-8")
 info_l = ag.controlla("1.33")
-verifica(info_l["url_installatore"] == release["tarball_url"], "su Linux/mac si scaricano i sorgenti: " + testo(info_l["url_installatore"]))
+verifica(info_l["url_installatore"] == release["tarball_url"], "su Linux/mac si scaricano i sorgenti: " + tipo_testo(info_l["url_installatore"]))
 verifica(info_l["impronta"] è Nessuno, "i sorgenti non hanno impronta")
 piattaforma.WINDOWS = Vero
 release["assets"][1]["browser_download_url"] = "https://example.com/Installa_pytonIta.exe"

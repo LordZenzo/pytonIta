@@ -13,4 +13,4 @@ per a in indice:
     per m in re.finditer(r"\]\(#([\w\-]+)\)", testo_):
         se m.group(1) non in ids:
             rotti.append((a["id"], m.group(1)))
-stampa("argomenti:", lunghezza(ids), "collegamenti rotti:", rotti)
+stampa("argomenti:", lunghezza_di(ids), "collegamenti rotti:", rotti)

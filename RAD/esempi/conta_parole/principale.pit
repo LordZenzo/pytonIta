@@ -17,12 +17,12 @@ definisci frequenze(parole):
 stampa("Scrivi il testo (una riga vuota per finire):")
 righe = []
 mentre Vero:
-    riga = leggi("")
+    riga = leggi_tastiera("")
     se riga == "":
         interrompi
     righe.append(riga)
 parole = parole_di(" ".join(righe))
-stampa(f"Parole: {lunghezza(parole)}   Diverse: {lunghezza(set(parole))}")
+stampa(f"Parole: {lunghezza_di(parole)}   Diverse: {lunghezza_di(set(parole))}")
 conteggio = frequenze(parole)
 piu_usate = sorted(conteggio.items(), key=lambda coppia: (-coppia[1], coppia[0]))[:5]
 per parola, quante in piu_usate:

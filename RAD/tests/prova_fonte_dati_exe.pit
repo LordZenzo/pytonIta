@@ -17,7 +17,7 @@ definisci verifica(c, m):
 definisci crea_db(percorso, righe=1):
     c = sqlite3.connect(percorso)
     c.execute("CREATE TABLE t (n INTEGER)")
-    per i in intervallo(righe):
+    per i in intervallo_di(righe):
         c.execute("INSERT INTO t VALUES (?)", (i + 1,))
     c.commit()
     c.close()
@@ -65,7 +65,7 @@ prova:
     os.makedirs(programma)
     crea_db(originale)
     p2 = fonte_dati.percorso_database(programma, "dati.db")
-    verifica(p2 == copia e conta(p2) == 2, "alla riapertura le modifiche ci sono ancora: " + testo(conta(p2)))
+    verifica(p2 == copia e conta(p2) == 2, "alla riapertura le modifiche ci sono ancora: " + tipo_testo(conta(p2)))
     verifica(conta(originale) == 1, "il database del pacchetto non viene toccato")
     # nuovo utente (altra cartella dei dati): riparte dall'originale
     os.environ["APPDATA"] = os.path.join(base, "AltroUtente")
@@ -148,7 +148,7 @@ automatica = fonte.copia_automatica()
 verifica(os.path.dirname(automatica) == os.path.abspath(cartella_db) e "_prima_del_ripristino_" in automatica e os.path.exists(automatica), "copia automatica accanto al database: " + automatica)
 fonte.ripristina_da(copia)
 righe = sorted(r[0] per r in fonte.conn.execute("SELECT n FROM t").fetchall())
-verifica(righe == [1, 2, 3], "dopo il ripristino i dati sono quelli della copia: " + testo(righe))
+verifica(righe == [1, 2, 3], "dopo il ripristino i dati sono quelli della copia: " + tipo_testo(righe))
 verifica(sorted(r[0] per r in sqlite3.connect(automatica).execute("SELECT n FROM t").fetchall()) == [2, 3, 100], "e quella automatica ha i dati di prima")
 # controlli
 altra = os.path.join(base, "altra.db")
@@ -169,7 +169,7 @@ per nome_prova, file_, atteso in (("altra tabella", altra, "non contiene la tabe
     prova:
         fonte.controlla_copia(file_)
     eccetto fonte_dati.ErroreDati come errore:
-        sollevato = testo(errore)
+        sollevato = tipo_testo(errore)
     verifica(atteso in sollevato, f"controlla_copia ({nome_prova}): {sollevato!r}")
 # modifiche non confermate: niente copia né ripristino
 fonte.in_sospeso = 2
@@ -178,7 +178,7 @@ per azione in (lambda: fonte.copia_di_sicurezza(os.path.join(base, "x.db")), lam
     prova:
         azione()
     eccetto fonte_dati.ErroreDati come errore:
-        sollevato = "non confermate" in testo(errore)
+        sollevato = "non confermate" in tipo_testo(errore)
     verifica(sollevato, "con modifiche in sospeso si rifiuta")
 fonte.in_sospeso = 0
 
@@ -214,7 +214,7 @@ verifica(barra.menu_dati.entrycget(0, "label") == "Dati in: " + fonte.percorso e
 aperte = []
 fonte_dati.apri_cartella = aperte.append
 barra._apri_cartella_dati()
-verifica(aperte == [fonte.cartella_dati()], "«Apri la cartella dei dati»: " + testo(aperte))
+verifica(aperte == [fonte.cartella_dati()], "«Apri la cartella dei dati»: " + tipo_testo(aperte))
 messaggi = []
 messagebox.showinfo = lambda *a, **k: messaggi.append(("info", a))
 messagebox.showerror = lambda *a, **k: messaggi.append(("errore", a))
@@ -223,11 +223,11 @@ messagebox.askyesno = lambda *a, **k: risposte.pop(0)
 scelto_salva = os.path.join(base, "copie", "dal_menu.db")
 filedialog.asksaveasfilename = lambda **k: scelto_salva
 barra._copia_di_sicurezza()
-verifica(conta(scelto_salva) == 3 e messaggi[-1][0] == "info" e "Copia salvata" in messaggi[-1][1][1], "«Crea una copia di sicurezza»: " + testo(messaggi[-1]))
+verifica(conta(scelto_salva) == 3 e messaggi[-1][0] == "info" e "Copia salvata" in messaggi[-1][1][1], "«Crea una copia di sicurezza»: " + tipo_testo(messaggi[-1]))
 filedialog.asksaveasfilename = lambda **k: ""
-n = lunghezza(messaggi)
+n = lunghezza_di(messaggi)
 barra._copia_di_sicurezza()
-verifica(lunghezza(messaggi) == n, "annullando la scelta del file non succede niente")
+verifica(lunghezza_di(messaggi) == n, "annullando la scelta del file non succede niente")
 # ripristino dal menu: si cambiano i dati, si ripristina la copia fatta dal menu
 fonte.conn.execute("DELETE FROM t")
 fonte.conn.commit()
@@ -237,10 +237,10 @@ barra._ripristina()
 verifica(conta(db_vivo) == 0 e colleg.ricaricato == 0, "rispondendo No non cambia niente")
 risposte.append(Vero)
 barra._ripristina()
-verifica(conta(db_vivo) == 3 e colleg.ricaricato == 1 e messaggi[-1][0] == "info" e "Dati ripristinati" in messaggi[-1][1][1], "ripristino dal menu: i dati tornano e la maschera si ricarica: " + testo(messaggi[-1]))
+verifica(conta(db_vivo) == 3 e colleg.ricaricato == 1 e messaggi[-1][0] == "info" e "Dati ripristinati" in messaggi[-1][1][1], "ripristino dal menu: i dati tornano e la maschera si ricarica: " + tipo_testo(messaggi[-1]))
 filedialog.askopenfilename = lambda **k: rotto
 barra._ripristina()
-verifica(messaggi[-1][0] == "errore" e "non è una copia" in messaggi[-1][1][1], "un file sbagliato dà un messaggio chiaro e non cambia niente: " + testo(messaggi[-1]))
+verifica(messaggi[-1][0] == "errore" e "non è una copia" in messaggi[-1][1][1], "un file sbagliato dà un messaggio chiaro e non cambia niente: " + tipo_testo(messaggi[-1]))
 verifica(conta(db_vivo) == 3, "dati ancora a posto")
 radice.destroy()
 fonte.chiudi()
@@ -302,8 +302,8 @@ finestra_con("c:" + chr(92) + "altrove" + chr(92) + "x.db")
 finestra_con("server", dialetto="mysql")
 registro_db = []
 avvisi_db = crea_exe.controlla_database(progetto_con, registro_db.append)
-verifica(lunghezza(avvisi_db) == 1 e "sparito.db" in avvisi_db[0], "avviso solo per il database che non si trova: " + testo(avvisi_db))
-verifica(lunghezza(registro_db) == 1 e "«dati.db» è in «risorse/dati.db»" in registro_db[0], "il registro dice dove lo ha trovato: " + testo(registro_db))
+verifica(lunghezza_di(avvisi_db) == 1 e "sparito.db" in avvisi_db[0], "avviso solo per il database che non si trova: " + tipo_testo(avvisi_db))
+verifica(lunghezza_di(registro_db) == 1 e "«dati.db» è in «risorse/dati.db»" in registro_db[0], "il registro dice dove lo ha trovato: " + tipo_testo(registro_db))
 
 # ----------------------------------------------------------------- un progetto con la fonte dati vecchia la riceve nuova prima della costruzione
 vecchio = os.path.join(base, "ProgettoVecchio")
@@ -312,8 +312,8 @@ open(os.path.join(vecchio, "fonte_dati.pit"), "w", encoding="utf-8").write("# ve
 messaggi = []
 verifica(crea_exe.aggiorna_fonte_dati(vecchio, messaggi.append), "la copia vecchia viene sostituita")
 verifica("percorso_database" in open(os.path.join(vecchio, "fonte_dati.pit"), encoding="utf-8").read() e os.path.exists(os.path.join(vecchio, "fonte_dati.pit.bak")), "ora ha la copia nei dati dell'utente, e la vecchia è salvata")
-verifica(lunghezza(messaggi) == 1 e "aggiornato" in messaggi[0], "lo dice nel registro: " + testo(messaggi))
-verifica(non crea_exe.aggiorna_fonte_dati(vecchio, messaggi.append) e lunghezza(messaggi) == 1, "la seconda volta non c'è niente da fare")
+verifica(lunghezza_di(messaggi) == 1 e "aggiornato" in messaggi[0], "lo dice nel registro: " + tipo_testo(messaggi))
+verifica(non crea_exe.aggiorna_fonte_dati(vecchio, messaggi.append) e lunghezza_di(messaggi) == 1, "la seconda volta non c'è niente da fare")
 senza = os.path.join(base, "SenzaDati")
 os.makedirs(senza)
 verifica(non crea_exe.aggiorna_fonte_dati(senza, messaggi.append) e non os.path.exists(os.path.join(senza, "fonte_dati.pit")), "senza fonte dati non si inventa niente")
@@ -340,16 +340,16 @@ se os.environ.get("RAD_PROVA_EXE") == "1":
     righe = []
     esito = crea_exe.costruisci(progetto, crea_exe.Opzioni("AppConDati", un_file=Vero, senza_console=Falso), righe.append)
     stampa("costruzione:", esito["ok"], esito["errore"])
-    verifica(esito["ok"], "exe costruito: " + testo(righe[-5:]))
+    verifica(esito["ok"], "exe costruito: " + tipo_testo(righe[-5:]))
     se esito["ok"]:
         dati_a = os.path.join(base, "DatiUtenteA")
         os.makedirs(dati_a)
         ambiente = dict(os.environ, APPDATA=dati_a)
         uscite = []
-        per _ in intervallo(3):
+        per _ in intervallo_di(3):
             r = subprocess.run([esito["exe"]], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120, env=ambiente)
             uscite.append((r.returncode, r.stdout.strip(), r.stderr.strip()[-120:]))
-        verifica([u[1].split("|")[0].strip() per u in uscite] == ["righe prima: 1", "righe prima: 2", "righe prima: 3"], "nell'exe le modifiche restano da un avvio all'altro: " + testo(uscite))
+        verifica([u[1].split("|")[0].strip() per u in uscite] == ["righe prima: 1", "righe prima: 2", "righe prima: 3"], "nell'exe le modifiche restano da un avvio all'altro: " + tipo_testo(uscite))
         verifica("DatiUtenteA" in uscite[0][1] e "AppConDati" in uscite[0][1], "la copia sta nei dati dell'utente: " + uscite[0][1])
         ambiente_b = dict(os.environ, APPDATA=os.path.join(base, "DatiUtenteB"))
         r = subprocess.run([esito["exe"]], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120, env=ambiente_b)
@@ -359,14 +359,14 @@ se os.environ.get("RAD_PROVA_EXE") == "1":
     # versione portatile: il database sta accanto all'exe
     righe = []
     esito2 = crea_exe.costruisci(progetto, crea_exe.Opzioni("AppPortatile", un_file=Vero, senza_console=Falso, dati_accanto=Vero), righe.append)
-    verifica(esito2["ok"], "exe portatile costruito: " + testo(righe[-5:]))
+    verifica(esito2["ok"], "exe portatile costruito: " + tipo_testo(righe[-5:]))
     se esito2["ok"]:
         ambiente_c = dict(os.environ, APPDATA=os.path.join(base, "DatiUtenteC"))
         uscite2 = []
-        per _ in intervallo(2):
+        per _ in intervallo_di(2):
             r = subprocess.run([esito2["exe"]], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120, env=ambiente_c)
             uscite2.append(r.stdout.strip())
-        verifica(uscite2[0].startswith("righe prima: 1") e uscite2[1].startswith("righe prima: 2"), "portatile: le modifiche restano: " + testo(uscite2))
+        verifica(uscite2[0].startswith("righe prima: 1") e uscite2[1].startswith("righe prima: 2"), "portatile: le modifiche restano: " + tipo_testo(uscite2))
         verifica(os.path.exists(os.path.join(os.path.dirname(esito2["exe"]), "dati.db")) e uscite2[0].endswith(os.path.join(os.path.dirname(esito2["exe"]), "dati.db")), "il database sta accanto all'exe: " + uscite2[0])
         verifica(non os.path.exists(os.path.join(base, "DatiUtenteC")), "e non nella cartella dell'utente")
 stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

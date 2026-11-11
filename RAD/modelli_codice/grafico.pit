@@ -17,7 +17,7 @@ COLORI = ["#4c78a8", "#f58518", "#54a24b", "#e45756", "#72b7b2", "#b279a2", "#ee
 definisci numero(valore):
     """Un numero da un valore qualsiasi (anche testo con la virgola); se non si legge vale 0."""
     prova:
-        ritorna float(testo(valore).strip().replace(",", ".")) se valore è non Nessuno altrimenti 0.0
+        ritorna float(tipo_testo(valore).strip().replace(",", ".")) se valore è non Nessuno altrimenti 0.0
     eccetto ValueError:
         ritorna 0.0
 
@@ -30,13 +30,13 @@ definisci voci_da(dati):
             etichetta, separatore, valore = d.rpartition("=")
             risultato.append((etichetta.strip(), numero(valore)) se separatore altrimenti (d.strip(), 0.0))
         altrimenti:
-            risultato.append((testo(d[0]), numero(d[1])))
+            risultato.append((tipo_testo(d[0]), numero(d[1])))
     ritorna risultato
 
 
 definisci formatta(v):
     se abs(v - round(v)) < 1e-9:
-        ritorna testo(int(round(v)))
+        ritorna tipo_testo(int(round(v)))
     ritorna f"{v:.2f}".rstrip("0").rstrip(".")
 
 
@@ -139,8 +139,8 @@ classe Grafico(tk.Canvas):
         passo = passo_bello(massimo - minimo)
         base = math.floor(minimo / passo) * passo
         cima = math.ceil(massimo / passo) * passo
-        etichette_asse = [formatta(base + i * passo) per i in intervallo(int(round((cima - base) / passo)) + 1)]
-        sinistra = 14 + 7 * max(lunghezza(t) per t in etichette_asse)
+        etichette_asse = [formatta(base + i * passo) per i in intervallo_di(int(round((cima - base) / passo)) + 1)]
+        sinistra = 14 + 7 * max(lunghezza_di(t) per t in etichette_asse)
         destra = 12
         basso = altezza - 26
         x0, x1 = sinistra, larghezza - destra
@@ -159,7 +159,7 @@ classe Grafico(tk.Canvas):
             i += 1
         y_zero = y_di(0)
         se_stesso.create_line(x0, y_zero, x1, y_zero, fill=tenue)
-        n = lunghezza(se_stesso.voci)
+        n = lunghezza_di(se_stesso.voci)
         fetta = (x1 - x0) / n
         colore = se_stesso.colore o COLORI[0]
         punti = []
@@ -174,10 +174,10 @@ classe Grafico(tk.Canvas):
             se se_stesso.mostra_valori:
                 se_stesso.create_text(centro, (y - 8) se v >= 0 altrimenti (y + 8), text=formatta(v), fill=testo_c, font=("Segoe UI", 8))
             massimo_caratteri = max(3, int(fetta / 6.5))
-            nome = etichetta se lunghezza(etichetta) <= massimo_caratteri altrimenti etichetta[:max(1, massimo_caratteri - 1)] + "…"
+            nome = etichetta se lunghezza_di(etichetta) <= massimo_caratteri altrimenti etichetta[:max(1, massimo_caratteri - 1)] + "…"
             se_stesso.create_text(centro, y_basso + 12, text=nome, fill=tenue, font=("Segoe UI", 8))
         se se_stesso.tipo == "linee":
-            se lunghezza(punti) > 1:
+            se lunghezza_di(punti) > 1:
                 se_stesso.create_line(*[c per p in punti per c in p], fill=colore, width=2, smooth=Falso)
             per cx, cy in punti:
                 se_stesso.create_oval(cx - 3, cy - 3, cx + 3, cy + 3, fill=colore, outline=se_stesso.sfondo_grafico)
@@ -199,8 +199,8 @@ classe Grafico(tk.Canvas):
         inizio = 90.0
         per k, (etichetta, v) in enumera(positive):
             estensione = v / totale * 360
-            colore = COLORI[k % lunghezza(COLORI)]
-            se lunghezza(positive) == 1:
+            colore = COLORI[k % lunghezza_di(COLORI)]
+            se lunghezza_di(positive) == 1:
                 se_stesso.create_oval(x0, y0, x0 + lato, y0 + lato, fill=colore, outline=se_stesso.sfondo_grafico, width=2)
             altrimenti:
                 se_stesso.create_arc(x0, y0, x0 + lato, y0 + lato, start=inizio, extent=-estensione, fill=colore, outline=se_stesso.sfondo_grafico, width=2, style="pieslice")
@@ -209,14 +209,14 @@ classe Grafico(tk.Canvas):
         se larghezza_legenda:
             lx = x0 + lato + 20
             riga = 18
-            ly = max(alto, (altezza - riga * lunghezza(positive)) / 2)
+            ly = max(alto, (altezza - riga * lunghezza_di(positive)) / 2)
             per k, (etichetta, v) in enumera(positive):
-                colore = COLORI[k % lunghezza(COLORI)]
+                colore = COLORI[k % lunghezza_di(COLORI)]
                 se_stesso.create_rectangle(lx, ly + 3, lx + 10, ly + 13, fill=colore, outline="")
                 percento = v / totale * 100
                 descrizione = etichetta + (f"  {formatta(v)} ({percento:.0f}%)" se se_stesso.mostra_valori altrimenti f"  {percento:.0f}%")
                 massimo_caratteri = max(6, int((larghezza - lx - 24) / 6.5))
-                se lunghezza(descrizione) > massimo_caratteri:
+                se lunghezza_di(descrizione) > massimo_caratteri:
                     descrizione = descrizione[:massimo_caratteri - 1] + "…"
                 se_stesso.create_text(lx + 16, ly + 8, text=descrizione, anchor="w", fill=testo_c, font=("Segoe UI", 9))
                 ly += riga

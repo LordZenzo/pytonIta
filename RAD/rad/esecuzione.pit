@@ -46,9 +46,9 @@ definisci controlla_sintassi(sorgente, nome_file="<editor>", linguaggio=Nessuno)
             compile(sorgente, nome_file, "exec")
     eccetto SyntaxError come eccezione:
         da _italiano importa traduci_errore
-        messaggio = traduci_errore(testo(eccezione.msg))
+        messaggio = traduci_errore(tipo_testo(eccezione.msg))
         righe = sorgente.split(chr(10))
-        riga_errore = righe[(eccezione.lineno o 1) - 1] se 0 < (eccezione.lineno o 1) <= lunghezza(righe) altrimenti ""
+        riga_errore = righe[(eccezione.lineno o 1) - 1] se 0 < (eccezione.lineno o 1) <= lunghezza_di(righe) altrimenti ""
         prova:
             aiuto = diagnosi.aiuto_sintassi(messaggio, riga_errore, linguaggio == "py")
         eccetto Exception:
@@ -57,7 +57,7 @@ definisci controlla_sintassi(sorgente, nome_file="<editor>", linguaggio=Nessuno)
             messaggio = messaggio + " — " + aiuto
         ritorna (eccezione.lineno o 1, eccezione.offset o 0, messaggio)
     eccetto (ErroreDiValore, ValueError) come eccezione:
-        ritorna (1, 0, testo(eccezione))
+        ritorna (1, 0, tipo_testo(eccezione))
     ritorna Nessuno
 
 
@@ -72,7 +72,7 @@ definisci esegui_sincrono(argomenti, cartella=Nessuno, tempo_massimo=60, ingress
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ambiente, creationflags=_FLAG_NASCONDI,
                              start_new_session=piattaforma.NUOVA_SESSIONE)
     eccetto OSError come eccezione:
-        ritorna {"codice": -1, "uscita": "", "errori": testo(eccezione), "scaduto": Falso, "secondi": 0}
+        ritorna {"codice": -1, "uscita": "", "errori": tipo_testo(eccezione), "scaduto": Falso, "secondi": 0}
     limite = limiti_mod.applica(p, *limiti) se limiti altrimenti Nessuno
     prova:
         prova:
@@ -123,7 +123,7 @@ definisci termina_albero(p):
     """Ferma un processo e quelli che ha avviato."""
     prova:
         se sys.platform == "win32":
-            subprocess.run(["taskkill", "/T", "/F", "/PID", testo(p.pid)], capture_output=Vero, creationflags=_FLAG_NASCONDI)
+            subprocess.run(["taskkill", "/T", "/F", "/PID", tipo_testo(p.pid)], capture_output=Vero, creationflags=_FLAG_NASCONDI)
         altrimenti:
             p.kill()
     eccetto OSError:
@@ -184,7 +184,7 @@ classe Esecutore:
             ritorna
         prova:
             se sys.platform == "win32":
-                subprocess.run(["taskkill", "/T", "/F", "/PID", testo(p.pid)], capture_output=Vero,
+                subprocess.run(["taskkill", "/T", "/F", "/PID", tipo_testo(p.pid)], capture_output=Vero,
                                creationflags=_FLAG_NASCONDI)
             altrimenti:
                 piattaforma.termina_gruppo(p)
@@ -305,7 +305,7 @@ classe Console(tk.Frame):
         t = se_stesso.t
         indice = t.index(f"@{evento_tk.x},{evento_tk.y}")
         intervalli = t.tag_ranges("link")
-        per i in intervallo(0, lunghezza(intervalli), 2):
+        per i in intervallo_di(0, lunghezza_di(intervalli), 2):
             se t.compare(intervalli[i], "<=", indice) e t.compare(indice, "<", intervalli[i + 1]):
                 m = _RE_LINK.search(t.get(intervalli[i], intervalli[i + 1]))
                 se m:
@@ -322,7 +322,7 @@ classe Console(tk.Frame):
         se_stesso._errori_recenti = ""
         se_stesso._visto_output = Falso
         se_stesso._cartella_esecuzione = cartella
-        se_stesso._e_python = any(testo(a).lower().endswith((".py", ".pyw")) per a in argomenti)
+        se_stesso._e_python = any(tipo_testo(a).lower().endswith((".py", ".pyw")) per a in argomenti)
         se_stesso.scrivi(f"▶ {descrizione o ' '.join(argomenti)}\n", "info")
         prova:
             se_stesso.esecutore.avvia(argomenti, cartella, limiti_mod.da_configurazione(se_stesso.config_, "esecuzione"))

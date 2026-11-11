@@ -12,7 +12,7 @@ open(programma, "w", encoding="utf-8").write('''definisci doppio(x):
 
 
 totale = 0
-per i in intervallo(10):
+per i in intervallo_di(10):
     totale = totale + doppio(i)
     stampa("giro", i)
 stampa("fine", totale)
@@ -43,7 +43,7 @@ definisci esegui_prova(punti, comandi, descrizione):
             buffer = buffer[j + 1:]
             se ev["evento"] == "fermo":
                 soste.append(ev)
-                per cmd in (comandi[inviati] se inviati < lunghezza(comandi) altrimenti ["continua"]):
+                per cmd in (comandi[inviati] se inviati < lunghezza_di(comandi) altrimenti ["continua"]):
                     p.stdin.write((PREFISSO_COMANDO + cmd + "\n").encode("utf-8"))
                 p.stdin.flush()
                 inviati += 1
@@ -70,25 +70,25 @@ definisci valore(sosta, nome):
 
 # riga 8: totale = totale + doppio(i)   (i da 0 a 9)
 soste, _ = esegui_prova({programma: [8]}, [], "semplice")
-stampa("semplice: soste =", lunghezza(soste), "| i:", [valore(s, "i") per s in soste][:4])
+stampa("semplice: soste =", lunghezza_di(soste), "| i:", [valore(s, "i") per s in soste][:4])
 
 soste, _ = esegui_prova({programma: [[8, "i == 4", 0, ""]]}, [], "condizione")
-stampa("condizione i == 4: soste =", lunghezza(soste), "| i:", [valore(s, "i") per s in soste])
+stampa("condizione i == 4: soste =", lunghezza_di(soste), "| i:", [valore(s, "i") per s in soste])
 
 soste, _ = esegui_prova({programma: [[8, "i > 6", 0, ""]]}, [], "condizione maggiore")
 stampa("condizione i > 6: i:", [valore(s, "i") per s in soste])
 
 soste, _ = esegui_prova({programma: [[8, "", 3, ""]]}, [], "dal terzo passaggio")
-stampa("dal passaggio 3: prima sosta con i =", valore(soste[0], "i"), "| soste:", lunghezza(soste))
+stampa("dal passaggio 3: prima sosta con i =", valore(soste[0], "i"), "| soste:", lunghezza_di(soste))
 
 soste, uscita = esegui_prova({programma: [[8, "i % 5 == 0", 0, "giro {i}, totale {totale}"]]}, [], "messaggio")
-stampa("messaggio: soste =", lunghezza(soste), "| scritto:", [r per r in uscita.splitlines() se "🔶" in r])
+stampa("messaggio: soste =", lunghezza_di(soste), "| scritto:", [r per r in uscita.splitlines() se "🔶" in r])
 
 soste, _ = esegui_prova({programma: [[8, "i ==== 3", 0, ""]]}, [], "condizione sbagliata")
-stampa("condizione non valida: ci si ferma comunque:", lunghezza(soste) > 0, "| avviso:", bool(soste[0]["avviso"]) se soste altrimenti Nessuno)
+stampa("condizione non valida: ci si ferma comunque:", lunghezza_di(soste) > 0, "| avviso:", bool(soste[0]["avviso"]) se soste altrimenti Nessuno)
 
 soste, _ = esegui_prova({programma: [[8, "i == 2 e totale == 2", 0, ""]]}, [], "parole italiane")
-stampa("condizione con «e»: soste =", lunghezza(soste), "| i:", [valore(s, "i") per s in soste])
+stampa("condizione con «e»: soste =", lunghezza_di(soste), "| i:", [valore(s, "i") per s in soste])
 
 # riga 2 (y = x * 2) dentro doppio, con la pila: scelgo il frame 1 (il modulo)
 soste, _ = esegui_prova({programma: [[2, "x == 3", 0, ""]]}, [["frame 1", "osserva [\"totale\", \"x\"]"]], "frame")

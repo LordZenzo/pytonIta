@@ -104,7 +104,7 @@ classe PannelloDebug(tk.Frame):
         se_stesso._frame_pila = ev.get("pila", [])
         per f in se_stesso._frame_pila:
             se_stesso.pila.insert("end", f"{f['funzione']}   ·   {os.path.basename(f['file'])}:{f['riga']}")
-        se mantieni è non Nessuno e mantieni < lunghezza(se_stesso._frame_pila):
+        se mantieni è non Nessuno e mantieni < lunghezza_di(se_stesso._frame_pila):
             se_stesso.pila.selection_set(mantieni)
         se_stesso.aggiorna_osservate(ev.get("osservate", []))
         se_stesso.stato.configure(text=f"fermo alla riga {ev.get('riga')}" se mantieni è Nessuno altrimenti f"{ev.get('funzione')}, riga {ev.get('riga')}")
@@ -134,7 +134,7 @@ classe PannelloDebug(tk.Frame):
 
     definisci _scelta_pila(se_stesso, evento=Nessuno):
         sel = se_stesso.pila.curselection()
-        se sel e sel[0] < lunghezza(se_stesso._frame_pila):
+        se sel e sel[0] < lunghezza_di(se_stesso._frame_pila):
             f = se_stesso._frame_pila[sel[0]]
             se_stesso.sessione.mostra_posizione(f["file"], f["riga"])
             se_stesso.sessione.scegli_frame(sel[0])
@@ -336,7 +336,7 @@ classe SessioneDebug:
         se se_stesso.pannello è Nessuno:
             se_stesso.pannello = PannelloDebug(app.centro, se_stesso)
             se_stesso.pannello.applica_colori(app.colori)
-        se str(se_stesso.pannello) non in [testo(x) per x in app.centro.panes()]:
+        se str(se_stesso.pannello) non in [tipo_testo(x) per x in app.centro.panes()]:
             app.centro.add(se_stesso.pannello, before=app.console, minsize=110, height=210)
         se_stesso.pannello.aggiorna_osservate([{"espressione": elemento, "valore": "…"} per elemento in se_stesso.osservate])
 

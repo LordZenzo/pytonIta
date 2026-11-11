@@ -4,7 +4,7 @@
   "argomento": "Variabili e numeri",
   "livello": "Principiante",
   "consegna": "Il programma legge due numeri interi (uno per riga) e stampa la loro somma.\n\nEsempio: se scrivo 2 e 3, stampa 5.",
-  "iniziale": "a = intero(leggi(\"\"))\n# leggi anche il secondo numero e stampa la somma\n",
+  "iniziale": "a = tipo_intero(leggi_tastiera(\"\"))\n# leggi anche il secondo numero e stampa la somma\n",
   "prove": [
     {
       "ingresso": "2\n3\n",
@@ -20,10 +20,10 @@
     }
   ],
   "suggerimenti": [
-    "`leggi()` restituisce un testo: `intero(...)` lo trasforma in numero.",
+    "`leggi_tastiera()` restituisce un testo: `tipo_intero(...)` lo trasforma in numero.",
     "Leggi il secondo numero allo stesso modo e stampa `a + b`."
   ],
-  "soluzione": "a = intero(leggi(\"\"))\nb = intero(leggi(\"\"))\nstampa(a + b)\n",
+  "soluzione": "a = tipo_intero(leggi_tastiera(\"\"))\nb = tipo_intero(leggi_tastiera(\"\"))\nstampa(a + b)\n",
   "confronto": "esatto",
   "ordine": 2
 }

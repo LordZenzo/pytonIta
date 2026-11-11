@@ -58,9 +58,9 @@ definisci voci(nodo=""):
 radice_ = voci()
 testi = [t per t, _ in radice_]
 stampa(testi)
-verifica(lunghezza(radice_) == 6, "voci in radice: " + str(testi))     # sotto/, altro, b, progetto.rad.json, scheda (gruppo), sola.form.json
+verifica(lunghezza_di(radice_) == 6, "voci in radice: " + str(testi))     # sotto/, altro, b, progetto.rad.json, scheda (gruppo), sola.form.json
 gruppo = [n per n in albero.get_children("") se albero.item(n, "values")[1] == "g"]
-verifica(lunghezza(gruppo) == 1 e "scheda" in albero.item(gruppo[0], "text") e "★" in albero.item(gruppo[0], "text"), "un solo nodo finestra, con la stella del principale")
+verifica(lunghezza_di(gruppo) == 1 e "scheda" in albero.item(gruppo[0], "text") e "★" in albero.item(gruppo[0], "text"), "un solo nodo finestra, con la stella del principale")
 g = gruppo[0]
 figli = [albero.item(n, "text") per n in albero.get_children(g)]
 verifica([t.split("  ", 1)[1].split(" ")[0] per t in figli] == ["scheda.form.json", "scheda_ui.pit", "scheda.pit"], "i tre file sotto il nodo: " + str(figli))
@@ -75,7 +75,7 @@ albero.item(cartella_, open=Vero)
 pannello._carica_figli(cartella_)
 radice.update()
 sotto = voci(cartella_)
-verifica(lunghezza(sotto) == 1 e sotto[0][1][1] == "g", "anche dentro una cartella: " + str(sotto))
+verifica(lunghezza_di(sotto) == 1 e sotto[0][1][1] == "g", "anche dentro una cartella: " + str(sotto))
 
 # doppio clic sul nodo: apre il progettista (il disegno) e non apre né chiude il nodo
 albero.focus(g)
@@ -134,7 +134,7 @@ g2 = pannello._nodi["@scheda.form.json"]
 albero.focus(g2)
 albero.selection_set(g2)
 pannello.cancella()
-verifica(lunghezza(viste) == 1 e [r per r, _ in viste[0]] == ["scheda.form.json", "scheda_ui.pit", "scheda.pit"], "il dialogo mostra i tre file: " + str(viste))
+verifica(lunghezza_di(viste) == 1 e [r per r, _ in viste[0]] == ["scheda.form.json", "scheda_ui.pit", "scheda.pit"], "il dialogo mostra i tre file: " + str(viste))
 verifica(non os.path.exists(p.assoluto("scheda.form.json")) e non os.path.exists(p.assoluto("scheda_ui.pit")) e os.path.exists(p.assoluto("scheda.pit")), "eliminati i due scelti, il terzo resta")
 verifica("@scheda.form.json" non in pannello._nodi, "senza il disegno il nodo non c'è più")
 

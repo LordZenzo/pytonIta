@@ -15,7 +15,7 @@ con open(dest, encoding="utf-8") come f:
     contenuto = f.read()
 con open(form_modello.MODELLO_FONTE_DATI, encoding="utf-8") come f:
     modello = f.read()
-stampa("aggiornata:", contenuto.splitlines() == modello.splitlines(), "| bak:", os.path.exists(dest + ".bak"), "| scritti:", lunghezza(scritti))
+stampa("aggiornata:", contenuto.splitlines() == modello.splitlines(), "| bak:", os.path.exists(dest + ".bak"), "| scritti:", lunghezza_di(scritti))
 scritti = []
 form_modello.copia_fonte_dati(cart, scritti)
 stampa("seconda volta (uguale, non riscrive):", scritti)

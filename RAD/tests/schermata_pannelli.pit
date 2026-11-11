@@ -8,7 +8,7 @@ da rad.finestra importa Applicazione
 da rad.progetto importa Progetto
 da rad importa git_uso
 
-uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
 temp = tempfile.mkdtemp()
 cfg = Configurazione(os.path.join(temp, "config.json"))
 radice = tk.Tk()
@@ -71,6 +71,6 @@ app.mostra_pannello_sinistro("pacchetti")
 k = app.pannello_pacchetti
 k.var_ambiente.set("Tutti i progetti (runtime di pitonit)")
 k.aggiorna()
-aspetta(25, lambda: lunghezza(k.pacchetti) > 3)
+aspetta(25, lambda: lunghezza_di(k.pacchetti) > 3)
 foto("pannello_pacchetti.png")
 radice.destroy()

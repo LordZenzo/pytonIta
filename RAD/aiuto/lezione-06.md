@@ -10,7 +10,7 @@ Una **lista** si scrive tra parentesi quadre, con i valori separati da virgole:
 frutta = ["mela", "pera", "banana"]
 numeri = [4, 8, 15, 16, 23, 42]
 stampa(frutta)
-stampa(lunghezza(numeri))
+stampa(lunghezza_di(numeri))
 ```
 
 ```output
@@ -18,7 +18,7 @@ stampa(lunghezza(numeri))
 6
 ```
 
-`lunghezza(lista)` dice quanti elementi ci sono.
+`lunghezza_di(lista)` dice quanti elementi ci sono.
 
 ## Leggere un elemento
 
@@ -76,8 +76,8 @@ totale = 0
 per voto in voti:
     totale += voto
 stampa("Somma:", totale)
-stampa("Media:", somma(voti) / lunghezza(voti))
-stampa("Massimo:", massimo(voti), "Minimo:", minimo(voti))
+stampa("Media:", somma_di(voti) / lunghezza_di(voti))
+stampa("Massimo:", massimo_di(voti), "Minimo:", minimo_di(voti))
 ```
 
 ```output
@@ -104,8 +104,8 @@ per posizione, nome in enumera(nomi, 1):
 
 ```pit
 numeri = [5, 2, 9, 1]
-stampa(ordinato(numeri))
-stampa(ordinato(numeri, inverso=Vero))
+stampa(ordinato_di(numeri))
+stampa(ordinato_di(numeri, inverso=Vero))
 stampa(9 in numeri)
 stampa(numeri.indice(9))
 numeri.ordina()
@@ -120,13 +120,13 @@ Vero
 [1, 2, 5, 9]
 ```
 
-`ordinato(...)` crea una **nuova** lista; `lista.ordina()` cambia quella esistente.
+`ordinato_di(...)` crea una **nuova** lista; `lista.ordina()` cambia quella esistente.
 
 ## Liste costruite al volo
 
 ```pit
-quadrati = [n * n per n in intervallo(1, 6)]
-pari = [n per n in intervallo(20) se n % 2 == 0]
+quadrati = [n * n per n in intervallo_di(1, 6)]
+pari = [n per n in intervallo_di(20) se n % 2 == 0]
 stampa(quadrati)
 stampa(pari)
 ```
@@ -188,7 +188,7 @@ stampa(unici)
 ```
 
 ```pit
-stampa(lista(intervallo(5, 55, 5)))
+stampa(tipo_lista(intervallo_di(5, 55, 5)))
 ```
 
 ```output

@@ -16,14 +16,14 @@ base = tempfile.mkdtemp()
 origine = os.path.join(base, "Saluto")
 os.makedirs(origine)
 open(os.path.join(origine, "progetto.rad.json"), "w", encoding="utf-8").write(json.dumps({"nome": "Saluto", "principale": "principale.pit"}))
-open(os.path.join(origine, "principale.pit"), "w", encoding="utf-8").write('nome = "Anna"\nstampa(f"Ciao, {nome}!", lunghezza(nome))\n')
+open(os.path.join(origine, "principale.pit"), "w", encoding="utf-8").write('nome = "Anna"\nstampa(f"Ciao, {nome}!", lunghezza_di(nome))\n')
 
 # come in PitStudio.exe: il modulo os non ha __file__
 salvato = os.__file__
 elimina os.__file__
 prova:
     r = esporta_python.esporta(origine, os.path.join(base, "src"))
-    verifica(r["errori"] == [] e r["file_python"] == 1, "esportazione senza os.__file__: " + testo(r))
+    verifica(r["errori"] == [] e r["file_python"] == 1, "esportazione senza os.__file__: " + tipo_testo(r))
     verifica("print(f\"Ciao, {nome}!\", len(nome))" in open(os.path.join(base, "src", "principale.py"), encoding="utf-8").read(), "il codice Python è convertito bene")
 infine:
     os.__file__ = salvato
@@ -38,12 +38,12 @@ open(os.path.join(origine2, "principale.pit"), "w", encoding="utf-8").write(chr(
     'quadrati = [y * y per y in e["a"] se y > 1]',
     'stampa(quadrati, 1 e 2)',
     'prova:',
-    '    intero("no")',
+    '    tipo_intero("no")',
     'eccetto ErroreDiValore come e:',
     '    stampa("errore")',
     '']))
 r2 = esporta_python.esporta(origine2, os.path.join(base, "src2"))
-verifica(r2["errori"] == [] e r2["file_python"] == 1, "esportazione con una variabile «e»: " + testo(r2))
+verifica(r2["errori"] == [] e r2["file_python"] == 1, "esportazione con una variabile «e»: " + tipo_testo(r2))
 codice = open(os.path.join(base, "src2", "principale.py"), encoding="utf-8").read()
 verifica('for x in e["a"]:' in codice e 'for y in e["a"] if y > 1' in codice e "1 and 2" in codice, "«e» resta un nome dopo in, e vale «and» tra due operandi: " + codice)
 stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

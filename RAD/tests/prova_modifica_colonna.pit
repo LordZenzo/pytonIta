@@ -100,7 +100,7 @@ sollevato = Falso
 prova:
     db.modifica_colonna("clienti", nota, dm.Colonna("appunto", "TEXT", Vero, ""))
 eccetto dm.ErroreDatabase come errore:
-    sollevato = "annullata" in testo(errore)
+    sollevato = "annullata" in tipo_testo(errore)
 verifica(sollevato, "doveva annullare")
 verifica(tipi_e_nomi(db, "clienti") == prima, "dopo l'errore la tabella è com'era (anche il nome): " + str(tipi_e_nomi(db, "clienti")))
 verifica(db.esegui_una("SELECT COUNT(*) FROM sqlite_master WHERE name LIKE '_pit_nuova_%'").righe == [[0]], "nessuna tabella provvisoria rimasta")
@@ -115,7 +115,7 @@ sollevato = Falso
 prova:
     db.modifica_colonna("con_check", b_, dm.Colonna("b", "INTEGER"))
 eccetto dm.ErroreDatabase come errore:
-    sollevato = "CHECK" in testo(errore)
+    sollevato = "CHECK" in tipo_testo(errore)
 verifica(sollevato, "CHECK: doveva rifiutare la ricostruzione")
 db.modifica_colonna("con_check", b_, dm.Colonna("c", "TEXT"))
 verifica([c.nome per c in db.colonne("con_check")] == ["a", "c"], "ma la sola rinomina si può fare")
@@ -124,7 +124,7 @@ sollevato = Falso
 prova:
     db.modifica_colonna("doppia", db.colonne("doppia")[0], dm.Colonna("a", "INTEGER"))
 eccetto dm.ErroreDatabase come errore:
-    sollevato = "più colonne" in testo(errore)
+    sollevato = "più colonne" in tipo_testo(errore)
 verifica(sollevato, "unicità composta: doveva rifiutare")
 
 # chiave primaria e predefinito con parole chiave

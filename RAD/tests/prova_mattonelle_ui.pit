@@ -54,7 +54,7 @@ v._muovi_mouse(ev_tela(cx + 200, cy + 150))
 v._muovi_mouse(ev_tela(cx + 300, cy + 220))
 v._rilascia(ev_tela(cx + 300, cy + 220))
 radice.update()
-stampa("1) ciclo vuoto:", ripeti.corpi["corpo"] == [], "radici:", lunghezza(a.radici), "pila:", [m.tipo per m in cap.lista])
+stampa("1) ciclo vuoto:", ripeti.corpi["corpo"] == [], "radici:", lunghezza_di(a.radici), "pila:", [m.tipo per m in cap.lista])
 # 2) la riporta dentro il ciclo (aggancio nel corpo)
 r_ch = a.radici[-1]
 lc = d.lay[chiama.id]
@@ -66,7 +66,7 @@ v._muovi_mouse(ev_tela(destinazione[1] + 12, destinazione[2] + 14))
 stampa("candidato:", v._candidato["tipo"] se v._candidato altrimenti Nessuno)
 v._rilascia(ev_tela(destinazione[1] + 12, destinazione[2] + 14))
 radice.update()
-stampa("2) dentro il ciclo:", [m.tipo per m in ripeti.corpi["corpo"]], "radici:", lunghezza(a.radici))
+stampa("2) dentro il ciclo:", [m.tipo per m in ripeti.corpi["corpo"]], "radici:", lunghezza_di(a.radici))
 # 3) stacca il valore 'leggi' dallo slot di 'imposta' e lo rimette
 imposta = cap.lista[1]
 leggi = imposta.ingressi["valore"]
@@ -75,7 +75,7 @@ v._premi(ev_tela(cx, cy))
 v._muovi_mouse(ev_tela(cx + 100, cy + 140))
 v._muovi_mouse(ev_tela(cx + 250, cy + 260))
 v._rilascia(ev_tela(cx + 250, cy + 260))
-stampa("3) slot vuoto:", imposta.ingressi["valore"], "radici:", lunghezza(a.radici))
+stampa("3) slot vuoto:", imposta.ingressi["valore"], "radici:", lunghezza_di(a.radici))
 r_l = a.radici[-1]
 ll = d.lay[leggi.id]
 slot = [x per x in d.lay[imposta.id].segmenti se x[1] == "valore"][0]
@@ -112,16 +112,16 @@ f2 = ed.programma.aggiungi_funzione("raddoppia", "n")
 ed.ricostruisci_viste()
 ed.notifica()
 radice.update()
-stampa("viste:", lista(ed.viste))
+stampa("viste:", tipo_lista(ed.viste))
 # 7) salvataggio, generazione ed esecuzione
 ed.salva()
 codice = open(os.path.join(cart, "demo.pit"), encoding="utf-8").read()
 r = subprocess.run([sys.executable, os.path.join(cart, "demo.pit")], input="Luca\n", capture_output=Vero, text=Vero)
 stampa("esecuzione:", r.returncode, repr(r.stdout[-60:]), r.stderr[-120:])
 # annulla / ripeti
-n_prima = lunghezza(ed.cronologia)
+n_prima = lunghezza_di(ed.cronologia)
 ed.annulla()
-stampa("annulla ok:", lunghezza(ed.programma.funzioni), "<-", n_prima)
+stampa("annulla ok:", lunghezza_di(ed.programma.funzioni), "<-", n_prima)
 ed.ripeti()
 radice.update()
 time.sleep(0.5)

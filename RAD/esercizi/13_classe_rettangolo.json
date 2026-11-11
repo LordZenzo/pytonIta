@@ -4,7 +4,7 @@
   "argomento": "Classi",
   "livello": "Avanzato",
   "consegna": "Definisci una classe `Rettangolo` con base e altezza e due metodi: `area()` e `perimetro()`.\n\nLeggi base e altezza (due righe) e stampa `area A perimetro P`.\n\nEsempio: base 3 e altezza 4 → `area 12 perimetro 14`",
-  "iniziale": "classe Rettangolo:\n    definisci __inizializza__(se_stesso, base, altezza):\n        se_stesso.base = base\n        se_stesso.altezza = altezza\n\n    # aggiungi i metodi area e perimetro\n\n\nbase = intero(leggi(\"\"))\naltezza = intero(leggi(\"\"))\nr = Rettangolo(base, altezza)\n",
+  "iniziale": "classe Rettangolo:\n    definisci __inizializza__(se_stesso, base, altezza):\n        se_stesso.base = base\n        se_stesso.altezza = altezza\n\n    # aggiungi i metodi area e perimetro\n\n\nbase = tipo_intero(leggi_tastiera(\"\"))\naltezza = tipo_intero(leggi_tastiera(\"\"))\nr = Rettangolo(base, altezza)\n",
   "prove": [
     {
       "ingresso": "3\n4\n",
@@ -24,7 +24,7 @@
     "`definisci area(se_stesso): ritorna se_stesso.base * se_stesso.altezza`",
     "Alla fine: `stampa(f\"area {r.area()} perimetro {r.perimetro()}\")`."
   ],
-  "soluzione": "classe Rettangolo:\n    definisci __inizializza__(se_stesso, base, altezza):\n        se_stesso.base = base\n        se_stesso.altezza = altezza\n\n    definisci area(se_stesso):\n        ritorna se_stesso.base * se_stesso.altezza\n\n    definisci perimetro(se_stesso):\n        ritorna 2 * (se_stesso.base + se_stesso.altezza)\n\n\nbase = intero(leggi(\"\"))\naltezza = intero(leggi(\"\"))\nr = Rettangolo(base, altezza)\nstampa(f\"area {r.area()} perimetro {r.perimetro()}\")\n",
+  "soluzione": "classe Rettangolo:\n    definisci __inizializza__(se_stesso, base, altezza):\n        se_stesso.base = base\n        se_stesso.altezza = altezza\n\n    definisci area(se_stesso):\n        ritorna se_stesso.base * se_stesso.altezza\n\n    definisci perimetro(se_stesso):\n        ritorna 2 * (se_stesso.base + se_stesso.altezza)\n\n\nbase = tipo_intero(leggi_tastiera(\"\"))\naltezza = tipo_intero(leggi_tastiera(\"\"))\nr = Rettangolo(base, altezza)\nstampa(f\"area {r.area()} perimetro {r.perimetro()}\")\n",
   "confronto": "esatto",
   "ordine": 13
 }

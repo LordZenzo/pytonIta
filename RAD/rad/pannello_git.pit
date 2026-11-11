@@ -147,7 +147,7 @@ classe PannelloGit(tk.Frame):
                 ritorna
             se non riuscito:
                 se_stesso.repo = Falso
-                se_stesso._mostra_parti(testo(risultato))
+                se_stesso._mostra_parti(tipo_testo(risultato))
                 ritorna
             se risultato è Nessuno:
                 se_stesso.repo = Falso
@@ -178,11 +178,11 @@ classe PannelloGit(tk.Frame):
         pronte = git_uso.pronte(s["voci"])
         altre = git_uso.da_preparare(s["voci"])
         se pronte:
-            se_stesso.albero.insert("", "end", iid="g:pronte", text=f"Pronte per il commit ({lunghezza(pronte)})", open=Vero, tags=("gruppo",))
+            se_stesso.albero.insert("", "end", iid="g:pronte", text=f"Pronte per il commit ({lunghezza_di(pronte)})", open=Vero, tags=("gruppo",))
             per v in pronte:
                 se_stesso.albero.insert("g:pronte", "end", iid="p:" + v["percorso"], text=v["percorso"], values=(git_uso.descrizione(v["x"], " "),))
         se altre:
-            se_stesso.albero.insert("", "end", iid="g:mod", text=f"Modifiche ({lunghezza(altre)})", open=Vero, tags=("gruppo",))
+            se_stesso.albero.insert("", "end", iid="g:mod", text=f"Modifiche ({lunghezza_di(altre)})", open=Vero, tags=("gruppo",))
             per v in altre:
                 se_stesso.albero.insert("g:mod", "end", iid="m:" + v["percorso"], text=v["percorso"], values=(git_uso.descrizione(v["x"] se v["x"] == "?" altrimenti " ", v["y"]),))
         se non pronte e non altre:
@@ -191,11 +191,11 @@ classe PannelloGit(tk.Frame):
         per s_ in selezionate:
             se se_stesso.albero.exists(s_):
                 se_stesso.albero.selection_add(s_)
-        se_stesso.pulsante_commit.configure(text=f"✔ Commit ({lunghezza(pronte)})" se pronte altrimenti "✔ Commit")
+        se_stesso.pulsante_commit.configure(text=f"✔ Commit ({lunghezza_di(pronte)})" se pronte altrimenti "✔ Commit")
         se_stesso._commit = r["registro"]
         se_stesso.storia.delete(*se_stesso.storia.get_children())
         per i, c in enumera(r["registro"]):
-            se_stesso.storia.insert("", "end", iid=testo(i), values=(c["messaggio"], c["autore"], c["quando"]))
+            se_stesso.storia.insert("", "end", iid=tipo_testo(i), values=(c["messaggio"], c["autore"], c["quando"]))
 
     # ------------------------------------------------------------ azioni
     definisci _lavora(se_stesso, funzione, dopo=Nessuno):
@@ -212,7 +212,7 @@ classe PannelloGit(tk.Frame):
                 ritorna
             messaggio = ""
             se non riuscito:
-                messaggio = testo(risultato)
+                messaggio = tipo_testo(risultato)
             altrimenti_se dopo:
                 dopo(risultato)
             se_stesso.aggiorna()
@@ -246,7 +246,7 @@ classe PannelloGit(tk.Frame):
         se non scelti:
             ritorna
         voci = [v per v in se_stesso.voci se v["percorso"] in scelti e (v["y"] != " " o v["x"] == "?")]
-        se non messagebox.askyesno("Annulla le modifiche", f"Butto via le modifiche di {lunghezza(voci)} file?\n(I file nuovi vengono eliminati. Non si può tornare indietro.)", parent=se_stesso.app.radice):
+        se non messagebox.askyesno("Annulla le modifiche", f"Butto via le modifiche di {lunghezza_di(voci)} file?\n(I file nuovi vengono eliminati. Non si può tornare indietro.)", parent=se_stesso.app.radice):
             ritorna
         se_stesso._lavora(lambda c: git_uso.annulla_modifiche(c, voci), dopo=lambda r: se_stesso.app.ricarica_file_cambiati())
 
@@ -270,7 +270,7 @@ classe PannelloGit(tk.Frame):
             prova:
                 git_uso.imposta_identita(se_stesso.cartella, nome, email)
             eccetto git_uso.ErroreGit come errore:
-                se_stesso.avviso(testo(errore))
+                se_stesso.avviso(tipo_testo(errore))
                 ritorna
         se_stesso.app.salva_tutto()
         se_stesso._lavora(lambda c: git_uso.commit(c, messaggio), dopo=lambda r: se_stesso.messaggio_commit.delete("1.0", "end"))
@@ -289,7 +289,7 @@ classe PannelloGit(tk.Frame):
 
     definisci scarica(se_stesso):
         se_stesso.app.salva_tutto()
-        se_stesso._lavora(lambda c: git_uso.scarica(c), dopo=lambda r: (se_stesso.app.ricarica_file_cambiati(), se_stesso.app.info("Git: " + (testo(r).splitlines() o ["fatto"])[0])))
+        se_stesso._lavora(lambda c: git_uso.scarica(c), dopo=lambda r: (se_stesso.app.ricarica_file_cambiati(), se_stesso.app.info("Git: " + (tipo_testo(r).splitlines() o ["fatto"])[0])))
 
     definisci invia(se_stesso):
         ramo = se_stesso._ramo

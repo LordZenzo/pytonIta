@@ -4,7 +4,7 @@
   "argomento": "Decisioni con se",
   "livello": "Principiante",
   "consegna": "Leggi l'età di una persona. Se ha 18 anni o più stampa `maggiorenne`, altrimenti `minorenne`.",
-  "iniziale": "eta = intero(leggi(\"\"))\n# se ... stampa maggiorenne, altrimenti stampa minorenne\n",
+  "iniziale": "eta = tipo_intero(leggi_tastiera(\"\"))\n# se ... stampa maggiorenne, altrimenti stampa minorenne\n",
   "prove": [
     {
       "ingresso": "20\n",
@@ -27,7 +27,7 @@
     "`se eta >= 18:` e sotto, rientrato, `stampa(\"maggiorenne\")`.",
     "Poi `altrimenti:` con il rientro e l'altra stampa."
   ],
-  "soluzione": "eta = intero(leggi(\"\"))\nse eta >= 18:\n    stampa(\"maggiorenne\")\naltrimenti:\n    stampa(\"minorenne\")\n",
+  "soluzione": "eta = tipo_intero(leggi_tastiera(\"\"))\nse eta >= 18:\n    stampa(\"maggiorenne\")\naltrimenti:\n    stampa(\"minorenne\")\n",
   "confronto": "esatto",
   "ordine": 3
 }

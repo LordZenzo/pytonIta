@@ -44,7 +44,7 @@ definisci _leggi_url(url, tempo_massimo=20):
             dati = risposta.read(MASSIMO_FILE + 1)
     eccetto Exception come errore:
         solleva ErroreLibrerie(f"Non riesco a leggere {url}: {errore}") da errore
-    se lunghezza(dati) > MASSIMO_FILE:
+    se lunghezza_di(dati) > MASSIMO_FILE:
         solleva ErroreLibrerie(f"{url} è troppo grande")
     ritorna dati
 
@@ -71,9 +71,9 @@ definisci _controlla_indice(indice):
     per voce in indice["librerie"]:
         prova:
             nome = voce["nome"]
-            se non nome.isidentifier() o lunghezza(voce["file"]) == 0:
+            se non nome.isidentifier() o lunghezza_di(voce["file"]) == 0:
                 continua
-            se all(percorso_sicuro(f["percorso"]) e lunghezza(f["sha256"]) == 64 per f in voce["file"]):
+            se all(percorso_sicuro(f["percorso"]) e lunghezza_di(f["sha256"]) == 64 per f in voce["file"]):
                 validi.append(voce)
         eccetto (KeyError, TypeError, AttributeError):
             continua
@@ -140,7 +140,7 @@ definisci stato(voce, cartella_utente=Nessuno, runtime=Nessuno):
                 uguali += 1
     se presenti == 0:
         ritorna "nuova"
-    ritorna "aggiornata" se uguali == lunghezza(voce["file"]) altrimenti "aggiornabile"
+    ritorna "aggiornata" se uguali == lunghezza_di(voce["file"]) altrimenti "aggiornabile"
 
 
 definisci e_scaricata(voce, cartella_utente=Nessuno):
@@ -158,7 +158,7 @@ definisci metti_in_percorso(cartella_utente=Nessuno):
     """Perché il processo in corso veda le copie scaricate (sitecustomize lo fa solo all'avvio)."""
     cartella_utente = cartella_utente o CARTELLA_UTENTE
     se cartella_utente non in sys.path:
-        sys.path.insert(min(1, lunghezza(sys.path)), cartella_utente)
+        sys.path.insert(min(1, lunghezza_di(sys.path)), cartella_utente)
 
 
 definisci installa(voce, base=Nessuno, cartella_utente=Nessuno):

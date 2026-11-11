@@ -99,12 +99,12 @@ prova:
     converti_progetto.converti(valore, d)
     stampa("destinazione piena: nessun errore (sbagliato)")
 eccetto ErroreDiValore come errore:
-    stampa("destinazione non vuota -> errore:", "non è vuota" in testo(errore))
+    stampa("destinazione non vuota -> errore:", "non è vuota" in tipo_testo(errore))
 prova:
     converti_progetto.converti(valore, valore)
     stampa("stessa cartella: nessun errore (sbagliato)")
 eccetto ErroreDiValore come errore:
-    stampa("origine = destinazione -> errore:", "diversa" in testo(errore))
+    stampa("origine = destinazione -> errore:", "diversa" in tipo_testo(errore))
 dentro = os.path.join(valore, "uscita")
 r2 = converti_progetto.converti(valore, dentro, Falso)
 stampa("destinazione dentro l'origine: non si converte se stessa:", non any("uscita" in c["file"] per c in r2["convertiti"]), "| creata:", os.path.isdir(dentro))
@@ -143,7 +143,7 @@ vero = r"C:\AppPython\ModFile2_py"
 se os.path.isdir(vero):
     dv = os.path.join(base, "ModFile2_vero_pit")
     rv = converti_progetto.converti(vero, dv, Vero)
-    stampa("ModFile2: convertiti", lunghezza(rv["convertiti"]), "rimasti py", lunghezza(rv["mantenuti_py"]), "| principale", rv["principale"])
+    stampa("ModFile2: convertiti", lunghezza_di(rv["convertiti"]), "rimasti py", lunghezza_di(rv["mantenuti_py"]), "| principale", rv["principale"])
     t = subprocess.run([PITONIT, "test_core.pit"], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dv)
     stampa("ModFile2: test in italiano:", "Ran 28 tests" in t.stderr, "OK" in t.stderr)
     s = subprocess.run([PITONIT, "smoke_gui.pit"], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dv, timeout=120)

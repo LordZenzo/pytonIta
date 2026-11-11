@@ -4,7 +4,7 @@
   "argomento": "Cicli",
   "livello": "Principiante",
   "consegna": "Leggi un numero n e stampa la somma dei numeri da 1 a n.\n\nEsempio: con n = 4 stampa 10 (1+2+3+4).",
-  "iniziale": "n = intero(leggi(\"\"))\ntotale = 0\n# aggiungi a totale tutti i numeri da 1 a n\n",
+  "iniziale": "n = tipo_intero(leggi_tastiera(\"\"))\ntotale = 0\n# aggiungi a totale tutti i numeri da 1 a n\n",
   "prove": [
     {
       "ingresso": "4\n",
@@ -24,10 +24,10 @@
     }
   ],
   "suggerimenti": [
-    "`per i in intervallo(1, n + 1):` passa per 1, 2, ... n.",
+    "`per i in intervallo_di(1, n + 1):` passa per 1, 2, ... n.",
     "Dentro il ciclo: `totale += i`."
   ],
-  "soluzione": "n = intero(leggi(\"\"))\ntotale = 0\nper i in intervallo(1, n + 1):\n    totale += i\nstampa(totale)\n",
+  "soluzione": "n = tipo_intero(leggi_tastiera(\"\"))\ntotale = 0\nper i in intervallo_di(1, n + 1):\n    totale += i\nstampa(totale)\n",
   "confronto": "esatto",
   "ordine": 6
 }

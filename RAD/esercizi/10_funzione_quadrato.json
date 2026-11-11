@@ -4,7 +4,7 @@
   "argomento": "Funzioni",
   "livello": "Intermedio",
   "consegna": "Definisci una funzione `quadrato(x)` che restituisce x moltiplicato per se stesso. Poi leggi un numero n e stampa `quadrato(n)`.",
-  "iniziale": "# definisci la funzione quadrato\n\n\nn = intero(leggi(\"\"))\nstampa(quadrato(n))\n",
+  "iniziale": "# definisci la funzione quadrato\n\n\nn = tipo_intero(leggi_tastiera(\"\"))\nstampa(quadrato(n))\n",
   "prove": [
     {
       "ingresso": "5\n",
@@ -23,7 +23,7 @@
     "Si scrive `definisci quadrato(x):` e dentro, rientrato, `ritorna ...`.",
     "`ritorna x * x`."
   ],
-  "soluzione": "definisci quadrato(x):\n    ritorna x * x\n\n\nn = intero(leggi(\"\"))\nstampa(quadrato(n))\n",
+  "soluzione": "definisci quadrato(x):\n    ritorna x * x\n\n\nn = tipo_intero(leggi_tastiera(\"\"))\nstampa(quadrato(n))\n",
   "confronto": "esatto",
   "ordine": 10
 }

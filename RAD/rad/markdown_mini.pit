@@ -23,7 +23,7 @@ definisci analizza(testo_):
     righe = testo_.replace("\r\n", "\n").split("\n")
     blocchi = []
     i = 0
-    n = lunghezza(righe)
+    n = lunghezza_di(righe)
     mentre i < n:
         riga = righe[i]
         r = riga.strip()
@@ -42,7 +42,7 @@ definisci analizza(testo_):
             continua
         m = _RE_TITOLO.match(r)
         se m:
-            blocchi.append(("h", lunghezza(m.group(1)), m.group(2)))
+            blocchi.append(("h", lunghezza_di(m.group(1)), m.group(2)))
             i += 1
             continua
         se r in ("---", "***", "___"):
@@ -76,7 +76,7 @@ definisci analizza(testo_):
             mentre i < n:
                 m = _RE_ELENCO.match(righe[i])
                 se m:
-                    livello = lunghezza(m.group(1).replace("\t", "    ")) // 2
+                    livello = lunghezza_di(m.group(1).replace("\t", "    ")) // 2
                     numerata = m.group(2)[0].isdigit()
                     se voci e livello == 0 e voci[0][0] == 0 e voci[0][1] != numerata:
                         interrompi          # cambia il tipo di elenco: ne comincia un altro
@@ -115,7 +115,7 @@ definisci segmenti(testo_):
         altrimenti:
             risultato.append(("link", m.group(4), m.group(5)))
         posizione = m.end()
-    se posizione < lunghezza(testo_):
+    se posizione < lunghezza_di(testo_):
         risultato.append(("t", testo_[posizione:]))
     ritorna risultato
 

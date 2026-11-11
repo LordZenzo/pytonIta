@@ -38,8 +38,8 @@ definisci pulsanti(w):
 
 barra = pulsanti(ed.barra)
 con_aiuto = [x per x in barra se getattr(x, "_suggerimento", Nessuno)]
-stampa("barra delle mattonelle: pulsanti", lunghezza(barra), "| con suggerimento", lunghezza(con_aiuto))
-stampa("tutti hanno il suggerimento:", lunghezza(barra) == lunghezza(con_aiuto) e lunghezza(barra) >= 11)
+stampa("barra delle mattonelle: pulsanti", lunghezza_di(barra), "| con suggerimento", lunghezza_di(con_aiuto))
+stampa("tutti hanno il suggerimento:", lunghezza_di(barra) == lunghezza_di(con_aiuto) e lunghezza_di(barra) >= 11)
 
 # il fumetto compare dopo il ritardo e sparisce all'uscita
 b = con_aiuto[0]

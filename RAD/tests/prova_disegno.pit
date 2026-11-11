@@ -44,7 +44,7 @@ nuova = Radice(0, 0, pila=[Mattonella("stampa", p)])
 a.radici.append(nuova)
 d.disegna_area(a)
 cands = d.candidati(a, nuova, {nuova.pila[0].id})
-stampa("candidati:", sorted(set(x["tipo"] per x in cands)), lunghezza(cands))
+stampa("candidati:", sorted(set(x["tipo"] per x in cands)), lunghezza_di(cands))
 imp = a.cappello.lista[1]
 best = d.miglior_candidato(cands, (d.lay[imp.id].x, d.lay[imp.id].y + d.lay[imp.id].h + 6))
 stampa("miglior candidato:", best["tipo"], best["mattonella"].tipo)

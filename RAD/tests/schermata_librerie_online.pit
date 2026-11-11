@@ -15,7 +15,7 @@ da rad.progetto importa Progetto
 da rad importa librerie_online come online
 da rad.aggiornamenti_ui importa DialogoAggiornamento
 
-uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
 # runtime finto: parte delle librerie incluse, qualcuna vecchia, qualcuna assente
 runtime = os.path.join(radice_test, "Lib")
 os.makedirs(runtime)

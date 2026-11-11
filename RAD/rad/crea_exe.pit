@@ -53,23 +53,23 @@ classe Opzioni:
 definisci numeri_versione(versione):
     """«1.2.3» diventa (1, 2, 3, 0): i quattro numeri che Windows vuole (le parti non numeriche valgono 0)."""
     numeri = []
-    per parte in testo(versione).strip().split(".")[:4]:
+    per parte in tipo_testo(versione).strip().split(".")[:4]:
         cifre = "".join(c per c in parte se c.isdigit())
         numeri.append(int(cifre) se cifre altrimenti 0)
-    mentre lunghezza(numeri) < 4:
+    mentre lunghezza_di(numeri) < 4:
         numeri.append(0)
     ritorna tuple(numeri)
 
 
 definisci _lit(testo_):
     """Un testo come stringa Python tra apici, per il file delle informazioni di versione."""
-    ritorna "'" + testo(testo_).replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ") + "'"
+    ritorna "'" + tipo_testo(testo_).replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ") + "'"
 
 
 definisci testo_versione(opzioni, nome_file, descrizione=""):
     """Il contenuto del file che PyInstaller trasforma nelle informazioni di versione dell'exe (funzione pura)."""
     v = numeri_versione(opzioni.versione)
-    punti = ".".join(testo(x) per x in v)
+    punti = ".".join(tipo_testo(x) per x in v)
     campi = [("CompanyName", opzioni.autore), ("FileDescription", descrizione o opzioni.descrizione o opzioni.nome), ("FileVersion", punti),
              ("InternalName", opzioni.nome), ("LegalCopyright", ("© " + opzioni.autore) se opzioni.autore altrimenti ""),
              ("OriginalFilename", nome_file), ("ProductName", opzioni.nome), ("ProductVersion", punti)]
@@ -168,7 +168,7 @@ definisci trova_python():
         eccetto (OSError, subprocess.SubprocessError):
             continua
         parti = r.stdout.split()
-        se r.returncode == 0 e lunghezza(parti) == 2 e parti[0] == "3" e int(parti[1]) >= 8:
+        se r.returncode == 0 e lunghezza_di(parti) == 2 e parti[0] == "3" e int(parti[1]) >= 8:
             ritorna comando
     ritorna Nessuno
 
@@ -236,7 +236,7 @@ definisci _maschera(testo_, nascondi):
 
 definisci _esegui(comando, scrivi, cwd, fermato, nascondi=()):
     """Lancia un comando mostrando l'uscita riga per riga (le parole in `nascondi`, come le password, diventano ***). Ritorna il codice di uscita."""
-    scrivi(_maschera("$ " + " ".join(f'"{x}"' se " " in x altrimenti x per x in comando[:12]) + (" …" se lunghezza(comando) > 12 altrimenti ""), nascondi))
+    scrivi(_maschera("$ " + " ".join(f'"{x}"' se " " in x altrimenti x per x in comando[:12]) + (" …" se lunghezza_di(comando) > 12 altrimenti ""), nascondi))
     processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=Vero, encoding="utf-8", errors="replace", cwd=cwd,
                                 creationflags=NASCONDI_CONSOLE)
     per riga in processo.stdout:
@@ -496,7 +496,7 @@ classe DialogoEseguibile(DialogoBase):
                                                     variable=se_stesso.var_senza_console, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
                                                     selectcolor=c["casella"], anchor="w")
         se_stesso.casella_console.grid(row=7, column=0, columnspan=3, sticky="we", padx=14)
-        scelta_dati = ttk.Combobox(se_stesso, textvariable=se_stesso.var_dati, values=lista(VOCI_DATI), state="readonly", width=46)
+        scelta_dati = ttk.Combobox(se_stesso, textvariable=se_stesso.var_dati, values=tipo_lista(VOCI_DATI), state="readonly", width=46)
         se_stesso.riga("Database SQLite del programma:", lambda p: scelta_dati, 8)
         suggerisci(scelta_dati, "Dove il programma costruito tiene il suo database: nella cartella dell'utente (%APPDATA%) non si perde reinstallando; accanto al programma "
                                 "si porta con una chiavetta (serve una cartella dove si può scrivere). Il programma ha comunque il menu «Dati» per trovare, copiare e ripristinare i dati", c)

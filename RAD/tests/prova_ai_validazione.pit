@@ -24,8 +24,8 @@ classe FalsoApi(BaseHTTPRequestHandler):
     definisci do_POST(se_stesso):
         corpo = json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])))
         FalsoApi.corpi.append(corpo)
-        n = lunghezza(FalsoApi.corpi) - 1
-        passo = FalsoApi.scenario[n] se n < lunghezza(FalsoApi.scenario) altrimenti "FINE"
+        n = lunghezza_di(FalsoApi.corpi) - 1
+        passo = FalsoApi.scenario[n] se n < lunghezza_di(FalsoApi.scenario) altrimenti "FINE"
         usage = {"input_tokens": 100 + n, "output_tokens": 10, "cache_read_input_tokens": 400 se n altrimenti 0, "cache_creation_input_tokens": 0 se n altrimenti 500}
         se passo == "FINE":
             r = {"stop_reason": "end_turn", "usage": usage, "content": [{"type": "text", "text": "Fatto."}]}
@@ -35,7 +35,7 @@ classe FalsoApi(BaseHTTPRequestHandler):
         dati = json.dumps(r).encode()
         se_stesso.send_response(200)
         se_stesso.send_header("Content-Type", "application/json")
-        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.send_header("Content-Length", tipo_testo(lunghezza_di(dati)))
         se_stesso.end_headers()
         se_stesso.wfile.write(dati)
 
@@ -61,7 +61,7 @@ RISPOSTA_UTENTE = [Vero]
 definisci chiedi_all_ai(domanda, scenario):
     FalsoApi.corpi.clear()
     FalsoApi.scenario = scenario
-    app.mostra_chat() se testo(app.chat) non in [testo(x) per x in app.corpo.panes()] altrimenti Nessuno
+    app.mostra_chat() se tipo_testo(app.chat) non in [tipo_testo(x) per x in app.corpo.panes()] altrimenti Nessuno
     app.chat.invia(domanda)
     t0 = time.time()
     mentre (app.chat.lavoro.is_alive() o non app.chat.eventi.empty()) e time.time() - t0 < 30:
@@ -73,7 +73,7 @@ definisci chiedi_all_ai(domanda, scenario):
 chiedi_all_ai("Crea a.pit", SCENARIO)
 file_a = os.path.join(cart, "a.pit")
 stampa("file scritto solo alla fine, con codice valido:", os.path.exists(file_a) e open(file_a, encoding="utf-8").read() == GIUSTO)
-risultati = [b per m in FalsoApi.corpi[-1]["messages"] se m["role"] == "user" e isinstance(m["content"], lista) per b in m["content"] se b.get("type") == "tool_result"]
+risultati = [b per m in FalsoApi.corpi[-1]["messages"] se m["role"] == "user" e isinstance(m["content"], tipo_lista) per b in m["content"] se b.get("type") == "tool_result"]
 stampa("risposte agli strumenti:", [("errore" se b.get("is_error") altrimenti "ok") per b in risultati], "| messaggio:", "NON SCRITTO" in risultati[0]["content"], "tentativo 2 di 3" in risultati[1]["content"])
 stampa("conferme chieste all'utente:", domande_utente)
 
@@ -96,7 +96,7 @@ primo = FalsoApi.corpi[0]["messages"]
 ultimo = FalsoApi.corpi[-1]["messages"]
 def_ = lambda corpo: corpo["messages"][-1]["content"][-1].get("cache_control")
 stampa("cache sull'ultimo blocco di ogni richiesta:", [def_(c) per c in FalsoApi.corpi])
-stampa("un solo messaggio con cache per richiesta:", tutti(sum(1 per m in c["messages"] se isinstance(m["content"], lista) per b in m["content"] se "cache_control" in b) == 1 per c in FalsoApi.corpi))
+stampa("un solo messaggio con cache per richiesta:", tutti_veri(sum(1 per m in c["messages"] se isinstance(m["content"], tipo_lista) per b in m["content"] se "cache_control" in b) == 1 per c in FalsoApi.corpi))
 stampa("stato della chat con stima:", app.chat._testo_token())
 stampa("cronologia salvata senza cache_control:", "cache_control" non in json.dumps(app.chat.messaggi))
 cfg.imposta("ai.cache_cronologia", Falso, notifica=Falso)

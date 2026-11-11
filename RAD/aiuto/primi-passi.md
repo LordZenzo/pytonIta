@@ -15,9 +15,9 @@ Il programma di esempio chiede il nome e conta fino a tre:
 
 ```pit
 definisci principale():
-    nome = leggi("Come ti chiami? ")
+    nome = leggi_tastiera("Come ti chiami? ")
     stampa(f"Ciao, {nome}!")
-    per i in intervallo(1, 4):
+    per i in intervallo_di(1, 4):
         stampa("Conto:", i)
 
 

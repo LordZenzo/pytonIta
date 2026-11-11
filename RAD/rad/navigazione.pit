@@ -73,13 +73,13 @@ definisci parola_a(riga, colonna):
 definisci _docstring(righe, indice):
     """La prima riga della docstring che segue la riga `indice` (0-based), se c'è."""
     i = indice + 1
-    mentre i < lunghezza(righe) e not_testo(righe[i]) == "":
+    mentre i < lunghezza_di(righe) e not_testo(righe[i]) == "":
         i += 1
-    se i < lunghezza(righe):
+    se i < lunghezza_di(righe):
         t = righe[i].strip()
         per apice in ('"""', "'''", '"', "'"):
             se t.startswith(apice):
-                resto = t[lunghezza(apice):]
+                resto = t[lunghezza_di(apice):]
                 se apice in resto:
                     ritorna resto.split(apice)[0].strip()
                 ritorna resto.strip()
@@ -177,7 +177,7 @@ definisci rinomina_in(testo, vecchio, nuovo, json_=Falso):
     righe = testo.split("\n")
     per r, c, n in sorted([t per t in token_nomi(testo) se t[2] == vecchio], reverse=Vero):
         riga = righe[r - 1]
-        righe[r - 1] = riga[:c] + nuovo + riga[c + lunghezza(vecchio):]
+        righe[r - 1] = riga[:c] + nuovo + riga[c + lunghezza_di(vecchio):]
     ritorna "\n".join(righe), sum(1 per t in token_nomi(testo) se t[2] == vecchio)
 
 
@@ -249,7 +249,7 @@ definisci documentazione(cartella, nome, percorso_corrente=Nessuno, testo_corren
         testo_ = riga
         se primo["doc"]:
             testo_ += "\n" + primo["doc"]
-        testo_ += f"\n— {os.path.basename(primo['percorso'])}, riga {primo['riga']}" + ("  (e altre definizioni)" se lunghezza(d) > 1 altrimenti "")
+        testo_ += f"\n— {os.path.basename(primo['percorso'])}, riga {primo['riga']}" + ("  (e altre definizioni)" se lunghezza_di(d) > 1 altrimenti "")
         ritorna testo_
     se nome in DESCRIZIONI:
         ritorna f"{nome}\n{DESCRIZIONI[nome]}"
@@ -266,7 +266,7 @@ definisci ripulisci(testo):
         per t in tokenize.generate_tokens(io.StringIO(testo).readline):
             se t.type in (tokenize.STRING,) o tokenize.tok_name.get(t.type, "").startswith("FSTRING"):
                 se t.end[0] > t.start[0]:
-                    per r in intervallo(t.start[0], t.end[0] + 1):
+                    per r in intervallo_di(t.start[0], t.end[0] + 1):
                         protette.add(r)
     eccetto (tokenize.TokenError, IndentationError, SyntaxError):
         ritorna testo, 0
@@ -277,7 +277,7 @@ definisci ripulisci(testo):
         originale = riga
         se n non in protette:
             riga = riga.rstrip()
-            rientro = riga[:lunghezza(riga) - lunghezza(riga.lstrip())]
+            rientro = riga[:lunghezza_di(riga) - lunghezza_di(riga.lstrip())]
             se "\t" in rientro:
                 riga = rientro.replace("\t", "    ") + riga.lstrip()
         se non riga.strip() e n non in protette:
@@ -290,7 +290,7 @@ definisci ripulisci(testo):
         se riga != originale:
             modificate += 1
         nuove.append(riga)
-    mentre nuove e nuove[-1] == "" e lunghezza(nuove) > 1 e nuove[-2] == "":
+    mentre nuove e nuove[-1] == "" e lunghezza_di(nuove) > 1 e nuove[-2] == "":
         nuove.pop()
         modificate += 1
     risultato = "\n".join(nuove)

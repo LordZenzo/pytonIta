@@ -54,19 +54,19 @@ definisci testo_lezione(numero):
 # ---------------------------------------------------------------- i quiz
 definisci _opzione(x):
     """Una risposta sbagliata come dizionario {testo, indizio}."""
-    se isinstance(x, testo):
+    se isinstance(x, tipo_testo):
         ritorna {"testo": x, "indizio": ""}
-    ritorna {"testo": testo(x.get("testo", "")), "indizio": testo(x.get("indizio", ""))}
+    ritorna {"testo": tipo_testo(x.get("testo", "")), "indizio": tipo_testo(x.get("indizio", ""))}
 
 
 definisci domanda_valida(d):
     """Vero se la domanda ha tutto il necessario: testo (o codice), una risposta giusta e almeno due sbagliate diverse."""
-    se non isinstance(d, dict) o non d.get("giusta") o non isinstance(d.get("sbagliate"), lista):
+    se non isinstance(d, dict) o non d.get("giusta") o non isinstance(d.get("sbagliate"), tipo_lista):
         ritorna Falso
     se non (d.get("domanda") o d.get("tipo") == "stampa"):
         ritorna Falso
-    testi = [testo(d["giusta"])] + [_opzione(x)["testo"] per x in d["sbagliate"]]
-    ritorna lunghezza(d["sbagliate"]) >= 2 e lunghezza(set(testi)) == lunghezza(testi) e tutti(t.strip() per t in testi)
+    testi = [tipo_testo(d["giusta"])] + [_opzione(x)["testo"] per x in d["sbagliate"]]
+    ritorna lunghezza_di(d["sbagliate"]) >= 2 e lunghezza_di(set(testi)) == lunghezza_di(testi) e tutti_veri(t.strip() per t in testi)
 
 
 definisci carica_quiz(numero, cartella=Nessuno):
@@ -85,7 +85,7 @@ definisci carica_quiz(numero, cartella=Nessuno):
 definisci prepara(d, caso=Nessuno):
     """La domanda pronta da mostrare: risposte mescolate, con l'indizio di ciascuna."""
     caso = caso o random
-    opzioni = [{"testo": testo(d["giusta"]), "giusta": Vero, "indizio": ""}]
+    opzioni = [{"testo": tipo_testo(d["giusta"]), "giusta": Vero, "indizio": ""}]
     per x in d["sbagliate"]:
         valore = _opzione(x)
         valore["giusta"] = Falso
@@ -117,11 +117,11 @@ definisci progressi(config):
 definisci registra(config, numero, punti, su):
     """Salva il risultato di un quiz. Ritorna True se la lezione è superata (almeno l'80%)."""
     tutti_ = progressi(config)
-    r = dict(tutti_.get(testo(numero), {}))
+    r = dict(tutti_.get(tipo_testo(numero), {}))
     superata = su > 0 e punti / su >= SOGLIA
     r.update({"ultimo": punti, "su": su, "migliore": max(r.get("migliore", 0), punti), "tentativi": r.get("tentativi", 0) + 1,
               "completata": bool(r.get("completata", Falso) o superata)})
-    tutti_[testo(numero)] = r
+    tutti_[tipo_testo(numero)] = r
     config.imposta("lezioni.progressi", tutti_, notifica=Falso)
     config.imposta("lezioni.ultima", numero, notifica=Falso)
     config.salva()
@@ -130,7 +130,7 @@ definisci registra(config, numero, punti, su):
 
 definisci stato(config, numero):
     """'' se mai fatta, altrimenti '✔ 4/5' (superata) o '· 2/5' (da ripassare)."""
-    r = progressi(config).get(testo(numero))
+    r = progressi(config).get(tipo_testo(numero))
     se non r:
         ritorna ""
     ritorna ("✔ " se r.get("completata") altrimenti "· ") + f"{r.get('migliore', 0)}/{r.get('su', 0)}"
@@ -140,7 +140,7 @@ definisci prossima(config, lezioni):
     """Il numero della lezione da fare adesso: la prima non superata, altrimenti l'ultima della lista."""
     fatte = progressi(config)
     per v in lezioni:
-        se non fatte.get(testo(v["numero"]), {}).get("completata"):
+        se non fatte.get(tipo_testo(v["numero"]), {}).get("completata"):
             ritorna v["numero"]
     ritorna lezioni[-1]["numero"] se lezioni altrimenti 1
 

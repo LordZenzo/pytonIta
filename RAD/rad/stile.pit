@@ -244,10 +244,10 @@ definisci _sfumatura(dim, a, b):
     """Quadrato con sfumatura diagonale da colore a a colore b."""
     img = Image.new("RGB", (dim, dim))
     px = img.load()
-    per y in intervallo(dim):
-        per x in intervallo(dim):
+    per y in intervallo_di(dim):
+        per x in intervallo_di(dim):
             t = (x + y) / (2 * dim - 2)
-            px[x, y] = tuple(int(a[i] + (b[i] - a[i]) * t) per i in intervallo(3))
+            px[x, y] = tuple(int(a[i] + (b[i] - a[i]) * t) per i in intervallo_di(3))
     ritorna img
 
 

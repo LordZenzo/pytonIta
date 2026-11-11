@@ -97,7 +97,7 @@ stampa("commento su una riga:", n.campi["testo"] == "nota lunga su due righe")
 
 # il testo letterale di uno slot (es. nel «stampa») si scrive nella finestra
 st = aggiungi("stampa")
-nome_slot = lista(st.letterali)[0]
+nome_slot = tipo_lista(st.letterali)[0]
 visto = {}
 definisci pilota2():
     d = v.finestra_testo
@@ -126,7 +126,7 @@ dis = v.disegnatore
 lungo = "prova:" + chr(10) + "    se x:" + chr(10) + "        passa" + chr(10) + "eccetto E:" + chr(10) + "    passa"
 vis = dis.in_riga(lungo)
 stampa("in mattonella: una riga:", chr(10) non in vis, "|", vis)
-stampa("in mattonella: accorciato:", lunghezza(dis.in_riga("a" * 200)) <= dis.MAX_CARATTERI_RIGA)
+stampa("in mattonella: accorciato:", lunghezza_di(dis.in_riga("a" * 200)) <= dis.MAX_CARATTERI_RIGA)
 m.campi["testo"] = lungo
 ed.notifica(); radice.update()
 l = dis.lay[m.id]

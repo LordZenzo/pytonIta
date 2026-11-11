@@ -54,7 +54,7 @@ definisci raccogli_comandi(menu_barra):
     ultimo_m = menu_barra.index("end")
     se ultimo_m è Nessuno:
         ritorna comandi
-    per im in intervallo(ultimo_m + 1):
+    per im in intervallo_di(ultimo_m + 1):
         se menu_barra.type(im) != "cascade":
             continua
         nome_menu = menu_barra.entrycget(im, "label")
@@ -62,7 +62,7 @@ definisci raccogli_comandi(menu_barra):
         ultimo = sotto.index("end")
         se ultimo è Nessuno:
             continua
-        per i in intervallo(ultimo + 1):
+        per i in intervallo_di(ultimo + 1):
             se sotto.type(i) != "command":
                 continua
             voce = sotto.entrycget(i, "label")
@@ -100,7 +100,7 @@ classe DialogoBarra(DialogoBase):
         DialogoBase.__init__(se_stesso, genitore, "Personalizza la barra degli strumenti", colori, 760, 500)
         se_stesso.comandi = comandi
         se_stesso.elementi = [x per x in attuale se x in (SEPARATORE, SPAZIO) o x in comandi]
-        se_stesso.disponibili = lista(comandi.keys())
+        se_stesso.disponibili = tipo_lista(comandi.keys())
         c = colori
         tk.Label(se_stesso, text="Comandi dei menu", background=c["pannello"], foreground=c["primo_piano"], anchor="w",
                  font=semi(10)).grid(row=0, column=0, sticky="we", padx=(14, 4), pady=(12, 2))
@@ -157,13 +157,13 @@ classe DialogoBarra(DialogoBase):
         per id_ in se_stesso.elementi:
             se_stesso.lista_barra.insert("end", voce_leggibile(id_, se_stesso.comandi))
         per i in (seleziona_barra o []):
-            se 0 <= i < lunghezza(se_stesso.elementi):
+            se 0 <= i < lunghezza_di(se_stesso.elementi):
                 se_stesso.lista_barra.selection_set(i)
                 se_stesso.lista_barra.see(i)
 
     definisci _punto_di_inserimento(se_stesso):
         sel = se_stesso.lista_barra.curselection()
-        ritorna (max(sel) + 1) se sel altrimenti lunghezza(se_stesso.elementi)
+        ritorna (max(sel) + 1) se sel altrimenti lunghezza_di(se_stesso.elementi)
 
     definisci aggiungi(se_stesso, ids=Nessuno):
         """Mette nella barra i comandi indicati (o quelli selezionati a sinistra), dopo l'elemento selezionato a destra."""
@@ -175,16 +175,16 @@ classe DialogoBarra(DialogoBase):
             se id_ in se_stesso.comandi e id_ non in se_stesso.elementi e id_ non in nuovi:
                 nuovi.append(id_)
         se_stesso.elementi[pos:pos] = nuovi
-        se_stesso.riempi(intervallo(pos, pos + lunghezza(nuovi)))
+        se_stesso.riempi(intervallo_di(pos, pos + lunghezza_di(nuovi)))
 
     definisci togli(se_stesso, posizioni=Nessuno):
         se posizioni è Nessuno:
-            posizioni = lista(se_stesso.lista_barra.curselection())
+            posizioni = tipo_lista(se_stesso.lista_barra.curselection())
         se non posizioni:
             ritorna
         primo = min(posizioni)
         se_stesso.elementi = [x per i, x in enumera(se_stesso.elementi) se i non in posizioni]
-        se_stesso.riempi([min(primo, lunghezza(se_stesso.elementi) - 1)] se se_stesso.elementi altrimenti [])
+        se_stesso.riempi([min(primo, lunghezza_di(se_stesso.elementi) - 1)] se se_stesso.elementi altrimenti [])
 
     definisci sposta(se_stesso, verso):
         sel = sorted(se_stesso.lista_barra.curselection())
@@ -193,7 +193,7 @@ classe DialogoBarra(DialogoBase):
         el = se_stesso.elementi
         se verso < 0 e sel[0] == 0:
             ritorna
-        se verso > 0 e sel[-1] == lunghezza(el) - 1:
+        se verso > 0 e sel[-1] == lunghezza_di(el) - 1:
             ritorna
         per i in (sel se verso < 0 altrimenti sel[::-1]):
             el[i], el[i + verso] = el[i + verso], el[i]
@@ -220,5 +220,5 @@ classe DialogoBarra(DialogoBase):
         se_stesso.riempi()
 
     definisci _conferma(se_stesso):
-        se_stesso.risultato = lista(se_stesso.elementi)
+        se_stesso.risultato = tipo_lista(se_stesso.elementi)
         se_stesso.destroy()

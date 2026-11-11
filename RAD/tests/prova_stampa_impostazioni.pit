@@ -80,23 +80,23 @@ dim = lambda doc: float(re.search(r"/F2 ([\d.]+) Tf", "\n".join(contenuti(doc.pd
 verifica(abs(dim(piccolo) - 8) < 0.01 e abs(dim(grande) - 32) < 0.01, "la scala cambia la dimensione del titolo: " + str((dim(piccolo), dim(grande))))
 verifica(piccolo.dimensione == 5 e grande.dimensione == 20, "e quella del testo")
 # più grande = più pagine
-def_righe = [[f"riga {k}", "x"] per k in intervallo(80)]
+def_righe = [[f"riga {k}", "x"] per k in intervallo_di(80)]
 a1 = Documento(scala=100)
 a1.tabella(["A", "B"], def_righe)
 a2 = Documento(scala=200)
 a2.tabella(["A", "B"], def_righe)
-verifica(lunghezza(a2.pagine) > lunghezza(a1.pagine), "scala 200% occupa più pagine: " + str((lunghezza(a1.pagine), lunghezza(a2.pagine))))
+verifica(lunghezza_di(a2.pagine) > lunghezza_di(a1.pagine), "scala 200% occupa più pagine: " + str((lunghezza_di(a1.pagine), lunghezza_di(a2.pagine))))
 
 # ---------------------------------------------------------------- pagine scelte
 doc = Documento(titolo="Doc", intestazione="Ufficio")
 doc.tabella(["A", "B"], def_righe)
 doc.salta_pagina()
 doc.paragrafo("ultima")
-n = lunghezza(doc.pagine)
+n = lunghezza_di(doc.pagine)
 verifica(n >= 3, "documento di più pagine: " + str(n))
 b = doc.pdf([1])
 verifica(f"/Count 1".encode() in b e b"Pagina 2 di " + str(n).encode() in b"\n".join(c.encode("latin-1") per c in contenuti(b)), "una pagina sola, con il suo numero originale")
-verifica(lunghezza(contenuti(b)) == 1, "un solo flusso")
+verifica(lunghezza_di(contenuti(b)) == 1, "un solo flusso")
 verifica(f"/Count {n}".encode() in doc.pdf(), "tutte per impostazione")
 verifica(f"/Count 2".encode() in doc.pdf([0, n - 1]), "due pagine non vicine")
 verifica(f"/Count 1".encode() in doc.pdf([99]), "un numero fuori misura: almeno la prima pagina (mai un PDF vuoto)")
@@ -129,7 +129,7 @@ p = "C:\\x\\a.pdf"
 w1 = stampante.piano_stampa(p, Impostazioni(), "win32")
 verifica(w1 == [{"tipo": "startfile", "percorso": p, "verbo": "print", "argomenti": ""}], "Windows, stampante predefinita: verbo print: " + str(w1))
 w2 = stampante.piano_stampa(p, Impostazioni(stampante="HP Laser", copie=3), "win32")
-verifica(lunghezza(w2) == 3 e all(x["verbo"] == "printto" e x["argomenti"] == '"HP Laser"' per x in w2), "Windows, stampante scelta e 3 copie: tre lavori con printto")
+verifica(lunghezza_di(w2) == 3 e all(x["verbo"] == "printto" e x["argomenti"] == '"HP Laser"' per x in w2), "Windows, stampante scelta e 3 copie: tre lavori con printto")
 l1 = stampante.piano_stampa("/t/a.pdf", Impostazioni(), "linux")[0]["argomenti"]
 verifica(l1[0] == "lp" e l1[-1] == "/t/a.pdf" e "-d" non in l1 e l1[l1.index("-n") + 1] == "1" e "media=A4" in l1 e "sides=one-sided" in l1 e "print-quality=4" in l1 e "print-color-mode=monochrome" non in l1, "lp predefinito: " + str(l1))
 l2 = stampante.piano_stampa("/t/a.pdf", Impostazioni(stampante="Ufficio", copie=2, carta="A3", fronte_retro="lato corto", colore="bianco e nero", qualita="alta", fascicola=Falso), "linux")[0]["argomenti"]
@@ -155,7 +155,7 @@ stampante._esegui = lambda args, attesa=10: chiamate_ps.append(args) o json.dump
 nomi, pred = stampante.elenco_stampanti(aggiorna=Vero)
 verifica(nomi == ["HP Laser", "Microsoft Print to PDF"] e pred == "Microsoft Print to PDF", "Windows: elenco e predefinita: " + str((nomi, pred)))
 stampante.elenco_stampanti()
-verifica(lunghezza(chiamate_ps) == 1, "il risultato si ricorda (una sola lettura)")
+verifica(lunghezza_di(chiamate_ps) == 1, "il risultato si ricorda (una sola lettura)")
 stampante._esegui = lambda args, attesa=10: json.dumps({"Name": "Unica", "Default": Vero})
 verifica(stampante.elenco_stampanti(aggiorna=Vero) == (["Unica"], "Unica"), "una sola stampante (JSON non in lista)")
 stampante._esegui = lambda args, attesa=10: ""
@@ -184,7 +184,7 @@ fin = Finestra()
 fin.albero = ttk.Treeview(radice, columns=["Nome", "Importo"], show="headings")
 fin.albero.heading("Nome", text="Nome")
 fin.albero.heading("Importo", text="Importo")
-per k in intervallo(120):
+per k in intervallo_di(120):
     fin.albero.insert("", "end", values=(f"Voce {k}", f"{k},50"))
 s = stampante.Stampante(radice, fin, "albero", titolo="Importi", impostazioni={"copie": 2, "carta": "A3", "pagine": "2"}, intestazione="Ufficio")
 verifica(s.impostazioni.copie == 2 e s.impostazioni.carta == "A3" e s.impostazioni.orientamento == "verticale", "impostazioni dal costruttore")
@@ -223,8 +223,8 @@ stampante.FinestraStampa = FinestraFinta
 chiamate.clear()
 verifica(s.finestra_stampa() == "anteprima" e chiamate[-1][0] == "apri", "finestra → anteprima apre il PDF")
 verifica(FinestraFinta.ultima.pagine_di(Impostazioni()) >= 2, "la finestra sa contare le pagine")
-n_prima = lunghezza(chiamate)
-verifica(s.finestra_stampa() è Nessuno e lunghezza(chiamate) == n_prima, "annullando non succede niente")
+n_prima = lunghezza_di(chiamate)
+verifica(s.finestra_stampa() è Nessuno e lunghezza_di(chiamate) == n_prima, "annullando non succede niente")
 s.chiedi = Vero
 verifica(s.stampa() == "" e chiamate[-1][0] == "stampa", "con «chiedi» stampa() apre la finestra e poi stampa")
 risposte[:] = [Nessuno]
@@ -247,7 +247,7 @@ conteggi = []
 f = stampante.FinestraStampa(radice, imp, "Stampa prova", pagine_di=lambda i: conteggi.append(i.copia()) o 5, stampanti=(["HP Laser", "PDF"], "HP Laser"))
 radice.update()
 verifica(f.var_copie.get() == "2" e f.var_formato.get() == "A4" e f.var_orientamento.get() == "verticale" e f.var_margini["alto"].get() == "10", "valori iniziali nei campi")
-verifica(f.var_stampante.get().startswith("(stampante predefinita: HP Laser") e "HP Laser" in lista(f.casella_stampante["values"]), "elenco delle stampanti e predefinita")
+verifica(f.var_stampante.get().startswith("(stampante predefinita: HP Laser") e "HP Laser" in tipo_lista(f.casella_stampante["values"]), "elenco delle stampanti e predefinita")
 verifica("5 pagine" in f.etichetta_pagine.cget("text"), "il numero di pagine è mostrato: " + f.etichetta_pagine.cget("text"))
 f.var_stampante.set("PDF")
 f.var_copie.set("4")
@@ -295,7 +295,7 @@ form.larghezza, form.altezza = 520, 340
 form.aggiungi("Albero", 10, 10, nome="clienti", larghezza=400, altezza=200, colonne=["Nome", "Citta"])
 st = form.aggiungi("Stampa", 420, 10, nome="stampa1", sorgente="clienti", titolo="Clienti")
 prop = form_modello.proprieta_di("Stampa")
-verifica(all(k in prop per k in ("stampante", "copie", "fascicola", "formato", "margine", "scala", "pagine", "fronte_retro", "colore", "qualita", "chiedi", "ricorda")), "proprietà del componente Stampa: " + str(lista(prop)))
+verifica(all(k in prop per k in ("stampante", "copie", "fascicola", "formato", "margine", "scala", "pagine", "fronte_retro", "colore", "qualita", "chiedi", "ricorda")), "proprietà del componente Stampa: " + str(tipo_lista(prop)))
 ui = form_modello.genera_ui(form)
 verifica("impostazioni=" non in ui e "chiedi=" non in ui e "ricorda=" non in ui, "con tutto predefinito il codice resta com'era")
 st.valori.update(stampante="HP Laser", copie=2, formato="A3", margine=10, pagine="1-2", fronte_retro="lato lungo", colore="bianco e nero", qualita="alta", chiedi=Vero, ricorda=Vero, fascicola=Falso)
@@ -348,7 +348,7 @@ s1 = p.aggiungi_componente("Stampa", 300, 20)
 p.seleziona([s1.nome])
 radice.update()
 combo = [w_ per w_ in p.righe_ispettore.winfo_children() se w_.winfo_class() == "TCombobox"]
-verifica(any("HP Laser" in lista(c["values"]) o lista(c["values"]) == [] per c in combo), "l'ispettore ha il campo Stampante")
+verifica(any("HP Laser" in tipo_lista(c["values"]) o tipo_lista(c["values"]) == [] per c in combo), "l'ispettore ha il campo Stampante")
 etichette = [w_.cget("text") per w_ in p.righe_ispettore.winfo_children() se w_.winfo_class() == "Label"]
 verifica("Copie" in etichette e "Fronte-retro" in etichette e "Formato della carta" in etichette, "le impostazioni sono nell'ispettore: " + str(etichette[:20]))
 radice.destroy()

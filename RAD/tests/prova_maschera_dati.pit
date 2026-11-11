@@ -18,7 +18,7 @@ nomi = [k.nome per k in c.colonne("clienti")]
 r = maschera_dati.crea_maschera(cartella, "MascheraClienti", "clienti", nomi, "sqlite", db)
 stampa("file scritti:", sorted(os.path.basename(x) per x in r["scritti"]))
 f = form_modello.carica_form(r["form"])
-stampa("componenti:", lunghezza(f.componenti), "| problemi del form:", f.problemi())
+stampa("componenti:", lunghezza_di(f.componenti), "| problemi del form:", f.problemi())
 stampa("gestori richiesti:", sorted({n per _, _, n in f.eventi()}), "| fonte:", f.trova("fonte").valori["database"], f.trova("fonte").valori["tabella"])
 logica = open(r["logica"], encoding="utf-8").read()
 ui = open(os.path.join(cartella, "mascheraclienti_ui.pit"), encoding="utf-8").read()
@@ -32,7 +32,7 @@ c.esegui("CREATE TABLE larga (a INTEGER PRIMARY KEY, b TEXT, c TEXT, d TEXT, e T
 nl = [k.nome per k in c.colonne("larga")]
 r2 = maschera_dati.crea_maschera(cartella, "MascheraLarga", "larga", nl, "sqlite", db)
 f2 = form_modello.carica_form(r2["form"])
-stampa("tabella larga:", lunghezza(f2.componenti), "componenti | problemi:", f2.problemi(), "| campo con spazio:", f2.trova("campo_nome_strano") è non Nessuno)
+stampa("tabella larga:", lunghezza_di(f2.componenti), "componenti | problemi:", f2.problemi(), "| campo con spazio:", f2.trova("campo_nome_strano") è non Nessuno)
 c.chiudi()
 
 # la maschera funziona (eseguendo la logica generata)
@@ -137,7 +137,7 @@ cc.esegui("CREATE TABLE ordini (id INTEGER PRIMARY KEY, cliente TEXT, totale REA
 cc.chiudi()
 w = app.apri_file(db2)
 radice2.update()
-stampa("scheda database:", tipo(w).__name__, "| pulsante Maschera:", any("Maschera" in b.cget("text") per b in w.pulsanti_barra))
+stampa("scheda database:", tipo_di(w).__name__, "| pulsante Maschera:", any("Maschera" in b.cget("text") per b in w.pulsanti_barra))
 w.elenco.selection_set("ordini")
 radice2.update()
 richiesti = []
@@ -145,6 +145,6 @@ simpledialog.askstring = lambda titolo, messaggio, **k: (richiesti.append(k.get(
 w.crea_maschera()
 radice2.update()
 stampa("nome proposto:", richiesti, "| file nel progetto:", sorted(f per f in os.listdir(cart2) se "ordini" in f.lower() o f == "fonte_dati.pit"))
-stampa("la finestra è aperta nel progettista:", [tipo(x).__name__ per x in app.schede.values()])
+stampa("la finestra è aperta nel progettista:", [tipo_di(x).__name__ per x in app.schede.values()])
 stampa("menu: «Crea una maschera dalla tabella…» presente:", any(k.endswith("Crea una maschera dalla tabella…") per k in app.comandi_menu))
 radice2.destroy()

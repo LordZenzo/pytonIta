@@ -2,7 +2,7 @@
  "domande": [
   {
    "tipo": "stampa",
-   "codice": "frutta = [\"mela\", \"pera\"]\nfrutta.aggiungi(\"kiwi\")\nstampa(lunghezza(frutta))",
+   "codice": "frutta = [\"mela\", \"pera\"]\nfrutta.aggiungi(\"kiwi\")\nstampa(lunghezza_di(frutta))",
    "giusta": "3",
    "sbagliate": [
     "2",
@@ -41,14 +41,14 @@
   },
   {
    "tipo": "stampa",
-   "codice": "stampa(ordinato([3, 1, 2]), somma([3, 1, 2]))",
+   "codice": "stampa(ordinato_di([3, 1, 2]), somma_di([3, 1, 2]))",
    "giusta": "[1, 2, 3] 6",
    "sbagliate": [
     "[3, 1, 2] 6",
     "[1, 2, 3] 3",
     "[1, 2, 3] 5"
    ],
-   "spiegazione": "ordinato(...) dà una copia ordinata, somma(...) addiziona gli elementi: 3+1+2 = 6.",
+   "spiegazione": "ordinato_di(...) dà una copia ordinata, somma_di(...) addiziona gli elementi: 3+1+2 = 6.",
    "sezione": "Ordinare e cercare"
   },
   {

@@ -24,7 +24,7 @@ classe Spesa(SpesaUI):
         se_stesso._aggiorna_conto()
 
     definisci _aggiorna_conto(se_stesso):
-        n = lunghezza(se_stesso.voci)
+        n = lunghezza_di(se_stesso.voci)
         se_stesso.etichetta_conto.configure(text=f"{n} voc{'e' se n == 1 altrimenti 'i'}")
 
     definisci aggiungi_clic(se_stesso, evento=Nessuno):

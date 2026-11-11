@@ -6,7 +6,7 @@ da PIL importa ImageGrab, Image
 da rad importa form_modello
 da rad.form_modello importa Form
 
-uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
 cartella = tempfile.mkdtemp()
 sys.path.insert(0, cartella)
 immagini = []

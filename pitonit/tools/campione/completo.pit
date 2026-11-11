@@ -6,8 +6,8 @@ da dataclasses importa dataclass
 
 @dataclass
 classe Punto:
-    x: intero = 0
-    y: intero = 0
+    x: tipo_intero = 0
+    y: tipo_intero = 0
 
     definisci __add__(self, altro):
         ritorna Punto(self.x + altro.x, self.y + altro.y)
@@ -23,23 +23,23 @@ definisci descrivi(cmd):
             ritorna f"foto {nome}"
         caso Punto(x=0, y=0):
             ritorna "origine"
-        caso [primo, *resto] se lunghezza(resto) > 1:
-            ritorna f"{primo} e altri {lunghezza(resto)}"
+        caso [primo, *resto] se lunghezza_di(resto) > 1:
+            ritorna f"{primo} e altri {lunghezza_di(resto)}"
         caso _:
             ritorna "sconosciuto"
 
 
-tipo Numeri = lista[intero]
+tipo Numeri = tipo_lista[tipo_intero]
 
 
 definisci shadow(id, type):
     # "id" e "type" sono parametri dell'utente, non i builtin
-    ritorna testo(id) + "/" + testo(type) + "/" + testo(lunghezza([1, 2]))
+    ritorna tipo_testo(id) + "/" + tipo_testo(type) + "/" + tipo_testo(lunghezza_di([1, 2]))
 
 
 definisci usa_builtin():
     id = 5                      # nasconde il builtin id solo qui
-    ritorna id, tipo(5).__name__
+    ritorna id, tipo_di(5).__name__
 
 
 definisci globale_():
@@ -68,9 +68,9 @@ classe Conto:
         self.da_ = da_
         self.tipo_ = tipo_
 
-    @proprietà
+    @attributo_calcolato
     definisci lungo(self):
-        ritorna lunghezza(self.testo_)
+        ritorna lunghezza_di(self.testo_)
 
     @metodo_statico
     definisci somma_(a, b):
@@ -86,7 +86,7 @@ definisci fib(n):
 
 
 definisci generatore(n):
-    per i in intervallo(n):
+    per i in intervallo_di(n):
         produci i * i
     ritorna
 
@@ -110,23 +110,23 @@ definisci principale():
     stampe.append(esterna())
     c = Conto("ciao", da_="lui")
     stampe.append((rappresentazione(c), c.lungo, Conto.somma_(2, 3), Conto.lista_))
-    stampe.append(lista(generatore(4)))
+    stampe.append(tipo_lista(generatore(4)))
     stampe.append(fib(20))
     stampe.append(asyncio.run(lento(21)))
-    stampe.append([n per n in intervallo(10) se n % 2 == 0 e non n == 4])
-    stampe.append({k: v per k, v in abbina("ab", intervallo(2))})
+    stampe.append([n per n in intervallo_di(10) se n % 2 == 0 e non n == 4])
+    stampe.append({k: v per k, v in abbina("ab", intervallo_di(2))})
     stampe.append((lambda q: q se q è non Nessuno altrimenti 0)(Nessuno))
-    se (n := lunghezza(stampe)) > 3:
+    se (n := lunghezza_di(stampe)) > 3:
         stampe.append(n)
     prova:
-        intero("x")
+        tipo_intero("x")
     eccetto (ErroreDiValore, ErroreDiTipo) come errore:
-        stampe.append(tipo(errore).__name__)
+        stampe.append(tipo_di(errore).__name__)
     infine:
-        stampe.append(ordinato({3, 1, 2}, reverse=Vero))
+        stampe.append(ordinato_di({3, 1, 2}, reverse=Vero))
     con apri(__file__, encoding="utf-8") come f:
-        stampe.append(lunghezza(f.read()) > 0)
-    asserisci è_istanza(stampe, lista), "lista"
+        stampe.append(lunghezza_di(f.read()) > 0)
+    asserisci è_istanza(stampe, tipo_lista), "lista"
     elimina stampe[0]
     ritorna stampe
 

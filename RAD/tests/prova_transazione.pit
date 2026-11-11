@@ -93,13 +93,13 @@ d.vai(0)
 d.vai(2)
 d.elimina()                          # Viti
 radice.update()
-stampa("dopo elimina:", [r[1]["nome"] per r in d.record], "| in sospeso:", d.modifiche_in_sospeso(), "| nel file ancora:", lunghezza(nel_db()))
+stampa("dopo elimina:", [r[1]["nome"] per r in d.record], "| in sospeso:", d.modifiche_in_sospeso(), "| nel file ancora:", lunghezza_di(nel_db()))
 stampa("nel file prima del commit: qta Bulloni =", nel_db()[0][2])
 stampa("commit riuscito:", d.conferma())
 radice.update()
 stampa("dopo Conferma: in sospeso:", d.modifiche_in_sospeso(), "| evidenziate:", [i per i in t.get_children() se "sporca" in t.item(i, "tags")], "| nel file:", nel_db())
 d.annulla_tutto()
-stampa("rollback dopo il commit non toglie nulla:", lunghezza(nel_db()), nel_db()[0][2])
+stampa("rollback dopo il commit non toglie nulla:", lunghezza_di(nel_db()), nel_db()[0][2])
 
 # --- chiusura con modifiche in sospeso
 d._scrivi_cella(t, d.record[0][0], "0", "qta", "1")

@@ -150,7 +150,7 @@ classe Editor(tk.Frame):
                                cfg.ottieni("editor.dimensione", 11))
         se_stesso.t.configure(font=se_stesso.carattere,
                               wrap="word" se cfg.ottieni("editor.a_capo") altrimenti "none")
-        se_stesso.num.configure(width=lunghezza(testo(se_stesso._righe_totali())) * 10 + 22)
+        se_stesso.num.configure(width=lunghezza_di(tipo_testo(se_stesso._righe_totali())) * 10 + 22)
         larghezza_tab = cfg.ottieni("editor.tabulazione", 4)
         se_stesso.t.configure(tabs=(se_stesso._larghezza_carattere() * larghezza_tab,))
         se_stesso._ridisegna_numeri()
@@ -400,7 +400,7 @@ classe Editor(tk.Frame):
         se non se_stesso.config_.ottieni("editor.numeri_riga", Vero):
             se_stesso.num.configure(width=0)
             ritorna
-        cifre = lunghezza(testo(se_stesso._righe_totali()))
+        cifre = lunghezza_di(tipo_testo(se_stesso._righe_totali()))
         se_stesso.num.configure(width=max(3, cifre) * 9 + 22)
         corrente = int(se_stesso.t.index("insert").split(".")[0])
         i = se_stesso.t.index("@0,0")
@@ -412,7 +412,7 @@ classe Editor(tk.Frame):
             riga = int(i.split(".")[0])
             colore = c["primo_piano"] se riga == corrente altrimenti c["numeri"]
             se_stesso.num.create_text(se_stesso.num.winfo_reqwidth() - 8, y, anchor="ne",
-                                      text=testo(riga), fill=colore, font=se_stesso.carattere)
+                                      text=tipo_testo(riga), fill=colore, font=se_stesso.carattere)
             se riga in se_stesso._righe_errore:
                 se_stesso.num.create_oval(4, y + 3, 12, y + 11, fill=c["errore"], outline="")
             se riga in se_stesso.punti_arresto:
@@ -546,10 +546,10 @@ classe Editor(tk.Frame):
             ritorna "break"
         se evento_tk.keysym == "BackSpace" e non t.tag_ranges("sel"):
             prima = t.get("insert linestart", "insert")
-            se prima e prima.strip() == "" e lunghezza(prima) >= 1:
+            se prima e prima.strip() == "" e lunghezza_di(prima) >= 1:
                 n = se_stesso.config_.ottieni("editor.tabulazione", 4)
-                togli = lunghezza(prima) % n o n
-                se lunghezza(prima) >= togli e prima.endswith(" " * togli):
+                togli = lunghezza_di(prima) % n o n
+                se lunghezza_di(prima) >= togli e prima.endswith(" " * togli):
                     t.delete(f"insert-{togli}c", "insert")
                     ritorna "break"
             # cancella la coppia vuota ()
@@ -607,7 +607,7 @@ classe Editor(tk.Frame):
             rientro += " " * se_stesso.config_.ottieni("editor.tabulazione", 4)
         altrimenti_se re.match(r"\s*(ritorna|passa|interrompi|continua|solleva|return|pass|break|continue|raise)\b", riga) e rientro.startswith(" "):
             n = se_stesso.config_.ottieni("editor.tabulazione", 4)
-            rientro = rientro[:max(0, lunghezza(rientro) - n)]
+            rientro = rientro[:max(0, lunghezza_di(rientro) - n)]
         # una coppia aperta e chiusa subito: apri una riga in mezzo
         a, b = t.get("insert-1c", "insert"), t.get("insert", "insert+1c")
         se a in _COPPIE e _COPPIE[a] == b:
@@ -621,16 +621,16 @@ classe Editor(tk.Frame):
         t = se_stesso.t
         a, b = se_stesso._righe_selezionate()
         n = " " * se_stesso.config_.ottieni("editor.tabulazione", 4)
-        per r in intervallo(a, b + 1):
+        per r in intervallo_di(a, b + 1):
             t.insert(f"{r}.0", n)
 
     definisci riduci_rientro(se_stesso):
         t = se_stesso.t
         a, b = se_stesso._righe_selezionate()
         n = se_stesso.config_.ottieni("editor.tabulazione", 4)
-        per r in intervallo(a, b + 1):
+        per r in intervallo_di(a, b + 1):
             riga = t.get(f"{r}.0", f"{r}.end")
-            spazi = lunghezza(riga) - lunghezza(riga.lstrip(" "))
+            spazi = lunghezza_di(riga) - lunghezza_di(riga.lstrip(" "))
             se spazi:
                 t.delete(f"{r}.0", f"{r}.{min(n, spazi)}")
 
@@ -649,15 +649,15 @@ classe Editor(tk.Frame):
     definisci commenta(se_stesso):
         t = se_stesso.t
         a, b = se_stesso._righe_selezionate()
-        righe = [t.get(f"{r}.0", f"{r}.end") per r in intervallo(a, b + 1)]
-        tutte = tutti(r.lstrip().startswith("#") per r in righe se r.strip())
-        per r, riga in zip(intervallo(a, b + 1), righe):
+        righe = [t.get(f"{r}.0", f"{r}.end") per r in intervallo_di(a, b + 1)]
+        tutte = tutti_veri(r.lstrip().startswith("#") per r in righe se r.strip())
+        per r, riga in zip(intervallo_di(a, b + 1), righe):
             se non riga.strip():
                 continua
             se tutte:
                 nuova = re.sub(r"^(\s*)# ?", r"\1", riga, count=1)
             altrimenti:
-                rientro = lunghezza(riga) - lunghezza(riga.lstrip())
+                rientro = lunghezza_di(riga) - lunghezza_di(riga.lstrip())
                 nuova = riga[:rientro] + "# " + riga[rientro:]
             t.delete(f"{r}.0", f"{r}.end")
             t.insert(f"{r}.0", nuova)
@@ -733,7 +733,7 @@ classe Editor(tk.Frame):
         modello = "\n".join(righe)
         posizione = modello.find("|")
         modello = modello.replace("|", "")
-        t.delete(f"insert-{lunghezza(parola)}c", "insert")
+        t.delete(f"insert-{lunghezza_di(parola)}c", "insert")
         inizio = t.index("insert")
         t.insert("insert", modello)
         se posizione >= 0:
@@ -774,7 +774,7 @@ classe Editor(tk.Frame):
                 m2 = re.search(r"([\w.]*)$", riga)
                 prefisso = m2.group(1)
                 voci = parole.suggerisci_moduli(prefisso, se_stesso.linguaggio)
-            altrimenti_se prefisso e (lunghezza(prefisso) >= 2 o forza):
+            altrimenti_se prefisso e (lunghezza_di(prefisso) >= 2 o forza):
                 se non re.search(r"""(["'])[^"']*$""", riga):    # non dentro una stringa
                     voci = parole.suggerisci(prefisso, sorgente, linguaggio=se_stesso.linguaggio)
             altrimenti_se forza:
@@ -806,7 +806,7 @@ classe Editor(tk.Frame):
         per parola, tipo_, extra in voci:
             lista_.insert("end", f"{parola:<28} {extra o tipo_}")
         lista_.selection_set(0)
-        lista_.configure(height=min(10, lunghezza(voci)), width=max(48, max(lunghezza(v[0]) per v in voci) + 24))
+        lista_.configure(height=min(10, lunghezza_di(voci)), width=max(48, max(lunghezza_di(v[0]) per v in voci) + 24))
         bbox = se_stesso.t.bbox("insert")
         se non bbox:
             ritorna
@@ -818,7 +818,7 @@ classe Editor(tk.Frame):
     definisci _muovi_selezione(se_stesso, passo):
         sel = se_stesso._lista.curselection()
         i = sel[0] se sel altrimenti 0
-        i = max(0, min(lunghezza(se_stesso._voci) - 1, i + passo))
+        i = max(0, min(lunghezza_di(se_stesso._voci) - 1, i + passo))
         se_stesso._lista.selection_clear(0, "end")
         se_stesso._lista.selection_set(i)
         se_stesso._lista.see(i)
@@ -834,7 +834,7 @@ classe Editor(tk.Frame):
         prefisso = se_stesso._prefisso_popup
         t = se_stesso.t
         se_stesso.chiudi_suggerimenti()
-        t.delete(f"insert-{lunghezza(prefisso)}c", "insert")
+        t.delete(f"insert-{lunghezza_di(prefisso)}c", "insert")
         se tipo_ == "frammento":
             t.insert("insert", parola)
             se_stesso._espandi_frammento()
@@ -882,7 +882,7 @@ classe Editor(tk.Frame):
             i = t.search(chiave, i, stopindex="end", nocase=Vero)
             se non i:
                 interrompi
-            fine = f"{i}+{lunghezza(chiave)}c"
+            fine = f"{i}+{lunghezza_di(chiave)}c"
             t.tag_add("trova", i, fine)
             i = fine
             n += 1
@@ -905,7 +905,7 @@ classe Editor(tk.Frame):
                 i = t.search(chiave, "1.0", stopindex="end", nocase=Vero)
         se i:
             t.tag_remove("sel", "1.0", "end")
-            t.tag_add("sel", i, f"{i}+{lunghezza(chiave)}c")
+            t.tag_add("sel", i, f"{i}+{lunghezza_di(chiave)}c")
             t.mark_set("insert", i)
             t.see(i)
 
@@ -1009,7 +1009,7 @@ classe Editor(tk.Frame):
     definisci segna_omonimi(se_stesso, punti):
         """Evidenzia (sfondo colorato) le parole indicate da rad.omonimi.trova: [{"riga", "da", "a", "nome", "motivo"}]."""
         se_stesso.t.tag_remove("omonimo", "1.0", "end")
-        se_stesso._omonimi = lista(punti)
+        se_stesso._omonimi = tipo_lista(punti)
         per p in se_stesso._omonimi:
             prova:
                 se_stesso.t.tag_add("omonimo", f"{p['riga']}.{p['da']}", f"{p['riga']}.{p['a']}")
@@ -1077,20 +1077,20 @@ classe Editor(tk.Frame):
         righe = se_stesso.contenuto().split("\n")
         i = 0
         # intestazione: commenti, righe vuote, docstring
-        mentre i < lunghezza(righe) e (riga_ignorabile(righe[i])):
+        mentre i < lunghezza_di(righe) e (riga_ignorabile(righe[i])):
             i += 1
-        se i < lunghezza(righe) e righe[i].lstrip().startswith(('"""', "'''")):
+        se i < lunghezza_di(righe) e righe[i].lstrip().startswith(('"""', "'''")):
             chiusura = righe[i].lstrip()[:3]
             se righe[i].count(chiusura) >= 2:
                 i += 1
             altrimenti:
                 i += 1
-                mentre i < lunghezza(righe) e chiusura non in righe[i]:
+                mentre i < lunghezza_di(righe) e chiusura non in righe[i]:
                     i += 1
                 i += 1
         ultimo = i
         j = i
-        mentre j < lunghezza(righe):
+        mentre j < lunghezza_di(righe):
             r = righe[j].strip()
             se r.startswith(("importa ", "da ", "import ", "from ")):
                 ultimo = j + 1
@@ -1098,7 +1098,7 @@ classe Editor(tk.Frame):
                 interrompi
             j += 1
         testo_ = riga_import + "\n"
-        se ultimo == i e i < lunghezza(righe) e righe[i].strip():
+        se ultimo == i e i < lunghezza_di(righe) e righe[i].strip():
             testo_ += "\n"
         se_stesso.t.insert(f"{ultimo + 1}.0", testo_)
         se_stesso.evidenzia()

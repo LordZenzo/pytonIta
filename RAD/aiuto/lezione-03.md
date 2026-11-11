@@ -4,10 +4,10 @@
 
 ## leggi: chiedere un valore
 
-`leggi("domanda")` mostra la domanda, aspetta che l'utente scriva qualcosa e prema Invio, poi **restituisce quel testo**. Nella console di PitStudio scrivi la risposta nella riga in basso e premi Invio.
+`leggi_tastiera("domanda")` mostra la domanda, aspetta che l'utente scriva qualcosa e prema Invio, poi **restituisce quel testo**. Nella console di PitStudio scrivi la risposta nella riga in basso e premi Invio.
 
 ```pit
-nome = leggi("Come ti chiami? ")
+nome = leggi_tastiera("Come ti chiami? ")
 stampa("Ciao,", nome)
 ```
 
@@ -18,10 +18,10 @@ Ciao, Anna
 
 ## Attenzione: leggi restituisce sempre testo
 
-Anche se l'utente scrive `12`, ottieni il **testo** `"12"`, non il numero. Per fare calcoli va convertito con `intero(...)` o `decimale(...)`:
+Anche se l'utente scrive `12`, ottieni il **testo** `"12"`, non il numero. Per fare calcoli va convertito con `tipo_intero(...)` o `tipo_decimale(...)`:
 
 ```pit
-anni = intero(leggi("Quanti anni hai? "))
+anni = tipo_intero(leggi_tastiera("Quanti anni hai? "))
 stampa("Fra dieci anni ne avrai", anni + 10)
 ```
 
@@ -30,14 +30,14 @@ Quanti anni hai? 12
 Fra dieci anni ne avrai 22
 ```
 
-Se invece scrivessi `anni = leggi(...)` e poi `anni + 10`, otterresti un errore: non si può sommare un testo a un numero (la console te lo spiega).
+Se invece scrivessi `anni = leggi_tastiera(...)` e poi `anni + 10`, otterresti un errore: non si può sommare un testo a un numero (la console te lo spiega).
 
 ## Un piccolo programma completo
 
 ```pit
 stampa("Calcolatrice dell'area del rettangolo")
-base = decimale(leggi("Base: "))
-altezza = decimale(leggi("Altezza: "))
+base = tipo_decimale(leggi_tastiera("Base: "))
+altezza = tipo_decimale(leggi_tastiera("Altezza: "))
 area = base * altezza
 stampa(f"L'area è {area}")
 ```
@@ -51,7 +51,7 @@ L'area è 9.0
 
 ## Se l'utente sbaglia
 
-Se scrive lettere dove serve un numero, `intero("abc")` dà un errore. Nella [lezione 11](#lezione-11) vedrai come gestirlo con garbo; per ora è normale che si fermi.
+Se scrive lettere dove serve un numero, `tipo_intero("abc")` dà un errore. Nella [lezione 11](#lezione-11) vedrai come gestirlo con garbo; per ora è normale che si fermi.
 
 ## Esercizi
 
@@ -63,25 +63,25 @@ Se scrive lettere dove serve un numero, `intero("abc")` dà un errore. Nella [le
 ## Soluzioni
 
 ```pit
-nome = leggi("Nome: ")
-cognome = leggi("Cognome: ")
+nome = leggi_tastiera("Nome: ")
+cognome = leggi_tastiera("Cognome: ")
 stampa(f"Benvenuto, {nome} {cognome}!")
 ```
 
 ```pit
-a = intero(leggi("Primo numero: "))
-b = intero(leggi("Secondo numero: "))
+a = tipo_intero(leggi_tastiera("Primo numero: "))
+b = tipo_intero(leggi_tastiera("Secondo numero: "))
 stampa("Somma:", a + b)
 stampa("Media:", (a + b) / 2)
 ```
 
 ```pit
-prezzo = decimale(leggi("Prezzo: "))
-sconto = decimale(leggi("Sconto %: "))
+prezzo = tipo_decimale(leggi_tastiera("Prezzo: "))
+sconto = tipo_decimale(leggi_tastiera("Sconto %: "))
 stampa("Prezzo finale:", prezzo - prezzo * sconto / 100)
 ```
 
 ```pit
-minuti = intero(leggi("Durata in minuti: "))
+minuti = tipo_intero(leggi_tastiera("Durata in minuti: "))
 stampa(f"{minuti // 60} ore e {minuti % 60} minuti")
 ```

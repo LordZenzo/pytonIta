@@ -34,9 +34,9 @@ definisci _assegna(quante, voci, pesi, disponibile, spazio):
         ha = sum(naturale[indice:indice + estensione]) + spazio * (estensione - 1)
         se misura > ha:
             # la differenza va alla colonna (riga) che si allarga, altrimenti all'ultima
-            candidate = [j per j in range(indice, indice + estensione) se j < lunghezza(pesi) e pesi[j] > 0]
+            candidate = [j per j in range(indice, indice + estensione) se j < lunghezza_di(pesi) e pesi[j] > 0]
             naturale[candidate[-1] se candidate altrimenti indice + estensione - 1] += misura - ha
-    pesi_ = [pesi[i] se i < lunghezza(pesi) altrimenti 0.0 per i in range(quante)]
+    pesi_ = [pesi[i] se i < lunghezza_di(pesi) altrimenti 0.0 per i in range(quante)]
     # una colonna (riga) che nessun componente occupa, senza peso, sparisce: non occupa nemmeno lo spazio tra le celle
     occupata = [Falso] * quante
     per indice, estensione, misura in voci:
@@ -44,7 +44,7 @@ definisci _assegna(quante, voci, pesi, disponibile, spazio):
             occupata[j] = Vero
     attive = [i per i in range(quante) se occupata[i] o pesi_[i] > 0]
     misure = [float(x) per x in naturale]
-    extra = disponibile - (sum(naturale) + spazio * max(0, lunghezza(attive) - 1))
+    extra = disponibile - (sum(naturale) + spazio * max(0, lunghezza_di(attive) - 1))
     somma = sum(pesi_)
     se extra > 0 e somma > 0:
         per i in range(quante):
@@ -84,10 +84,10 @@ definisci tracce(larghezza, altezza, voci, colonne=(), righe=(), margine=10, spa
     """Le colonne e le righe della griglia: (inizi x, larghezze, inizi y, altezze), con il margine già compreso. Serve al progettista per sapere in che cella si trova il mouse."""
     se non voci:
         ritorna [], [], [], []
-    n_col = max(max(v[1] + max(1, v[3]) per v in voci), lunghezza(colonne))
-    n_rig = max(max(v[0] + max(1, v[2]) per v in voci), lunghezza(righe))
-    x, larg = _assegna(n_col, [(v[1], max(1, v[3]), v[5]) per v in voci], lista(colonne), larghezza - 2 * margine, spazio)
-    y, alte = _assegna(n_rig, [(v[0], max(1, v[2]), v[6]) per v in voci], lista(righe), altezza - 2 * margine, spazio)
+    n_col = max(max(v[1] + max(1, v[3]) per v in voci), lunghezza_di(colonne))
+    n_rig = max(max(v[0] + max(1, v[2]) per v in voci), lunghezza_di(righe))
+    x, larg = _assegna(n_col, [(v[1], max(1, v[3]), v[5]) per v in voci], tipo_lista(colonne), larghezza - 2 * margine, spazio)
+    y, alte = _assegna(n_rig, [(v[0], max(1, v[2]), v[6]) per v in voci], tipo_lista(righe), altezza - 2 * margine, spazio)
     ritorna [margine + v per v in x], larg, [margine + v per v in y], alte
 
 

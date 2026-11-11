@@ -31,7 +31,7 @@ definisci struttura_ok(b):
         ritorna Falso, "startxref non punta a xref"
     righe = b[inizio:].split(b"\n")
     n = int(righe[1].split()[1])
-    per i in intervallo(1, n):
+    per i in intervallo_di(1, n):
         offset = int(righe[2 + i].split()[0])
         se non b[offset:].startswith(f"{i} 0 obj".encode()):
             ritorna Falso, f"l'oggetto {i} non sta a {offset}"
@@ -46,19 +46,19 @@ verifica(stampante._pdf_testo("a(b)\\c") == "a\\(b\\)\\\\c", "protezione di pare
 verifica(stampante._pdf_testo("è").encode("latin-1") == b"\xe8", "è nella codifica di Windows")
 verifica(stampante._pdf_testo("€") == chr(128) e stampante._pdf_testo("日") == "?", "euro sì, ideogrammi come «?»")
 righe = stampante.a_capo("uno due tre quattro cinque sei sette otto nove dieci", 60, 10)
-verifica(lunghezza(righe) > 3 e all(stampante.larghezza_testo(r, 10) <= 60.01 per r in righe), "a capo: tutte le righe entrano: " + str(righe))
+verifica(lunghezza_di(righe) > 3 e all(stampante.larghezza_testo(r, 10) <= 60.01 per r in righe), "a capo: tutte le righe entrano: " + str(righe))
 verifica(stampante.a_capo("a\n\nb", 100, 10) == ["a", "", "b"], "gli a capo del testo si rispettano")
 lunga = stampante.a_capo("Supercalifragilistichespiralidoso", 50, 10)
-verifica(lunghezza(lunga) >= 2 e all(stampante.larghezza_testo(r, 10) <= 50.01 per r in lunga), "una parola troppo lunga si spezza: " + str(lunga))
+verifica(lunghezza_di(lunga) >= 2 e all(stampante.larghezza_testo(r, 10) <= 50.01 per r in lunga), "una parola troppo lunga si spezza: " + str(lunga))
 verifica(stampante.a_capo("", 100, 10) == [""], "testo vuoto")
 
 # ---------------------------------------------------------------- il documento
 d = stampante.Documento(titolo="Prova", intestazione="Studio Rossi")
 d.titolo("Elenco città")
 d.paragrafo("Un paragrafo con (parentesi) e àèé.")
-righe_t = [[f"Cliente {i}", ["Roma", "Milano"][i % 2], f"{i * 1.5:.2f}"] per i in intervallo(1, 120)]
+righe_t = [[f"Cliente {i}", ["Roma", "Milano"][i % 2], f"{i * 1.5:.2f}"] per i in intervallo_di(1, 120)]
 d.tabella(["Nome", "Città", "Totale"], righe_t, allineamenti=["w", "w", "e"])
-verifica(lunghezza(d.pagine) >= 3, "120 righe di tabella occupano più pagine: " + str(lunghezza(d.pagine)))
+verifica(lunghezza_di(d.pagine) >= 3, "120 righe di tabella occupano più pagine: " + str(lunghezza_di(d.pagine)))
 d.grafico([("Gen", 12), ("Feb", 19), ("Mar", -4)], "barre", "Vendite")
 d.grafico([("Gen", 12), ("Feb", 19)], "linee", "Andamento")
 d.grafico([("Mele", 40), ("Pere", 25)], "torta", "Quote")
@@ -67,11 +67,11 @@ b = d.pdf()
 ok, msg = struttura_ok(b)
 verifica(ok, "struttura del PDF: " + msg)
 flussi = contenuti(b)
-verifica(lunghezza(flussi) == lunghezza(d.pagine), "un flusso per pagina")
+verifica(lunghezza_di(flussi) == lunghezza_di(d.pagine), "un flusso per pagina")
 tutto = "\n".join(flussi)
 verifica("(Elenco citt\xe0) Tj" in tutto e "(Un paragrafo con \\(parentesi\\) e \xe0\xe8\xe9.) Tj" in tutto, "il testo (accentato e con le parentesi protette) è nel PDF")
 verifica(tutto.count("(Nome) Tj") >= 3, "l'intestazione della tabella si ripete a ogni pagina: " + str(tutto.count("(Nome) Tj")))
-verifica("Pagina 1 di " + str(lunghezza(d.pagine)) in tutto e "(Studio Rossi) Tj" in tutto, "numeri di pagina e intestazione")
+verifica("Pagina 1 di " + str(lunghezza_di(d.pagine)) in tutto e "(Studio Rossi) Tj" in tutto, "numeri di pagina e intestazione")
 verifica("(Quote) Tj" in tutto e "Nessun dato" in tutto, "titoli dei grafici e grafico vuoto")
 verifica(tutto.count(" m ") > 0 e " re " in tutto, "disegni (linee e rettangoli)")
 # i testi non escono dalla pagina: tutte le coordinate di Td stanno dentro A4
@@ -85,14 +85,14 @@ verifica(b"/MediaBox [0 0 841.89 595.28]" in dh.pdf(), "MediaBox orizzontale")
 # salvataggio
 percorso = os.path.join(tempfile.mkdtemp(), "doc.pdf")
 d.salva(percorso)
-verifica(os.path.getsize(percorso) == lunghezza(b) o struttura_ok(open(percorso, "rb").read())[0], "salvato")
+verifica(os.path.getsize(percorso) == lunghezza_di(b) o struttura_ok(open(percorso, "rb").read())[0], "salvato")
 # con una libreria vera (se c'è): il PDF si legge e il testo si estrae
 python_ = shutil.which("python") o shutil.which("py")
 se python_:
     u = subprocess.run([python_, "-c", "import sys\ntry:\n import pypdf\nexcept ImportError:\n print('nopypdf'); sys.exit(0)\nr = pypdf.PdfReader(sys.argv[1], strict=True)\nt = r.pages[0].extract_text()\nprint(len(r.pages), 'ok' if 'citt\\u00e0' in t and 'Un paragrafo' in t else 'testo mancante')", percorso],
                        capture_output=Vero, text=Vero, encoding="utf-8", timeout=60)
     se "nopypdf" non in u.stdout:
-        verifica(u.stdout.split() == [testo(lunghezza(d.pagine)), "ok"], "pypdf legge il PDF (modo rigoroso): " + u.stdout.strip() + u.stderr[-200:])
+        verifica(u.stdout.split() == [tipo_testo(lunghezza_di(d.pagine)), "ok"], "pypdf legge il PDF (modo rigoroso): " + u.stdout.strip() + u.stderr[-200:])
 
 # ---------------------------------------------------------------- stampare i componenti
 radice = tk.Tk()
@@ -108,7 +108,7 @@ fin.albero = ttk.Treeview(radice, columns=["Nome", "Importo"], show="headings")
 fin.albero.heading("Nome", text="Nome")
 fin.albero.heading("Importo", text="Importo")
 fin.albero.column("Importo", anchor="e")
-per i in intervallo(5):
+per i in intervallo_di(5):
     fin.albero.insert("", "end", values=(f"Voce {i}", f"{i * 10},50"))
 fin.elenco = tk.Listbox(radice)
 per v in ("uno", "due", "tre"):
@@ -176,7 +176,7 @@ grande.create_rectangle(0, 0, 1999, 2999, fill="#cccccc")
 radice.update()
 fin2.grande = grande
 dg = stampante.Stampante(radice, fin2, "grande").documento()
-verifica(lunghezza(dg.pagine) == 1, "una tela più grande della pagina si riduce e sta in una pagina: " + str(lunghezza(dg.pagine)))
+verifica(lunghezza_di(dg.pagine) == 1, "una tela più grande della pagina si riduce e sta in una pagina: " + str(lunghezza_di(dg.pagine)))
 # immagine: 4x2 pixel colorati dentro un'etichetta
 foto = tk.PhotoImage(master=radice, width=4, height=2)
 foto.put("#ff0000", to=(0, 0, 2, 2))
@@ -186,7 +186,7 @@ etichetta.image = foto
 radice.update()
 fin2.logo = etichetta
 d_i = stampante.Stampante(radice, fin2, "logo", titolo="Logo").documento()
-verifica(lunghezza(d_i.immagini) == 1 e d_i.immagini[0][:2] == (4, 2) e d_i.immagini[0][2][:3] == bytes([255, 0, 0]) e d_i.immagini[0][2][6:9] == bytes([0, 0, 255]), "immagine: dimensioni e pixel (rosso a sinistra, blu a destra): " + str(d_i.immagini[0][:2]) se d_i.immagini altrimenti "nessuna immagine")
+verifica(lunghezza_di(d_i.immagini) == 1 e d_i.immagini[0][:2] == (4, 2) e d_i.immagini[0][2][:3] == bytes([255, 0, 0]) e d_i.immagini[0][2][6:9] == bytes([0, 0, 255]), "immagine: dimensioni e pixel (rosso a sinistra, blu a destra): " + str(d_i.immagini[0][:2]) se d_i.immagini altrimenti "nessuna immagine")
 b_i = d_i.pdf()
 verifica(struttura_ok(b_i)[0] e b"/Subtype /Image" in b_i e b"/XObject" in b_i, "PDF con l'immagine: struttura e XObject")
 verifica(" Do Q" in "\n".join(contenuti(b_i)[-1:]) o any(" Do Q" in f per f in contenuti(b_i)), "l'immagine è disegnata nella pagina")
@@ -275,7 +275,7 @@ verifica(p.widget[s1.nome].winfo_class() == "Label" e "stampa1" in p.widget[s1.n
 p.seleziona([s1.nome])
 radice.update()
 combo = [w_ per w_ in p.righe_ispettore.winfo_children() se w_.winfo_class() == "TCombobox"]
-verifica(any(a1.nome in lista(c["values"]) per c in combo), "l'ispettore propone i componenti stampabili: " + str([lista(c["values"]) per c in combo]))
+verifica(any(a1.nome in tipo_lista(c["values"]) per c in combo), "l'ispettore propone i componenti stampabili: " + str([tipo_lista(c["values"]) per c in combo]))
 p.imposta_proprieta(s1.nome, "sorgente", a1.nome)
 verifica(f3.problemi() == [] o all("scegli" non in x per x in f3.problemi()), "scelta la sorgente non ci sono avvisi")
 radice.destroy()

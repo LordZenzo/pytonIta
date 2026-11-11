@@ -23,11 +23,11 @@ definisci prezzi_di(modello, personalizzati=Nessuno):
     """(ingresso, uscita, cache_lettura, cache_scrittura) in dollari per milione di token, o Nessuno se il modello non ha prezzo."""
     tabella = dict(PREZZI_PREDEFINITI)
     per nome, valori in (personalizzati o {}).items():
-        se isinstance(valori, (lista, tupla)) e lunghezza(valori) == 4:
+        se isinstance(valori, (tipo_lista, tipo_tupla)) e lunghezza_di(valori) == 4:
             tabella[nome] = tuple(float(v) per v in valori)
     se modello in tabella:
         ritorna tabella[modello]
-    per nome in sorted(tabella, key=lunghezza, reverse=Vero):         # versioni datate: claude-sonnet-5-5-2026...
+    per nome in sorted(tabella, key=lunghezza_di, reverse=Vero):         # versioni datate: claude-sonnet-5-5-2026...
         se modello e modello.startswith(nome):
             ritorna tabella[nome]
     ritorna Nessuno

@@ -55,11 +55,11 @@ definisci _con_cache(nome, proprieta, cartella, chiedi_password, calcola):
     prova:
         conn = _apri(proprieta, cartella, chiedi_password)
     eccetto database_modello.ErroreDatabase come problema:
-        ritorna [], testo(problema)
+        ritorna [], tipo_testo(problema)
     prova:
         valore = calcola(conn)
     eccetto database_modello.ErroreDatabase come problema:
-        ritorna [], testo(problema)
+        ritorna [], tipo_testo(problema)
     infine:
         conn.chiudi()
     _cache[k] = (firma, valore)

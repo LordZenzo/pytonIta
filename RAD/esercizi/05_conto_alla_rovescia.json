@@ -4,7 +4,7 @@
   "argomento": "Cicli",
   "livello": "Principiante",
   "consegna": "Leggi un numero n. Stampa i numeri da n fino a 1, uno per riga, e alla fine la parola `Via!`.\n\nEsempio con n = 3:\n3\n2\n1\nVia!",
-  "iniziale": "n = intero(leggi(\"\"))\n",
+  "iniziale": "n = tipo_intero(leggi_tastiera(\"\"))\n",
   "prove": [
     {
       "ingresso": "3\n",
@@ -21,10 +21,10 @@
   ],
   "suggerimenti": [
     "Puoi usare un ciclo `mentre n > 0:` che a ogni giro stampa n e poi lo diminuisce (`n -= 1`).",
-    "Oppure `per i in intervallo(n, 0, -1):`.",
+    "Oppure `per i in intervallo_di(n, 0, -1):`.",
     "Dopo il ciclo, `stampa(\"Via!\")`."
   ],
-  "soluzione": "n = intero(leggi(\"\"))\nper i in intervallo(n, 0, -1):\n    stampa(i)\nstampa(\"Via!\")\n",
+  "soluzione": "n = tipo_intero(leggi_tastiera(\"\"))\nper i in intervallo_di(n, 0, -1):\n    stampa(i)\nstampa(\"Via!\")\n",
   "confronto": "esatto",
   "ordine": 5
 }

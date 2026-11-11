@@ -43,7 +43,7 @@ per codice, atteso in casi:
         bene += 1
     altrimenti:
         stampa("MANCA", atteso, "in", ultima)
-stampa(f"errori tradotti: {bene}/{lunghezza(casi)}")
+stampa(f"errori tradotti: {bene}/{lunghezza_di(casi)}")
 
 # 5. «elimina(x)» attaccato alla parentesi è una chiamata; «elimina x» cancella il nome
 r = esegui_campione("elimina_chiamata.pit")

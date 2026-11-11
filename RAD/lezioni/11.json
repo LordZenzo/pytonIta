@@ -14,14 +14,14 @@
   },
   {
    "tipo": "stampa",
-   "codice": "prova:\n    n = intero(\"ciao\")\neccetto ErroreDiValore:\n    n = 0\nstampa(n)",
+   "codice": "prova:\n    n = tipo_intero(\"ciao\")\neccetto ErroreDiValore:\n    n = 0\nstampa(n)",
    "giusta": "0",
    "sbagliate": [
     "ciao",
     "Errore",
     "Nessuno"
    ],
-   "spiegazione": "intero(\"ciao\") dà ErroreDiValore; eccetto lo cattura e n diventa 0.",
+   "spiegazione": "tipo_intero(\"ciao\") dà ErroreDiValore; eccetto lo cattura e n diventa 0.",
    "sezione": "Gestire gli errori: prova / eccetto"
   },
   {
@@ -37,7 +37,7 @@
    "sezione": "Gestire gli errori: prova / eccetto"
   },
   {
-   "domanda": "Quale errore dà intero(\"ciao\")?",
+   "domanda": "Quale errore dà tipo_intero(\"ciao\")?",
    "giusta": "ErroreDiValore",
    "sbagliate": [
     {

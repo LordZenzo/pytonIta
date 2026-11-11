@@ -107,12 +107,12 @@ definisci membri_finestra(espressione, percorso):
     """Suggerimenti dopo `espressione.` per i file di una finestra disegnata. Ritorna (voci, esclusivo) o None.
     Voci: (nome, tipo, spiegazione). `esclusivo`: i suggerimenti generici non servono."""
     parti = espressione.strip().split(".")
-    se parti[0] != "se_stesso" o lunghezza(parti) > 2:
+    se parti[0] != "se_stesso" o lunghezza_di(parti) > 2:
         ritorna Nessuno
     componenti = componenti_di(percorso)
     se non componenti:
         ritorna Nessuno
-    se lunghezza(parti) == 1:
+    se lunghezza_di(parti) == 1:
         voci = [(n, "componente", t) per n, t, _ in componenti]
         viste = set()
         per c in componenti:
@@ -137,7 +137,7 @@ definisci chiamata_aperta(riga):
     pila = []
     virgolette = Nessuno
     i = 0
-    mentre i < lunghezza(riga):
+    mentre i < lunghezza_di(riga):
         c = riga[i]
         se virgolette:
             se c == "\\":
@@ -167,7 +167,7 @@ definisci argomenti_chiamata(riga, percorso):
         ritorna Nessuno
     espressione, scritti = chiamata
     parti = espressione.split(".")
-    se lunghezza(parti) != 3 o parti[0] != "se_stesso":
+    se lunghezza_di(parti) != 3 o parti[0] != "se_stesso":
         ritorna Nessuno
     tipo_ = Nessuno
     per n, t, _ in componenti_di(percorso):

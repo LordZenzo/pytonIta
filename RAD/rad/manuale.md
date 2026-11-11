@@ -26,9 +26,9 @@ Nei file `.pit` le parole chiave inglesi NON esistono. Usa solo quelle italiane:
 
 - `True`, `False`, `None` danno errore: usa `Vero`, `Falso`, `Nessuno`.
 - Parole come classe, con, da, prova, elimina, produci sono anche nomi molto naturali: l'interprete le accetta come nomi dove
-  una parola chiave non può comparire (`con = sqlite3.connect(...)`, `intervallo(da, a)`, `x.classe`, `definisci elimina(x):`),
+  una parola chiave non può comparire (`con = sqlite3.connect(...)`, `intervallo_di(da, a)`, `x.classe`, `definisci elimina(x):`),
   ma NON a inizio istruzione. Per chiarezza preferisci comunque nomi diversi (`connessione`, `cancella`, `classe_3a`).
-- Le opzioni con nome sono accettate anche in italiano: `ordinato(x, chiave=f, inverso=Vero)`, `massimo(x, predefinito=0)`,
+- Le opzioni con nome sono accettate anche in italiano: `ordinato_di(x, chiave=f, inverso=Vero)`, `massimo_di(x, predefinito=0)`,
   `apri(nome, modalita="w", codifica="utf-8")`, `stampa(a, b, separatore="-", fine="")`, `enumera(x, inizio=1)`,
   `testo.separa(separatore=",", max_divisioni=1)`. Quelle inglesi funzionano ancora.
 - `e` e `o` sono gli operatori «and» e «or»: non si possono usare come nomi di variabile (scrivi `errore`, `evento`, `elemento`…).

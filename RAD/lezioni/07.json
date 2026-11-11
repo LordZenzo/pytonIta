@@ -14,7 +14,7 @@
   },
   {
    "tipo": "stampa",
-   "codice": "stampa(lunghezza(\"Pit Studio\"))",
+   "codice": "stampa(lunghezza_di(\"Pit Studio\"))",
    "giusta": "10",
    "sbagliate": [
     {

@@ -12,7 +12,7 @@ stampa(rubrica["Anna"])
 rubrica["Sara"] = "320 1112223"       # aggiunge una voce
 rubrica["Luca"] = "000 0000000"       # cambia una voce
 stampa(rubrica)
-stampa(lunghezza(rubrica))
+stampa(lunghezza_di(rubrica))
 ```
 
 ```output
@@ -52,8 +52,8 @@ per materia in voti:
 per materia, voto in voti.elementi():
     stampa(f"{materia}: {voto}")
 
-stampa(lista(voti.chiavi()))
-stampa(somma(voti.valori()) / lunghezza(voti))
+stampa(tipo_lista(voti.chiavi()))
+stampa(somma_di(voti.valori()) / lunghezza_di(voti))
 ```
 
 ```output
@@ -102,7 +102,7 @@ studenti = [
 ]
 per s in studenti:
     stampa(f"{s['nome']:<6} {s['voto']}")
-migliore = massimo(studenti, chiave=lambda s: s["voto"])
+migliore = massimo_di(studenti, chiave=lambda s: s["voto"])
 stampa("Il migliore è", migliore["nome"])
 ```
 
@@ -119,8 +119,8 @@ Un **insieme** è come una lista senza ordine e **senza doppioni**:
 
 ```pit
 colori = {"rosso", "verde", "rosso", "blu"}
-stampa(lunghezza(colori))
-stampa(lista(insieme([1, 2, 2, 3, 3, 3])))
+stampa(lunghezza_di(colori))
+stampa(tipo_lista(tipo_insieme([1, 2, 2, 3, 3, 3])))
 ```
 
 ```output
@@ -158,8 +158,8 @@ stampa(lettere)
 
 ```pit
 prezzi = {"pane": 1.2, "latte": 1.5, "uova": 2.8}
-stampa("Totale:", somma(prezzi.valori()))
-caro = massimo(prezzi, chiave=prezzi.ottieni)
+stampa("Totale:", somma_di(prezzi.valori()))
+caro = massimo_di(prezzi, chiave=prezzi.ottieni)
 stampa("Il più caro:", caro)
 ```
 

@@ -18,7 +18,7 @@ I programmi girano con **pitonit** in un processo separato, nella cartella del p
 | Testo bianco | l'output normale (`stampa`) |
 | Testo rosso | gli errori; il messaggio e il traceback sono **in italiano** |
 | Link sottolineati | `File "x.pit", riga 9`: un clic apre il file alla riga e la segna in rosso |
-| Riga in fondo (›) | scrivi qui e premi Invio per rispondere a `leggi()`; il testo che invii appare in giallo |
+| Riga in fondo (›) | scrivi qui e premi Invio per rispondere a `leggi_tastiera()`; il testo che invii appare in giallo |
 | **Pulisci** | svuota la console (per default si svuota da sola a ogni esecuzione) |
 | **Ferma** | interrompe il programma |
 

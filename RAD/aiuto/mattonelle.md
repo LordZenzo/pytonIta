@@ -96,5 +96,5 @@ definisci fattoriale(n):
 
 
 definisci principale():
-    stampa(testo('5! = ') + testo(fattoriale(5)))
+    stampa(tipo_testo('5! = ') + tipo_testo(fattoriale(5)))
 ```

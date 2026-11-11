@@ -111,7 +111,7 @@ classe ErroreAI(Eccezione):
 
 definisci stima_token(messaggi):
     """Stima grossolana dei token di una conversazione (circa 4 caratteri per token)."""
-    ritorna lunghezza(json.dumps(messaggi, ensure_ascii=Falso)) // 4
+    ritorna lunghezza_di(json.dumps(messaggi, ensure_ascii=Falso)) // 4
 
 
 definisci compatta(messaggi, soglia_token, mantieni=6):
@@ -122,26 +122,26 @@ definisci compatta(messaggi, soglia_token, mantieni=6):
     Gli ultimi `mantieni` messaggi restano intatti. Ritorna i caratteri risparmiati (0 se non serviva)."""
     se soglia_token <= 0 o stima_token(messaggi) <= soglia_token:
         ritorna 0
-    prima = lunghezza(json.dumps(messaggi, ensure_ascii=Falso))
+    prima = lunghezza_di(json.dumps(messaggi, ensure_ascii=Falso))
     obiettivo = int(soglia_token * 0.7)
-    per i in intervallo(max(0, lunghezza(messaggi) - mantieni)):
+    per i in intervallo_di(max(0, lunghezza_di(messaggi) - mantieni)):
         m = messaggi[i]
         contenuto = m.get("content")
-        se non isinstance(contenuto, lista):
+        se non isinstance(contenuto, tipo_lista):
             continua
         per b in contenuto:
             tipo_ = b.get("type")
-            se tipo_ == "tool_result" e isinstance(b.get("content"), testo) e lunghezza(b["content"]) > 400:
-                b["content"] = b["content"][:300] + f"\n… [risultato accorciato per risparmiare token: {lunghezza(b['content'])} caratteri]"
+            se tipo_ == "tool_result" e isinstance(b.get("content"), tipo_testo) e lunghezza_di(b["content"]) > 400:
+                b["content"] = b["content"][:300] + f"\n… [risultato accorciato per risparmiare token: {lunghezza_di(b['content'])} caratteri]"
             altrimenti_se tipo_ == "tool_use" e isinstance(b.get("input"), dict):
-                per chiave, valore in lista(b["input"].items()):
-                    se isinstance(valore, testo) e lunghezza(valore) > 400:
-                        b["input"][chiave] = f"[omesso: {lunghezza(valore)} caratteri]"
-            altrimenti_se tipo_ == "text" e m.get("role") == "user" e b.get("text", "").startswith("<contesto_ide>") e lunghezza(b["text"]) > 400:
+                per chiave, valore in tipo_lista(b["input"].items()):
+                    se isinstance(valore, tipo_testo) e lunghezza_di(valore) > 400:
+                        b["input"][chiave] = f"[omesso: {lunghezza_di(valore)} caratteri]"
+            altrimenti_se tipo_ == "text" e m.get("role") == "user" e b.get("text", "").startswith("<contesto_ide>") e lunghezza_di(b["text"]) > 400:
                 b["text"] = "<contesto_ide>[omesso per risparmiare token]</contesto_ide>"
         se stima_token(messaggi) <= obiettivo:
             interrompi
-    ritorna max(0, prima - lunghezza(json.dumps(messaggi, ensure_ascii=Falso)))
+    ritorna max(0, prima - lunghezza_di(json.dumps(messaggi, ensure_ascii=Falso)))
 
 
 definisci con_cache(messaggi):
@@ -151,10 +151,10 @@ definisci con_cache(messaggi):
     l'API riusa ciò che ha già letto (costa una frazione). I messaggi originali, che si salvano su disco, non cambiano."""
     se non messaggi:
         ritorna messaggi
-    copia = lista(messaggi)
+    copia = tipo_lista(messaggi)
     ultimo = dict(copia[-1])
     contenuto = ultimo.get("content")
-    se isinstance(contenuto, testo):
+    se isinstance(contenuto, tipo_testo):
         contenuto = [{"type": "text", "text": contenuto}]
     altrimenti:
         contenuto = [dict(b) per b in (contenuto o [])]
@@ -171,7 +171,7 @@ definisci pulisci_per_claude(messaggi):
     risultato = []
     per m in messaggi:
         c = m.get("content")
-        se isinstance(c, lista):
+        se isinstance(c, tipo_lista):
             blocchi = [{k: v per k, v in b.items() se k != "firma"} per b in c se b.get("type") != "ragionamento"]
             se non blocchi:
                 continua
@@ -267,7 +267,7 @@ definisci messaggi_a_openai(messaggi, sistema):
     r = [{"role": "system", "content": sistema}]
     per m in messaggi:
         c = m.get("content")
-        se isinstance(c, testo):
+        se isinstance(c, tipo_testo):
             c = [{"type": "text", "text": c}]
         se m.get("role") == "assistant":
             testi = [b["text"] per b in c se b.get("type") == "text"]
@@ -285,7 +285,7 @@ definisci messaggi_a_openai(messaggi, sistema):
                 se b.get("type") == "tool_result":
                     esito = b.get("content")
                     r.append({"role": "tool", "tool_call_id": b["tool_use_id"],
-                              "content": esito se isinstance(esito, testo) altrimenti json.dumps(esito, ensure_ascii=Falso)})
+                              "content": esito se isinstance(esito, tipo_testo) altrimenti json.dumps(esito, ensure_ascii=Falso)})
             testi = [b["text"] per b in c se b.get("type") == "text"]
             se testi:
                 r.append({"role": "user", "content": "\n".join(testi)})
@@ -377,7 +377,7 @@ definisci messaggi_a_gemini(messaggi):
     contenuti = []
     per m in messaggi:
         c = m.get("content")
-        se isinstance(c, testo):
+        se isinstance(c, tipo_testo):
             c = [{"type": "text", "text": c}]
         parti = []
         per b in c:
@@ -395,7 +395,7 @@ definisci messaggi_a_gemini(messaggi):
                 parti.append(p)
             altrimenti_se t == "tool_result":
                 esito = b.get("content")
-                se non isinstance(esito, testo):
+                se non isinstance(esito, tipo_testo):
                     esito = json.dumps(esito, ensure_ascii=Falso)
                 parti.append({"functionResponse": {"name": nomi.get(b["tool_use_id"], "strumento"),
                                                    "response": {("error" se b.get("is_error") altrimenti "result"): esito}}})
@@ -424,7 +424,7 @@ definisci risposta_da_gemini(r, da_json=Nessuno):
             f = p["functionCall"]
             argomenti = dict(f.get("args") o {})
             per nome_p in da_json.get(f.get("name"), []):
-                se isinstance(argomenti.get(nome_p), testo):
+                se isinstance(argomenti.get(nome_p), tipo_testo):
                     prova:
                         argomenti[nome_p] = json.loads(argomenti[nome_p])
                     eccetto ValueError:
@@ -516,10 +516,10 @@ definisci modelli_di(config):
 
 
 definisci _tronca(testo_, limite=LIMITE_RISULTATO):
-    se lunghezza(testo_) <= limite:
+    se lunghezza_di(testo_) <= limite:
         ritorna testo_
     meta = limite // 2
-    ritorna testo_[:meta] + f"\n… [troncato: {lunghezza(testo_) - limite} caratteri] …\n" + testo_[-meta:]
+    ritorna testo_[:meta] + f"\n… [troncato: {lunghezza_di(testo_) - limite} caratteri] …\n" + testo_[-meta:]
 
 
 classe Strumenti:
@@ -561,11 +561,11 @@ classe Strumenti:
             eccetto OSError:
                 passa           # senza copia di sicurezza l'assistente lavora lo stesso
         prova:
-            ritorna _tronca(testo(funzione(**(parametri o {})))), Falso
+            ritorna _tronca(tipo_testo(funzione(**(parametri o {})))), Falso
         eccetto ErroreDiValore come eccezione:
-            ritorna testo(eccezione), Vero
+            ritorna tipo_testo(eccezione), Vero
         eccetto (OSError, KeyError, ErroreDiTipo, ErroreDiAttributo, TimeoutError) come eccezione:
-            ritorna f"{tipo(eccezione).__name__}: {eccezione}", Vero
+            ritorna f"{tipo_di(eccezione).__name__}: {eccezione}", Vero
 
     # --- lettura
     definisci s_stato_ide(se_stesso):
@@ -590,7 +590,7 @@ classe Strumenti:
 
     definisci s_leggi_file(se_stesso, percorso, da_riga=1, a_riga=Nessuno):
         righe = se_stesso._contenuto(percorso).split("\n")
-        a_riga = a_riga o lunghezza(righe)
+        a_riga = a_riga o lunghezza_di(righe)
         da_riga = max(1, da_riga)
         ritorna "\n".join(f"{n}: {r}" per n, r in enumera(righe[da_riga - 1:a_riga], da_riga))
 
@@ -644,7 +644,7 @@ classe Strumenti:
             se_stesso.tentativi[percorso] = precedenti + 1
             se precedenti < consentiti:
                 # il codice sbagliato non arriva all'utente: lo si rimanda all'assistente perché lo corregga
-                se_stesso._registra("scrittura", file=percorso, linguaggio=linguaggio, esito="sintassi", tentativo=precedenti + 1, errore=testo(errore[2])[:200])
+                se_stesso._registra("scrittura", file=percorso, linguaggio=linguaggio, esito="sintassi", tentativo=precedenti + 1, errore=tipo_testo(errore[2])[:200])
                 solleva ErroreDiValore(f"NON SCRITTO: il codice ha un errore di sintassi alla riga {errore[0]}, colonna {errore[1]}: {errore[2]}. "
                                        f"Il file non è stato modificato. Correggi e riprova (tentativo {precedenti + 1} di {consentiti + 1}).")
             # troppi tentativi: decide l'utente
@@ -719,7 +719,7 @@ classe Strumenti:
                     "Esecuzione", f"L'assistente vuole eseguire:\n\n  {p.relativo(percorso)} {' '.join(argomenti o [])}"), 600):
                 solleva ErroreDiValore("l'utente ha rifiutato l'esecuzione")
         se_stesso.ponte.esegui(lambda: se_stesso.ambiente.salva_tutto())
-        comando = [se_stesso.config_.interprete(), "-u", percorso] + lista(argomenti o [])
+        comando = [se_stesso.config_.interprete(), "-u", percorso] + tipo_lista(argomenti o [])
         r = esecuzione.esegui_sincrono(comando, p.cartella, max(1, min(int(tempo_massimo), 300)), ingresso,
                                       limiti.da_configurazione(se_stesso.config_, "ai"))
         se_stesso.ponte.esegui(lambda: se_stesso.ambiente.mostra_in_console(p.relativo(percorso), r))
@@ -815,13 +815,13 @@ classe Agente:
         eccetto OSError:
             gruppo = Nessuno
         se gruppo:
-            se_stesso.su_evento("modifiche", {"id": gruppo["id"], "file": lunghezza(gruppo["modifiche"])})
+            se_stesso.su_evento("modifiche", {"id": gruppo["id"], "file": lunghezza_di(gruppo["modifiche"])})
             se se_stesso.registro:
-                se_stesso.registro.scrivi("modifiche", richiesta=se_stesso.id_richiesta, file=lunghezza(gruppo["modifiche"]))
+                se_stesso.registro.scrivi("modifiche", richiesta=se_stesso.id_richiesta, file=lunghezza_di(gruppo["modifiche"]))
 
     definisci _ciclo(se_stesso, messaggi, sistema):
         massimo = int(se_stesso.config_.ottieni("ai.passi_massimi", 25))
-        per passo in intervallo(massimo):
+        per passo in intervallo_di(massimo):
             se se_stesso.arresto.is_set():
                 se_stesso.su_evento("info", "Interrotto.")
                 ritorna

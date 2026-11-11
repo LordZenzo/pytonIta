@@ -178,7 +178,7 @@ classe Configurazione:
         se_stesso.ascoltatori.append(funzione)
 
     definisci notifica(se_stesso, percorso):
-        per f in lista(se_stesso.ascoltatori):
+        per f in tipo_lista(se_stesso.ascoltatori):
             prova:
                 f(percorso)
             eccetto Eccezione:

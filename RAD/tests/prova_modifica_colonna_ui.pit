@@ -59,9 +59,9 @@ verifica(isinstance(d.risultato, dbm.Colonna) e d.risultato.nome == "costo" e d.
 # senza cambiamenti: la conferma avvisa e il dialogo resta
 d2 = DialogoTabella(radice, w.colori, w.conn, "prodotti", da_modificare=vecchia)
 radice.update()
-prima = lunghezza(errori_mostrati)
+prima = lunghezza_di(errori_mostrati)
 d2._conferma()
-verifica(lunghezza(errori_mostrati) == prima + 1 e d2.risultato è Nessuno, "senza cambi non conferma")
+verifica(lunghezza_di(errori_mostrati) == prima + 1 e d2.risultato è Nessuno, "senza cambi non conferma")
 d2.destroy()
 
 # il pulsante e il doppio clic, con il dialogo sostituito da una risposta pronta
@@ -88,9 +88,9 @@ verifica(w.conn.esegui_una("SELECT costo FROM prodotti ORDER BY id").righe == [[
 # errore durante la modifica: messaggio e niente cambia
 albero.selection_set("1")                                   # «nome» (non nulla) diventa... un nome già usato
 risposte.append(dbm.Colonna("nota", "TEXT", Vero, ""))
-prima = lunghezza(errori_mostrati)
+prima = lunghezza_di(errori_mostrati)
 w.modifica_colonna()
-verifica(lunghezza(errori_mostrati) == prima + 1, "l'errore viene mostrato")
+verifica(lunghezza_di(errori_mostrati) == prima + 1, "l'errore viene mostrato")
 verifica([k.nome per k in w.conn.colonne("prodotti")] == nomi, "niente è cambiato dopo l'errore")
 
 # doppio clic su una riga

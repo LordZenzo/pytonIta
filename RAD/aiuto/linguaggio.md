@@ -10,7 +10,7 @@ definisci fattoriale(n):
     ritorna n * fattoriale(n - 1)
 
 
-per i in intervallo(1, 6):
+per i in intervallo_di(1, 6):
     stampa(i, "! =", fattoriale(i))
 ```
 
@@ -51,7 +51,7 @@ La scelta in una riga si scrive con `X se condizione altrimenti Y` (come `X if c
 - **`Vero`, `Falso`, `Nessuno`**: scrivere `True`, `False` o `None` in un file `.pit` dà un errore che spiega cosa usare.
 - **Parole riservate come nomi**: parole italiane molto naturali come `classe`, `con` (connessione), `prova`, `da`, `elimina`, `produci` sono anche parole chiave. L'interprete le sa leggere come nomi, ma **il controllo che gira prima dell'esecuzione le considera un errore grave e il programma non parte**: scegli un altro nome (`nome_classe`, `connessione`, `esperimento`, `cancella`, `aspetta`…). Fanno eccezione gli *attributi* (`oggetto.classe`) e i *metodi* (`definisci elimina(se_stesso):` dentro una classe). Le lettere `e` e `o` sono gli operatori «and» e «or»: neppure come nomi di una lettera sola si possono usare (scrivi `evento`, `errore`, `elemento`).
 - **Parole chiave inglesi**: `pass`, `class`, `def`, `return`… sarebbero nomi qualunque e l'errore comparirebbe solo se la riga viene eseguita. Il controllo le blocca prima e dice come si scrivono in italiano (`pass` → `passa`).
-- **Funzioni predefinite nascoste**: `testo = "ciao"` seguito da `testo(5)` non può funzionare, perché la variabile ha preso il posto della funzione `testo()`. Lo stesso vale per `lista`, `tipo`, `somma`, `massimo`, `minimo`, `mappa`, `intervallo`, `leggi`… e per i nomi inglesi (`str`, `list`…). Se la variabile viene richiamata come funzione il programma non parte. Una variabile con quel nome che non viene mai richiamata è lecita, e così `nome = lambda ...` (è una funzione scritta apposta).
+- **Funzioni predefinite nascoste**: se dai a una variabile il nome di una funzione predefinita e poi la richiami come funzione, per esempio `somma_di = 5` seguito da `somma_di([1, 2])`, il programma non può funzionare, perché la variabile ha preso il posto della funzione. Il controllo lo blocca prima dell'esecuzione. I nomi italiani delle funzioni predefinite hanno un trattino basso (`tipo_testo`, `tipo_lista`, `lunghezza_di`, `somma_di`, `intervallo_di`, `leggi_tastiera`…) apposta, perché non vengano usati per caso come nomi di variabile: `testo`, `lista`, `lunghezza`, `somma` sono liberi. Valgono anche i nomi inglesi (`str`, `list`, `max`…). Una variabile con quel nome che non viene mai richiamata è lecita, e così `nome = lambda ...`.
 - **Il controllo**: parte da solo quando lanci un file `.pit` e quando importi un modulo `.pit`. Per vedere anche gli avvisi (nomi inglesi come `print`, nomi non definiti, variabili che nascondono funzioni predefinite) usa `pitonit -m _controlla programma.pit`. Una riga con il commento `# controlla: ok` viene saltata; `# controlla: ignora-file` nelle prime cinque righe salta tutto il file; la variabile d'ambiente `PITONIT_SENZA_CONTROLLO=1` lo spegne.
 - **`e` e `o` sono operatori, non nomi**: una variabile `e` (evento, errore) o `o` (oggetto) è un errore grave del controllo e il programma non parte. Scrivi `eccetto ErroreDiValore come errore:`, `lambda evento: ...`, `per elemento in lista`.
 - **Il primo parametro dei metodi** si chiama per convenzione `se_stesso` (è `self`); `__inizializza__` è `__init__`, `__testo__` è `__str__`, `__lunghezza__`, `__uguale__`, `__somma__`, `__chiama__`, `__entra__`/`__esci__`, `__nome__`…
@@ -64,9 +64,9 @@ Le funzioni più comuni accettano le opzioni **anche in italiano** (quelle ingle
 | Funzione | Opzioni |
 |---|---|
 | `stampa(...)` | `separatore=`, `fine=`, `svuota=` |
-| `ordinato(x)` e `lista.ordina()` | `chiave=`, `inverso=` |
-| `massimo(x)` / `minimo(x)` | `chiave=`, `predefinito=` |
-| `somma(x)` | `inizio=` |
+| `ordinato_di(x)` e `lista.ordina()` | `chiave=`, `inverso=` |
+| `massimo_di(x)` / `minimo_di(x)` | `chiave=`, `predefinito=` |
+| `somma_di(x)` | `inizio=` |
 | `arrotonda(x)` | `cifre=` |
 | `enumera(x)` | `inizio=` |
 | `abbina(a, b)` | `rigoroso=` |
@@ -76,7 +76,7 @@ Le funzioni più comuni accettano le opzioni **anche in italiano** (quelle ingle
 
 ```pit
 stampa("a", "b", separatore="-")
-stampa(ordinato([3, 1, 2], inverso=Vero))
+stampa(ordinato_di([3, 1, 2], inverso=Vero))
 ```
 
 ```output
@@ -126,8 +126,8 @@ classe Rubrica:
 
 rubrica = Rubrica("rubrica.json")
 prova:
-    nome = leggi("Nome? ")
-    rubrica.aggiungi(nome, leggi("Telefono? "))
+    nome = leggi_tastiera("Nome? ")
+    rubrica.aggiungi(nome, leggi_tastiera("Telefono? "))
 eccetto InterruzioneDaTastiera:
     stampa("Annullato")
 stampa(rubrica)

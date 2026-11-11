@@ -8,7 +8,7 @@ da rad.tema importa colori, configura_stile, applica
 da rad importa database_modello come dbm, form_modello, progettista
 da rad.form_modello importa Form
 
-uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
 cartella = tempfile.mkdtemp()
 db = os.path.join(cartella, "clienti.db")
 c = dbm.apri_sqlite(db)

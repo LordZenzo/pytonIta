@@ -409,9 +409,9 @@ classe AreaMattonelle(tk.Frame):
         se modo.startswith("variabile"):
             se_stesso._menu_variabili(m, nome, rett)
         altrimenti_se m.tipo in TIPI_TESTO_LIBERO e nome in ("testo", "valore"):
-            se_stesso._finestra_testo(m.tipo, testo(m.campi.get(nome, "")), lambda v: se_stesso._imposta_campo(m, nome, v, modo))
+            se_stesso._finestra_testo(m.tipo, tipo_testo(m.campi.get(nome, "")), lambda v: se_stesso._imposta_campo(m, nome, v, modo))
         altrimenti:
-            se_stesso._edit_testo(rett, testo(m.campi.get(nome, "")), lambda v: se_stesso._imposta_campo(m, nome, v, modo))
+            se_stesso._edit_testo(rett, tipo_testo(m.campi.get(nome, "")), lambda v: se_stesso._imposta_campo(m, nome, v, modo))
 
     definisci _modifica_letterale(se_stesso, m, nome):
         rett = se_stesso._rett_campo(m, nome, "vuoto")
@@ -527,7 +527,7 @@ classe AreaMattonelle(tk.Frame):
             se_stesso.seleziona((m.id,))
             se m.tipo non in CAPPELLI:
                 menu.add_command(label="Stacca (porta via anche le seguenti)", command=lambda: se_stesso.stacca(m, Falso))
-                se non m.è_valore() e m.lista è non Nessuno e lunghezza(m.lista) > 1:
+                se non m.è_valore() e m.lista è non Nessuno e lunghezza_di(m.lista) > 1:
                     menu.add_command(label="Stacca solo questa", command=lambda: se_stesso.stacca(m, Vero))
                 menu.add_separator()
                 menu.add_command(label="Duplica", command=lambda: se_stesso.duplica(m, Falso))
@@ -561,7 +561,7 @@ classe AreaMattonelle(tk.Frame):
         se_stesso._finito()
 
     definisci duplica_selezione(se_stesso):
-        per i in lista(se_stesso.selezione):
+        per i in tipo_lista(se_stesso.selezione):
             m = se_stesso._trova_per_id(i)
             se m è non Nessuno e m.tipo non in CAPPELLI:
                 se_stesso.duplica(m, Falso)
@@ -572,7 +572,7 @@ classe AreaMattonelle(tk.Frame):
         se_stesso._finito()
 
     definisci cancella_selezione(se_stesso):
-        per i in lista(se_stesso.selezione):
+        per i in tipo_lista(se_stesso.selezione):
             m = se_stesso._trova_per_id(i)
             se m è non Nessuno e m.tipo non in CAPPELLI:
                 se_stesso.area().cancella(m, con_seguito=Falso)
@@ -601,7 +601,7 @@ classe AreaMattonelle(tk.Frame):
     definisci pulisci_sciolte(se_stesso):
         a = se_stesso.area()
         sciolte = [r per r in a.radici se (r.è_valore o (r.pila e r.pila[0].tipo non in CAPPELLI))]
-        se sciolte e messagebox.askyesno("Elimina", f"Eliminare {lunghezza(sciolte)} gruppi non collegati?", parent=se_stesso):
+        se sciolte e messagebox.askyesno("Elimina", f"Eliminare {lunghezza_di(sciolte)} gruppi non collegati?", parent=se_stesso):
             per r in sciolte:
                 a.radici.remove(r)
             se_stesso._finito()
@@ -900,7 +900,7 @@ classe EditorMattonelle(tk.Frame):
         # con molte funzioni le linguette non bastano: si usa solo il selettore
         stile = ttk.Style(se_stesso)
         stile.layout("Nascosto.TNotebook.Tab", [])
-        se_stesso.blocco.configure(style="Nascosto.TNotebook" se lunghezza(se_stesso.viste) > 8 altrimenti "TNotebook")
+        se_stesso.blocco.configure(style="Nascosto.TNotebook" se lunghezza_di(se_stesso.viste) > 8 altrimenti "TNotebook")
         se_stesso.selettore.configure(values=[se_stesso._etichetta(n) per n in se_stesso.viste])
         se_stesso.vai_alla_funzione(scelta se scelta in se_stesso.viste altrimenti "principale")
 
@@ -977,7 +977,7 @@ classe EditorMattonelle(tk.Frame):
         se non classi:
             messagebox.showinfo("Nuovo metodo", "Prima crea una classe con «＋ Classe».", parent=se_stesso)
             ritorna
-        da_chiedere = lunghezza(classi) > 1 e non classe_nome e non se_stesso._classe_corrente()
+        da_chiedere = lunghezza_di(classi) > 1 e non classe_nome e non se_stesso._classe_corrente()
         classe_nome = classe_nome o se_stesso._classe_corrente() o classi[-1]
         se da_chiedere:
             scelta = simpledialog.askstring("Nuovo metodo", "In quale classe? (" + ", ".join(classi) + ")", initialvalue=classe_nome,
@@ -1040,7 +1040,7 @@ classe EditorMattonelle(tk.Frame):
             se_stesso.vai_alla_funzione((fn.classe + "." + valore) se fn e fn.classe altrimenti valore)
             ritorna Vero
         pulito = ", ".join(p.strip() per p in valore.split(",") se p.strip())
-        se tutti(nome_variabile_valido(p) per p in pulito.split(", ") se p) o non pulito:
+        se tutti_veri(nome_variabile_valido(p) per p in pulito.split(", ") se p) o non pulito:
             m.campi["parametri"] = pulito
             ritorna Vero
         messagebox.showwarning("Parametri non validi", "Ogni parametro deve essere un nome valido.", parent=se_stesso)
@@ -1089,7 +1089,7 @@ classe EditorMattonelle(tk.Frame):
         finestra.destroy()
 
     definisci _chiudi_finestre_di(se_stesso, nome):
-        per f, v in lista(se_stesso.finestre):
+        per f, v in tipo_lista(se_stesso.finestre):
             se v.nome_area == nome:
                 se_stesso._chiudi_finestra(f, v)
 
@@ -1100,9 +1100,9 @@ classe EditorMattonelle(tk.Frame):
             ritorna
         elimina se_stesso.cronologia[se_stesso.indice + 1:]
         se_stesso.cronologia.append(stato_)
-        se lunghezza(se_stesso.cronologia) > 150:
+        se lunghezza_di(se_stesso.cronologia) > 150:
             se_stesso.cronologia.pop(0)
-        se_stesso.indice = lunghezza(se_stesso.cronologia) - 1
+        se_stesso.indice = lunghezza_di(se_stesso.cronologia) - 1
         se_stesso._segna_modificato(Vero)
 
     definisci _segna_modificato(se_stesso, valore):
@@ -1116,14 +1116,14 @@ classe EditorMattonelle(tk.Frame):
             se_stesso._ripristina()
 
     definisci ripeti(se_stesso):
-        se se_stesso.indice < lunghezza(se_stesso.cronologia) - 1:
+        se se_stesso.indice < lunghezza_di(se_stesso.cronologia) - 1:
             se_stesso.indice += 1
             se_stesso._ripristina()
 
     definisci _ripristina(se_stesso):
         se_stesso.programma = Programma.da_json(se_stesso.cronologia[se_stesso.indice])
         se_stesso.ricostruisci_viste()
-        per f, v in lista(se_stesso.finestre):
+        per f, v in tipo_lista(se_stesso.finestre):
             se v.area() è Nessuno:
                 se_stesso._chiudi_finestra(f, v)
         se_stesso._segna_modificato(Vero)
@@ -1206,7 +1206,7 @@ classe EditorMattonelle(tk.Frame):
         se_stesso.codice.imposta_contenuto(codice)
         t.configure(state="disabled")
         se_stesso.avvisi.configure(text=("⚠ " + "\n⚠ ".join(avvisi[:6])) se avvisi altrimenti "")
-        se_stesso.stato.configure(text=f"{lunghezza(avvisi)} avvisi" se avvisi altrimenti "tutto collegato ✔")
+        se_stesso.stato.configure(text=f"{lunghezza_di(avvisi)} avvisi" se avvisi altrimenti "tutto collegato ✔")
 
     definisci modulo(se_stesso):
         """Importazioni e codice di modulo (utile per i programmi convertiti da .pit)."""
@@ -1239,7 +1239,7 @@ classe EditorMattonelle(tk.Frame):
         se_stesso._segna_modificato(Falso)
         se_stesso.azioni.file_scritti(scritti)
         se_stesso.azioni.info("Salvato: " + ", ".join(os.path.basename(p) per p in scritti)
-                              + (f"   ⚠ {lunghezza(avvisi)} avvisi" se avvisi altrimenti ""))
+                              + (f"   ⚠ {lunghezza_di(avvisi)} avvisi" se avvisi altrimenti ""))
         ritorna Vero
 
     definisci percorso_codice(se_stesso):
@@ -1274,7 +1274,7 @@ classe EditorMattonelle(tk.Frame):
         ritorna Falso
 
     definisci chiudi(se_stesso):
-        per f, v in lista(se_stesso.finestre):
+        per f, v in tipo_lista(se_stesso.finestre):
             prova:
                 f.destroy()
             eccetto tk.TclError:

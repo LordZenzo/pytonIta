@@ -8,7 +8,7 @@ da rad.progetto importa Progetto
 
 cartella_temp = tempfile.mkdtemp()
 cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
-tema_scelto = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti "scuro"
+tema_scelto = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti "scuro"
 cfg.imposta("tema", tema_scelto, notifica=Falso)
 radice = tk.Tk()
 radice.geometry("1400x860+20+20")

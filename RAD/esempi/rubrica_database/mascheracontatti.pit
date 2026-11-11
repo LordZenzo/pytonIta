@@ -12,7 +12,7 @@ classe MascheraContatti(MascheraContattiUI):
         prova:
             se_stesso.fonte = FonteDati.sqlite(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rubrica.db'), 'contatti')
         eccetto ErroreDati come errore:
-            messagebox.showerror('Database', testo(errore), parent=radice)
+            messagebox.showerror('Database', tipo_testo(errore), parent=radice)
             radice.after(50, radice.destroy)
             ritorna
         se_stesso.maschera = MascheraDati(se_stesso.fonte, se_stesso.elenco_dati, {

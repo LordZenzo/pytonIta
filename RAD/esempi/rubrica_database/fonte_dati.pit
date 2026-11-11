@@ -65,7 +65,7 @@ classe FonteDati:
             altrimenti:
                 cur.execute(sql)
         eccetto Exception come eccezione:
-            solleva ErroreDati(testo(eccezione))
+            solleva ErroreDati(tipo_testo(eccezione))
         ritorna cur
 
     definisci _leggi_struttura(se_stesso):
@@ -73,12 +73,12 @@ classe FonteDati:
             righe = se_stesso._esegui(f"SHOW COLUMNS FROM {se_stesso._n(se_stesso.tabella)}").fetchall()
             per r in righe:
                 se_stesso.colonne.append(r[0])
-                se_stesso.tipi[r[0]] = testo(r[1]).upper()
+                se_stesso.tipi[r[0]] = tipo_testo(r[1]).upper()
                 se r[3] == "PRI":
                     se_stesso.chiave.append(r[0])
-                se "auto_increment" in testo(r[5]):
+                se "auto_increment" in tipo_testo(r[5]):
                     se_stesso.automatiche.append(r[0])
-                se r[2] == "NO" e r[4] è Nessuno e "auto_increment" non in testo(r[5]):
+                se r[2] == "NO" e r[4] è Nessuno e "auto_increment" non in tipo_testo(r[5]):
                     se_stesso.obbligatorie.append(r[0])
         altrimenti:
             righe = se_stesso._esegui(f"PRAGMA table_info({se_stesso._n(se_stesso.tabella)})").fetchall()
@@ -89,7 +89,7 @@ classe FonteDati:
                     se_stesso.chiave.append(r[1])
                 se r[3] e r[4] è Nessuno e r[5] == 0:
                     se_stesso.obbligatorie.append(r[1])
-            se lunghezza(se_stesso.chiave) == 1 e "INT" in se_stesso.tipi[se_stesso.chiave[0]]:
+            se lunghezza_di(se_stesso.chiave) == 1 e "INT" in se_stesso.tipi[se_stesso.chiave[0]]:
                 se_stesso.automatiche.append(se_stesso.chiave[0])
         se non se_stesso.colonne:
             solleva ErroreDati(f"La tabella «{se_stesso.tabella}» non esiste.")
@@ -102,7 +102,7 @@ classe FonteDati:
         se ricerca:
             tipo_testo = "CHAR" se se_stesso.è_mysql altrimenti "TEXT"
             dove = " WHERE " + " OR ".join(f"CAST({se_stesso._n(c)} AS {tipo_testo}) LIKE {se_stesso.segnaposto}" per c in se_stesso.colonne)
-            par = ["%" + ricerca + "%"] * lunghezza(se_stesso.colonne)
+            par = ["%" + ricerca + "%"] * lunghezza_di(se_stesso.colonne)
         t = se_stesso._n(se_stesso.tabella)
         risultato = []
         se se_stesso.è_mysql:
@@ -137,7 +137,7 @@ classe FonteDati:
         se se_stesso.è_mysql:
             se id_ è Nessuno:
                 solleva ErroreDati("La tabella non ha una chiave primaria: non posso individuare il record.")
-            ritorna " AND ".join(f"{se_stesso._n(c)} = {se_stesso.segnaposto}" per c in se_stesso.chiave), lista(id_)
+            ritorna " AND ".join(f"{se_stesso._n(c)} = {se_stesso.segnaposto}" per c in se_stesso.chiave), tipo_lista(id_)
         ritorna f"rowid = {se_stesso.segnaposto}", [id_]
 
     definisci salva(se_stesso, valori_testo, id_=Nessuno):
@@ -148,7 +148,7 @@ classe FonteDati:
             valori = [se_stesso._converti(c, valori_testo.get(c, "")) per c in nomi]
             se nomi:
                 elenco_nomi = ", ".join(se_stesso._n(c) per c in nomi)
-                segnaposti = ", ".join([se_stesso.segnaposto] * lunghezza(nomi))
+                segnaposti = ", ".join([se_stesso.segnaposto] * lunghezza_di(nomi))
                 cur = se_stesso._esegui(f"INSERT INTO {t} ({elenco_nomi}) VALUES ({segnaposti})", valori)
             altrimenti:
                 cur = se_stesso._esegui(f"INSERT INTO {t} DEFAULT VALUES" se non se_stesso.è_mysql altrimenti f"INSERT INTO {t} () VALUES ()")
@@ -186,7 +186,7 @@ classe MascheraDati:
         se_stesso.elenco = elenco
         se_stesso.campi = campi                # {colonna: campo di testo}
         se_stesso.stato = stato
-        se_stesso.colonne_elenco = lista(colonne_elenco) se colonne_elenco altrimenti lista(elenco["columns"])
+        se_stesso.colonne_elenco = tipo_lista(colonne_elenco) se colonne_elenco altrimenti tipo_lista(elenco["columns"])
         se_stesso.record = []
         se_stesso.id_corrente = Nessuno
         se_stesso.ricerca = ""
@@ -200,23 +200,23 @@ classe MascheraDati:
         prova:
             se_stesso.record = se_stesso.fonte.record(se_stesso.ricerca)
         eccetto ErroreDati come errore:
-            messagebox.showerror("Database", testo(errore))
+            messagebox.showerror("Database", tipo_testo(errore))
             ritorna
         se_stesso.elenco.delete(*se_stesso.elenco.get_children())
         indice = Nessuno
         per i, (id_, valori) in enumera(se_stesso.record):
-            se_stesso.elenco.insert("", "end", iid=testo(i), values=["" se valori.get(c) è Nessuno altrimenti valori.get(c) per c in se_stesso.colonne_elenco])
+            se_stesso.elenco.insert("", "end", iid=tipo_testo(i), values=["" se valori.get(c) è Nessuno altrimenti valori.get(c) per c in se_stesso.colonne_elenco])
             se seleziona è non Nessuno e id_ == seleziona:
                 indice = i
         se indice è Nessuno e se_stesso.record e seleziona è Nessuno:
             indice = 0
         se indice è non Nessuno:
-            se_stesso.elenco.selection_set(testo(indice))
-            se_stesso.elenco.see(testo(indice))
+            se_stesso.elenco.selection_set(tipo_testo(indice))
+            se_stesso.elenco.see(tipo_testo(indice))
             se_stesso.mostra(indice)
         altrimenti:
             se_stesso.nuovo()
-        n = lunghezza(se_stesso.record)
+        n = lunghezza_di(se_stesso.record)
         se_stesso._messaggio(f"{n} record" + (f"  ·  ricerca: «{se_stesso.ricerca}»" se se_stesso.ricerca altrimenti "") + (f"  (mostrati i primi {MASSIMO_RECORD})" se n >= MASSIMO_RECORD altrimenti ""))
 
     definisci mostra(se_stesso, indice):
@@ -228,7 +228,7 @@ classe MascheraDati:
         per colonna, campo in se_stesso.campi.items():
             v = valori.get(colonna)
             campo.delete(0, "end")
-            campo.insert(0, "" se v è Nessuno altrimenti testo(v))
+            campo.insert(0, "" se v è Nessuno altrimenti tipo_testo(v))
 
     definisci scelta_riga(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco.selection()
@@ -251,7 +251,7 @@ classe MascheraDati:
         prova:
             id_ = se_stesso.fonte.salva(valori, se_stesso.id_corrente)
         eccetto ErroreDati come errore:
-            messagebox.showwarning("Il record non è stato salvato", testo(errore))
+            messagebox.showwarning("Il record non è stato salvato", tipo_testo(errore))
             ritorna
         se_stesso.ricarica(id_)
         se_stesso._messaggio("Salvato.")
@@ -265,7 +265,7 @@ classe MascheraDati:
         prova:
             se_stesso.fonte.elimina(se_stesso.id_corrente)
         eccetto ErroreDati come errore:
-            messagebox.showwarning("Il record non è stato eliminato", testo(errore))
+            messagebox.showwarning("Il record non è stato eliminato", tipo_testo(errore))
             ritorna
         se_stesso.id_corrente = Nessuno
         se_stesso.ricarica()

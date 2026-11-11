@@ -16,13 +16,13 @@ open(os.path.join(cartella, "uno.pit"), "w", encoding="utf-8").write("stampa(1)\
 open(os.path.join(cartella, "due.pit"), "w", encoding="utf-8").write("stampa(2)\n")
 s = g.stato(cartella)
 stampa("stato iniziale: ramo:", s["ramo"], "| voci:", sorted((v["percorso"], v["x"] + v["y"]) per v in s["voci"]))
-stampa("da preparare:", lunghezza(g.da_preparare(s["voci"])), "| pronte:", lunghezza(g.pronte(s["voci"])), "| descrizione:", g.descrizione("?", "?"))
+stampa("da preparare:", lunghezza_di(g.da_preparare(s["voci"])), "| pronte:", lunghezza_di(g.pronte(s["voci"])), "| descrizione:", g.descrizione("?", "?"))
 g.prepara(cartella, ["uno.pit"])
 s = g.stato(cartella)
 stampa("dopo prepara uno.pit: pronte:", [v["percorso"] per v in g.pronte(s["voci"])], "| da preparare:", [v["percorso"] per v in g.da_preparare(s["voci"])])
 stampa("diff file preparato:", g.differenze(cartella, g.pronte(s["voci"])[0], Vero).count("+stampa(1)"))
 g.togli(cartella, ["uno.pit"])
-stampa("dopo togli (repo senza commit): pronte:", lunghezza(g.pronte(g.stato(cartella)["voci"])))
+stampa("dopo togli (repo senza commit): pronte:", lunghezza_di(g.pronte(g.stato(cartella)["voci"])))
 g.prepara_tutto(cartella)
 stampa("commit:", g.commit(cartella, "Primo commit") != "")
 stampa("registro:", [(r["messaggio"], r["autore"]) per r in g.registro(cartella)])
@@ -34,7 +34,7 @@ eccetto g.ErroreGit come errore:
 prova:
     g.commit(cartella, "niente da salvare")
 eccetto g.ErroreGit come errore:
-    stampa("commit senza modifiche rifiutato:", "nothing to commit" in testo(errore) o "niente" in testo(errore).lower() o Vero)
+    stampa("commit senza modifiche rifiutato:", "nothing to commit" in tipo_testo(errore) o "niente" in tipo_testo(errore).lower() o Vero)
 
 open(os.path.join(cartella, "uno.pit"), "w", encoding="utf-8").write("stampa(10)\n")
 s = g.stato(cartella)

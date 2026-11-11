@@ -133,7 +133,7 @@ k = fm.cella_di(f.trova("campoTesto1"))
 verifica(k["riga"] >= 0 e k["colonna"] >= 0, "mai sotto zero")
 
 # nuovo componente cliccato sulla finestra: va nella cella sotto il puntatore, se occupata nella prima libera
-n_prima = lunghezza(f.componenti)
+n_prima = lunghezza_di(f.componenti)
 nuovo = p.aggiungi_componente("Pulsante", 10, 10)
 k = fm.cella_di(nuovo)
 occupate = {(fm.cella_di(a)["riga"], fm.cella_di(a)["colonna"]) per a in f.componenti se a.nome != nuovo.nome}
@@ -211,7 +211,7 @@ p.seleziona([])
 p.focus_set()
 p._clic_superficie(Ev(1, f.altezza - 2))
 p._trascina_lazo(Ev(f.larghezza - 1, 2))
-verifica(lunghezza(p.selezione_) >= 3, "il rettangolo seleziona i componenti toccati: " + str(p.selezione_))
+verifica(lunghezza_di(p.selezione_) >= 3, "il rettangolo seleziona i componenti toccati: " + str(p.selezione_))
 p._fine_lazo()
 verifica(p.superficie.find_withtag("lazo") == (), "rettangolo tolto")
 p._clic_superficie(Ev(f.larghezza - 2, f.altezza - 2))

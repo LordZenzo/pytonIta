@@ -67,16 +67,16 @@
    "giusta": "intero(\"12\")",
    "sbagliate": [
     {
-     "testo": "testo(\"12\")",
-     "indizio": "testo(...) fa l'opposto: trasforma in testo."
+     "testo": "tipo_testo(\"12\")",
+     "indizio": "tipo_testo(...) fa l'opposto: trasforma in testo."
     },
     {
-     "testo": "lunghezza(\"12\")",
+     "testo": "lunghezza_di(\"12\")",
      "indizio": "lunghezza conta i caratteri: darebbe 2."
     },
     "Vero(\"12\")"
    ],
-   "spiegazione": "intero(...) converte un testo che contiene un numero intero in un numero.",
+   "spiegazione": "tipo_intero(...) converte un testo che contiene un numero intero in un numero.",
    "sezione": "Convertire"
   },
   {

@@ -4,7 +4,7 @@
   "argomento": "Liste",
   "livello": "Intermedio",
   "consegna": "Leggi una riga con dei numeri interi separati da spazi e stampa il più grande.\n\nEsempio: `4 17 9 -2` → 17",
-  "iniziale": "riga = leggi(\"\")\nnumeri = [intero(x) per x in riga.split()]\n",
+  "iniziale": "riga = leggi_tastiera(\"\")\nnumeri = [tipo_intero(x) per x in riga.split()]\n",
   "prove": [
     {
       "ingresso": "4 17 9 -2\n",
@@ -21,10 +21,10 @@
   ],
   "suggerimenti": [
     "`riga.split()` divide il testo nelle sue parti.",
-    "Per trovare il massimo c'è la funzione `massimo(numeri)`.",
+    "Per trovare il massimo c'è la funzione `massimo_di(numeri)`.",
     "Oppure scorri la lista tenendo il valore più grande visto finora."
   ],
-  "soluzione": "riga = leggi(\"\")\nnumeri = [intero(x) per x in riga.split()]\nstampa(massimo(numeri))\n",
+  "soluzione": "riga = leggi_tastiera(\"\")\nnumeri = [tipo_intero(x) per x in riga.split()]\nstampa(massimo_di(numeri))\n",
   "confronto": "esatto",
   "ordine": 8
 }

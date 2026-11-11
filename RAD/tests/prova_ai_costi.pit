@@ -9,10 +9,10 @@ da rad.progetto importa Progetto
 da rad importa ai, confronto, registro_ai, dialoghi
 
 # ================================================================= confronto prima/dopo
-vecchio = "\n".join(f"riga {i}" per i in intervallo(1, 31))
+vecchio = "\n".join(f"riga {i}" per i in intervallo_di(1, 31))
 nuovo = vecchio.replace("riga 15", "riga QUINDICI") + "\nriga 31"
 sin, des, stat = confronto.righe_affiancate(vecchio, nuovo)
-stampa("confronto: statistiche", stat, "| righe allineate:", lunghezza(sin) == lunghezza(des), "| tipi sinistra:", sorted({t per t, n, r in sin}))
+stampa("confronto: statistiche", stat, "| righe allineate:", lunghezza_di(sin) == lunghezza_di(des), "| tipi sinistra:", sorted({t per t, n, r in sin}))
 stampa("righe invariate nascoste:", [r per t, n, r in sin se t == "salto"])
 sin, des, stat = confronto.righe_affiancate(Nessuno, "a\nb\n")
 stampa("file nuovo:", stat, [t per t, n, r in des][:3], confronto.riassunto(stat, Falso))
@@ -26,13 +26,13 @@ definisci messaggio_lungo(n):
              {"role": "user", "content": [{"type": "tool_result", "tool_use_id": f"t{n}", "content": "z" * 8000}]},
              {"role": "assistant", "content": [{"type": "text", "text": "ok"}]}]
 msg = []
-per n in intervallo(6):
+per n in intervallo_di(6):
     msg += messaggio_lungo(n)
 prima = ai.stima_token(msg)
 ultimi = json.dumps(msg[-6:])
 risparmio = ai.compatta(msg, 8000)
 stampa("compattazione: token prima", prima, "dopo", ai.stima_token(msg), "| risparmio >0:", risparmio > 0)
-stampa("ultimi 6 messaggi intatti:", json.dumps(msg[-6:]) == ultimi, "| id strumenti conservati:", [b["id"] per m in msg se m["role"] == "assistant" per b in m["content"] se b["type"] == "tool_use"] == [f"t{n}" per n in intervallo(6)])
+stampa("ultimi 6 messaggi intatti:", json.dumps(msg[-6:]) == ultimi, "| id strumenti conservati:", [b["id"] per m in msg se m["role"] == "assistant" per b in m["content"] se b["type"] == "tool_use"] == [f"t{n}" per n in intervallo_di(6)])
 stampa("input accorciato ma con le chiavi:", msg[1]["content"][0]["input"]["percorso"], msg[1]["content"][0]["input"]["contenuto"][:20])
 stampa("sotto soglia non cambia nulla:", ai.compatta([{"role": "user", "content": [{"type": "text", "text": "ciao"}]}], 8000) == 0, "| soglia 0 = mai:", ai.compatta(msg, 0) == 0)
 
@@ -44,8 +44,8 @@ classe FalsoApi(BaseHTTPRequestHandler):
     definisci do_POST(se_stesso):
         corpo = json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])))
         FalsoApi.corpi.append(corpo)
-        n = lunghezza(FalsoApi.corpi) - 1
-        passo = FalsoApi.scenario[n] se n < lunghezza(FalsoApi.scenario) altrimenti "FINE"
+        n = lunghezza_di(FalsoApi.corpi) - 1
+        passo = FalsoApi.scenario[n] se n < lunghezza_di(FalsoApi.scenario) altrimenti "FINE"
         se passo == "FINE":
             r = {"stop_reason": "end_turn", "usage": {"input_tokens": 10, "output_tokens": 5}, "content": [{"type": "text", "text": "Fatto."}]}
         altrimenti:
@@ -55,7 +55,7 @@ classe FalsoApi(BaseHTTPRequestHandler):
         dati = json.dumps(r).encode()
         se_stesso.send_response(200)
         se_stesso.send_header("Content-Type", "application/json")
-        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.send_header("Content-Length", tipo_testo(lunghezza_di(dati)))
         se_stesso.end_headers()
         se_stesso.wfile.write(dati)
 
@@ -82,7 +82,7 @@ messagebox.askyesno = lambda *a, **k: Vero
 definisci chiedi_all_ai(domanda, scenario, **kw):
     FalsoApi.corpi.clear()
     FalsoApi.scenario = scenario
-    app.mostra_chat() se testo(app.chat) non in [testo(x) per x in app.corpo.panes()] altrimenti Nessuno
+    app.mostra_chat() se tipo_testo(app.chat) non in [tipo_testo(x) per x in app.corpo.panes()] altrimenti Nessuno
     app.chat.invia(domanda, **kw)
     t0 = time.time()
     mentre (app.chat.lavoro.is_alive() o non app.chat.eventi.empty()) e time.time() - t0 < 30:
@@ -127,12 +127,12 @@ stampa("dopo annulla: nuovo.pit tolto:", non os.path.exists(os.path.join(cart, "
 stampa("secondo annulla: niente da annullare:", app.storia.ultimo_annullabile() è Nessuno, "| pulsante:", app.chat.pulsante_annulla.cget("state"))
 cr = dialoghi.DialogoCronologiaAI(radice, app.colori, app.storia, app.annulla_gruppo_ai)
 radice.update()
-stampa("cronologia: gruppi", lunghezza(cr.gruppi), "| annullato:", cr.gruppi[0]["annullato"], "| testo:", "Già annullata" in cr.dettaglio.get("1.0", "end"))
+stampa("cronologia: gruppi", lunghezza_di(cr.gruppi), "| annullato:", cr.gruppi[0]["annullato"], "| testo:", "Già annullata" in cr.dettaglio.get("1.0", "end"))
 cr.destroy()
 # richiesta che non cambia nulla: nessun gruppo
-n_prima = lunghezza(app.storia.gruppi())
+n_prima = lunghezza_di(app.storia.gruppi())
 chiedi_all_ai("leggi", [("", [("leggi_file", {"percorso": "vecchio.pit"})]), "FINE"])
-stampa("nessuna modifica -> nessun gruppo:", lunghezza(app.storia.gruppi()) == n_prima)
+stampa("nessuna modifica -> nessun gruppo:", lunghezza_di(app.storia.gruppi()) == n_prima)
 
 # ================================================================= finestra prima/dopo: l'assistente propone, l'utente decide
 cfg.imposta("ai.conferma_scrittura", Vero, notifica=Falso)
@@ -150,7 +150,7 @@ stampa("l'utente accetta -> file cambiato:", "'DUE'" in open(os.path.join(cart, 
 elimina app.chiedi_modifica
 dm = dialoghi.DialogoModifica(radice, app.colori, "vecchio.pit", "a\nb\nc\n", "a\nB\nc\nd\n", "Metto la B maiuscola.")
 radice.update()
-stampa("finestra prima/dopo: colonne", lunghezza(dm.testi), "| righe:", dm.testi[0].index("end-1c"), dm.testi[1].index("end-1c"))
+stampa("finestra prima/dopo: colonne", lunghezza_di(dm.testi), "| righe:", dm.testi[0].index("end-1c"), dm.testi[1].index("end-1c"))
 dm._chiudi(Vero)
 stampa("risultato Applica:", dm.risultato)
 
@@ -159,7 +159,7 @@ Progetto(cart).crea_file("mangia.pit", "x = bytearray(700 * 1024 * 1024)\nstampa
 cfg.imposta("ai.limite_memoria_mb", 200, notifica=Falso)
 cfg.imposta("ai.conferma_scrittura", Falso, notifica=Falso)
 chiedi_all_ai("esegui", [("", [("esegui_programma", {"file": "mangia.pit"})]), "FINE"])
-risultati = [b["content"] per m in FalsoApi.corpi[-1]["messages"] se m["role"] == "user" e isinstance(m["content"], lista) per b in m["content"] se b.get("type") == "tool_result"]
+risultati = [b["content"] per m in FalsoApi.corpi[-1]["messages"] se m["role"] == "user" e isinstance(m["content"], tipo_lista) per b in m["content"] se b.get("type") == "tool_result"]
 stampa("programma che esagera con la memoria:", "ErroreDiMemoria" in risultati[-1], "| allocati assente:", "allocati" non in risultati[-1])
 server.shutdown()
 radice.destroy()

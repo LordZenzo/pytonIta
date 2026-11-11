@@ -44,7 +44,7 @@ p.crea_file("calcola.pit", '''definisci media(voti):
     totale = 0
     per voto in voti:
         totale += voto
-    ritorna totale / lunghezza(voti)
+    ritorna totale / lunghezza_di(voti)
 
 pagella = [6, 7, 8, 9]
 stampa("Media:", media(pagella))

@@ -22,7 +22,7 @@ definisci nome_etichetta(colonna):
 definisci disegna_form(nome_form, titolo, tabella, nomi_colonne, dialetto="sqlite", database="", parametri=Nessuno):
     """Il Form del progettista: navigazione in alto, elenco, campi (una o due colonne di campi), tutti legati alla fonte dati."""
     f = form_modello.Form(nome_form, titolo)
-    n = lunghezza(nomi_colonne)
+    n = lunghezza_di(nomi_colonne)
     su_due = n > 6
     righe_campi = (n + 1) // 2 se su_due altrimenti n
     y_elenco = 58
@@ -38,8 +38,8 @@ definisci disegna_form(nome_form, titolo, tabella, nomi_colonne, dialetto="sqlit
     f.aggiungi("FonteDati", LARGHEZZA - 150, 4, nome="fonte", **valori)
     f.aggiungi("BarraNavigazione", 16, 12, nome="barra", larghezza=LARGHEZZA - 32, altezza=34, fonte="fonte", cerca=Vero, ancoraggio="sad")
     visibili = nomi_colonne[:8]
-    f.aggiungi("Albero", 16, y_elenco, nome="elenco_dati", larghezza=LARGHEZZA - 32, altezza=h_elenco, colonne=lista(visibili), fonte="fonte",
-               larghezze=[max(60, min(200, (LARGHEZZA - 60) // lunghezza(visibili))) per _ in visibili], allineamenti=["w"] * lunghezza(visibili))
+    f.aggiungi("Albero", 16, y_elenco, nome="elenco_dati", larghezza=LARGHEZZA - 32, altezza=h_elenco, colonne=tipo_lista(visibili), fonte="fonte",
+               larghezze=[max(60, min(200, (LARGHEZZA - 60) // lunghezza_di(visibili))) per _ in visibili], allineamenti=["w"] * lunghezza_di(visibili))
     per i, colonna in enumera(nomi_colonne):
         blocco = i // righe_campi se su_due altrimenti 0
         riga = i % righe_campi se su_due altrimenti i

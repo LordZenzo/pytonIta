@@ -23,7 +23,7 @@ ed.evidenzia()
 radice.update()
 per tag in ("parola_chiave", "builtin", "stringa", "commento", "numero", "definizione", "costante"):
     r = ed.t.tag_ranges(tag)
-    stampa(tag, lunghezza(r) // 2, [testo(ed.t.get(r[i], r[i + 1])) per i in intervallo(0, min(lunghezza(r), 6), 2)])
+    stampa(tag, lunghezza_di(r) // 2, [tipo_testo(ed.t.get(r[i], r[i + 1])) per i in intervallo_di(0, min(lunghezza_di(r), 6), 2)])
 # rientro automatico
 ed.vai_a(4, 100)
 ed.t.mark_set("insert", "4.end")

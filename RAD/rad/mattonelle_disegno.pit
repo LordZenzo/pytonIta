@@ -93,8 +93,8 @@ classe Disegnatore:
 
     definisci in_riga(se_stesso, valore):
         """Testo mostrato nella mattonella: su una sola riga (a capo → «⏎») e accorciato se lungo."""
-        t = " ⏎ ".join(r.strip() per r in testo(valore).splitlines())
-        se lunghezza(t) > se_stesso.MAX_CARATTERI_RIGA:
+        t = " ⏎ ".join(r.strip() per r in tipo_testo(valore).splitlines())
+        se lunghezza_di(t) > se_stesso.MAX_CARATTERI_RIGA:
             t = t[:se_stesso.MAX_CARATTERI_RIGA - 1] + "…"
         ritorna t
 
@@ -140,7 +140,7 @@ classe Disegnatore:
         testa_h = max(se_stesso.s(se_stesso.RIGA), alto + 2 * se_stesso.s(se_stesso.VPAD))
         se d["forma"] in FORME_VALORE:
             testa_h = max(se_stesso.s(se_stesso.SLOT_H) + 2, alto + 2 * se_stesso.s(3))
-        larghezza = 2 * se_stesso.s(se_stesso.PAD_X) + sum(v[2] per v in voci) + se_stesso.s(se_stesso.GAP) * max(0, lunghezza(voci) - 1)
+        larghezza = 2 * se_stesso.s(se_stesso.PAD_X) + sum(v[2] per v in voci) + se_stesso.s(se_stesso.GAP) * max(0, lunghezza_di(voci) - 1)
         se d["forma"] == "booleano":
             larghezza += testa_h // 2
         lay.misure = voci
@@ -278,7 +278,7 @@ classe Disegnatore:
         i1, i2, i3 = i0 + se_stesso.s(4), i0 + se_stesso.s(16), i0 + se_stesso.s(20)
         punti = [x, y, n0, y, n1, y + a, n2, y + a, n3, y, x + w, y, x + w, y + lay.testa_h]
         yb = y + lay.testa_h
-        totale = lunghezza(lay.corpi)
+        totale = lunghezza_di(lay.corpi)
         per i, c in enumera(lay.corpi):
             nome_corpo, cx, cy, pw, corpo_h, ybarra, barra_h, etichetta = c
             punti += [i3, cy, i2, cy + a, i1, cy + a, i0, cy, x + rientro, cy, x + rientro, cy + corpo_h]
@@ -360,7 +360,7 @@ classe Disegnatore:
         r = min(h / 2, 12)
         punti = []
         per cx, cy, inizio in ((x + w - r, y + r, -90), (x + w - r, y + h - r, 0), (x + r, y + h - r, 90), (x + r, y + r, 180)):
-            per passo in intervallo(0, 7):
+            per passo in intervallo_di(0, 7):
                 ang = math.radians(inizio + passo * 15)
                 punti += [cx + r * math.cos(ang), cy + r * math.sin(ang)]
         ritorna punti
@@ -456,7 +456,7 @@ classe Disegnatore:
             se d["forma"] in FORME_ISTRUZIONE e d["forma"] != "fine":
                 # sotto la mattonella (se dopo c'è altro, la catena non deve finire con una chiusura)
                 lista_ = m.lista
-                segue = lista_ è non Nessuno e lista_.index(m) + 1 < lunghezza(lista_)
+                segue = lista_ è non Nessuno e lista_.index(m) + 1 < lunghezza_di(lista_)
                 se non (coda_fine e segue):
                     risultati.append({"tipo": "dopo", "punto": (lay.x, lay.y + lay.h), "mattonella": m})
             se d["forma"] == "blocco":

@@ -38,7 +38,7 @@ r = subprocess.run([PITONIT, f_prova], capture_output=Vero, text=Vero, encoding=
 stampa("esecuzione:", repr(r.stdout.strip()), "| codice di uscita:", r.returncode, r.stderr.strip()[-200:])
 
 # la tavolozza ha la categoria Finestre
-stampa("categoria Finestre:", "finestre" in mattonelle_modello.ORDINE_CATEGORIE, lunghezza(mattonelle_modello.PREFERITE_PER_CATEGORIA["finestre"]), "mattonelle")
+stampa("categoria Finestre:", "finestre" in mattonelle_modello.ORDINE_CATEGORIE, lunghezza_di(mattonelle_modello.PREFERITE_PER_CATEGORIA["finestre"]), "mattonelle")
 cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
 col = colori(cfg)
 radice = tk.Tk()

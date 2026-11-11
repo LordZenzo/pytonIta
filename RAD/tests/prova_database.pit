@@ -46,7 +46,7 @@ prova:
     c.esegui("SELECT 1; SELEKT 2")
 eccetto ErroreDatabase come errore:
     stampa("errore nel secondo comando:", str(errore).startswith("Istruzione 2 di 2"))
-stampa("storia:", lunghezza(c.storia))
+stampa("storia:", lunghezza_di(c.storia))
 
 # tabelle con chiave composta, colonna aggiunta, vista
 c.crea_tabella("righe_ordine", [Colonna("ordine", "INTEGER", chiave=Vero), Colonna("prodotto", "INTEGER", chiave=Vero), Colonna("q", "INTEGER", non_nullo=Vero, predefinito="1")])

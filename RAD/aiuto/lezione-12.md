@@ -15,7 +15,7 @@ definisci media(voti):
     totale = 0
     per voto in voti:
         totale += voto
-    ritorna totale / lunghezza(voti) + 1
+    ritorna totale / lunghezza_di(voti) + 1
 
 pagella = [6, 7, 8, 9]
 stampa("Media:", media(pagella))
@@ -44,9 +44,9 @@ Premi **F6**. (Il pulsante con l'insetto 🐞 nella barra invece parte *passo pa
 |---|---|
 | **Variabili** | i nomi e i valori in questo momento (qui `totale = 30`, `voti = [6, 7, 8, 9]`) |
 | **Pila delle chiamate** | le funzioni attive: `media` chiamata dal programma principale. Clicca una riga per saltare lì |
-| **Espressioni osservate** | scrivi un'espressione (per esempio `totale / lunghezza(voti)`) e premi Invio: ne vedi il valore a ogni sosta |
+| **Espressioni osservate** | scrivi un'espressione (per esempio `totale / lunghezza_di(voti)`) e premi Invio: ne vedi il valore a ogni sosta |
 
-Vedi subito che `totale / lunghezza(voti)` vale 7.5: il `+ 1` è il bug!
+Vedi subito che `totale / lunghezza_di(voti)` vale 7.5: il `+ 1` è il bug!
 
 ![Il pannello Debug](immagini/debugger.png)
 
@@ -77,7 +77,7 @@ definisci media(voti):
     totale = 0
     per voto in voti:
         totale += voto
-    ritorna totale / lunghezza(voti)
+    ritorna totale / lunghezza_di(voti)
 
 pagella = [6, 7, 8, 9]
 stampa("Media:", media(pagella))
@@ -110,7 +110,7 @@ Ricordati però di toglierle quando hai finito.
 ```pit
 definisci somma_fino_a(n):
     totale = 0
-    per i in intervallo(1, n + 2):
+    per i in intervallo_di(1, n + 2):
         totale += i
     ritorna totale
 
@@ -126,12 +126,12 @@ stampa(somma_fino_a(9))
 
 ## Soluzione
 
-Il ciclo va fino a `n + 2` escluso, quindi arriva a `n + 1`. Deve essere `intervallo(1, n + 1)`:
+Il ciclo va fino a `n + 2` escluso, quindi arriva a `n + 1`. Deve essere `intervallo_di(1, n + 1)`:
 
 ```pit
 definisci somma_fino_a(n):
     totale = 0
-    per i in intervallo(1, n + 1):
+    per i in intervallo_di(1, n + 1):
         totale += i
     ritorna totale
 

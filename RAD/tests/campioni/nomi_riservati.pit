@@ -5,12 +5,12 @@ importa matematica come mt
 classe = "3A"                       # una variabile chiamata classe
 stampa(classe)
 con = sqlite3.connect(":memory:")   # una connessione
-stampa(tipo(con).__name__)
+stampa(tipo_di(con).__name__)
 prova = [1, 2, 3]                   # un elenco chiamato prova
 stampa(prova)
 da = 2
 a = 5
-per n in intervallo(da, a):
+per n in intervallo_di(da, a):
     stampa(n, end=" ")
 stampa()
 
@@ -38,7 +38,7 @@ stampa(f(da=10), f(con=5))
 d = {classe: 1, "x": 2}
 stampa(d)
 stampa([classe, prova[0]])
-stampa(lista(abbina(prova, prova)))
+stampa(tipo_lista(abbina(prova, prova)))
 mia = lambda classe: classe + 1
 stampa(mia(1))
 se classe == "3A":
@@ -49,7 +49,7 @@ con apri("nomi_prova.txt") come con2:
     stampa(con2.leggi_tutto())
 da matematica importa pi come importa_pi
 stampa(importa_pi > 3)
-x = [n per n in intervallo(5) se n % 2 == 0]
+x = [n per n in intervallo_di(5) se n % 2 == 0]
 stampa(x)
 stampa(1 se classe altrimenti 2)
 prova:

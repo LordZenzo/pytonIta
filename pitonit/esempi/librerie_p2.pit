@@ -31,14 +31,14 @@ stampa("unittest:", esito.test_eseguiti, esito.è_riuscito())
 # json con predefinito
 classe Strano: passa
 stampa("json:", formato_json.scarica_testo({"a": [1, 2]}, rientro=Nessuno, ordina_chiavi=Vero),
-       formato_json.scarica_testo(Strano(), predefinito=lambda o: "strano"))
+       formato_json.scarica_testo(Strano(), predefinito=lambda valore: "strano"))
 
 # csv
 f = flussi.FlussoTesto()
 w = tabelle_csv.ScrittoreDizionario(f, ["a", "b"])
 w.scrivi_intestazione(); w.scrivi_riga({"a": 1, "b": 2})
 stampa("csv:", f.ottieni_valore().split())
-stampa("csv lettore:", lista(tabelle_csv.LettoreDizionario(flussi.FlussoTesto(f.ottieni_valore()))))
+stampa("csv lettore:", tipo_lista(tabelle_csv.LettoreDizionario(flussi.FlussoTesto(f.ottieni_valore()))))
 
 # coda, statistica, decimali, frazioni
 q = coda.Coda(); q.inserisci(3); q.inserisci(4)
@@ -61,7 +61,7 @@ stampa("config:", c.ottieni_intero("a", "x"), c.sezioni())
 # html
 classe P(AnalizzatoreHtml):
     definisci __inizializza__(se_stesso):
-        genitore().__inizializza__()
+        classe_base().__inizializza__()
         se_stesso.tag = []
     definisci gestisci_tag_iniziale(se_stesso, tag, attributi):
         se_stesso.tag.aggiungi(tag)

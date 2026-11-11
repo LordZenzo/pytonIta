@@ -13,7 +13,7 @@ definisci chiedi_numero(messaggio):
     """Chiede un numero intero e insiste finché l'utente non lo scrive bene."""
     mentre Vero:
         prova:
-            ritorna intero(leggi(messaggio))
+            ritorna tipo_intero(leggi_tastiera(messaggio))
         eccetto ErroreDiValore:
             stampa("Devi scrivere un numero intero.")
 
@@ -81,7 +81,7 @@ definisci mostra(rubrica):
 definisci menu():
     stampa()
     stampa("1) Elenco   2) Aggiungi   3) Cerca   4) Cancella   0) Esci")
-    ritorna leggi("Scelta: ").elimina_spazi()
+    ritorna leggi_tastiera("Scelta: ").elimina_spazi()
 
 rubrica = carica()
 mentre Vero:
@@ -89,18 +89,18 @@ mentre Vero:
     se scelta == "1":
         mostra(rubrica)
     altrimenti_se scelta == "2":
-        nome = leggi("Nome: ").elimina_spazi()
-        telefono = leggi("Telefono: ").elimina_spazi()
+        nome = leggi_tastiera("Nome: ").elimina_spazi()
+        telefono = leggi_tastiera("Telefono: ").elimina_spazi()
         se nome e telefono:
             rubrica[nome] = telefono
             salva(rubrica)
             stampa("Salvato.")
     altrimenti_se scelta == "3":
-        parte = leggi("Cerca: ").minuscolo()
+        parte = leggi_tastiera("Cerca: ").minuscolo()
         trovati = {n: t per n, t in rubrica.elementi() se parte in n.minuscolo()}
         mostra(trovati)
     altrimenti_se scelta == "4":
-        nome = leggi("Nome da cancellare: ").elimina_spazi()
+        nome = leggi_tastiera("Nome da cancellare: ").elimina_spazi()
         se nome in rubrica:
             elimina rubrica[nome]
             salva(rubrica)

@@ -44,19 +44,19 @@ Ogni valore ha un **tipo**:
 
 | Tipo | Esempi | Nome del tipo |
 |---|---|---|
-| numero intero | `7`, `-30`, `0` | `int` (si converte con `intero(...)`) |
-| numero decimale | `3.14`, `-0.5` | `float` (si converte con `decimale(...)`) |
-| testo | `"ciao"`, `'a'` | `str` (si converte con `testo(...)`) |
+| numero intero | `7`, `-30`, `0` | `int` (si converte con `tipo_intero(...)`) |
+| numero decimale | `3.14`, `-0.5` | `float` (si converte con `tipo_decimale(...)`) |
+| testo | `"ciao"`, `'a'` | `str` (si converte con `tipo_testo(...)`) |
 | vero/falso | `Vero`, `Falso` | `bool` |
 | niente | `Nessuno` | `NoneType` |
 
-Per i decimali si usa il **punto**, non la virgola. Con `tipo(...)` chiedi al programma di che tipo è un valore (il computer usa i nomi inglesi dei tipi: `int`, `float`, `str`, `bool`):
+Per i decimali si usa il **punto**, non la virgola. Con `tipo_di(...)` chiedi al programma di che tipo è un valore (il computer usa i nomi inglesi dei tipi: `int`, `float`, `str`, `bool`):
 
 ```pit
-stampa(tipo(7))
-stampa(tipo(3.14))
-stampa(tipo("ciao"))
-stampa(tipo(Vero))
+stampa(tipo_di(7))
+stampa(tipo_di(3.14))
+stampa(tipo_di("ciao"))
+stampa(tipo_di(Vero))
 ```
 
 ```output
@@ -72,7 +72,7 @@ Il testo si può unire con `+`, ma **non si può sommare un testo a un numero**:
 
 ```pit
 anni = 12
-stampa("Ho " + testo(anni) + " anni")
+stampa("Ho " + tipo_testo(anni) + " anni")
 ```
 
 ```output
@@ -96,9 +96,9 @@ Il doppio è 17.0
 ## Convertire
 
 ```pit
-stampa(intero("42") + 1)
-stampa(decimale("2.5") * 2)
-stampa(intero(3.9))
+stampa(tipo_intero("42") + 1)
+stampa(tipo_decimale("2.5") * 2)
+stampa(tipo_intero(3.9))
 stampa(arrotonda(3.14159, 2))
 ```
 
@@ -109,7 +109,7 @@ stampa(arrotonda(3.14159, 2))
 3.14
 ```
 
-Attenzione: `intero(3.9)` taglia i decimali (non arrotonda).
+Attenzione: `tipo_intero(3.9)` taglia i decimali (non arrotonda).
 
 ## Esercizi
 

@@ -16,8 +16,8 @@ open(os.path.join(origine, "immagini", "logo.txt"), "w").write("logo")
 open(os.path.join(origine, "dati.json"), "w").write("{}")
 open(os.path.join(origine, "principale.pit"), "w", encoding="utf-8").write('''"""Saluto."""
 importa sys
-nome = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti "mondo"
-stampa(f"Ciao, {nome}!", lunghezza(nome))
+nome = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti "mondo"
+stampa(f"Ciao, {nome}!", lunghezza_di(nome))
 ''')
 python = crea_exe.trova_python()
 stampa("Python normale trovato:", python è non Nessuno)

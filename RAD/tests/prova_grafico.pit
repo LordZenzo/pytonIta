@@ -30,7 +30,7 @@ dati = ["Gen=12", "Feb=19", "Mar=7", "Apr=-4"]
 
 
 definisci elementi(g, tipo_):
-    ritorna lunghezza(g.find_withtag("all")) se tipo_ == "tutti" altrimenti lunghezza([i per i in g.find_all() se g.type(i) == tipo_])
+    ritorna lunghezza_di(g.find_withtag("all")) se tipo_ == "tutti" altrimenti lunghezza_di([i per i in g.find_all() se g.type(i) == tipo_])
 
 
 g = grafico.Grafico(radice, tipo="barre", titolo="Vendite", dati=dati)
@@ -59,7 +59,7 @@ radice.update()
 g.ridisegna()
 g.place(x=0, y=0, width=450, height=380)
 importa time
-per _ in intervallo(6):
+per _ in intervallo_di(6):
     radice.update()
     time.sleep(0.03)
 verifica(elementi(g, "rectangle") == 40, "ridimensionato: ridisegnato")

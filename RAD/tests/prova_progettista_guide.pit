@@ -91,7 +91,7 @@ verifica(non p._linee_guida, "a rilascio le linee spariscono")
 
 # durante il trascinamento compare la linea
 trascina(b.nome, -98, 10, rilascia=Falso)
-verifica(lunghezza(p._linee_guida) >= 1, "la linea guida compare durante il trascinamento")
+verifica(lunghezza_di(p._linee_guida) >= 1, "la linea guida compare durante il trascinamento")
 w_linea = p._linee_guida[0]
 verifica(w_linea.winfo_width() == 1 o w_linea.winfo_height() == 1, "è una linea sottile")
 p._rilascia(Ev(0, 0), b.nome)

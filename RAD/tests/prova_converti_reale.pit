@@ -10,7 +10,7 @@ se non os.path.isdir(ORIGINE):
 sorgente = open(os.path.join(ORIGINE, "modfile_core.pit"), encoding="utf-8").read()
 programma, rapporto = converti_sorgente(sorgente, "modfile_core")
 stampa(descrivi_rapporto(rapporto))
-stampa("righe originali:", lunghezza(sorgente.splitlines()), "| funzioni:", lunghezza(programma.funzioni))
+stampa("righe originali:", lunghezza_di(sorgente.splitlines()), "| funzioni:", lunghezza_di(programma.funzioni))
 stampa("validazione:", valida_dizionario(programma.a_dizionario()))
 d = tempfile.mkdtemp()
 shutil.copytree(os.path.join(ORIGINE, "data"), os.path.join(d, "data"))

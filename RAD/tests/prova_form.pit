@@ -27,7 +27,7 @@ stampa("gestori:", [r.strip() per r in logica.splitlines() se r.strip().startswi
 stampa("nota utente conservata:", "nota dell'utente" in logica)
 # ricaricamento
 g = carica_form(os.path.join(cartella, "prova.form.json"))
-stampa("ricaricato:", lunghezza(g.componenti), g.trova("elenco1").valori["elementi"])
+stampa("ricaricato:", lunghezza_di(g.componenti), g.trova("elenco1").valori["elementi"])
 # esecuzione vera della UI generata
 sys.path.insert(0, cartella)
 importa tkinter come tk
@@ -37,6 +37,6 @@ modulo = importlib.import_module("prova")
 radice = tk.Tk()
 finestra = modulo.Prova(radice)
 radice.update()
-stampa("widget creati:", lunghezza(radice.winfo_children()), "titolo:", radice.title())
+stampa("widget creati:", lunghezza_di(radice.winfo_children()), "titolo:", radice.title())
 finestra.premuto()
 radice.destroy()

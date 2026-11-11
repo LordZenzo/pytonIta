@@ -11,15 +11,15 @@ classe Animale:
         ritorna f"{se_stesso.nome} fa miao"
 
 stampa(fattoriale(5), Vero e non Falso, Nessuno è Nessuno)
-l = lista(intervallo(4))
+l = tipo_lista(intervallo_di(4))
 l.aggiungi(9)
-stampa(l, lunghezza(l), ", ".unisci(["a", "b"]).maiuscolo())
+stampa(l, lunghezza_di(l), ", ".unisci(["a", "b"]).maiuscolo())
 stampa(Animale("Micio").parla())
 prova:
     1 / 0
-eccetto DivisionePerZero come e:
-    stampa("errore:", e)
-per i in intervallo(3):
+eccetto DivisionePerZero come errore:
+    stampa("errore:", errore)
+per i in intervallo_di(3):
     se i == 1:
         continua
     stampa(i)

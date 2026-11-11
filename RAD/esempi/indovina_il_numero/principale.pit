@@ -8,12 +8,12 @@ TENTATIVI = 7
 definisci gioca():
     segreto = random.randint(1, 100)
     stampa(f"Ho pensato a un numero da 1 a 100. Hai {TENTATIVI} tentativi!")
-    per tentativo in intervallo(1, TENTATIVI + 1):
-        risposta = leggi(f"Tentativo {tentativo}: ")
+    per tentativo in intervallo_di(1, TENTATIVI + 1):
+        risposta = leggi_tastiera(f"Tentativo {tentativo}: ")
         se non risposta.isdigit():
             stampa("Scrivi un numero intero.")
             continua
-        numero = intero(risposta)
+        numero = tipo_intero(risposta)
         se numero == segreto:
             stampa(f"Bravo! L'hai indovinato in {tentativo} tentativi.")
             ritorna Vero
@@ -25,6 +25,6 @@ definisci gioca():
     ritorna Falso
 
 
-se lunghezza(sys.argv) > 1:
-    random.seed(intero(sys.argv[1]))        # per ripetere sempre la stessa partita (prova: principale.pit 5)
+se lunghezza_di(sys.argv) > 1:
+    random.seed(tipo_intero(sys.argv[1]))        # per ripetere sempre la stessa partita (prova: principale.pit 5)
 gioca()

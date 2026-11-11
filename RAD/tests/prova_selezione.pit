@@ -13,7 +13,7 @@ classe H(BaseHTTPRequestHandler):
         corpi.append(json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"]))))
         dati = json.dumps({"stop_reason": "end_turn", "usage": {"input_tokens": 1, "output_tokens": 1}, "content": [{"type": "text", "text": "ok"}]}).encode()
         se_stesso.send_response(200)
-        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.send_header("Content-Length", tipo_testo(lunghezza_di(dati)))
         se_stesso.end_headers()
         se_stesso.wfile.write(dati)
 
@@ -31,7 +31,7 @@ Progetto(cart).crea_file("a.py", "x = 1\ny = 2\nz = 3\nprint(x + y + z)\n")
 app.apri_progetto(cart)
 ed = app.apri_file(os.path.join(cart, "a.py"))
 radice.update()
-app.mostra_chat() se testo(app.chat) non in [testo(x) per x in app.corpo.panes()] altrimenti Nessuno
+app.mostra_chat() se tipo_testo(app.chat) non in [tipo_testo(x) per x in app.corpo.panes()] altrimenti Nessuno
 
 definisci chiedi(domanda):
     corpi.clear()

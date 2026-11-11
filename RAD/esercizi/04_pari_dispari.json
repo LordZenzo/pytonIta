@@ -4,7 +4,7 @@
   "argomento": "Decisioni con se",
   "livello": "Principiante",
   "consegna": "Leggi un numero intero e stampa `pari` oppure `dispari`.",
-  "iniziale": "n = intero(leggi(\"\"))\n",
+  "iniziale": "n = tipo_intero(leggi_tastiera(\"\"))\n",
   "prove": [
     {
       "ingresso": "4\n",
@@ -27,7 +27,7 @@
     "Il resto della divisione per 2 si ottiene con `n % 2`.",
     "Se il resto è 0 il numero è pari."
   ],
-  "soluzione": "n = intero(leggi(\"\"))\nse n % 2 == 0:\n    stampa(\"pari\")\naltrimenti:\n    stampa(\"dispari\")\n",
+  "soluzione": "n = tipo_intero(leggi_tastiera(\"\"))\nse n % 2 == 0:\n    stampa(\"pari\")\naltrimenti:\n    stampa(\"dispari\")\n",
   "confronto": "esatto",
   "ordine": 4
 }

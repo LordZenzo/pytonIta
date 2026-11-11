@@ -1,7 +1,7 @@
 {
  "domande": [
   {
-   "domanda": "Che cosa restituisce leggi() quando l'utente scrive 12?",
+   "domanda": "Che cosa restituisce leggi_tastiera() quando l'utente scrive 12?",
    "giusta": "Il testo «12»",
    "sbagliate": [
     {
@@ -9,9 +9,9 @@
      "indizio": "leggi restituisce sempre un testo, anche se sono cifre."
     },
     "Vero",
-    "Niente: serve intero() per leggere"
+    "Niente: serve tipo_intero() per leggere"
    ],
-   "spiegazione": "leggi restituisce sempre un testo: per fare calcoli va convertito con intero() o decimale().",
+   "spiegazione": "leggi restituisce sempre un testo: per fare calcoli va convertito con tipo_intero() o tipo_decimale().",
    "sezione": "Attenzione: leggi restituisce sempre testo"
   },
   {
@@ -19,19 +19,19 @@
    "giusta": "eta = intero(leggi(\"Età? \"))",
    "sbagliate": [
     {
-     "testo": "eta = leggi(intero(\"Età? \"))",
+     "testo": "eta = leggi_tastiera(tipo_intero(\"Età? \"))",
      "indizio": "intero va applicato al risultato di leggi, non alla domanda."
     },
     {
-     "testo": "eta = numero(leggi(\"Età? \"))",
+     "testo": "eta = numero(leggi_tastiera(\"Età? \"))",
      "indizio": "numero non esiste: la conversione si chiama intero (o decimale)."
     },
     {
-     "testo": "eta = leggi(\"Età? \") + 1",
+     "testo": "eta = leggi_tastiera(\"Età? \") + 1",
      "indizio": "Il risultato di leggi è un testo: sommarci 1 dà errore."
     }
    ],
-   "spiegazione": "intero(leggi(...)): prima leggi il testo, poi lo converti.",
+   "spiegazione": "tipo_intero(leggi_tastiera(...)): prima leggi il testo, poi lo converti.",
    "sezione": "Attenzione: leggi restituisce sempre testo"
   },
   {
@@ -51,21 +51,21 @@
   },
   {
    "tipo": "stampa",
-   "codice": "risposta = \"12\"\nstampa(intero(risposta) + 10)",
+   "codice": "risposta = \"12\"\nstampa(tipo_intero(risposta) + 10)",
    "giusta": "22",
    "sbagliate": [
     "1210",
     "12",
     {
      "testo": "Errore",
-     "indizio": "intero(\"12\") funziona: è un testo fatto di cifre."
+     "indizio": "tipo_intero(\"12\") funziona: è un testo fatto di cifre."
     }
    ],
    "spiegazione": "Dopo la conversione è un numero: 12 + 10 = 22.",
    "sezione": "Attenzione: leggi restituisce sempre testo"
   },
   {
-   "domanda": "Nella console di PitStudio, come risponde l'utente a leggi()?",
+   "domanda": "Nella console di PitStudio, come risponde l'utente a leggi_tastiera()?",
    "giusta": "Scrive nella riga in basso e preme Invio",
    "sbagliate": [
     "Clicca sul pulsante OK",

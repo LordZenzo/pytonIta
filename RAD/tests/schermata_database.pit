@@ -8,7 +8,7 @@ da rad.finestra importa Applicazione
 da rad importa database_modello come dbm
 da rad.database_ui importa DialogoTabella
 
-uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
 cartella = tempfile.mkdtemp()
 c = dbm.apri_sqlite(os.path.join(cartella, "negozio.db"))
 c.esegui("CREATE TABLE prodotti (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, prezzo REAL DEFAULT 1.5, categoria TEXT);"

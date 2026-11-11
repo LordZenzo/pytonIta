@@ -6,7 +6,7 @@ Gli esercizi guidati ti fanno **scrivere il codice tu** e lo **controllano da so
 
 1. Scegli un esercizio dall'elenco: a destra c'è la **consegna** (cosa deve fare il programma) con un esempio.
 2. Premi **Apri nell'editor**: PitStudio crea il file dell'esercizio nella cartella `esercizi` del progetto (se non hai un progetto aperto ne crea uno chiamato «Esercizi») con un po' di codice già pronto.
-3. Scrivi il programma. Per leggere i dati usa `leggi()` come nelle lezioni, per rispondere usa `stampa()`.
+3. Scrivi il programma. Per leggere i dati usa `leggi_tastiera()` come nelle lezioni, per rispondere usa `stampa()`.
 4. Premi **▶ Controlla**: il tuo programma viene eseguito più volte con ingressi diversi e l'uscita viene confrontata con quella attesa.
 5. Se una prova non passa, ti dico cosa mi aspettavo e cosa ha scritto il tuo programma; se il programma va in errore o non finisce mai, lo dico. Gli spazi a fine riga e le righe vuote finali non contano.
 
@@ -32,8 +32,8 @@ Il pulsante **Classe ▾** serve a insegnanti e allievi:
   "consegna": "Leggi tre numeri e stampa la somma.",
   "iniziale": "# scrivi qui il tuo codice\n",
   "prove": [ {"ingresso": "1\n2\n3\n", "uscita": "6"}, {"ingresso": "0\n0\n0\n", "uscita": "0"} ],
-  "suggerimenti": ["Leggi i numeri con leggi() e trasformali con intero()."],
-  "soluzione": "a = intero(leggi(''))\n...",
+  "suggerimenti": ["Leggi i numeri con leggi_tastiera() e trasformali con tipo_intero()."],
+  "soluzione": "a = tipo_intero(leggi_tastiera(''))\n...",
   "ordine": 100
 }
 ```

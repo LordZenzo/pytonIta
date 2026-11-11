@@ -22,7 +22,7 @@ classe FinestraRisultati(tk.Toplevel):
         se_stesso.geometry("820x360")
         se_stesso.apri = apri
         se_stesso.cartella = cartella
-        se_stesso.risultati = lista(risultati)
+        se_stesso.risultati = tipo_lista(risultati)
         se_stesso.albero = ttk.Treeview(se_stesso, columns=("file", "riga", "testo"), show="headings", selectmode="browse")
         per nome, testo_, larghezza in (("file", "File", 200), ("riga", "Riga", 60), ("testo", "Codice", 520)):
             se_stesso.albero.heading(nome, text=testo_)
@@ -33,7 +33,7 @@ classe FinestraRisultati(tk.Toplevel):
         se_stesso.albero.pack(fill="both", expand=Vero)
         per i, (percorso, riga, testo_) in enumera(se_stesso.risultati):
             rel = os.path.relpath(percorso, cartella) se cartella e os.path.isabs(percorso) altrimenti percorso
-            se_stesso.albero.insert("", "end", iid=testo(i), values=(rel, riga, testo_))
+            se_stesso.albero.insert("", "end", iid=tipo_testo(i), values=(rel, riga, testo_))
         se se_stesso.risultati:
             se_stesso.albero.selection_set("0")
         se_stesso.albero.bind("<Double-Button-1>", se_stesso._apri_scelto)

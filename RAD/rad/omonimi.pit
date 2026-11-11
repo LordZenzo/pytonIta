@@ -3,9 +3,9 @@ Il controllo non blocca nulla: l'editor evidenzia con uno sfondo colorato la par
 
 Cosa segnala (una volta per nome e per funzione):
   • un nome locale o un parametro che nasconde un nome del modulo o della funzione che lo contiene («totale» globale e «totale» dentro una funzione);
-  • una variabile con lo stesso nome di una funzione o di una classe dello stesso ambito (lista = lista(x));
-  • un nome che coincide con una funzione del linguaggio (lista, stampa, max, id, type...) quando quella funzione viene chiamata nello stesso ambito
-    (lista = lista(x)); se non la chiami mai, avere una variabile «lista» o «carattere» non fa danni e non si segnala.
+  • una variabile con lo stesso nome di una funzione o di una classe dello stesso ambito (tipo_lista = tipo_lista(x));
+  • un nome che coincide con una funzione del linguaggio (tipo_lista, stampa, max, id, type...) quando quella funzione viene chiamata nello stesso ambito
+    (tipo_lista = tipo_lista(x)); se non la chiami mai, avere una variabile «lista» o «carattere» non fa danni e non si segnala.
 Cosa NON segnala: lo stesso nome in due funzioni separate (i, x, risultato), i nomi che iniziano con «_», se_stesso, e le variabili del blocco «se __nome__ == "__main__"» (sono dello script, non del modulo).
 """
 importa ast
@@ -70,21 +70,21 @@ classe _Raccolta:
 
     definisci colonna(se_stesso, riga, colonna_byte):
         """Le colonne dell'albero sono in byte (UTF-8): le riporta a caratteri."""
-        r = se_stesso.righe[riga - 1] se 0 < riga <= lunghezza(se_stesso.righe) altrimenti ""
-        ritorna lunghezza(r.encode("utf-8")[:colonna_byte].decode("utf-8", "ignore"))
+        r = se_stesso.righe[riga - 1] se 0 < riga <= lunghezza_di(se_stesso.righe) altrimenti ""
+        ritorna lunghezza_di(r.encode("utf-8")[:colonna_byte].decode("utf-8", "ignore"))
 
     definisci sito(se_stesso, n):
         ritorna (n.lineno, se_stesso.colonna(n.lineno, n.col_offset), se_stesso.colonna(n.lineno, n.end_col_offset))
 
     definisci sito_nome(se_stesso, n, nome, prima=""):
         """Dove sta scritto `nome` nella riga di n (a partire dalla colonna di n; con `prima` = parola che lo precede, per «come nome»)."""
-        r = se_stesso.righe[n.lineno - 1] se 0 < n.lineno <= lunghezza(se_stesso.righe) altrimenti ""
+        r = se_stesso.righe[n.lineno - 1] se 0 < n.lineno <= lunghezza_di(se_stesso.righe) altrimenti ""
         inizio = se_stesso.colonna(n.lineno, n.col_offset)
         schema = (r"\b(?:" + prima + r")\s+(" + re.escape(nome) + r")\b") se prima altrimenti (r"\b(" + re.escape(nome) + r")\b")
         m = re.compile(schema).search(r, inizio)
         se m:
             ritorna (n.lineno, m.start(1), m.end(1))
-        ritorna (n.lineno, inizio, inizio + lunghezza(nome))
+        ritorna (n.lineno, inizio, inizio + lunghezza_di(nome))
 
     definisci nuovo_ambito(se_stesso, tipo_, nome, genitore):
         a = _Ambito(tipo_, nome, genitore)
@@ -98,7 +98,7 @@ classe _Raccolta:
             ambito.lega(n.name, se_stesso.sito_nome(n, n.name), "funzione")
             f = se_stesso.nuovo_ambito("funzione", n.name, ambito)
             argomenti = n.args
-            per a in lista(argomenti.posonlyargs) + lista(argomenti.args) + lista(argomenti.kwonlyargs) + [x per x in (argomenti.vararg, argomenti.kwarg) se x è non Nessuno]:
+            per a in tipo_lista(argomenti.posonlyargs) + tipo_lista(argomenti.args) + tipo_lista(argomenti.kwonlyargs) + [x per x in (argomenti.vararg, argomenti.kwarg) se x è non Nessuno]:
                 f.lega(a.arg, se_stesso.sito(a), "parametro")
             per s in n.body:
                 se_stesso.visita(s, f)

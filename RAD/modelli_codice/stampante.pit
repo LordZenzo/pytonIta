@@ -86,10 +86,10 @@ definisci a_capo(testo_, larghezza, dimensione, grassetto=Falso):
     """Spezza il testo in righe che stanno nella larghezza (le parole molto lunghe si spezzano); gli a capo del testo si rispettano."""
     righe = []
     per paragrafo in testo_.replace("\r\n", "\n").split("\n"):
-        rientro = paragrafo[:lunghezza(paragrafo) - lunghezza(paragrafo.lstrip(" "))]          # gli spazi all'inizio (rientro) si conservano
+        rientro = paragrafo[:lunghezza_di(paragrafo) - lunghezza_di(paragrafo.lstrip(" "))]          # gli spazi all'inizio (rientro) si conservano
         paragrafo = paragrafo.lstrip(" ")
         corrente = ""
-        da_aggiungere = lunghezza(righe)
+        da_aggiungere = lunghezza_di(righe)
         per parola in paragrafo.split(" "):
             prova_ = parola se non corrente altrimenti corrente + " " + parola
             se larghezza_testo(prova_, dimensione, grassetto) <= larghezza:
@@ -98,9 +98,9 @@ definisci a_capo(testo_, larghezza, dimensione, grassetto=Falso):
             se corrente:
                 righe.append(corrente)
                 corrente = ""
-            mentre larghezza_testo(parola, dimensione, grassetto) > larghezza e lunghezza(parola) > 1:
+            mentre larghezza_testo(parola, dimensione, grassetto) > larghezza e lunghezza_di(parola) > 1:
                 n = 1
-                mentre n < lunghezza(parola) e larghezza_testo(parola[:n + 1], dimensione, grassetto) <= larghezza:
+                mentre n < lunghezza_di(parola) e larghezza_testo(parola[:n + 1], dimensione, grassetto) <= larghezza:
                     n += 1
                 righe.append(parola[:n])
                 parola = parola[n:]
@@ -113,14 +113,14 @@ definisci a_capo(testo_, larghezza, dimensione, grassetto=Falso):
 
 definisci numero(valore):
     prova:
-        ritorna float(testo(valore).strip().replace(",", ".")) se valore è non Nessuno altrimenti 0.0
+        ritorna float(tipo_testo(valore).strip().replace(",", ".")) se valore è non Nessuno altrimenti 0.0
     eccetto ValueError:
         ritorna 0.0
 
 
 definisci formatta(v):
     se abs(v - round(v)) < 1e-9:
-        ritorna testo(int(round(v)))
+        ritorna tipo_testo(int(round(v)))
     ritorna f"{v:.2f}".rstrip("0").rstrip(".")
 
 
@@ -235,22 +235,22 @@ classe Documento:
     definisci tabella(se_stesso, intestazioni, righe, larghezze=Nessuno, allineamenti=Nessuno, dimensione=Nessuno):
         """Una tabella con l'intestazione ripetuta a ogni pagina. larghezze: pesi (o Nessuno = in proporzione al contenuto); allineamenti: «w» sinistra, «e» destra, «center»."""
         dimensione = dimensione o se_stesso.dimensione
-        n = lunghezza(intestazioni)
-        righe = [[("" se c è Nessuno altrimenti testo(c)) per c in lista(r)[:n]] + [""] * max(0, n - lunghezza(r)) per r in righe]
+        n = lunghezza_di(intestazioni)
+        righe = [[("" se c è Nessuno altrimenti tipo_testo(c)) per c in tipo_lista(r)[:n]] + [""] * max(0, n - lunghezza_di(r)) per r in righe]
         riempimento = 4
         # larghezze delle colonne: pesi dati o in proporzione al testo (con un minimo), poi scalate sulla pagina
-        se larghezze e lunghezza(larghezze) == n:
+        se larghezze e lunghezza_di(larghezze) == n:
             pesi = [max(1.0, float(x)) per x in larghezze]
         altrimenti:
             pesi = []
-            per i in intervallo(n):
-                piu_largo = larghezza_testo(testo(intestazioni[i]), dimensione, Vero)
+            per i in intervallo_di(n):
+                piu_largo = larghezza_testo(tipo_testo(intestazioni[i]), dimensione, Vero)
                 per r in righe[:200]:
                     piu_largo = max(piu_largo, min(larghezza_testo(r[i], dimensione), 260))
                 pesi.append(max(30.0, piu_largo + 2 * riempimento))
         totale = sum(pesi)
         colonne = [p / totale * se_stesso.utile per p in pesi]
-        allinea = [(allineamenti[i] se allineamenti e i < lunghezza(allineamenti) altrimenti "w") per i in intervallo(n)]
+        allinea = [(allineamenti[i] se allineamenti e i < lunghezza_di(allineamenti) altrimenti "w") per i in intervallo_di(n)]
         riga_h = dimensione * 1.25
 
         definisci intestazione_tabella():
@@ -259,13 +259,13 @@ classe Documento:
             se_stesso.y -= h
             se_stesso._rettangolo(se_stesso.margine, se_stesso.y, se_stesso.utile, h, riempimento=(0.88, 0.9, 0.93))
             x = se_stesso.margine
-            per i in intervallo(n):
-                se_stesso._cella(x, se_stesso.y + riempimento + dimensione * 0.25, colonne[i], testo(intestazioni[i]), dimensione, allinea[i], Vero, riempimento)
+            per i in intervallo_di(n):
+                se_stesso._cella(x, se_stesso.y + riempimento + dimensione * 0.25, colonne[i], tipo_testo(intestazioni[i]), dimensione, allinea[i], Vero, riempimento)
                 x += colonne[i]
         intestazione_tabella()
         per k, r in enumera(righe):
-            celle = [a_capo(r[i], colonne[i] - 2 * riempimento, dimensione) per i in intervallo(n)]
-            linee = max(lunghezza(c) per c in celle)
+            celle = [a_capo(r[i], colonne[i] - 2 * riempimento, dimensione) per i in intervallo_di(n)]
+            linee = max(lunghezza_di(c) per c in celle)
             h = linee * riga_h + 2 * riempimento
             se se_stesso.y - h < se_stesso.basso:
                 se_stesso._nuova_pagina()
@@ -274,7 +274,7 @@ classe Documento:
             se k % 2 == 1:
                 se_stesso._rettangolo(se_stesso.margine, se_stesso.y, se_stesso.utile, h, riempimento=(0.96, 0.97, 0.98))
             x = se_stesso.margine
-            per i in intervallo(n):
+            per i in intervallo_di(n):
                 per j, testo_riga in enumera(celle[i]):
                     se_stesso._cella(x, se_stesso.y + h - riempimento - (j + 1) * riga_h + dimensione * 0.25, colonne[i], testo_riga, dimensione, allinea[i], Falso, riempimento)
                 x += colonne[i]
@@ -291,7 +291,7 @@ classe Documento:
 
     definisci grafico(se_stesso, voci, tipo="barre", titolo="", altezza=210, mostra_valori=Vero):
         """Un grafico a barre, a linee o a torta (voci: [(etichetta, valore)])."""
-        voci = [(testo(elemento), numero(v)) per elemento, v in voci]
+        voci = [(tipo_testo(elemento), numero(v)) per elemento, v in voci]
         se_stesso._serve(altezza + 24)
         x0 = se_stesso.margine
         larghezza = se_stesso.utile
@@ -317,7 +317,7 @@ classe Documento:
         passo = passo_bello(massimo - minimo)
         base = math.floor(minimo / passo) * passo
         cima = math.ceil(massimo / passo) * passo
-        sinistra = 14 + 5.2 * max(lunghezza(formatta(base + i * passo)) per i in intervallo(int(round((cima - base) / passo)) + 1))
+        sinistra = 14 + 5.2 * max(lunghezza_di(formatta(base + i * passo)) per i in intervallo_di(int(round((cima - base) / passo)) + 1))
         x0, x1 = x + sinistra, x + larghezza - 6
         y0, y1 = y + 16, y + altezza - 6
 
@@ -330,7 +330,7 @@ classe Documento:
             se_stesso._scrivi_a(x0 - 4, y_di(v) - 3, formatta(v), 7, Falso, (0.4, 0.4, 0.45))
             i += 1
         se_stesso._linea(x0, y_di(0), x1, y_di(0), colore=(0.4, 0.4, 0.45), spessore=0.6)
-        n = lunghezza(voci)
+        n = lunghezza_di(voci)
         fetta = (x1 - x0) / n
         colore = COLORI[0]
         punti = []
@@ -345,7 +345,7 @@ classe Documento:
             se mostra_valori:
                 se_stesso._scrivi_centro(centro, yv + 3 se v >= 0 altrimenti yv - 9, formatta(v), 7)
             massimo_caratteri = max(3, int(fetta / 4.2))
-            nome = etichetta se lunghezza(etichetta) <= massimo_caratteri altrimenti etichetta[:max(1, massimo_caratteri - 1)] + "."
+            nome = etichetta se lunghezza_di(etichetta) <= massimo_caratteri altrimenti etichetta[:max(1, massimo_caratteri - 1)] + "."
             se_stesso._scrivi_centro(centro, y + 4, nome, 7, Falso, (0.4, 0.4, 0.45))
         se tipo == "linee":
             per (ax, ay), (bx, by) in zip(punti, punti[1:]):
@@ -366,13 +366,13 @@ classe Documento:
         per k, (etichetta, v) in enumera(positive):
             estensione = v / totale * 2 * math.pi
             passi = max(2, int(estensione / (math.pi / 36)) + 1)
-            punti = [(cx, cy)] + [(cx + raggio * math.cos(angolo - estensione * j / passi), cy + raggio * math.sin(angolo - estensione * j / passi)) per j in intervallo(passi + 1)]
-            se_stesso._poligono(punti, COLORI[k % lunghezza(COLORI)])
+            punti = [(cx, cy)] + [(cx + raggio * math.cos(angolo - estensione * j / passi), cy + raggio * math.sin(angolo - estensione * j / passi)) per j in intervallo_di(passi + 1)]
+            se_stesso._poligono(punti, COLORI[k % lunghezza_di(COLORI)])
             angolo -= estensione
         lx = cx + raggio + 24
-        ly = cy + 9 * lunghezza(positive)
+        ly = cy + 9 * lunghezza_di(positive)
         per k, (etichetta, v) in enumera(positive):
-            se_stesso._rettangolo(lx, ly - 7, 8, 8, riempimento=COLORI[k % lunghezza(COLORI)])
+            se_stesso._rettangolo(lx, ly - 7, 8, 8, riempimento=COLORI[k % lunghezza_di(COLORI)])
             descrizione = etichetta + (f"  {formatta(v)} ({v / totale * 100:.0f}%)" se mostra_valori altrimenti f"  {v / totale * 100:.0f}%")
             se_stesso._scrivi(lx + 12, ly - 6, descrizione, 8)
             ly -= 15
@@ -388,7 +388,7 @@ classe Documento:
         se_stesso._serve(a_pt + 8)
         se_stesso.y -= a_pt
         se_stesso.immagini.append((larghezza, altezza, rgb))
-        se_stesso.pagine[-1].append(f"q {l_pt:.2f} 0 0 {a_pt:.2f} {se_stesso.margine:.2f} {se_stesso.y:.2f} cm /Im{lunghezza(se_stesso.immagini)} Do Q")
+        se_stesso.pagine[-1].append(f"q {l_pt:.2f} 0 0 {a_pt:.2f} {se_stesso.margine:.2f} {se_stesso.y:.2f} cm /Im{lunghezza_di(se_stesso.immagini)} Do Q")
         se_stesso.y -= 8
 
     definisci _ovale(se_stesso, x1, y1, x2, y2, riempimento, bordo, spessore):
@@ -432,19 +432,19 @@ classe Documento:
             t = elemento.get("tipo")
             p = elemento.get("punti") o []
             r_, b_, sp = elemento.get("riempimento"), elemento.get("bordo"), max(0.3, float(elemento.get("spessore", 1)) * s)
-            se t == "line" e lunghezza(p) >= 4:
+            se t == "line" e lunghezza_di(p) >= 4:
                 b_ = b_ o (0, 0, 0)
-                percorso = f"{px(p[0]):.2f} {py(p[1]):.2f} m " + " ".join(f"{px(p[i]):.2f} {py(p[i + 1]):.2f} l" per i in intervallo(2, lunghezza(p) - 1, 2))
+                percorso = f"{px(p[0]):.2f} {py(p[1]):.2f} m " + " ".join(f"{px(p[i]):.2f} {py(p[i + 1]):.2f} l" per i in intervallo_di(2, lunghezza_di(p) - 1, 2))
                 se_stesso.pagine[-1].append(f"{b_[0]:.3f} {b_[1]:.3f} {b_[2]:.3f} RG {sp:.2f} w {percorso} S")
-            altrimenti_se t == "rect" e lunghezza(p) >= 4:
+            altrimenti_se t == "rect" e lunghezza_di(p) >= 4:
                 x1, y1, x2, y2 = px(min(p[0], p[2])), py(max(p[1], p[3])), px(max(p[0], p[2])), py(min(p[1], p[3]))
                 se r_ o b_:
                     se_stesso._rettangolo(x1, y1, x2 - x1, y2 - y1, riempimento=r_, bordo=b_, spessore=sp)
-            altrimenti_se t == "oval" e lunghezza(p) >= 4:
+            altrimenti_se t == "oval" e lunghezza_di(p) >= 4:
                 se r_ o b_:
                     se_stesso._ovale(px(p[0]), py(p[1]), px(p[2]), py(p[3]), r_, b_, sp)
-            altrimenti_se t == "poly" e lunghezza(p) >= 6:
-                percorso = f"{px(p[0]):.2f} {py(p[1]):.2f} m " + " ".join(f"{px(p[i]):.2f} {py(p[i + 1]):.2f} l" per i in intervallo(2, lunghezza(p) - 1, 2)) + " h"
+            altrimenti_se t == "poly" e lunghezza_di(p) >= 6:
+                percorso = f"{px(p[0]):.2f} {py(p[1]):.2f} m " + " ".join(f"{px(p[i]):.2f} {py(p[i + 1]):.2f} l" per i in intervallo_di(2, lunghezza_di(p) - 1, 2)) + " h"
                 c = []
                 se r_:
                     c.append(f"{r_[0]:.3f} {r_[1]:.3f} {r_[2]:.3f} rg")
@@ -452,13 +452,13 @@ classe Documento:
                     c.append(f"{b_[0]:.3f} {b_[1]:.3f} {b_[2]:.3f} RG {sp:.2f} w")
                 se r_ o b_:
                     se_stesso.pagine[-1].append(" ".join(c) + f" {percorso} " + ("B" se r_ e b_ altrimenti ("f" se r_ altrimenti "S")))
-            altrimenti_se t == "text" e elemento.get("testo") e lunghezza(p) >= 2:
+            altrimenti_se t == "text" e elemento.get("testo") e lunghezza_di(p) >= 2:
                 dimensione = max(4.0, float(elemento.get("dimensione", 10)) * s / 0.75)
                 grassetto = bool(elemento.get("grassetto"))
                 ancora = elemento.get("ancora") o "center"
                 colore = r_ o (0, 0, 0)
                 righe_t = elemento["testo"].split("\n")
-                alta = dimensione * 1.2 * lunghezza(righe_t)
+                alta = dimensione * 1.2 * lunghezza_di(righe_t)
                 yb = py(p[1])
                 se "n" in ancora:
                     sopra = yb
@@ -480,10 +480,10 @@ classe Documento:
     # ------------------------------------------------------------ salvataggio
     definisci pdf(se_stesso, pagine=Nessuno):
         """Il contenuto del file PDF, in byte. `pagine`: i numeri (da 0) delle pagine da includere; Nessuno = tutte (i numeri «Pagina X di Y» restano quelli del documento intero)."""
-        totale_doc = lunghezza(se_stesso.pagine)
-        scelte = lista(pagine) se pagine è non Nessuno altrimenti lista(intervallo(totale_doc))
+        totale_doc = lunghezza_di(se_stesso.pagine)
+        scelte = tipo_lista(pagine) se pagine è non Nessuno altrimenti tipo_lista(intervallo_di(totale_doc))
         scelte = [i per i in scelte se 0 <= i < totale_doc] o [0]
-        totale = lunghezza(scelte)
+        totale = lunghezza_di(scelte)
         oggi = time.strftime("%d/%m/%Y")
         for_ = []
         mar_a = se_stesso.margine_alto_pt
@@ -512,37 +512,37 @@ classe Documento:
         altrimenti_se se_stesso.fronte_retro == "lato corto":
             preferenze += " /Duplex /DuplexFlipShortEdge"
         oggetti.append(f"<< /Type /Catalog /Pages 2 0 R /ViewerPreferences <<{preferenze} >> >>".encode("latin-1"))
-        n_img = lunghezza(se_stesso.immagini)
+        n_img = lunghezza_di(se_stesso.immagini)
         prima = 5 + n_img                       # numero dell'oggetto della prima pagina: dopo catalogo, pagine, due caratteri e le immagini
-        figli = " ".join(f"{prima + 2 * i} 0 R" per i in intervallo(totale))
+        figli = " ".join(f"{prima + 2 * i} 0 R" per i in intervallo_di(totale))
         oggetti.append(f"<< /Type /Pages /Kids [{figli}] /Count {totale} >>".encode("latin-1"))
         oggetti.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")
         oggetti.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>")
         per larg_i, alt_i, rgb in se_stesso.immagini:
             se se_stesso.bianco_nero:
-                grigio = bytearray(lunghezza(rgb))
-                per k in intervallo(0, lunghezza(rgb) - 2, 3):
+                grigio = bytearray(lunghezza_di(rgb))
+                per k in intervallo_di(0, lunghezza_di(rgb) - 2, 3):
                     g = int(0.299 * rgb[k] + 0.587 * rgb[k + 1] + 0.114 * rgb[k + 2])
                     grigio[k] = grigio[k + 1] = grigio[k + 2] = g
                 rgb = grigio
             dati = zlib.compress(bytes(rgb))
-            oggetti.append(f"<< /Type /XObject /Subtype /Image /Width {larg_i} /Height {alt_i} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {lunghezza(dati)} >>\nstream\n".encode("latin-1") + dati + b"\nendstream")
-        xoggetti = (" /XObject << " + " ".join(f"/Im{k + 1} {5 + k} 0 R" per k in intervallo(n_img)) + " >>") se n_img altrimenti ""
+            oggetti.append(f"<< /Type /XObject /Subtype /Image /Width {larg_i} /Height {alt_i} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {lunghezza_di(dati)} >>\nstream\n".encode("latin-1") + dati + b"\nendstream")
+        xoggetti = (" /XObject << " + " ".join(f"/Im{k + 1} {5 + k} 0 R" per k in intervallo_di(n_img)) + " >>") se n_img altrimenti ""
         per i, contenuto in enumera(for_):
             flusso = zlib.compress(contenuto.encode("latin-1", "replace"))
             oggetti.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {se_stesso.larghezza:.2f} {se_stesso.altezza:.2f}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>{xoggetti} >> /Contents {prima + 1 + 2 * i} 0 R >>".encode("latin-1"))
-            oggetti.append(f"<< /Length {lunghezza(flusso)} /Filter /FlateDecode >>\nstream\n".encode("latin-1") + flusso + b"\nendstream")
+            oggetti.append(f"<< /Length {lunghezza_di(flusso)} /Filter /FlateDecode >>\nstream\n".encode("latin-1") + flusso + b"\nendstream")
         uscita = bytearray(b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n")
         posizioni = []
         per n, corpo in enumera(oggetti):
-            posizioni.append(lunghezza(uscita))
+            posizioni.append(lunghezza_di(uscita))
             uscita += f"{n + 1} 0 obj\n".encode("latin-1") + corpo + b"\nendobj\n"
-        inizio_xref = lunghezza(uscita)
-        uscita += f"xref\n0 {lunghezza(oggetti) + 1}\n".encode("latin-1") + b"0000000000 65535 f \n"
+        inizio_xref = lunghezza_di(uscita)
+        uscita += f"xref\n0 {lunghezza_di(oggetti) + 1}\n".encode("latin-1") + b"0000000000 65535 f \n"
         per p in posizioni:
             uscita += f"{p:010d} 00000 n \n".encode("latin-1")
         titolo_info = _pdf_testo(se_stesso.titolo_documento o "Documento")
-        uscita += f"trailer\n<< /Size {lunghezza(oggetti) + 1} /Root 1 0 R >>\nstartxref\n{inizio_xref}\n%%EOF\n".encode("latin-1")
+        uscita += f"trailer\n<< /Size {lunghezza_di(oggetti) + 1} /Root 1 0 R >>\nstartxref\n{inizio_xref}\n%%EOF\n".encode("latin-1")
         ritorna bytes(uscita)
 
     definisci salva(se_stesso, percorso, pagine=Nessuno):
@@ -597,11 +597,11 @@ classe Impostazioni:
         ritorna se_stesso
 
     definisci normalizza(se_stesso):
-        se_stesso.stampante = testo(se_stesso.stampante o "").strip()
+        se_stesso.stampante = tipo_testo(se_stesso.stampante o "").strip()
         se_stesso.copie = int(max(1, min(99, numero(se_stesso.copie))))
         se_stesso.fascicola = bool(se_stesso.fascicola)
         per k, ammessi in Impostazioni.SCELTE.items():
-            valore = testo(getattr(se_stesso, k)).strip().lower() se k != "carta" altrimenti testo(getattr(se_stesso, k)).strip()
+            valore = tipo_testo(getattr(se_stesso, k)).strip().lower() se k != "carta" altrimenti tipo_testo(getattr(se_stesso, k)).strip()
             se k == "carta":
                 valore = ([f per f in ammessi se f.lower() == valore.lower()] o ["A4"])[0]
             altrimenti_se valore non in ammessi:
@@ -610,7 +610,7 @@ classe Impostazioni:
         per lato in ("alto", "basso", "sinistro", "destro"):
             setattr(se_stesso, "margine_" + lato, max(0.0, min(60.0, numero(getattr(se_stesso, "margine_" + lato)))))
         se_stesso.scala = int(max(25, min(400, numero(se_stesso.scala))))
-        se_stesso.pagine = testo(se_stesso.pagine o "").strip()
+        se_stesso.pagine = tipo_testo(se_stesso.pagine o "").strip()
 
     definisci a_dizionario(se_stesso):
         ritorna {k: getattr(se_stesso, k) per k in Impostazioni.PREDEFINITE}
@@ -632,7 +632,7 @@ definisci leggi_pagine(testo_, totale):
     """«1-3, 5, 7-» diventa [0, 1, 2, 4, 6, ...] (numeri da 0, dentro il totale). Vuoto = tutte. Solleva ValueError se non si capisce o se non c'è nessuna pagina."""
     testo_ = (testo_ o "").strip()
     se non testo_:
-        ritorna lista(intervallo(totale))
+        ritorna tipo_lista(intervallo_di(totale))
     scelte = []
     per parte in testo_.replace(";", ",").split(","):
         parte = parte.strip()
@@ -646,7 +646,7 @@ definisci leggi_pagine(testo_, totale):
                 prima, ultima = ultima, prima
         altrimenti:
             prima = ultima = int(parte)
-        scelte += [i - 1 per i in intervallo(prima, ultima + 1) se 1 <= i <= totale]
+        scelte += [i - 1 per i in intervallo_di(prima, ultima + 1) se 1 <= i <= totale]
     scelte = sorted(set(scelte))
     se non scelte:
         solleva ValueError("nessuna delle pagine indicate esiste")
@@ -669,7 +669,7 @@ definisci _esegui(argomenti, attesa=10):
 definisci elenco_stampanti(aggiorna=Falso):
     """(nomi delle stampanti installate, nome di quella predefinita), letti dal sistema (Windows: PowerShell; altrove: CUPS). Il risultato si ricorda per un minuto."""
     se non aggiorna e time.time() - _STAMPANTI["quando"] < 60:
-        ritorna lista(_STAMPANTI["elenco"]), _STAMPANTI["predefinita"]
+        ritorna tipo_lista(_STAMPANTI["elenco"]), _STAMPANTI["predefinita"]
     nomi = []
     predefinita = ""
     se sys.platform.startswith("win"):
@@ -691,7 +691,7 @@ definisci elenco_stampanti(aggiorna=Falso):
         se ":" in for_default:
             predefinita = for_default.rsplit(":", 1)[1].strip()
     _STAMPANTI.update({"quando": time.time(), "elenco": nomi, "predefinita": predefinita})
-    ritorna lista(nomi), predefinita
+    ritorna tipo_lista(nomi), predefinita
 
 
 definisci preferenze_stampante(nome=""):
@@ -717,11 +717,11 @@ definisci piano_stampa(percorso, imp=Nessuno, piattaforma=Nessuno):
     se piattaforma.startswith("win"):
         verbo, argomenti = ("printto", '"' + imp.stampante + '"') se imp.stampante altrimenti ("print", "")
         # ogni copia è un lavoro intero: è come stampare più volte il documento, e le copie escono già fascicolate
-        ritorna [{"tipo": "startfile", "percorso": percorso, "verbo": verbo, "argomenti": argomenti} per _ in intervallo(imp.copie)]
+        ritorna [{"tipo": "startfile", "percorso": percorso, "verbo": verbo, "argomenti": argomenti} per _ in intervallo_di(imp.copie)]
     comando = ["lp"]
     se imp.stampante:
         comando += ["-d", imp.stampante]
-    comando += ["-n", testo(imp.copie), "-o", "media=" + imp.carta]
+    comando += ["-n", tipo_testo(imp.copie), "-o", "media=" + imp.carta]
     se imp.copie > 1:
         comando += ["-o", "Collate=" + ("true" se imp.fascicola altrimenti "false")]
     se imp.fronte_retro == "lato lungo":
@@ -785,12 +785,12 @@ classe FinestraStampa:
         se_stesso.PREDEFINITA = "(stampante predefinita" + (": " + predefinita + ")" se predefinita altrimenti ")")
         i = se_stesso.imp
         se_stesso.var_stampante = tk.StringVar(value=i.stampante o se_stesso.PREDEFINITA)
-        se_stesso.var_copie = tk.StringVar(value=testo(i.copie))
+        se_stesso.var_copie = tk.StringVar(value=tipo_testo(i.copie))
         se_stesso.var_fascicola = tk.BooleanVar(value=i.fascicola)
         se_stesso.var_formato = tk.StringVar(value=i.carta)
         se_stesso.var_orientamento = tk.StringVar(value=i.orientamento)
         se_stesso.var_margini = {lato: tk.StringVar(value=f"{getattr(i, 'margine_' + lato):g}") per lato in ("alto", "basso", "sinistro", "destro")}
-        se_stesso.var_scala = tk.StringVar(value=testo(i.scala))
+        se_stesso.var_scala = tk.StringVar(value=tipo_testo(i.scala))
         se_stesso.var_tutte = tk.StringVar(value="tutte" se non i.pagine altrimenti "intervallo")
         se_stesso.var_pagine = tk.StringVar(value=i.pagine)
         se_stesso.var_fronte_retro = tk.StringVar(value=se_stesso.FRONTE_RETRO[i.fronte_retro])
@@ -805,7 +805,7 @@ classe FinestraStampa:
         etichetta("Stampante")
         cornice = ttk.Frame(corpo)
         cornice.grid(row=riga[0], column=1, columnspan=3, sticky="we", pady=4)
-        se_stesso.casella_stampante = ttk.Combobox(cornice, textvariable=se_stesso.var_stampante, values=[se_stesso.PREDEFINITA] + lista(nomi), width=34)
+        se_stesso.casella_stampante = ttk.Combobox(cornice, textvariable=se_stesso.var_stampante, values=[se_stesso.PREDEFINITA] + tipo_lista(nomi), width=34)
         se_stesso.casella_stampante.pack(side="left", fill="x", expand=Vero)
         ttk.Button(cornice, text="Preferenze…", command=se_stesso._preferenze).pack(side="left", padx=(6, 0))
         riga[0] += 1
@@ -821,7 +821,7 @@ classe FinestraStampa:
         etichetta("Formato della carta")
         cornice = ttk.Frame(corpo)
         cornice.grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
-        ttk.Combobox(cornice, textvariable=se_stesso.var_formato, values=lista(FORMATI), width=9, state="readonly").pack(side="left")
+        ttk.Combobox(cornice, textvariable=se_stesso.var_formato, values=tipo_lista(FORMATI), width=9, state="readonly").pack(side="left")
         ttk.Radiobutton(cornice, text="Verticale", variable=se_stesso.var_orientamento, value="verticale").pack(side="left", padx=(14, 4))
         ttk.Radiobutton(cornice, text="Orizzontale", variable=se_stesso.var_orientamento, value="orizzontale").pack(side="left", padx=4)
         riga[0] += 1
@@ -854,13 +854,13 @@ classe FinestraStampa:
         riga[0] += 1
         # fronte-retro, colore, qualità
         etichetta("Fronte-retro")
-        ttk.Combobox(corpo, textvariable=se_stesso.var_fronte_retro, values=lista(se_stesso.FRONTE_RETRO.values()), state="readonly", width=26).grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        ttk.Combobox(corpo, textvariable=se_stesso.var_fronte_retro, values=tipo_lista(se_stesso.FRONTE_RETRO.values()), state="readonly", width=26).grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
         riga[0] += 1
         etichetta("Colore")
-        ttk.Combobox(corpo, textvariable=se_stesso.var_colore, values=lista(se_stesso.COLORI.values()), state="readonly", width=16).grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        ttk.Combobox(corpo, textvariable=se_stesso.var_colore, values=tipo_lista(se_stesso.COLORI.values()), state="readonly", width=16).grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
         riga[0] += 1
         etichetta("Qualità")
-        ttk.Combobox(corpo, textvariable=se_stesso.var_qualita, values=lista(se_stesso.QUALITA.values()), state="readonly", width=16).grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        ttk.Combobox(corpo, textvariable=se_stesso.var_qualita, values=tipo_lista(se_stesso.QUALITA.values()), state="readonly", width=16).grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
         riga[0] += 1
         # pulsanti
         pulsanti = ttk.Frame(corpo)
@@ -873,7 +873,7 @@ classe FinestraStampa:
         f.bind("<Escape>", lambda ev: se_stesso.chiudi())
         f.bind("<Return>", lambda ev: se_stesso._azione("stampa"))
         f.protocol("WM_DELETE_WINDOW", se_stesso.chiudi)
-        per v in [se_stesso.var_formato, se_stesso.var_orientamento, se_stesso.var_scala, se_stesso.var_tutte, se_stesso.var_pagine] + lista(se_stesso.var_margini.values()):
+        per v in [se_stesso.var_formato, se_stesso.var_orientamento, se_stesso.var_scala, se_stesso.var_tutte, se_stesso.var_pagine] + tipo_lista(se_stesso.var_margini.values()):
             v.trace_add("write", lambda *a: se_stesso._programma_pagine())
         se_stesso._aggiorna_pagine()
         f.update_idletasks()
@@ -905,7 +905,7 @@ classe FinestraStampa:
                 leggi_pagine(pagine, se_stesso.pagine_di(i))
             eccetto ValueError come errore:
                 se non silenzioso:
-                    se_stesso._messagebox.showwarning("Stampa", "Le pagine indicate non vanno bene: " + testo(errore) + ".", parent=se_stesso.finestra)
+                    se_stesso._messagebox.showwarning("Stampa", "Le pagine indicate non vanno bene: " + tipo_testo(errore) + ".", parent=se_stesso.finestra)
                 ritorna Falso
         ritorna Vero
 
@@ -981,7 +981,7 @@ definisci _immagine_rgb(w, nome_immagine):
         # formato PPM: «P6», larghezza, altezza, 255 e poi i pixel (i commenti con # si saltano)
         pezzi = []
         posizione = 0
-        mentre lunghezza(pezzi) < 4:
+        mentre lunghezza_di(pezzi) < 4:
             mentre dati[posizione:posizione + 1].isspace():
                 posizione += 1
             se dati[posizione:posizione + 1] == b"#":
@@ -994,7 +994,7 @@ definisci _immagine_rgb(w, nome_immagine):
             pezzi.append(dati[inizio:posizione])
         pixel = dati[posizione + 1:]
         larghezza, altezza = int(pezzi[1]), int(pezzi[2])
-        se pezzi[0] != b"P6" o lunghezza(pixel) < larghezza * altezza * 3:
+        se pezzi[0] != b"P6" o lunghezza_di(pixel) < larghezza * altezza * 3:
             ritorna Nessuno
         ritorna larghezza, altezza, pixel[:larghezza * altezza * 3]
     eccetto (ValueError, IndexError):
@@ -1016,7 +1016,7 @@ definisci _elementi_tela(w):
     sinistra, alto, destra, basso = 0, 0, max(1, w.winfo_width()), max(1, w.winfo_height())
     per i in w.find_all():
         t = w.type(i)
-        p = lista(w.coords(i))
+        p = tipo_lista(w.coords(i))
         spessore = float(w.itemcget(i, "width") o 1) se t != "text" altrimenti 1
         se t == "line":
             elementi.append({"tipo": "line", "punti": p, "bordo": colore(w.itemcget(i, "fill") o "#000000"), "spessore": spessore})
@@ -1025,14 +1025,14 @@ definisci _elementi_tela(w):
                              "bordo": colore(w.itemcget(i, "outline")), "spessore": spessore})
         altrimenti_se t == "polygon":
             elementi.append({"tipo": "poly", "punti": p, "riempimento": colore(w.itemcget(i, "fill")), "bordo": colore(w.itemcget(i, "outline")), "spessore": spessore})
-        altrimenti_se t == "arc" e lunghezza(p) >= 4:
+        altrimenti_se t == "arc" e lunghezza_di(p) >= 4:
             # una fetta: poligono che segue l'arco (start ed extent in gradi, in senso antiorario)
             cx, cy, rx, ry = (p[0] + p[2]) / 2, (p[1] + p[3]) / 2, abs(p[2] - p[0]) / 2, abs(p[3] - p[1]) / 2
             inizio_a = float(w.itemcget(i, "start") o 0)
             estensione = float(w.itemcget(i, "extent") o 90)
             passi = max(4, int(abs(estensione) / 5))
             punti = [cx, cy]
-            per k in intervallo(passi + 1):
+            per k in intervallo_di(passi + 1):
                 a = math.radians(inizio_a + estensione * k / passi)
                 punti += [cx + rx * math.cos(a), cy - ry * math.sin(a)]
             elementi.append({"tipo": "poly", "punti": punti, "riempimento": colore(w.itemcget(i, "fill")), "bordo": colore(w.itemcget(i, "outline")), "spessore": spessore})
@@ -1048,8 +1048,8 @@ definisci _elementi_tela(w):
                 passa
             elementi.append({"tipo": "text", "punti": p[:2], "testo": w.itemcget(i, "text"), "riempimento": colore(w.itemcget(i, "fill") o "#000000"), "dimensione": dimensione,
                              "ancora": w.itemcget(i, "anchor"), "grassetto": grassetto})
-        se lunghezza(p) >= 2:
-            per k in intervallo(0, lunghezza(p) - 1, 2):
+        se lunghezza_di(p) >= 2:
+            per k in intervallo_di(0, lunghezza_di(p) - 1, 2):
                 destra = max(destra, p[k] + 1)
                 basso = max(basso, p[k + 1] + 1)
     sfondo = colore(w.cget("background"))
@@ -1095,13 +1095,13 @@ classe Stampante:
             ritorna d
         classe_ = w.winfo_class()
         se classe_ == "Treeview":
-            colonne = lista(w["columns"])
+            colonne = tipo_lista(w["columns"])
             intestazioni = [w.heading(c, "text") o c per c in colonne]
             righe = []
 
             definisci visita(padre, livello):
                 per id_ in w.get_children(padre):
-                    valori = lista(w.item(id_, "values"))
+                    valori = tipo_lista(w.item(id_, "values"))
                     se colonne:
                         righe.append(valori)
                     altrimenti:
@@ -1113,7 +1113,7 @@ classe Stampante:
             ancore = [w.column(c, "anchor") per c in colonne] se colonne altrimenti ["w"]
             d.tabella(intestazioni, righe, allineamenti=ancore)
         altrimenti_se classe_ == "Listbox":
-            d.tabella(["Elementi"], [[w.get(i)] per i in intervallo(w.size())])
+            d.tabella(["Elementi"], [[w.get(i)] per i in intervallo_di(w.size())])
         altrimenti_se classe_ == "Text":
             d.paragrafo(w.get("1.0", "end-1c"))
         altrimenti_se hasattr(w, "voci"):
@@ -1129,7 +1129,7 @@ classe Stampante:
             altrimenti:
                 d.paragrafo(w.cget("text"))
         altrimenti:
-            d.paragrafo(testo(w))
+            d.paragrafo(tipo_testo(w))
         ritorna d
 
     definisci salva_pdf(se_stesso, percorso=Nessuno):
@@ -1146,7 +1146,7 @@ classe Stampante:
         """Scrive il PDF con le impostazioni (le pagine scelte, i colori, il fronte-retro...)."""
         imp = imp o se_stesso.impostazioni
         d = se_stesso.documento(imp)
-        ritorna d.salva(percorso, leggi_pagine(imp.pagine, lunghezza(d.pagine)))
+        ritorna d.salva(percorso, leggi_pagine(imp.pagine, lunghezza_di(d.pagine)))
 
     definisci _temporaneo(se_stesso):
         cartella = tempfile.mkdtemp(prefix="stampa_")
@@ -1154,12 +1154,12 @@ classe Stampante:
 
     definisci pagine(se_stesso, imp=Nessuno):
         """Quante pagine ha il documento con le impostazioni (tutte, senza contare l'intervallo scelto)."""
-        ritorna lunghezza(se_stesso.documento(imp o se_stesso.impostazioni).pagine)
+        ritorna lunghezza_di(se_stesso.documento(imp o se_stesso.impostazioni).pagine)
 
     definisci finestra_stampa(se_stesso, titolo=Nessuno):
         """Apre la finestra delle impostazioni di stampa. Ritorna l'azione scelta («stampa», «anteprima», «pdf») dopo averla eseguita, o Nessuno se si annulla."""
         f = FinestraStampa(se_stesso.radice, se_stesso.impostazioni, titolo o ("Stampa: " + se_stesso.titolo se se_stesso.titolo altrimenti "Stampa"),
-                           pagine_di=lambda imp: lunghezza(se_stesso.documento(imp).pagine))
+                           pagine_di=lambda imp: lunghezza_di(se_stesso.documento(imp).pagine))
         azione = f.mostra()
         se azione:
             se_stesso._ricorda()

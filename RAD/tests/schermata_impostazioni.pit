@@ -13,7 +13,7 @@ app = Applicazione(radice, cfg)
 radice.update()
 d = Impostazioni(radice, cfg, app.colori)
 d.geometry("+60+40")
-per _ in intervallo(6):
+per _ in intervallo_di(6):
     radice.update(); time.sleep(0.15)
 x, y = d.winfo_rootx(), d.winfo_rooty()
 img = ImageGrab.grab(bbox=(x, y, x + d.winfo_width(), y + d.winfo_height()))

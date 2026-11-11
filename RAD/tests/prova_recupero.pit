@@ -33,7 +33,7 @@ verifica(r.copia(file2, "due\n") == Vero, "copia di un file identico a quello su
 voci = Recupero(os.path.join(d, "recupero")).elenco()          # come dopo un riavvio: un oggetto nuovo
 verifica([v["percorso"] per v in voci] == [os.path.abspath(file1)], "dopo il riavvio resta solo la copia che differisce dal disco: " + str([v["percorso"] per v in voci]))
 verifica(voci[0]["contenuto"] == "uno ancora piu modificato\n", "con l'ultimo contenuto")
-verifica(lunghezza(os.listdir(os.path.join(d, "recupero"))) == 1, "la copia inutile è stata cancellata")
+verifica(lunghezza_di(os.listdir(os.path.join(d, "recupero"))) == 1, "la copia inutile è stata cancellata")
 r.togli(file1)
 verifica(Recupero(os.path.join(d, "recupero")).elenco() == [], "tolta la copia, niente da recuperare")
 # file rovinato o a metà
@@ -75,7 +75,7 @@ p = app.apri_file(finestra_json)
 verifica(isinstance(p, Progettista), "aperto il progettista")
 p.aggiungi_componente("Etichetta", 40, 60)
 verifica(app.salva_copie_di_sicurezza() == 1, "copia anche della finestra modificata")
-verifica(lunghezza(app.recupero.elenco()) == 2, "due copie")
+verifica(lunghezza_di(app.recupero.elenco()) == 2, "due copie")
 
 # salvando, la copia sparisce
 w.salva()
@@ -105,9 +105,9 @@ definisci chiede(titolo, messaggio, **k):
 
 messagebox.askyesnocancel = chiede
 voci = app2.recupero.elenco()
-verifica(lunghezza(voci) == 1 e voci[0]["percorso"] == os.path.abspath(finestra_json), "la finestra modificata è da recuperare: " + str([v["percorso"] per v in voci]))
+verifica(lunghezza_di(voci) == 1 e voci[0]["percorso"] == os.path.abspath(finestra_json), "la finestra modificata è da recuperare: " + str([v["percorso"] per v in voci]))
 n = app2.proponi_recupero()
-verifica(lunghezza(domande) == 1 e "demo.form.json" in domande[0], "ha chiesto con il nome del file")
+verifica(lunghezza_di(domande) == 1 e "demo.form.json" in domande[0], "ha chiesto con il nome del file")
 verifica(n == 1, "ripristinato un file")
 p2 = app2.schede.get(os.path.abspath(finestra_json))
 verifica(p2 è non Nessuno e p2.form.trova("etichetta1") è non Nessuno e p2.modificato, "la finestra ripristinata ha l'etichetta aggiunta ed è segnata come modificata")
@@ -119,7 +119,7 @@ verifica(app2.proponi_recupero() == 0 e app2.recupero.elenco() == [], "«No» sc
 # «Annulla» le tiene
 app2.recupero.copia(codice, "stampa('ancora')\n")
 messagebox.askyesnocancel = lambda *a, **k: Nessuno
-verifica(app2.proponi_recupero() == 0 e lunghezza(app2.recupero.elenco()) == 1, "«Annulla» tiene le copie per la prossima volta")
+verifica(app2.proponi_recupero() == 0 e lunghezza_di(app2.recupero.elenco()) == 1, "«Annulla» tiene le copie per la prossima volta")
 
 # chiudere una scheda senza salvare toglie la copia
 messagebox.askyesnocancel = lambda *a, **k: Falso
@@ -127,7 +127,7 @@ w2 = app2.apri_file(codice)
 w2.sostituisci_testo("x\n")
 w2.modificato = Vero
 app2.salva_copie_di_sicurezza()
-verifica(lunghezza(app2.recupero.elenco()) >= 1, "copia presente")
+verifica(lunghezza_di(app2.recupero.elenco()) >= 1, "copia presente")
 app2.chiudi_scheda(w2)
 verifica(non any(v["percorso"] == os.path.abspath(codice) per v in app2.recupero.elenco()), "chiusa senza salvare: la copia è tolta")
 

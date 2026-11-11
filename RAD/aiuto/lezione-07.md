@@ -8,7 +8,7 @@ Come una lista, un testo ha una lunghezza e si legge per posizione (da zero) e p
 
 ```pit
 parola = "pitone"
-stampa(lunghezza(parola))
+stampa(lunghezza_di(parola))
 stampa(parola[0])
 stampa(parola[-1])
 stampa(parola[1:4])
@@ -63,7 +63,7 @@ Ciao A Tutti, Benvenuti
 frase = "uno due tre quattro"
 parole = frase.separa()
 stampa(parole)
-stampa(lunghezza(parole))
+stampa(lunghezza_di(parole))
 stampa("-".unisci(parole))
 dati = "Anna,22,Roma".separa(",")
 stampa(dati)

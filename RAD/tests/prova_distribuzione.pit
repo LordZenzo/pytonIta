@@ -25,7 +25,7 @@ base = tempfile.mkdtemp()
 # ----------------------------------------------------------------- informazioni di versione
 verifica(crea_exe.numeri_versione("1.2.3") == (1, 2, 3, 0), "1.2.3")
 verifica(crea_exe.numeri_versione("2") == (2, 0, 0, 0), "solo il maggiore")
-verifica(crea_exe.numeri_versione("1.0.0-beta") == (1, 0, 0, 0), "parti non numeriche: " + testo(crea_exe.numeri_versione("1.0.0-beta")))
+verifica(crea_exe.numeri_versione("1.0.0-beta") == (1, 0, 0, 0), "parti non numeriche: " + tipo_testo(crea_exe.numeri_versione("1.0.0-beta")))
 verifica(crea_exe.numeri_versione("1.2.3.4.5") == (1, 2, 3, 4), "al massimo quattro numeri")
 verifica(crea_exe.numeri_versione("") == (0, 0, 0, 0), "vuota")
 valore = crea_exe.Opzioni("Gestione Cantina", versione="2.5.1", autore="Mario D'Angelo", descrizione="Registro \"vini\" e bottiglie è comodo")
@@ -51,7 +51,7 @@ verifica("--version-file" non in crea_exe.comando_pyinstaller("py", "X", "x.py",
 verifica(crea_exe.nome_sicuro("Gestione Cantina (2)") == "GestioneCantina2", "nome sicuro")
 f1 = {"pfx": "c.pfx", "password": "segreta", "marca": "http://t.example"}
 cf = crea_exe.comando_firma("signtool.exe", "p.exe", f1, "Mio programma")
-verifica(cf[:2] == ["signtool.exe", "sign"] e cf[-1] == "p.exe" e "/fd" in cf e cf[cf.index("/tr") + 1] == "http://t.example" e cf[cf.index("/f") + 1] == "c.pfx" e cf[cf.index("/p") + 1] == "segreta" e cf[cf.index("/d") + 1] == "Mio programma", "comando di firma: " + testo(cf))
+verifica(cf[:2] == ["signtool.exe", "sign"] e cf[-1] == "p.exe" e "/fd" in cf e cf[cf.index("/tr") + 1] == "http://t.example" e cf[cf.index("/f") + 1] == "c.pfx" e cf[cf.index("/p") + 1] == "segreta" e cf[cf.index("/d") + 1] == "Mio programma", "comando di firma: " + tipo_testo(cf))
 cn = crea_exe.comando_firma("signtool.exe", "p.exe", {"soggetto": "Mio Nome"})
 verifica("/n" in cn e "/f" non in cn e cn[cn.index("/tr") + 1] == crea_exe.URL_MARCA_TEMPORALE, "certificato installato, marca predefinita")
 verifica(crea_exe._maschera("la password è segreta ok", ["segreta", ""]) == "la password è *** ok", "maschera")
@@ -75,7 +75,7 @@ righe = []
 ok, m = crea_exe.firma_file(programma, {"pfx": pfx, "password": "segretissima", "marca": ""}, righe.append, descrizione="Prova")
 verifica(ok, "firma riuscita: " + m)
 verifica("segretissima" in open(registro).read(), "il certificato e la password sono arrivati a signtool")
-verifica(non any("segretissima" in r per r in righe), "la password non compare nel registro: " + testo(righe))
+verifica(non any("segretissima" in r per r in righe), "la password non compare nel registro: " + tipo_testo(righe))
 ok, m = crea_exe.firma_file(programma, {"pfx": os.path.join(base, "manca.pfx")}, righe.append)
 verifica(non ok e "non esiste" in m, "certificato mancante: " + m)
 ok, m = crea_exe.firma_file(programma, {}, righe.append)
@@ -83,7 +83,7 @@ verifica(non ok e "certificato" in m, "senza certificato: " + m)
 open(finto, "w").write("@echo off\r\necho errore di password\r\nexit /b 1\r\n")
 risultato = {"avvisi": []}
 o2 = crea_exe.Opzioni("P", firma={"pfx": pfx, "password": "x"})
-verifica(non crea_exe.firma_e_riporta(programma, o2, righe.append, Nessuno, risultato) e lunghezza(risultato["avvisi"]) == 1 e "non è firmato" in risultato["avvisi"][0], "una firma fallita diventa un avviso: " + testo(risultato))
+verifica(non crea_exe.firma_e_riporta(programma, o2, righe.append, Nessuno, risultato) e lunghezza_di(risultato["avvisi"]) == 1 e "non è firmato" in risultato["avvisi"][0], "una firma fallita diventa un avviso: " + tipo_testo(risultato))
 crea_exe.trova_signtool = originale
 
 # ----------------------------------------------------------------- impostazioni ricordate
@@ -105,7 +105,7 @@ con zipfile.ZipFile(pacchetto, "w") come z:
 manifesto = os.path.join(base, "setup_manifesto.json")
 json.dump({"nome": "Saluto Prova", "versione": "1.4", "autore": "Anna", "descrizione": "Un saluto", "exe": "Saluto.exe"}, open(manifesto, "w", encoding="utf-8"))
 m = sm.leggi_manifesto(manifesto)
-verifica(m["id"] == "SalutoProva" e m["versione"] == "1.4", "manifesto con id: " + testo(m))
+verifica(m["id"] == "SalutoProva" e m["versione"] == "1.4", "manifesto con id: " + tipo_testo(m))
 sm.RADICE_REGISTRO = r"Software\PitStudioProva\Uninstall"
 desktop = os.path.join(base, "desk")
 menu = os.path.join(base, "menu")
@@ -117,9 +117,9 @@ open(finto_disinstallatore, "w").write("disinstallatore")
 avanzamenti = []
 creati = sm.installa(m, installato, pacchetto, Vero, Vero, lambda i, n: avanzamenti.append((i, n)), finto_disinstallatore)
 verifica(os.path.exists(os.path.join(installato, "Saluto.exe")) e os.path.exists(os.path.join(installato, "dati", "uno.txt")), "file copiati")
-verifica(avanzamenti[-1] == (2, 2), "avanzamento: " + testo(avanzamenti))
+verifica(avanzamenti[-1] == (2, 2), "avanzamento: " + tipo_testo(avanzamenti))
 verifica(os.path.exists(os.path.join(installato, "Disinstalla.exe")), "Disinstalla.exe copiato")
-verifica(os.path.exists(os.path.join(desktop, "Saluto Prova.lnk")) e os.path.exists(os.path.join(menu, "Saluto Prova", "Saluto Prova.lnk")), "collegamenti desktop e menu: " + testo(creati["collegamenti"]))
+verifica(os.path.exists(os.path.join(desktop, "Saluto Prova.lnk")) e os.path.exists(os.path.join(menu, "Saluto Prova", "Saluto Prova.lnk")), "collegamenti desktop e menu: " + tipo_testo(creati["collegamenti"]))
 verifica(os.path.exists(os.path.join(menu, "Saluto Prova", "Disinstalla Saluto Prova.lnk")), "collegamento per disinstallare")
 importa winreg
 con winreg.OpenKey(winreg.HKEY_CURRENT_USER, sm.RADICE_REGISTRO + "\\SalutoProva") come k:
@@ -197,7 +197,7 @@ d.var_firma.set(Vero)
 d.var_pfx.set("c:\\cert.pfx")
 d.var_password.set("pw")
 opz = d.opzioni()
-verifica(opz.versione == "1.0.0" e opz.firma == {"pfx": "c:\\cert.pfx", "password": "pw", "marca": crea_exe.URL_MARCA_TEMPORALE}, "versione predefinita e firma accesa: " + testo(opz.firma))
+verifica(opz.versione == "1.0.0" e opz.firma == {"pfx": "c:\\cert.pfx", "password": "pw", "marca": crea_exe.URL_MARCA_TEMPORALE}, "versione predefinita e firma accesa: " + tipo_testo(opz.firma))
 verifica(d.campo_password.cget("show") == "•", "la password non si legge")
 verifica(d.nota_firma.cget("text").strip() != "", "nota sulla firma")
 verifica(getattr(d.casella_setup, "_suggerimento", Nessuno) è non Nessuno e getattr(d.casella_firma, "_suggerimento", Nessuno) è non Nessuno, "suggerimenti")
@@ -214,7 +214,7 @@ se os.environ.get("RAD_PROVA_EXE") == "1":
     opzioni = crea_exe.Opzioni("PitProvaSetup", un_file=Vero, senza_console=Falso, versione="3.1.4", autore="Gianni & C.", descrizione="Programma di prova", crea_setup=Vero)
     esito = crea_exe.costruisci(sorgente_p, opzioni, righe.append)
     stampa("costruzione:", esito["ok"], esito["errore"], esito["setup"] e os.path.basename(esito["setup"]))
-    verifica(esito["ok"] e os.path.exists(esito["exe"]) e os.path.exists(esito["setup"]), "exe e Setup creati: " + testo(righe[-6:]))
+    verifica(esito["ok"] e os.path.exists(esito["exe"]) e os.path.exists(esito["setup"]), "exe e Setup creati: " + tipo_testo(righe[-6:]))
     se esito["ok"]:
         definisci versione_di(percorso):
             r = subprocess.run(["powershell", "-NoProfile", "-Command", "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $v=(Get-Item '%s').VersionInfo; $v.CompanyName+'|'+$v.FileVersion+'|'+$v.ProductName+'|'+$v.FileDescription+'|'+$v.LegalCopyright" % percorso],

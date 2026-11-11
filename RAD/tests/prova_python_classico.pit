@@ -17,7 +17,7 @@ radice.update()
 ed.evidenzia()
 per tag in ("parola_chiave", "builtin", "costante", "definizione"):
     r = ed.t.tag_ranges(tag)
-    stampa(tag, [testo(ed.t.get(r[i], r[i + 1])) per i in intervallo(0, lunghezza(r), 2)])
+    stampa(tag, [tipo_testo(ed.t.get(r[i], r[i + 1])) per i in intervallo_di(0, lunghezza_di(r), 2)])
 stampa("sintassi py ok:", esecuzione.controlla_sintassi("if True:\n    print(1)\n", "a.py"))
 stampa("sintassi py errore:", esecuzione.controlla_sintassi("se x:\n    pass\n", "a.py"))
 stampa("sintassi pit ok:", esecuzione.controlla_sintassi("se Vero:\n    stampa(1)\n", "a.pit"))

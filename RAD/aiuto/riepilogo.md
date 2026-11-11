@@ -7,13 +7,13 @@ Tutto ciò che serve in una pagina. Per i dettagli: [il linguaggio](#linguaggio)
 | Per fare questo | Si scrive |
 |---|---|
 | stampare | `stampa("ciao", x)` |
-| chiedere (sempre testo) | `nome = leggi("Nome? ")` |
+| chiedere (sempre testo) | `nome = leggi_tastiera("Nome? ")` |
 | commento | `# testo` |
 | variabile | `eta = 12` · `eta += 1` |
 | f-testo | `f"{nome} ha {eta} anni"` |
 | scelta | `se c:` · `altrimenti_se c2:` · `altrimenti:` |
 | ciclo su elementi | `per x in lista:` |
-| ciclo con contatore | `per i in intervallo(1, 11):` |
+| ciclo con contatore | `per i in intervallo_di(1, 11):` |
 | ciclo con condizione | `mentre c:` |
 | uscire / saltare | `interrompi` · `continua` |
 | non fare nulla | `passa` |
@@ -46,17 +46,17 @@ Tutto ciò che serve in una pagina. Per i dettagli: [il linguaggio](#linguaggio)
 
 | | |
 |---|---|
-| `lunghezza(x)` | quanti elementi |
-| `intero(x)` `decimale(x)` `testo(x)` | converte |
-| `lista(x)` `insieme(x)` `dizionario(x)` | crea |
-| `intervallo(n)` | 0 … n−1 |
-| `somma(x)` `massimo(x)` `minimo(x)` | totali |
-| `ordinato(x)` | copia ordinata (`inverso=Vero`, `chiave=…`) |
+| `lunghezza_di(x)` | quanti elementi |
+| `tipo_intero(x)` `tipo_decimale(x)` `tipo_testo(x)` | converte |
+| `tipo_lista(x)` `tipo_insieme(x)` `tipo_dizionario(x)` | crea |
+| `intervallo_di(n)` | 0 … n−1 |
+| `somma_di(x)` `massimo_di(x)` `minimo_di(x)` | totali |
+| `ordinato_di(x)` | copia ordinata (`inverso=Vero`, `chiave=…`) |
 | `enumera(x, inizio=1)` | posizione + elemento |
 | `abbina(a, b)` | coppie |
-| `arrotonda(x, 2)` `assoluto(x)` | numeri |
-| `tipo(x)` · `è_istanza(x, T)` | tipo di un valore |
-| `tutti(x)` · `qualsiasi(x)` | tutti veri / almeno uno vero |
+| `arrotonda(x, 2)` `valore_assoluto(x)` | numeri |
+| `tipo_di(x)` · `è_istanza(x, T)` | tipo di un valore |
+| `tutti_veri(x)` · `almeno_uno_vero(x)` | tutti veri / almeno uno vero |
 | `apri(nome, modalita)` | apre un file (`"r"` `"w"` `"a"`) |
 
 ## Metodi
@@ -89,7 +89,7 @@ Tutto ciò che serve in una pagina. Per i dettagli: [il linguaggio](#linguaggio)
 
 ```pit
 definisci media(voti):
-    ritorna somma(voti) / lunghezza(voti)
+    ritorna somma_di(voti) / lunghezza_di(voti)
 
 voti = [7, 8, 6]
 per i, v in enumera(voti, 1):

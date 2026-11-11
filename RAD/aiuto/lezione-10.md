@@ -65,7 +65,7 @@ La modalità `"a"` (*append*) aggiunge senza cancellare:
 con apri("registro.txt", "a", codifica="utf-8") come f:
     f.scrivi("nuova voce\n")
 con apri("registro.txt", codifica="utf-8") come f:
-    stampa(lunghezza(f.leggi_righe()) >= 1)
+    stampa(lunghezza_di(f.leggi_righe()) >= 1)
 ```
 
 ```output
@@ -117,13 +117,13 @@ Provare i file `.json` nel pannello Progetto: PitStudio li mostra come albero.
 
 ```pit
 con apri("lista.txt", "w", codifica="utf-8") come f:
-    per n in intervallo(1, 6):
+    per n in intervallo_di(1, 6):
         f.scrivi(f"{n}\n")
 
 totale = 0
 con apri("lista.txt", codifica="utf-8") come f:
     per riga in f:
-        totale += intero(riga)
+        totale += tipo_intero(riga)
 stampa("Somma:", totale)
 ```
 

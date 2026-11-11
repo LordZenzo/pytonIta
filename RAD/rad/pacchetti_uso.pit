@@ -44,10 +44,10 @@ definisci pip(interprete, argomenti, tempo=300, cartella=Nessuno):
     ambiente = dict(os.environ, PYTHONIOENCODING="utf-8", PIP_DISABLE_PIP_VERSION_CHECK="1", PIP_NO_INPUT="1")
     ambiente.pop("PITONIT_PERCORSI", Nessuno)
     prova:
-        r = subprocess.run([interprete_pip(interprete), "-m", "pip"] + lista(argomenti), capture_output=Vero, timeout=tempo, env=ambiente,
+        r = subprocess.run([interprete_pip(interprete), "-m", "pip"] + tipo_lista(argomenti), capture_output=Vero, timeout=tempo, env=ambiente,
                            cwd=cartella, creationflags=_NASCONDI)
     eccetto OSError come errore:
-        ritorna -1, "", testo(errore)
+        ritorna -1, "", tipo_testo(errore)
     eccetto subprocess.TimeoutExpired:
         ritorna -1, "", f"pip non ha finito entro {tempo} secondi (connessione assente o lenta?)."
     ritorna r.returncode, r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
@@ -137,10 +137,10 @@ definisci disinstalla(interprete, nome, bersaglio=Nessuno):
                 os.remove(percorso)
                 cartelle.add(os.path.dirname(percorso))
     eccetto OSError come errore:
-        solleva ErrorePacchetti(testo(errore))
+        solleva ErrorePacchetti(tipo_testo(errore))
     shutil.rmtree(voce, ignore_errors=Vero)
     # toglie le cartelle rimaste vuote (dal basso)
-    per c in sorted(cartelle, key=lunghezza, reverse=Vero):
+    per c in sorted(cartelle, key=lunghezza_di, reverse=Vero):
         corrente = c
         mentre corrente.startswith(os.path.normpath(bersaglio) + os.sep):
             prova:
@@ -156,7 +156,7 @@ definisci scrivi_requisiti(interprete, percorso, bersaglio=Nessuno):
     con open(percorso, "w", encoding="utf-8", newline="\n") come f:
         per x in elenco:
             f.write(f"{x['nome']}=={x['versione']}\n")
-    ritorna lunghezza(elenco)
+    ritorna lunghezza_di(elenco)
 
 
 definisci imposta_percorsi_progetto(progetto_cartella):

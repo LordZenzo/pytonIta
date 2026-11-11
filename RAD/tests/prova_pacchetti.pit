@@ -58,4 +58,4 @@ eccetto pk.ErrorePacchetti come errore:
 prova:
     pk.installa(interprete, "pacchetto_inesistente_zzz_9", bersaglio)
 eccetto pk.ErrorePacchetti come errore:
-    stampa("errore di pip riportato:", lunghezza(testo(errore)) > 0)
+    stampa("errore di pip riportato:", lunghezza_di(tipo_testo(errore)) > 0)

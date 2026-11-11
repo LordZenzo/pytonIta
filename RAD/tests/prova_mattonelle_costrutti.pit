@@ -14,7 +14,7 @@ importa tempfile
 
 
 definisci generatore(n):
-    per i in intervallo(n):
+    per i in intervallo_di(n):
         produci i
     produci da [100, 200]
 
@@ -44,7 +44,7 @@ definisci principale():
             solleva
     eccetto KeyError come errore:
         stampa("rilanciato", errore)
-    stampa(lista(generatore(3)))
+    stampa(tipo_lista(generatore(3)))
     stampa(somma_tutto(1, 2, *[3, 4], a=5, **{"b": 6}))
     d = {"x": 1, "y": 2, **{"z": 3}}
     stampa(d, {k: v * 2 per k, v in d.items() se v > 1}, {1, 2, 3}, (1,), ())
@@ -130,13 +130,13 @@ radice.update()
 dis = ed.viste["principale"].disegnatore
 t = Mattonella("tupla", prog)
 dis.misura(t)
-vuote = lunghezza([v per v in dis.lay[t.id].misure se v[0] == "vuoto"])
+vuote = lunghezza_di([v per v in dis.lay[t.id].misure se v[0] == "vuoto"])
 t.letterali["a"] = "1"; t.letterali["b"] = "2"
 dis.misura(t)
-due = lunghezza([v per v in dis.lay[t.id].misure se v[0] == "vuoto"])
+due = lunghezza_di([v per v in dis.lay[t.id].misure se v[0] == "vuoto"])
 stampa("ingressi facoltativi visibili: vuota", vuote, "| con due pieni", due)
 dis2 = dis
 c = Mattonella("chiama", prog)
 dis.misura(c)
-stampa("chiama vuota: un solo ingresso:", lunghezza([v per v in dis.lay[c.id].misure se v[0] == "vuoto"]) == 1)
+stampa("chiama vuota: un solo ingresso:", lunghezza_di([v per v in dis.lay[c.id].misure se v[0] == "vuoto"]) == 1)
 radice.destroy()

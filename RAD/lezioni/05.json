@@ -2,29 +2,29 @@
  "domande": [
   {
    "tipo": "stampa",
-   "codice": "per i in intervallo(3):\n    stampa(i)",
+   "codice": "per i in intervallo_di(3):\n    stampa(i)",
    "giusta": "0\n1\n2",
    "sbagliate": [
     {
      "testo": "1\n2\n3",
-     "indizio": "intervallo(3) parte da 0."
+     "indizio": "intervallo_di(3) parte da 0."
     },
     "0\n1\n2\n3",
     "3"
    ],
-   "spiegazione": "intervallo(3) produce 0, 1, 2: parte da 0 e si ferma prima di 3.",
+   "spiegazione": "intervallo_di(3) produce 0, 1, 2: parte da 0 e si ferma prima di 3.",
    "sezione": "per e intervallo"
   },
   {
    "tipo": "stampa",
-   "codice": "per i in intervallo(1, 4):\n    stampa(i)",
+   "codice": "per i in intervallo_di(1, 4):\n    stampa(i)",
    "giusta": "1\n2\n3",
    "sbagliate": [
     "1\n2\n3\n4",
     "0\n1\n2\n3",
     "1\n2"
    ],
-   "spiegazione": "intervallo(1, 4) va da 1 fino a 3: l'ultimo numero è escluso.",
+   "spiegazione": "intervallo_di(1, 4) va da 1 fino a 3: l'ultimo numero è escluso.",
    "sezione": "per e intervallo"
   },
   {
@@ -56,7 +56,7 @@
   },
   {
    "tipo": "stampa",
-   "codice": "per i in intervallo(5):\n    se i == 2:\n        continua\n    se i == 4:\n        interrompi\n    stampa(i)",
+   "codice": "per i in intervallo_di(5):\n    se i == 2:\n        continua\n    se i == 4:\n        interrompi\n    stampa(i)",
    "giusta": "0\n1\n3",
    "sbagliate": [
     "0\n1\n2\n3",

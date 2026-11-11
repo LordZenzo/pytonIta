@@ -20,7 +20,7 @@ p.crea_file("principale.pit", '''definisci somma(a, b):
 
 
 totale = 0
-per i in intervallo(3):
+per i in intervallo_di(3):
     totale = somma(totale, i)
     stampa("giro", i, totale)
 stampa("fine", totale)
@@ -56,7 +56,7 @@ app.debug.comando("entra")
 stampa("dentro la funzione:", aspetta_che(lambda: app.debug.fermo), ed.riga_debug, "| pila:", pan.pila.size())
 app.debug.comando("entra")
 aspetta_che(lambda: app.debug.fermo)
-stampa("variabili in somma:", [" = ".join(pan.variabili.item(i, "values")[:2]) per i in pan.variabili.get_children()], "| pila:", [pan.pila.get(i) per i in intervallo(pan.pila.size())])
+stampa("variabili in somma:", [" = ".join(pan.variabili.item(i, "values")[:2]) per i in pan.variabili.get_children()], "| pila:", [pan.pila.get(i) per i in intervallo_di(pan.pila.size())])
 radice.update(); time.sleep(0.3); radice.update()
 x, y = radice.winfo_rootx(), radice.winfo_rooty()
 ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height())).save(os.path.join(tempfile.gettempdir(), "debug_prova.png"))
@@ -72,7 +72,7 @@ radice.update()
 testo_ = app.console.t.get("1.0", "end")
 stampa("console contiene output:", "giro 2 3" in testo_, "fine 3" in testo_, "terminato" in testo_)
 stampa("senza residui di protocollo:", chr(1) non in testo_ e "DBG" non in testo_)
-stampa("pannello nascosto:", str(pan) non in [testo(x) per x in app.centro.panes()], "| marcatore tolto:", ed.riga_debug è Nessuno)
+stampa("pannello nascosto:", str(pan) non in [tipo_testo(x) per x in app.centro.panes()], "| marcatore tolto:", ed.riga_debug è Nessuno)
 app.salva_sessione()
 app.punti_arresto = {}
 app.ripristina_sessione()

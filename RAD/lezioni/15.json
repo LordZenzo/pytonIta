@@ -41,7 +41,7 @@
    "giusta": "casella.get()",
    "sbagliate": [
     "casella.testo",
-    "leggi(casella)",
+    "leggi_tastiera(casella)",
     "casella.valore()"
    ],
    "spiegazione": ".get() ritorna il testo scritto nella casella (sempre un testo).",

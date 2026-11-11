@@ -17,7 +17,7 @@ Progetto.nuovo(cart, "ProvaLibrerie", "console")
 app.apri_progetto(cart)
 radice.update()
 pl = app.pannello_librerie
-stampa("librerie nell'elenco:", lunghezza(pl.tutte))
+stampa("librerie nell'elenco:", lunghezza_di(pl.tutte))
 app.mostra_pannello_sinistro("librerie")
 radice.update()
 pl.attiva("matematica")

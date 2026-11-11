@@ -4,7 +4,7 @@
   "argomento": "Stringhe",
   "livello": "Intermedio",
   "consegna": "Leggi una frase e stampa quante vocali (a, e, i, o, u, maiuscole o minuscole) contiene.\n\nEsempio: `Ciao Mondo` → 5",
-  "iniziale": "frase = leggi(\"\")\nvocali = \"aeiou\"\n",
+  "iniziale": "frase = leggi_tastiera(\"\")\nvocali = \"aeiou\"\n",
   "prove": [
     {
       "ingresso": "Ciao Mondo\n",
@@ -27,7 +27,7 @@
     "Per ogni lettera: `per lettera in frase.lower():`",
     "`se lettera in vocali:` controlla se è una vocale, e conta con un contatore."
   ],
-  "soluzione": "frase = leggi(\"\")\nvocali = \"aeiou\"\nconto = 0\nper lettera in frase.lower():\n    se lettera in vocali:\n        conto += 1\nstampa(conto)\n",
+  "soluzione": "frase = leggi_tastiera(\"\")\nvocali = \"aeiou\"\nconto = 0\nper lettera in frase.lower():\n    se lettera in vocali:\n        conto += 1\nstampa(conto)\n",
   "confronto": "esatto",
   "ordine": 9
 }

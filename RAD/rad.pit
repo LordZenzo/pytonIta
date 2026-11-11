@@ -43,8 +43,8 @@ definisci autotest(percorso_rapporto):
     con open(programma, "w", encoding="utf-8") come f:
         f.write("importa matematica\nstampa('risultato', 6 * 7, matematica.radice_quadrata(49))\n")
     r = subprocess.run([interprete, "-u", programma], capture_output=Vero, text=Vero, encoding="utf-8")
-    righe.append("esecuzione: codice " + testo(r.returncode) + " -> " + r.stdout.strip() + " " + r.stderr.strip())
-    righe.append("librerie spuntabili: " + testo(lunghezza(app.pannello_librerie.tutte)))
+    righe.append("esecuzione: codice " + tipo_testo(r.returncode) + " -> " + r.stdout.strip() + " " + r.stderr.strip())
+    righe.append("librerie spuntabili: " + tipo_testo(lunghezza_di(app.pannello_librerie.tutte)))
     # l'esportazione in Python (e quindi «Crea l'eseguibile») gira nell'interprete incorporato, dove os.__file__ non esiste
     prova:
         da rad importa esporta_python
@@ -53,11 +53,11 @@ definisci autotest(percorso_rapporto):
         con open(os.path.join(progetto_prova, "progetto.rad.json"), "w", encoding="utf-8") come f:
             f.write('{"nome": "ProgettoProva", "principale": "principale.pit"}')
         con open(os.path.join(progetto_prova, "principale.pit"), "w", encoding="utf-8") come f:
-            f.write('stampa("ciao", lunghezza("abc"))' + chr(10))
+            f.write('stampa("ciao", lunghezza_di("abc"))' + chr(10))
         esito = esporta_python.esporta(progetto_prova, os.path.join(d, "sorgente_python"))
-        righe.append("esportazione in Python: " + ("ok" se esito["file_python"] == 1 e non esito["errori"] altrimenti "ERRORE " + testo(esito["errori"])))
+        righe.append("esportazione in Python: " + ("ok" se esito["file_python"] == 1 e non esito["errori"] altrimenti "ERRORE " + tipo_testo(esito["errori"])))
     eccetto Exception come errore:
-        righe.append("esportazione in Python: ERRORE " + tipo(errore).__name__ + ": " + testo(errore))
+        righe.append("esportazione in Python: ERRORE " + tipo_di(errore).__name__ + ": " + tipo_testo(errore))
     # con RAD_PROVA_EXE=1 si prova anche la costruzione vera dell'eseguibile e del Setup dall'interprete incorporato (lenta, serve internet la prima volta)
     se os.environ.get("RAD_PROVA_EXE") == "1":
         prova:
@@ -66,7 +66,7 @@ definisci autotest(percorso_rapporto):
             esito = crea_exe.costruisci(progetto_prova, crea_exe.Opzioni("ProgettoProva", un_file=Vero, senza_console=Falso, versione="1.2.3", autore="Prova", crea_setup=Vero), registro.append)
             righe.append("costruzione dell'exe: " + ("ok" se esito["ok"] e os.path.exists(esito["setup"]) altrimenti "ERRORE " + esito["errore"]))
         eccetto Exception come errore:
-            righe.append("costruzione dell'exe: ERRORE " + tipo(errore).__name__ + ": " + testo(errore))
+            righe.append("costruzione dell'exe: ERRORE " + tipo_di(errore).__name__ + ": " + tipo_testo(errore))
     con open(percorso_rapporto, "w", encoding="utf-8") come f:
         f.write("\n".join(righe) + "\n")
     radice.destroy()
@@ -75,7 +75,7 @@ definisci autotest(percorso_rapporto):
 definisci principale(argomenti):
     se "--autotest" in argomenti:
         i = argomenti.index("--autotest")
-        autotest(argomenti[i + 1] se lunghezza(argomenti) > i + 1 altrimenti "autotest.txt")
+        autotest(argomenti[i + 1] se lunghezza_di(argomenti) > i + 1 altrimenti "autotest.txt")
         ritorna
     prova:
         importa ctypes
@@ -84,7 +84,7 @@ definisci principale(argomenti):
         passa
     radice = tk.Tk()
     radice.report_callback_exception = registra_errore
-    con_cartella = lunghezza(argomenti) > 1 e os.path.isdir(argomenti[1])
+    con_cartella = lunghezza_di(argomenti) > 1 e os.path.isdir(argomenti[1])
     app = Applicazione(radice, Configurazione(), chiedi_avvio=non con_cartella)       # con una cartella sulla riga di comando si apre quella
     se con_cartella:
         app.apri_progetto(argomenti[1])

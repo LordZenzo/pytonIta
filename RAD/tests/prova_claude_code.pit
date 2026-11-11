@@ -26,14 +26,14 @@ toccati = claude_code.prepara_progetto(d, cfg, "Prova")
 stampa("file toccati:", [os.path.basename(p) per p in toccati])
 dati = json.load(open(os.path.join(d, ".claude", "settings.local.json"), encoding="utf-8"))
 stampa("impostazioni dell'utente conservate:", dati["permissions"] == {"allow": ["Bash(ls)"]}, "| hook dell'utente conservato:", any(h.get("command") == "echo mio" per g in dati["hooks"]["Stop"] per h in g["hooks"]))
-stampa("hook nostri:", {elemento: lunghezza(g) per elemento, g in dati["hooks"].items()}, "| matcher:", [g.get("matcher") per g in dati["hooks"]["PostToolUse"]])
+stampa("hook nostri:", {elemento: lunghezza_di(g) per elemento, g in dati["hooks"].items()}, "| matcher:", [g.get("matcher") per g in dati["hooks"]["PostToolUse"]])
 stampa("preparato dopo:", claude_code.preparato(d))
 prima = open(os.path.join(d, "CLAUDE.md"), encoding="utf-8").read()
 claude_code.prepara_progetto(d, cfg, "Prova")
 dopo = open(os.path.join(d, "CLAUDE.md"), encoding="utf-8").read()
 stampa("CLAUDE.md: note dell'utente intatte:", "Non toccare questa riga." in dopo, "| blocco una volta sola:", dopo.count(claude_code.MARCATORE_INIZIO) == 1, "| idempotente:", prima == dopo)
 dati2 = json.load(open(os.path.join(d, ".claude", "settings.local.json"), encoding="utf-8"))
-stampa("hook senza doppioni dopo la seconda preparazione:", {elemento: lunghezza(g) per elemento, g in dati2["hooks"].items()})
+stampa("hook senza doppioni dopo la seconda preparazione:", {elemento: lunghezza_di(g) per elemento, g in dati2["hooks"].items()})
 stampa(".gitignore:", "settings.local.json" in open(os.path.join(d, ".gitignore"), encoding="utf-8").read())
 stampa("istruzioni con il percorso di pitonit:", claude_code.percorso_pitonit(cfg) in dopo, "| nessun segnaposto rimasto:", "{{pitonit}}" non in dopo)
 rotto = os.path.join(cartella_temp, "Rotto")
@@ -43,7 +43,7 @@ prova:
     claude_code.prepara_progetto(rotto, cfg)
     stampa("JSON rotto: nessun errore (sbagliato)")
 eccetto ErroreDiValore come errore:
-    stampa("JSON rotto -> errore chiaro:", "non è un JSON valido" in testo(errore))
+    stampa("JSON rotto -> errore chiaro:", "non è un JSON valido" in tipo_testo(errore))
 stampa("claude.exe trovato su questo computer:", claude_code.trova_claude(cfg) è non Nessuno)
 
 # ================================================================= gli hook, come li esegue Claude Code
@@ -74,7 +74,7 @@ stampa("registro:", [(x["tipo"], x.get("esito")) per x in righe], "| motore:", {
 hook({**base, "hook_event_name": "UserPromptSubmit", "prompt": "prima"})
 open(os.path.join(p, "extra.pit"), "w", encoding="utf-8").write("stampa(3)\n")
 hook({**base, "hook_event_name": "UserPromptSubmit", "prompt": "seconda"})
-stampa("richiesta interrotta chiusa alla successiva:", lunghezza(os.listdir(os.path.join(p, ".rad", "storia", "gruppi"))) == 2)
+stampa("richiesta interrotta chiusa alla successiva:", lunghezza_di(os.listdir(os.path.join(p, ".rad", "storia", "gruppi"))) == 2)
 
 # ================================================================= dentro PitStudio
 cfg.imposta("claude_code.percorso", "", notifica=Falso)
@@ -99,7 +99,7 @@ app.apri_claude_code()
 stampa("prima volta: chiede e prepara:", risposte, claude_code.preparato(cart), "| avviato in:", os.path.basename(avviati[0][0]) se avviati altrimenti Nessuno)
 risposte.clear()
 app.apri_claude_code()
-stampa("seconda volta: non richiede:", risposte == [], "| avviato di nuovo:", lunghezza(avviati) == 2)
+stampa("seconda volta: non richiede:", risposte == [], "| avviato di nuovo:", lunghezza_di(avviati) == 2)
 # file cambiato da Claude Code: l'editor lo ricarica
 f = os.path.join(cart, "principale.pit")
 ed = app.apri_file(f)

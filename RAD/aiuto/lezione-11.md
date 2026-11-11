@@ -36,7 +36,7 @@ Come si legge, **dal basso verso l'alto**:
 | `ErroreDiIndentazione` | il rientro è sbagliato |
 | `ErroreDiNome` | hai usato un nome che non esiste (errore di battitura, variabile non creata) |
 | `ErroreDiTipo` | hai combinato tipi incompatibili (testo + numero) |
-| `ErroreDiValore` | il tipo è giusto ma il valore no (`intero("abc")`) |
+| `ErroreDiValore` | il tipo è giusto ma il valore no (`tipo_intero("abc")`) |
 | `ErroreDiIndice` | hai chiesto un elemento oltre la fine di una lista |
 | `ErroreDiChiave` | la chiave non c'è nel dizionario |
 | `DivisionePerZero` | hai diviso per zero |
@@ -51,7 +51,7 @@ A volte l'errore è prevedibile (l'utente scrive «ciao» dove serve un numero).
 ```pit
 testo_numero = "abc"
 prova:
-    n = intero(testo_numero)
+    n = tipo_intero(testo_numero)
     stampa("Hai scritto", n)
 eccetto ErroreDiValore:
     stampa("Non è un numero valido")
@@ -112,7 +112,7 @@ pulizia finale
 ```pit
 mentre Vero:
     prova:
-        eta = intero(leggi("Quanti anni hai? "))
+        eta = tipo_intero(leggi_tastiera("Quanti anni hai? "))
         interrompi
     eccetto ErroreDiValore:
         stampa("Scrivi un numero intero, per favore.")
@@ -163,7 +163,7 @@ Evita `eccetto:` vuoto o `eccetto Eccezione:` per tutto: nasconderebbe anche i t
 ```pit
 definisci numero_sicuro(t):
     prova:
-        ritorna intero(t)
+        ritorna tipo_intero(t)
     eccetto ErroreDiValore:
         ritorna Nessuno
 
@@ -177,7 +177,7 @@ stampa(numero_sicuro("42"), numero_sicuro("zzz"))
 ```pit
 lettere = ["a", "b", "c"]
 prova:
-    i = intero(leggi("Indice (0-2): "))
+    i = tipo_intero(leggi_tastiera("Indice (0-2): "))
     stampa(lettere[i])
 eccetto ErroreDiValore:
     stampa("Non è un numero")

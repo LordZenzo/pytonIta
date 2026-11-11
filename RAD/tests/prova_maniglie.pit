@@ -28,7 +28,7 @@ radice.update()
 p.seleziona(["pulsante1"])
 radice.update()
 comp = f.trova("pulsante1")
-stampa("partenza:", comp.x, comp.y, comp.larghezza, comp.altezza, "| maniglie:", lunghezza(p.maniglie))
+stampa("partenza:", comp.x, comp.y, comp.larghezza, comp.altezza, "| maniglie:", lunghezza_di(p.maniglie))
 
 
 definisci trascina(chiave, passi):
@@ -61,7 +61,7 @@ stampa("nord-ovest sposta l'angolo e allarga:", comp.x < x0_ e comp.y < y0_ e co
 w1 = comp.larghezza
 viva = trascina("e", [(-10, 0)] * 2)
 stampa("maniglia est (restringe):", viva, comp.larghezza == w1 - 20)
-stampa("le maniglie sono tutte al loro posto:", lunghezza(p.maniglie) == 9)
+stampa("le maniglie sono tutte al loro posto:", lunghezza_di(p.maniglie) == 9)
 m = p._pomelli["se"]
 w = p.widget["pulsante1"]
 stampa("maniglia sud-est sull'angolo del componente:",

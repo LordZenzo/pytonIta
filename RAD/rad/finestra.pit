@@ -187,7 +187,7 @@ classe Applicazione:
     # ================================================================== barra degli strumenti personalizzabile
     definisci _proponi_nuovi_pulsanti(se_stesso, salvati):
         """Una barra personalizzata prima di un nuovo pulsante non lo conterrebbe mai: lo si aggiunge una volta sola (poi si può togliere)."""
-        proposti = lista(se_stesso.config_.ottieni("finestra.barra_proposti", []) o [])
+        proposti = tipo_lista(se_stesso.config_.ottieni("finestra.barra_proposti", []) o [])
         cambiato = Falso
         per nuovo, prima_di in barra_mod.NUOVI_PULSANTI.items():
             se nuovo in proposti:
@@ -195,7 +195,7 @@ classe Applicazione:
             proposti.append(nuovo)
             cambiato = Vero
             se nuovo non in salvati e prima_di in salvati e nuovo in se_stesso.comandi_menu:
-                salvati = lista(salvati)
+                salvati = tipo_lista(salvati)
                 salvati.insert(salvati.index(prima_di), nuovo)
                 se_stesso.config_.imposta("finestra.barra", salvati, notifica=Falso)
         se cambiato:
@@ -206,7 +206,7 @@ classe Applicazione:
     definisci elementi_barra(se_stesso):
         """Gli elementi scelti dall'utente (id dei comandi, separatori, spazio), o quelli predefiniti."""
         salvati = se_stesso.config_.ottieni("finestra.barra", Nessuno)
-        se isinstance(salvati, lista) e salvati:
+        se isinstance(salvati, tipo_lista) e salvati:
             salvati = se_stesso._proponi_nuovi_pulsanti(salvati)
             ritorna [x per x in salvati se x in (barra_mod.SEPARATORE, barra_mod.SPAZIO) o x in se_stesso.comandi_menu]
         ritorna [x per x in barra_mod.PREDEFINITA se x in (barra_mod.SEPARATORE, barra_mod.SPAZIO) o x in se_stesso.comandi_menu]
@@ -249,10 +249,10 @@ classe Applicazione:
         se_stesso._colora_pulsanti_stato()
 
     definisci _chat_visibile(se_stesso):
-        ritorna hasattr(se_stesso, "chat") e testo(se_stesso.chat) in [testo(x) per x in se_stesso.corpo.panes()]
+        ritorna hasattr(se_stesso, "chat") e tipo_testo(se_stesso.chat) in [tipo_testo(x) per x in se_stesso.corpo.panes()]
 
     definisci _console_visibile(se_stesso):
-        ritorna hasattr(se_stesso, "console") e testo(se_stesso.console) in [testo(x) per x in se_stesso.centro.panes()]
+        ritorna hasattr(se_stesso, "console") e tipo_testo(se_stesso.console) in [tipo_testo(x) per x in se_stesso.centro.panes()]
 
     definisci _colora_pulsanti_stato(se_stesso):
         """I pulsanti della barra che mostrano/nascondono un pannello (assistente e console) sono verdi quando il pannello è aperto,
@@ -274,7 +274,7 @@ classe Applicazione:
             se_stesso.imposta_barra(scelta)
 
     definisci imposta_barra(se_stesso, elementi):
-        se_stesso.config_.imposta("finestra.barra", lista(elementi))
+        se_stesso.config_.imposta("finestra.barra", tipo_lista(elementi))
         se_stesso.config_.salva()
 
     definisci _menu_barra(se_stesso, evento, id_=Nessuno):
@@ -510,7 +510,7 @@ classe Applicazione:
                            activeforeground="#ffffff", borderwidth=0)
         eccetto tk.TclError:
             ritorna
-        per i in intervallo(menu.index("end") + 1 se menu.index("end") è non Nessuno altrimenti 0):
+        per i in intervallo_di(menu.index("end") + 1 se menu.index("end") è non Nessuno altrimenti 0):
             prova:
                 sotto = menu.nametowidget(menu.entrycget(i, "menu"))
                 se_stesso._menu_colori(sotto, c)
@@ -607,19 +607,19 @@ classe Applicazione:
 
     definisci _commuta(se_stesso, cosa):
         se cosa == "console":
-            se testo(se_stesso.console) in [testo(x) per x in se_stesso.centro.panes()]:
+            se tipo_testo(se_stesso.console) in [tipo_testo(x) per x in se_stesso.centro.panes()]:
                 se_stesso.centro.forget(se_stesso.console)
             altrimenti:
                 se_stesso.centro.add(se_stesso.console, minsize=90, height=se_stesso.config_.ottieni("finestra.console_altezza", 190))
             se_stesso._colora_pulsanti_stato()
         altrimenti_se cosa == "progetti":
-            se testo(se_stesso.sinistra) in [testo(x) per x in se_stesso.corpo.panes()]:
+            se tipo_testo(se_stesso.sinistra) in [tipo_testo(x) per x in se_stesso.corpo.panes()]:
                 se_stesso.corpo.forget(se_stesso.sinistra)
             altrimenti:
                 se_stesso.corpo.add(se_stesso.sinistra, minsize=160, width=270, before=se_stesso.centro)
 
     definisci mostra_chat(se_stesso):
-        visibile = testo(se_stesso.chat) in [testo(x) per x in se_stesso.corpo.panes()]
+        visibile = tipo_testo(se_stesso.chat) in [tipo_testo(x) per x in se_stesso.corpo.panes()]
         se visibile:
             se_stesso.corpo.forget(se_stesso.chat)
         altrimenti:
@@ -670,7 +670,7 @@ classe Applicazione:
     definisci chiedi_al_professore(se_stesso, lezione):
         """Apre la chat in modalità professore sulla lezione (dict con numero e titolo)."""
         da rad importa quiz
-        se testo(se_stesso.chat) non in [testo(x) per x in se_stesso.corpo.panes()]:
+        se tipo_testo(se_stesso.chat) non in [tipo_testo(x) per x in se_stesso.corpo.panes()]:
             se_stesso.mostra_chat()
         ok = se_stesso.chat.avvia_professore({"numero": lezione["numero"], "titolo": lezione["titolo"], "testo": quiz.testo_lezione(lezione["numero"])})
         se_stesso.chat.ingresso.focus_set()
@@ -690,7 +690,7 @@ classe Applicazione:
         prova:
             Progetto.nuovo(cartella, nome, modello)
         eccetto OSError come errore:
-            messagebox.showerror("Errore", testo(errore), parent=se_stesso.radice)
+            messagebox.showerror("Errore", tipo_testo(errore), parent=se_stesso.radice)
             ritorna
         se_stesso.apri_progetto(cartella)
 
@@ -764,9 +764,9 @@ classe Applicazione:
             con open(f, "w", encoding="utf-8") come fl:
                 json.dump({"aperti": aperti, "attivo": se_stesso.progetto.relativo(attivo) se attivo e se_stesso.progetto.contiene(attivo) altrimenti "",
                            "punti_arresto": {se_stesso.progetto.relativo(p): sorted(r) per p, r in se_stesso.punti_arresto.items() se se_stesso.progetto.contiene(p) e r},
-                           "punti_dettagli": {se_stesso.progetto.relativo(p): {testo(r): d per r, d in dd.items() se r in se_stesso.punti_arresto.get(p, ())}
+                           "punti_dettagli": {se_stesso.progetto.relativo(p): {tipo_testo(r): d per r, d in dd.items() se r in se_stesso.punti_arresto.get(p, ())}
                                               per p, dd in se_stesso.dettagli_punti.items() se se_stesso.progetto.contiene(p) e dd},
-                           "osservate": lista(se_stesso.debug.osservate)}, fl)
+                           "osservate": tipo_lista(se_stesso.debug.osservate)}, fl)
         eccetto OSError:
             passa
 
@@ -940,7 +940,7 @@ classe Applicazione:
 
     definisci chiudi_tutte_le_schede(se_stesso):
         se_stesso.salva_sessione()
-        per w in lista(se_stesso.schede.values()):
+        per w in tipo_lista(se_stesso.schede.values()):
             se non se_stesso.chiudi_scheda(w):
                 ritorna Falso
         ritorna Vero
@@ -960,7 +960,7 @@ classe Applicazione:
             ritorna
         m = tk.Menu(se_stesso.radice, tearoff=0)
         m.add_command(label="Chiudi", command=lambda: se_stesso.chiudi_scheda(w))
-        m.add_command(label="Chiudi le altre", command=lambda: [se_stesso.chiudi_scheda(x) per x in lista(se_stesso.schede.values()) se x è non w])
+        m.add_command(label="Chiudi le altre", command=lambda: [se_stesso.chiudi_scheda(x) per x in tipo_lista(se_stesso.schede.values()) se x è non w])
         p = se_stesso._percorso_di(w)
         se p:
             m.add_command(label="Copia percorso", command=lambda: (se_stesso.radice.clipboard_clear(), se_stesso.radice.clipboard_append(p)))
@@ -988,7 +988,7 @@ classe Applicazione:
         prova:
             w.salva()
         eccetto OSError come errore:
-            messagebox.showerror("Errore", testo(errore), parent=se_stesso.radice)
+            messagebox.showerror("Errore", tipo_testo(errore), parent=se_stesso.radice)
             ritorna
         se_stesso.info(f"Salvato {os.path.basename(se_stesso._percorso_di(w) o '')}")
         se isinstance(w, Editor):
@@ -1015,7 +1015,7 @@ classe Applicazione:
     definisci salva_copie_di_sicurezza(se_stesso):
         """Copia i file con modifiche non salvate in ~/.rad/recupero e toglie le copie dei file ormai salvati. Ritorna quante copie ha scritto."""
         scritte = 0
-        per p, w in lista(se_stesso.schede.items()):
+        per p, w in tipo_lista(se_stesso.schede.items()):
             se getattr(w, "modificato", Falso) e hasattr(w, "contenuto"):
                 prova:
                     se se_stesso.recupero.copia(p, w.contenuto()):
@@ -1031,7 +1031,7 @@ classe Applicazione:
         voci = se_stesso.recupero.elenco() se voci è Nessuno altrimenti voci
         se non voci:
             ritorna 0
-        elenco = "\n".join("  • " + v["percorso"] per v in voci[:8]) + (f"\n  … e altri {lunghezza(voci) - 8}" se lunghezza(voci) > 8 altrimenti "")
+        elenco = "\n".join("  • " + v["percorso"] per v in voci[:8]) + (f"\n  … e altri {lunghezza_di(voci) - 8}" se lunghezza_di(voci) > 8 altrimenti "")
         r = messagebox.askyesnocancel("Recupero", "PitStudio si è chiuso prima che le modifiche fossero salvate.\nHo trovato una copia di questi file:\n\n"
                                       + elenco + "\n\nVuoi ripristinarle? (Sì = ripristina e riapri i file, No = scarta le copie, Annulla = decidi alla prossima apertura)",
                                       parent=se_stesso.radice)
@@ -1071,7 +1071,7 @@ classe Applicazione:
         ritorna fatti
 
     definisci salva_tutto(se_stesso):
-        per w in lista(se_stesso.schede.values()):
+        per w in tipo_lista(se_stesso.schede.values()):
             se getattr(w, "modificato", Falso):
                 prova:
                     w.salva()
@@ -1249,7 +1249,7 @@ classe Applicazione:
     definisci esecuzione_finita(se_stesso, codice):
         se codice != 0 e se_stesso.progetto:
             testo_ = se_stesso.console.t.get("1.0", "end")
-            trovati = lista(re.finditer(r'File "([^"]+)", (?:riga|line) (\d+)', testo_))
+            trovati = tipo_lista(re.finditer(r'File "([^"]+)", (?:riga|line) (\d+)', testo_))
             per m in reversed(trovati):
                 p = m.group(1)
                 se os.path.exists(p) e se_stesso.progetto.contiene(p):
@@ -1380,7 +1380,7 @@ classe Applicazione:
                 ritorna se_stesso.apri_file(modulo)
             se_stesso.info(f"Non trovo la definizione di «{nome}» nel progetto (può essere una funzione predefinita o di una libreria: F1 apre la guida).")
             ritorna Nessuno
-        se lunghezza(trovate) == 1:
+        se lunghezza_di(trovate) == 1:
             t = trovate[0]
             ritorna se_stesso.apri_file_a_riga(t["percorso"], t["riga"]) se os.path.abspath(t["percorso"]) != os.path.abspath(ed.percorso o "") altrimenti ed.vai_a(t["riga"])
         FinestraRisultati(se_stesso.radice, se_stesso.colori, f"Definizioni di «{nome}»", [(t["percorso"], t["riga"], t["firma"]) per t in trovate],
@@ -1400,7 +1400,7 @@ classe Applicazione:
         se non usi:
             se_stesso.info(f"«{nome}» non è usato altrove nel progetto.")
             ritorna Nessuno
-        FinestraRisultati(se_stesso.radice, se_stesso.colori, f"Usi di «{nome}»  ·  {lunghezza(usi)} punti", [(u["percorso"], u["riga"], u["testo"]) per u in usi],
+        FinestraRisultati(se_stesso.radice, se_stesso.colori, f"Usi di «{nome}»  ·  {lunghezza_di(usi)} punti", [(u["percorso"], u["riga"], u["testo"]) per u in usi],
                           se_stesso.apri_file_a_riga, cartella)
         ritorna usi
 
@@ -1434,7 +1434,7 @@ classe Applicazione:
         elenco = "\n".join(f"  {os.path.relpath(p, cartella)}: {n}" per p, (_, n) in sorted(cambi.items())[:12])
         avviso = (f"ATTENZIONE: «{vecchio}» è usato per cose diverse (è evidenziato come omonimo, per esempio alla riga {omonimo[0]['riga']}): "
                   "il cambio le rinomina tutte insieme.\n\n") se omonimo altrimenti ""
-        se non messagebox.askyesno("Rinomina in tutto il progetto", f"Cambio «{vecchio}» in «{nuovo_nome}»: {totale} punti in {lunghezza(cambi)} file.\n\n{avviso}{elenco}\n\n"
+        se non messagebox.askyesno("Rinomina in tutto il progetto", f"Cambio «{vecchio}» in «{nuovo_nome}»: {totale} punti in {lunghezza_di(cambi)} file.\n\n{avviso}{elenco}\n\n"
                                    "Nei file aperti si può annullare con Ctrl+Z; negli altri il cambio viene scritto subito sul disco. Procedo?", parent=se_stesso.radice):
             ritorna Nessuno
         aperti = {os.path.abspath(p): w per p, w in se_stesso.schede.items() se isinstance(w, Editor)}
@@ -1450,13 +1450,13 @@ classe Applicazione:
                     scritti += 1
                 eccetto OSError come errore_file:
                     messagebox.showerror("Rinomina", f"Non riesco a scrivere {p}:\n{errore_file}", parent=se_stesso.radice)
-        per w in lista(se_stesso.schede.values()):
+        per w in tipo_lista(se_stesso.schede.values()):
             se hasattr(w, "ricarica_se_cambiato_su_disco") e non isinstance(w, Editor):
                 prova:
                     w.ricarica_se_cambiato_su_disco()
                 eccetto Exception:
                     passa
-        se_stesso.info(f"«{vecchio}» rinominato in «{nuovo_nome}»: {totale} punti, {lunghezza(cambi)} file ({scritti} scritti sul disco).")
+        se_stesso.info(f"«{vecchio}» rinominato in «{nuovo_nome}»: {totale} punti, {lunghezza_di(cambi)} file ({scritti} scritti sul disco).")
         ritorna cambi
 
     definisci ripulisci_codice(se_stesso):
@@ -1528,7 +1528,7 @@ classe Applicazione:
     definisci aggiungi_cartella_esercizi(se_stesso):
         cartella = filedialog.askdirectory(parent=se_stesso.radice, title="Cartella con gli esercizi (file .json)")
         se cartella:
-            elenco = lista(se_stesso.config_.ottieni("esercizi.cartelle", []))
+            elenco = tipo_lista(se_stesso.config_.ottieni("esercizi.cartelle", []))
             se cartella non in elenco:
                 elenco.append(cartella)
             se_stesso.config_.imposta("esercizi.cartelle", elenco, notifica=Falso)
@@ -1553,7 +1553,7 @@ classe Applicazione:
         percorsi = filedialog.askopenfilenames(parent=se_stesso.radice, title="File dei progressi degli allievi", filetypes=[("Progressi", "*.json")])
         se non percorsi:
             ritorna Nessuno
-        testo_ = esercizi.testo_report(esercizi.report_classe(lista(percorsi)))
+        testo_ = esercizi.testo_report(esercizi.report_classe(tipo_lista(percorsi)))
         finestra = tk.Toplevel(se_stesso.radice)
         finestra.title("Report della classe")
         finestra.geometry("720x520+120+90")
@@ -1577,7 +1577,7 @@ classe Applicazione:
         prova:
             database_modello.apri_sqlite(percorso).chiudi()
         eccetto database_modello.ErroreDatabase come errore:
-            messagebox.showerror("Database", testo(errore), parent=se_stesso.radice)
+            messagebox.showerror("Database", tipo_testo(errore), parent=se_stesso.radice)
             ritorna Nessuno
         se se_stesso.progetto:
             se_stesso.pannello_progetto.aggiorna()
@@ -1775,7 +1775,7 @@ classe Applicazione:
 
     definisci file_eliminato(se_stesso, percorso):
         percorso = os.path.abspath(percorso)
-        per p, w in lista(se_stesso.schede.items()):
+        per p, w in tipo_lista(se_stesso.schede.items()):
             se p == percorso o p.startswith(percorso + os.sep):
                 se_stesso.chiudi_scheda(w, chiedi=Falso)
 
@@ -1804,7 +1804,7 @@ classe Applicazione:
             prova:
                 risultato["app"] = aggiornamenti.controlla()
             eccetto aggiornamenti.ErroreAggiornamenti come errore:
-                risultato["errore"] = testo(errore)
+                risultato["errore"] = tipo_testo(errore)
             prova:
                 risultato["librerie"] = librerie_online.scarica_indice()
             eccetto librerie_online.ErroreLibrerie:
@@ -1814,7 +1814,7 @@ classe Applicazione:
         definisci fine(riuscito, r):
             se non riuscito:
                 se manuale:
-                    messagebox.showwarning("Aggiornamenti", testo(r), parent=se_stesso.radice)
+                    messagebox.showwarning("Aggiornamenti", tipo_testo(r), parent=se_stesso.radice)
                 ritorna
             pl = se_stesso.pannello_librerie
             se r["librerie"]:
@@ -1846,7 +1846,7 @@ classe Applicazione:
         definisci fine(riuscito, r):
             se non riuscito:
                 se_stesso.info("Aggiornamento non riuscito")
-                messagebox.showerror("Aggiornamento", testo(r), parent=se_stesso.radice)
+                messagebox.showerror("Aggiornamento", tipo_testo(r), parent=se_stesso.radice)
                 ritorna
             se_stesso.info("PitStudio aggiornato")
             se messagebox.askyesno("Aggiornamento", "PitStudio è stato aggiornato.\n\nLo riavvio adesso?", parent=se_stesso.radice):
@@ -1959,14 +1959,14 @@ classe Applicazione:
     definisci ai_spiega(se_stesso):
         w = se_stesso._scheda_corrente()
         se isinstance(w, Editor) e w.selezione_con_righe():
-            se testo(se_stesso.chat) non in [testo(x) per x in se_stesso.corpo.panes()]:
+            se tipo_testo(se_stesso.chat) non in [tipo_testo(x) per x in se_stesso.corpo.panes()]:
                 se_stesso.mostra_chat()
             se_stesso.chat.chiedi("Spiegami questo codice (selezione nell'editor) e dimmi se vedi problemi.", economico=Vero)
         altrimenti:
             se_stesso.info("Seleziona del codice nell'editor.")
 
     definisci ai_correggi(se_stesso):
-        se testo(se_stesso.chat) non in [testo(x) per x in se_stesso.corpo.panes()]:
+        se tipo_testo(se_stesso.chat) non in [tipo_testo(x) per x in se_stesso.corpo.panes()]:
             se_stesso.mostra_chat()
         se_stesso.chat.chiedi("L'ultima esecuzione ha dato un errore (vedi la console con stato_ide). "
                               "Trova la causa, correggi il codice e verifica eseguendolo.")
@@ -2019,7 +2019,7 @@ classe Applicazione:
 
     definisci ricarica_file_cambiati(se_stesso):
         """Rilegge i file aperti cambiati sul disco (dopo un cambio di ramo, un pull o un annulla di Git) e aggiorna l'elenco dei file."""
-        per w in lista(se_stesso.schede.values()):
+        per w in tipo_lista(se_stesso.schede.values()):
             se isinstance(w, Editor):
                 prova:
                     w.ricarica_se_cambiato_su_disco()
@@ -2032,7 +2032,7 @@ classe Applicazione:
         se non getattr(se_stesso, "_claude_code_attivo", Falso):
             ritorna
         cambiato = Falso
-        per w in lista(se_stesso.schede.values()):
+        per w in tipo_lista(se_stesso.schede.values()):
             se isinstance(w, Editor):
                 prova:
                     cambiato = w.ricarica_se_cambiato_su_disco() o cambiato
@@ -2077,7 +2077,7 @@ classe Applicazione:
                                    "I file torneranno come erano prima (i file creati verranno tolti). Procedo?", parent=se_stesso.radice):
             ritorna
         fatti = se_stesso.annulla_gruppo_ai(gruppo)
-        se_stesso.info(f"Annullata la modifica dell'assistente: {lunghezza(fatti)} file.")
+        se_stesso.info(f"Annullata la modifica dell'assistente: {lunghezza_di(fatti)} file.")
 
     definisci cronologia_ai(se_stesso):
         se non se_stesso.storia:
@@ -2100,7 +2100,7 @@ classe Applicazione:
         schede = []
         per p, w in se_stesso.schede.items():
             schede.append({"file": se_stesso.progetto.relativo(p) se se_stesso.progetto e se_stesso.progetto.contiene(p) altrimenti p,
-                           "modificato": bool(getattr(w, "modificato", Falso)), "tipo": tipo(w).__name__})
+                           "modificato": bool(getattr(w, "modificato", Falso)), "tipo": tipo_di(w).__name__})
         w = se_stesso._scheda_corrente()
         p = se_stesso._percorso_di(w)
         d = {"progetto": se_stesso.progetto.nome se se_stesso.progetto altrimenti Nessuno,
@@ -2288,7 +2288,7 @@ classe Applicazione:
 
     definisci chat_finita(se_stesso):
         se_stesso.pannello_progetto.aggiorna()
-        per w in lista(se_stesso.schede.values()):
+        per w in tipo_lista(se_stesso.schede.values()):
             se hasattr(w, "ricarica_se_cambiato_su_disco"):
                 w.ricarica_se_cambiato_su_disco()
 
@@ -2297,15 +2297,15 @@ classe Applicazione:
         cfg.imposta("finestra.geometria", se_stesso.radice.geometry(), notifica=Falso)
         prova:
             panes = se_stesso.corpo.panes()
-            se testo(se_stesso.sinistra) in [testo(x) per x in panes]:
+            se tipo_testo(se_stesso.sinistra) in [tipo_testo(x) per x in panes]:
                 cfg.imposta("finestra.pannello_sinistro", se_stesso.sinistra.winfo_width(), notifica=Falso)
-            se testo(se_stesso.chat) in [testo(x) per x in panes]:
+            se tipo_testo(se_stesso.chat) in [tipo_testo(x) per x in panes]:
                 cfg.imposta("finestra.pannello_destro", se_stesso.chat.winfo_width(), notifica=Falso)
-            cfg.imposta("finestra.chat_visibile", testo(se_stesso.chat) in [testo(x) per x in panes], notifica=Falso)
-            cfg.imposta("finestra.progetti_visibile", testo(se_stesso.sinistra) in [testo(x) per x in panes], notifica=Falso)
+            cfg.imposta("finestra.chat_visibile", tipo_testo(se_stesso.chat) in [tipo_testo(x) per x in panes], notifica=Falso)
+            cfg.imposta("finestra.progetti_visibile", tipo_testo(se_stesso.sinistra) in [tipo_testo(x) per x in panes], notifica=Falso)
             alte = se_stesso.centro.panes()
-            cfg.imposta("finestra.console_visibile", testo(se_stesso.console) in [testo(x) per x in alte], notifica=Falso)
-            se testo(se_stesso.console) in [testo(x) per x in alte]:
+            cfg.imposta("finestra.console_visibile", tipo_testo(se_stesso.console) in [tipo_testo(x) per x in alte], notifica=Falso)
+            se tipo_testo(se_stesso.console) in [tipo_testo(x) per x in alte]:
                 cfg.imposta("finestra.console_altezza", se_stesso.console.winfo_height(), notifica=Falso)
         eccetto tk.TclError:
             passa
@@ -2331,4 +2331,4 @@ definisci not_pit(percorso):
 
 definisci VERSIONE_INTERPRETE():
     importa sys
-    ritorna ".".join(testo(x) per x in sys.version_info[:3])
+    ritorna ".".join(tipo_testo(x) per x in sys.version_info[:3])

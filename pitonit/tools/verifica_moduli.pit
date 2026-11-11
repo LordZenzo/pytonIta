@@ -8,6 +8,6 @@ per nome in moduli:
         importlib.import_module(nome)
     eccetto Eccezione come errore:
         errori += 1
-        stampa(f"ERRORE {nome}: {tipo(errore).__name__}: {errore}")
-stampa(f"{lunghezza(moduli) - errori}/{lunghezza(moduli)} moduli importati correttamente")
+        stampa(f"ERRORE {nome}: {tipo_di(errore).__name__}: {errore}")
+stampa(f"{lunghezza_di(moduli) - errori}/{lunghezza_di(moduli)} moduli importati correttamente")
 sistema.termina(1 se errori altrimenti 0)

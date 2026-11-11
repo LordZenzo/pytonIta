@@ -30,7 +30,7 @@ I **parametri** sono valori che la funzione riceve:
 
 ```pit
 definisci saluta(nome, volte=1):
-    per _ in intervallo(volte):
+    per _ in intervallo_di(volte):
         stampa(f"Ciao, {nome}!")
 
 saluta("Anna")
@@ -92,7 +92,7 @@ definisci e_pari(n):
 
 definisci pari_fino_a(limite):
     risultato = []
-    per n in intervallo(limite + 1):
+    per n in intervallo_di(limite + 1):
         se e_pari(n):
             risultato.aggiungi(n)
     ritorna risultato
@@ -167,7 +167,7 @@ stampa(massimo_tra(4, 9, 2))
 
 ```pit
 definisci media(numeri):
-    ritorna somma(numeri) / lunghezza(numeri)
+    ritorna somma_di(numeri) / lunghezza_di(numeri)
 
 stampa(media([6, 8, 10]))
 ```
@@ -180,12 +180,12 @@ stampa(media([6, 8, 10]))
 definisci e_primo(n):
     se n < 2:
         ritorna Falso
-    per d in intervallo(2, n):
+    per d in intervallo_di(2, n):
         se n % d == 0:
             ritorna Falso
     ritorna Vero
 
-stampa([n per n in intervallo(30) se e_primo(n)])
+stampa([n per n in intervallo_di(30) se e_primo(n)])
 ```
 
 ```output

@@ -118,8 +118,8 @@ dispari
 ```
 
 ```pit
-a = intero(leggi("A: "))
-b = intero(leggi("B: "))
+a = tipo_intero(leggi_tastiera("A: "))
+b = tipo_intero(leggi_tastiera("B: "))
 se a > b:
     stampa("Il maggiore è", a)
 altrimenti:
@@ -127,7 +127,7 @@ altrimenti:
 ```
 
 ```pit
-t = decimale(leggi("Temperatura: "))
+t = tipo_decimale(leggi_tastiera("Temperatura: "))
 se t < 10:
     stampa("Fa freddo")
 altrimenti_se t <= 25:

@@ -76,7 +76,7 @@ definisci controlla(versione_attuale=Nessuno):
             interrompi
     url_exe = installatore.get("browser_download_url") se installatore altrimenti Nessuno
     impronta = Nessuno
-    se installatore e testo(installatore.get("digest") o "").startswith("sha256:"):
+    se installatore e tipo_testo(installatore.get("digest") o "").startswith("sha256:"):
         impronta = installatore["digest"][7:].lower()
     se non piattaforma.WINDOWS:
         # Linux e macOS: l'aggiornamento riscrive PitStudio e le librerie dai sorgenti della Release (l'interprete resta com'è)
@@ -111,7 +111,7 @@ definisci scarica(url, cartella=Nessuno, progresso=Nessuno, fermata=Nessuno, dim
                     solleva ErroreAggiornamenti("Download interrotto.")
                 f.write(blocco)
                 h.update(blocco)
-                fatti += lunghezza(blocco)
+                fatti += lunghezza_di(blocco)
                 se progresso:
                     progresso(fatti, totale)
                 blocco = risposta.read(65536)

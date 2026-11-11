@@ -15,7 +15,7 @@ definisci git(cartella, argomenti, tempo=30, ingresso=Nessuno):
     """Esegue `git <argomenti>` in `cartella`. Ritorna (codice, uscita, errori). Non chiede mai password nel terminale."""
     ambiente = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
     prova:
-        r = subprocess.run(["git", "-c", "core.quotepath=false"] + lista(argomenti), cwd=cartella, capture_output=Vero, timeout=tempo,
+        r = subprocess.run(["git", "-c", "core.quotepath=false"] + tipo_lista(argomenti), cwd=cartella, capture_output=Vero, timeout=tempo,
                            input=ingresso.encode("utf-8") se ingresso è non Nessuno altrimenti Nessuno, env=ambiente, creationflags=_NASCONDI)
     eccetto FileNotFoundError:
         ritorna 127, "", "Git non è installato (o non è nel percorso di sistema). Si scarica da https://git-scm.com"
@@ -75,7 +75,7 @@ definisci stato(cartella):
                 altrimenti_se parte.startswith("behind "):
                     risultato["indietro"] = int(parte[7:])
             continua
-        se lunghezza(riga) < 4:
+        se lunghezza_di(riga) < 4:
             continua
         x, y, percorso = riga[0], riga[1], riga[3:]
         vecchio = ""
@@ -104,7 +104,7 @@ definisci descrizione(x, y):
 
 
 definisci prepara(cartella, percorsi):
-    _esegui(cartella, ["add", "--"] + lista(percorsi))
+    _esegui(cartella, ["add", "--"] + tipo_lista(percorsi))
 
 
 definisci prepara_tutto(cartella):
@@ -113,9 +113,9 @@ definisci prepara_tutto(cartella):
 
 definisci togli(cartella, percorsi):
     """Toglie file dall'area di staging (restano modificati sul disco)."""
-    codice, uscita, errori = git(cartella, ["restore", "--staged", "--"] + lista(percorsi))
+    codice, uscita, errori = git(cartella, ["restore", "--staged", "--"] + tipo_lista(percorsi))
     se codice != 0:        # repository senza commit: restore non funziona, si usa rm --cached
-        _esegui(cartella, ["rm", "--cached", "-r", "-q", "--"] + lista(percorsi))
+        _esegui(cartella, ["rm", "--cached", "-r", "-q", "--"] + tipo_lista(percorsi))
 
 
 definisci annulla_modifiche(cartella, voci):
@@ -148,13 +148,13 @@ definisci imposta_identita(cartella, nome, email):
 
 definisci registro(cartella, quanti=80):
     """Gli ultimi commit: lista di dizionari {"hash", "autore", "quando", "messaggio", "etichette"}."""
-    codice, uscita, errori = git(cartella, ["log", "-n", testo(quanti), "--pretty=format:%h%x1f%an%x1f%ar%x1f%s%x1f%D"])
+    codice, uscita, errori = git(cartella, ["log", "-n", tipo_testo(quanti), "--pretty=format:%h%x1f%an%x1f%ar%x1f%s%x1f%D"])
     se codice != 0:
         ritorna []           # repository senza commit
     risultato = []
     per riga in uscita.splitlines():
         parti = riga.split("\x1f")
-        se lunghezza(parti) >= 5:
+        se lunghezza_di(parti) >= 5:
             risultato.append({"hash": parti[0], "autore": parti[1], "quando": parti[2], "messaggio": parti[3], "etichette": parti[4]})
     ritorna risultato
 

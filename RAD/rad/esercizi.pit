@@ -12,7 +12,7 @@ MASSIMO_RIGHE_ERRORE = 6
 definisci carica_esercizi(cartelle_extra=()):
     """Tutti gli esercizi (file .json): quelli di PitStudio e quelli delle cartelle indicate (per esempio create da un insegnante), ordinati."""
     trovati = {}
-    per cartella in [CARTELLA_ESERCIZI] + lista(cartelle_extra):
+    per cartella in [CARTELLA_ESERCIZI] + tipo_lista(cartelle_extra):
         se non cartella o non os.path.isdir(cartella):
             continua
         per nome in sorted(os.listdir(cartella)):
@@ -58,7 +58,7 @@ definisci esegui_programma(interprete, percorso, ingresso, timeout=8):
     eccetto subprocess.TimeoutExpired:
         ritorna "", "", Vero
     eccetto OSError come eccezione:
-        ritorna "", testo(eccezione), Falso
+        ritorna "", tipo_testo(eccezione), Falso
     ritorna r.stdout, r.stderr, Falso
 
 
@@ -93,7 +93,7 @@ definisci controlla(percorso, esercizio, interprete, timeout=8):
         altrimenti:
             ingresso = primo["ingresso"].strip().replace("\n", " ") o "(niente)"
             messaggio = (f"Con l'ingresso «{ingresso}» mi aspettavo:\n{primo['atteso']}\n\ninvece il programma scrive:\n{primo['ottenuto'] o '(niente)'}")
-    ritorna {"ok": ok, "risultati": risultati, "messaggio": messaggio, "superate": sum(1 per r in risultati se r["ok"]), "totale": lunghezza(risultati)}
+    ritorna {"ok": ok, "risultati": risultati, "messaggio": messaggio, "superate": sum(1 per r in risultati se r["ok"]), "totale": lunghezza_di(risultati)}
 
 
 definisci not_giusto(giusto):
@@ -135,7 +135,7 @@ definisci completato(config, id_esercizio):
 
 definisci riassunto_progressi(config, esercizi):
     fatti = sum(1 per elemento in esercizi se completato(config, elemento["id"]))
-    ritorna fatti, lunghezza(esercizi)
+    ritorna fatti, lunghezza_di(esercizi)
 
 
 # ---------------------------------------------------------------- classe: progressi da consegnare all'insegnante e report
@@ -143,7 +143,7 @@ definisci esporta_progressi(config, percorso, nome_allievo, esercizi):
     """Scrive un file .json con i progressi dell'allievo (da mandare all'insegnante)."""
     p = progressi(config)
     dati = {"allievo": nome_allievo.strip() o "senza nome", "data": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "totale": lunghezza(esercizi),
+            "totale": lunghezza_di(esercizi),
             "esercizi": {elemento["id"]: {"titolo": elemento["titolo"], "completato": p.get(elemento["id"], {}).get("completato", ""), "tentativi": p.get(elemento["id"], {}).get("tentativi", 0)}
                          per elemento in esercizi}}
     con open(percorso, "w", encoding="utf-8") come f:
@@ -163,7 +163,7 @@ definisci report_classe(percorsi):
         eccetto (OSError, ValueError, KeyError, TypeError):
             continua
         fatti = [k per k, v in voci.items() se v.get("completato")]
-        allievi.append({"allievo": d.get("allievo", os.path.basename(p)), "data": d.get("data", ""), "fatti": lunghezza(fatti), "totale": d.get("totale", lunghezza(voci)),
+        allievi.append({"allievo": d.get("allievo", os.path.basename(p)), "data": d.get("data", ""), "fatti": lunghezza_di(fatti), "totale": d.get("totale", lunghezza_di(voci)),
                         "tentativi": sum(v.get("tentativi", 0) per v in voci.values()), "mancanti": [v.get("titolo", k) per k, v in voci.items() se k non in fatti]})
         per k, v in voci.items():
             r = per_esercizio.setdefault(k, [v.get("titolo", k), 0])
@@ -178,12 +178,12 @@ definisci testo_report(rapporto):
     righe = ["REPORT DELLA CLASSE", ""]
     se non rapporto["allievi"]:
         ritorna "Nessun file di progressi valido."
-    larghezza = max(lunghezza(a["allievo"]) per a in rapporto["allievi"])
+    larghezza = max(lunghezza_di(a["allievo"]) per a in rapporto["allievi"])
     righe.append(f"{'Allievo':<{larghezza}}  Fatti  Tentativi  Aggiornato")
     per a in rapporto["allievi"]:
         righe.append(f"{a['allievo']:<{larghezza}}  {a['fatti']:>2}/{a['totale']:<2}  {a['tentativi']:>9}  {a['data']}")
     righe += ["", "Esercizi dal più difficile (meno completati) al più facile:"]
-    n = lunghezza(rapporto["allievi"])
+    n = lunghezza_di(rapporto["allievi"])
     per titolo, quanti in rapporto["esercizi"]:
         righe.append(f"  {quanti}/{n}  {titolo}")
     ritorna "\n".join(righe)

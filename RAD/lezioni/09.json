@@ -14,7 +14,7 @@
   },
   {
    "tipo": "stampa",
-   "codice": "definisci saluta(nome, volte=1):\n    per _ in intervallo(volte):\n        stampa(\"Ciao\", nome)\nsaluta(\"Anna\")\nsaluta(\"Luca\", 2)",
+   "codice": "definisci saluta(nome, volte=1):\n    per _ in intervallo_di(volte):\n        stampa(\"Ciao\", nome)\nsaluta(\"Anna\")\nsaluta(\"Luca\", 2)",
    "giusta": "Ciao Anna\nCiao Luca\nCiao Luca",
    "sbagliate": [
     "Ciao Anna\nCiao Anna\nCiao Luca",

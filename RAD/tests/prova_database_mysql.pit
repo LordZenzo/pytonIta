@@ -99,7 +99,7 @@ prova:
     eccetto fd.ErroreDati come errore:
         stampa("obbligatorio:", errore)
     fonte.elimina(id2)
-    stampa("dopo l'eliminazione:", lunghezza(fonte.record()))
+    stampa("dopo l'eliminazione:", lunghezza_di(fonte.record()))
     fonte.chiudi()
     # l'interfaccia su MySQL: scheda, dati, modifica di una cella, SQL con «%» e dialogo di nuova tabella
     importa tkinter come tk

@@ -19,7 +19,7 @@ classe Azioni:
 d = tempfile.mkdtemp()
 programma = os.path.join(d, "p.pit")
 open(programma, "w", encoding="utf-8").write('''
-nome = leggi()
+nome = leggi_tastiera()
 stampa("ciao", nome, Vero)
 importa sistema
 stampa("errore!", file=sistema.errore_standard)
@@ -39,5 +39,5 @@ mentre az.finito è Nessuno e time.time() - inizio < 20:
     time.sleep(0.02)
 contenuto = c.t.get("1.0", "end")
 stampa("console:", az.finito, "ciao Anna" in contenuto, "divisione per zero" in contenuto.lower())
-stampa("link:", lunghezza(c.t.tag_ranges("link")) // 2)
+stampa("link:", lunghezza_di(c.t.tag_ranges("link")) // 2)
 radice.destroy()

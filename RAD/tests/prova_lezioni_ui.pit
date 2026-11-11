@@ -36,7 +36,7 @@ classe Finto(BaseHTTPRequestHandler):
                            "usage": {"input_tokens": 5, "output_tokens": 5}}).encode("utf-8")
         se_stesso.send_response(200)
         se_stesso.send_header("Content-Type", "application/json")
-        se_stesso.send_header("Content-Length", testo(lunghezza(dati)))
+        se_stesso.send_header("Content-Length", tipo_testo(lunghezza_di(dati)))
         se_stesso.end_headers()
         se_stesso.wfile.write(dati)
 
@@ -66,11 +66,11 @@ app.chiudi_tutte_le_schede()
 d = DialogoAvvio(radice, app.colori, cfg.ottieni("recenti"), 5, Vero)
 radice.update()
 verifica(d.title() == "Benvenuto in PitStudio", "titolo")
-verifica(lunghezza(d.recenti) == 3 e d.elenco.size() == 2, "recenti: l'ultimo ha il suo pulsante, gli altri stanno nell'elenco")
+verifica(lunghezza_di(d.recenti) == 3 e d.elenco.size() == 2, "recenti: l'ultimo ha il suo pulsante, gli altri stanno nell'elenco")
 verifica(non d.non_chiedere_piu(), "la casella «Non chiedere più» parte spenta")
 d.elenco.selection_set(1)
 d._apri_recente()
-verifica(d.risultato == ("progetto", progetti[2]), "doppio clic su un recente: " + testo(d.risultato))
+verifica(d.risultato == ("progetto", progetti[2]), "doppio clic su un recente: " + tipo_testo(d.risultato))
 d2 = DialogoAvvio(radice, app.colori, [], Nessuno, Vero)
 radice.update()
 verifica(d2.recenti == [] e d2.pulsante_ultimo.cget("cursor") == "arrow", "senza lavori recenti «ultimo» è spento")
@@ -104,7 +104,7 @@ t0 = time.time()
 mentre time.time() - t0 < 0.6:
     r2.update()
     time.sleep(0.02)
-verifica(chiamate == [1], "la finestra d'avvio compare dopo l'avvio: " + testo(chiamate))
+verifica(chiamate == [1], "la finestra d'avvio compare dopo l'avvio: " + tipo_testo(chiamate))
 r2.destroy()
 cfg3 = Configurazione(os.path.join(tempfile.mkdtemp(), "c3.json"))
 cfg3.imposta("recenti", progetti, notifica=Falso)
@@ -120,20 +120,20 @@ Applicazione.mostra_avvio = originale
 fl = app.apri_lezioni()
 radice.update()
 verifica(app.apri_lezioni() è fl, "una sola finestra delle lezioni")
-verifica(lunghezza(fl.elenco.get_children()) == 16 e fl.numero_scelto() == 1, "16 lezioni, parte dalla prima")
+verifica(lunghezza_di(fl.elenco.get_children()) == 16 e fl.numero_scelto() == 1, "16 lezioni, parte dalla prima")
 verifica(fl.pulsanti["quiz"].cget("state") == "normal", "il quiz c'è")
 verifica(non fl.ai_pronta() e "serve l'AI" in fl.pulsanti["professore"].cget("text") e fl.configura_ai.winfo_ismapped(), "senza chiave: il professore chiede di configurare l'AI")
 verifica("Lezioni superate: 0 su 16" in fl.progresso.cget("text"), fl.progresso.cget("text"))
 pagine = []
 app.impostazioni = lambda pagina=Nessuno: pagine.append(pagina)
 fl.professore()
-verifica(pagine == ["Assistente AI"], "«Chiedi al professore» senza AI apre le Impostazioni sulla pagina dell'AI: " + testo(pagine))
+verifica(pagine == ["Assistente AI"], "«Chiedi al professore» senza AI apre le Impostazioni sulla pagina dell'AI: " + tipo_testo(pagine))
 fl.seleziona(8)
 verifica(fl.lezione_scelta()["titolo"] == "I dizionari" e "I dizionari" in fl.titolo.cget("text"), "scelta della lezione 8")
 aperti = []
 app.apri_aiuto = lambda argomento=Nessuno: aperti.append(argomento)
 fl.leggi()
-verifica(aperti == ["lezione-08"], "«Leggi» apre la guida su quella lezione: " + testo(aperti))
+verifica(aperti == ["lezione-08"], "«Leggi» apre la guida su quella lezione: " + tipo_testo(aperti))
 esercizi = []
 app.apri_esercizi = lambda: esercizi.append(1)
 fl.esercizi()
@@ -144,7 +144,7 @@ fl.seleziona(1)
 domande = quiz.carica_quiz(1)
 q = DialogoQuiz(fl, app.colori, fl.lezione_scelta(), domande, cfg, Falso, random.Random(3))
 radice.update()
-verifica("Domanda 1 di 6" in q.avanzamento.cget("text") e lunghezza(q.radio) >= 3, "prima domanda: " + q.avanzamento.cget("text"))
+verifica("Domanda 1 di 6" in q.avanzamento.cget("text") e lunghezza_di(q.radio) >= 3, "prima domanda: " + q.avanzamento.cget("text"))
 q.avanti()
 verifica("Scegli prima" in q.esito.cget("text") e q.indice == 0, "senza scegliere avvisa")
 # sbaglio di proposito la prima
@@ -181,20 +181,20 @@ verifica(q.radio[0].cget("text").startswith("1"), "le risposte sono numerate")
 verifica(int(q.radio[0].cget("indicatoron")) == 0 e q.radio[0].cget("selectcolor") == app.colori["selezione"] e q.radio[0].cget("selectcolor") != q.radio[0].cget("background"),
          "la risposta scelta si vede: pulsante con colore di selezione diverso dallo sfondo")
 # le altre tutte giuste
-mentre q.indice < lunghezza(q.domande):
+mentre q.indice < lunghezza_di(q.domande):
     p = q.domande[q.indice]
     q.var_scelta.set([i per i, elemento in enumera(p["opzioni"]) se elemento["giusta"]][0])
     q.avanti()
     verifica(q.esito.cget("text").startswith("✔"), "risposta giusta")
     q.avanti()
-verifica(q.fatto e q.risultato == (5, 6, Vero), "risultato 5 su 6, superata: " + testo(getattr(q, "risultato", Nessuno)))
+verifica(q.fatto e q.risultato == (5, 6, Vero), "risultato 5 su 6, superata: " + tipo_testo(getattr(q, "risultato", Nessuno)))
 verifica("5 domande su 6" in q.testo_domanda.cget("text") e "Bene" in q.esito.cget("text"), "schermata finale: " + q.esito.cget("text"))
 radice.update()
 verifica(q.pulsante_ripeti.winfo_ismapped(), "«Rifai il quiz» disponibile")
 verifica(quiz.stato(cfg, 1) == "✔ 5/6", "progresso salvato: " + quiz.stato(cfg, 1))
 q.destroy()
 fl.riempi()
-verifica("✔ 5/6" in fl.elenco.item("1", "values"), "l'elenco mostra il risultato: " + testo(fl.elenco.item("1", "values")))
+verifica("✔ 5/6" in fl.elenco.item("1", "values"), "l'elenco mostra il risultato: " + tipo_testo(fl.elenco.item("1", "values")))
 verifica(fl.numero_scelto() == 1 e "Lezioni superate: 1 su 16" in fl.progresso.cget("text"), "contatore delle lezioni superate")
 # fai_quiz dal pulsante
 chiuso = []
@@ -221,12 +221,12 @@ mentre (if_chat.lavoro.is_alive() o non if_chat.eventi.empty()) e time.time() - 
     radice.update()
     time.sleep(0.02)
 radice.update()
-verifica(lunghezza(ricevute) == 1, "una richiesta all'API: " + testo(lunghezza(ricevute)))
+verifica(lunghezza_di(ricevute) == 1, "una richiesta all'API: " + tipo_testo(lunghezza_di(ricevute)))
 r = ricevute[0]
 sistema = r["system"][0]["text"]
 verifica("MODALITÀ PROFESSORE" in sistema e "lezione 8" in sistema e "I dizionari" in sistema, "il prompt di sistema è quello del professore")
 nomi = {t["name"] per t in r["tools"]}
-verifica(nomi == set(ai.NOMI_PROFESSORE) e "scrivi_file" non in nomi e "modifica_file" non in nomi e "elimina_file" non in nomi, "strumenti di sola lettura: " + testo(sorted(nomi)))
+verifica(nomi == set(ai.NOMI_PROFESSORE) e "scrivi_file" non in nomi e "modifica_file" non in nomi e "elimina_file" non in nomi, "strumenti di sola lettura: " + tipo_testo(sorted(nomi)))
 verifica("Proviamo insieme" in if_chat.t.get("1.0", "end"), "la risposta compare nella chat")
 # un tentativo di scrivere viene rifiutato anche se l'AI lo chiedesse
 st = ai.Strumenti(app, cfg, app.ponte)
@@ -244,7 +244,7 @@ t0 = time.time()
 mentre (if_chat.lavoro.is_alive() o non if_chat.eventi.empty()) e time.time() - t0 < 20:
     radice.update()
     time.sleep(0.02)
-verifica("MODALITÀ PROFESSORE" non in ricevute[1]["system"][0]["text"] e lunghezza(ricevute[1]["tools"]) == lunghezza(ai.DEFINIZIONI), "fuori dal professore il prompt e gli strumenti sono quelli di sempre")
+verifica("MODALITÀ PROFESSORE" non in ricevute[1]["system"][0]["text"] e lunghezza_di(ricevute[1]["tools"]) == lunghezza_di(ai.DEFINIZIONI), "fuori dal professore il prompt e gli strumenti sono quelli di sempre")
 
 server.shutdown()
 radice.destroy()

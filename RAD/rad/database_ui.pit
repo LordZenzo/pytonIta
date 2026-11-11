@@ -34,17 +34,17 @@ classe Griglia(tk.Frame):
 
     definisci imposta(se_stesso, colonne, righe):
         se_stesso._chiudi_modifica()
-        se_stesso.colonne = lista(colonne)
-        se_stesso.righe = lista(righe)
+        se_stesso.colonne = tipo_lista(colonne)
+        se_stesso.righe = tipo_lista(righe)
         se_stesso.albero.delete(*se_stesso.albero.get_children())
-        sigle = [f"c{i}" per i in intervallo(lunghezza(se_stesso.colonne))]
+        sigle = [f"c{i}" per i in intervallo_di(lunghezza_di(se_stesso.colonne))]
         se_stesso.albero.configure(columns=sigle)
         per i, nome in enumera(se_stesso.colonne):
             se_stesso.albero.heading(sigle[i], text=nome, command=(lambda n=nome: se_stesso.sull_intestazione(n)) se se_stesso.sull_intestazione altrimenti "")
-            larghezza = min(260, max(70, 11 * max([lunghezza(nome)] + [lunghezza(dbm.a_testo(r[i])) per r in se_stesso.righe[:40] se i < lunghezza(r)])))
+            larghezza = min(260, max(70, 11 * max([lunghezza_di(nome)] + [lunghezza_di(dbm.a_testo(r[i])) per r in se_stesso.righe[:40] se i < lunghezza_di(r)])))
             se_stesso.albero.column(sigle[i], width=larghezza, minwidth=50, stretch=Falso)
         per n, r in enumera(se_stesso.righe):
-            se_stesso.albero.insert("", "end", iid=testo(n), values=[dbm.a_testo(v).replace("\n", " ↵ ") per v in r])
+            se_stesso.albero.insert("", "end", iid=tipo_testo(n), values=[dbm.a_testo(v).replace("\n", " ↵ ") per v in r])
 
     definisci selezionate(se_stesso):
         ritorna [int(i) per i in se_stesso.albero.selection()]
@@ -238,7 +238,7 @@ classe DialogoTabella(DialogoBase):
         prova:
             testo_ = se_stesso.sql()
         eccetto dbm.ErroreDatabase come errore:
-            testo_ = "-- " + testo(errore)
+            testo_ = "-- " + tipo_testo(errore)
         se_stesso.anteprima.configure(state="normal")
         se_stesso.anteprima.delete("1.0", "end")
         se_stesso.anteprima.insert("1.0", testo_)
@@ -248,12 +248,12 @@ classe DialogoTabella(DialogoBase):
         prova:
             sql_ = se_stesso.sql()
             nomi = [c.nome.lower() per c in se_stesso.colonne_attuali()]
-            se lunghezza(set(nomi)) != lunghezza(nomi):
+            se lunghezza_di(set(nomi)) != lunghezza_di(nomi):
                 solleva dbm.ErroreDatabase("Due colonne hanno lo stesso nome.")
             se se_stesso.conn.dialetto == "mysql" e any(c.autoincremento e non c.chiave per c in se_stesso.colonne_attuali()):
                 solleva dbm.ErroreDatabase("In MySQL una colonna auto-incremento deve essere la chiave primaria.")
         eccetto dbm.ErroreDatabase come errore:
-            messagebox.showwarning("Controlla i dati", testo(errore), parent=se_stesso)
+            messagebox.showwarning("Controlla i dati", tipo_testo(errore), parent=se_stesso)
             ritorna
         # modificando una colonna il risultato è la colonna nuova (la modifica la esegue chi ha aperto il dialogo), altrimenti l'istruzione SQL
         se_stesso.risultato = se_stesso.colonne_attuali()[0] se se_stesso.da_modificare è non Nessuno altrimenti sql_
@@ -270,7 +270,7 @@ classe DialogoRiga(DialogoBase):
     """Valori di una nuova riga: i campi lasciati vuoti prendono il valore predefinito della colonna."""
 
     definisci __inizializza__(se_stesso, genitore, colori, colonne):
-        DialogoBase.__init__(se_stesso, genitore, "Nuova riga", colori, 520, min(620, 150 + 36 * lunghezza(colonne)))
+        DialogoBase.__init__(se_stesso, genitore, "Nuova riga", colori, 520, min(620, 150 + 36 * lunghezza_di(colonne)))
         se_stesso.colonne = colonne
         se_stesso.variabili = {}
         se_stesso.grid_columnconfigure(1, weight=1)
@@ -303,7 +303,7 @@ classe DialogoMysql(DialogoBase):
         se_stesso.config_ = config
         se_stesso.interprete = interprete
         se_stesso.var_server = tk.StringVar(value=config.ottieni("database.mysql.server", "localhost"))
-        se_stesso.var_porta = tk.StringVar(value=testo(config.ottieni("database.mysql.porta", 3306)))
+        se_stesso.var_porta = tk.StringVar(value=tipo_testo(config.ottieni("database.mysql.porta", 3306)))
         se_stesso.var_utente = tk.StringVar(value=config.ottieni("database.mysql.utente", "root"))
         se_stesso.var_password = tk.StringVar()
         se_stesso.var_database = tk.StringVar(value=config.ottieni("database.mysql.database", ""))
@@ -325,7 +325,7 @@ classe DialogoMysql(DialogoBase):
             conn = dbm.apri_mysql(se_stesso.var_server.get().strip(), se_stesso.var_porta.get().strip() o 3306, se_stesso.var_utente.get().strip(),
                                   se_stesso.var_password.get(), se_stesso.var_database.get().strip())
         eccetto dbm.DriverMancante come errore:
-            se messagebox.askyesno("Driver MySQL mancante", testo(errore) + "\n\nLo installo adesso?", parent=se_stesso):
+            se messagebox.askyesno("Driver MySQL mancante", tipo_testo(errore) + "\n\nLo installo adesso?", parent=se_stesso):
                 se_stesso.configure(cursor="watch")
                 se_stesso.update_idletasks()
                 riuscito, uscita = dbm.installa_driver_mysql(se_stesso.interprete)
@@ -338,7 +338,7 @@ classe DialogoMysql(DialogoBase):
                     messagebox.showerror("Installazione non riuscita", uscita, parent=se_stesso)
             ritorna
         eccetto dbm.ErroreDatabase come errore:
-            messagebox.showerror("MySQL", testo(errore), parent=se_stesso)
+            messagebox.showerror("MySQL", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso.config_.imposta("database.mysql.server", se_stesso.var_server.get().strip(), notifica=Falso)
         se_stesso.config_.imposta("database.mysql.porta", int(se_stesso.var_porta.get().strip() o 3306), notifica=Falso)
@@ -521,11 +521,11 @@ classe VisoreDatabase(VisoreBase):
         prova:
             voci = se_stesso.conn.tabelle()
         eccetto dbm.ErroreDatabase come errore:
-            se_stesso._messaggio(testo(errore), Vero)
+            se_stesso._messaggio(tipo_testo(errore), Vero)
             ritorna
         per nome, tipo_ in voci:
             se_stesso.elenco.insert("", "end", iid=nome, text=("▦  " se tipo_ == "tabella" altrimenti "◩  ") + nome, values=(tipo_,))
-        se_stesso._messaggio(f"{lunghezza(voci)} tabelle e viste." se voci altrimenti "Il database è vuoto: crea la prima tabella con «＋ Nuova tabella…».")
+        se_stesso._messaggio(f"{lunghezza_di(voci)} tabelle e viste." se voci altrimenti "Il database è vuoto: crea la prima tabella con «＋ Nuova tabella…».")
         se scelta e se_stesso.elenco.exists(scelta):
             se_stesso.elenco.selection_set(scelta)
         altrimenti:
@@ -587,7 +587,7 @@ classe VisoreDatabase(VisoreBase):
                                                             se_stesso.ordine, se_stesso.discendente)
             colonne = se_stesso.conn.colonne(se_stesso.tabella)
         eccetto dbm.ErroreDatabase come errore:
-            se_stesso._messaggio(testo(errore), Vero)
+            se_stesso._messaggio(tipo_testo(errore), Vero)
             se_stesso.griglia.imposta([], [])
             ritorna
         se_stesso._ids = ids
@@ -595,7 +595,7 @@ classe VisoreDatabase(VisoreBase):
         se_stesso._tipi_dati = {k.nome: k.tipo per k in colonne}
         se_stesso.griglia.imposta(nomi, righe)
         a = se_stesso.pagina * se_stesso.PAGINA
-        se_stesso.info_pagina.configure(text=(f"righe {a + 1}–{a + lunghezza(righe)} di {totale}" se righe altrimenti f"0 righe di {totale}")
+        se_stesso.info_pagina.configure(text=(f"righe {a + 1}–{a + lunghezza_di(righe)} di {totale}" se righe altrimenti f"0 righe di {totale}")
                                         + ("   ·   sola lettura (nessuna chiave)" se (se_stesso.è_vista o (righe e ids[0] è Nessuno)) altrimenti ""))
         se_stesso._totale = totale
         se_stesso._messaggio("")
@@ -635,8 +635,8 @@ classe VisoreDatabase(VisoreBase):
         prova:
             se_stesso.conn.aggiorna_cella(se_stesso.tabella, se_stesso._ids[riga], nome, valore)
         eccetto dbm.ErroreDatabase come errore:
-            se_stesso._messaggio(testo(errore), Vero)
-            messagebox.showwarning("Modifica non riuscita", testo(errore), parent=se_stesso)
+            se_stesso._messaggio(tipo_testo(errore), Vero)
+            messagebox.showwarning("Modifica non riuscita", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso.carica_dati()
         se_stesso._messaggio(f"Salvato: {nome} = {dbm.a_testo(valore)}")
@@ -652,7 +652,7 @@ classe VisoreDatabase(VisoreBase):
         prova:
             se_stesso.conn.inserisci_riga(se_stesso.tabella, valori)
         eccetto dbm.ErroreDatabase come errore:
-            messagebox.showwarning("Riga non aggiunta", testo(errore), parent=se_stesso)
+            messagebox.showwarning("Riga non aggiunta", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso._totale = getattr(se_stesso, "_totale", 0) + 1
         se_stesso.pagina = max(0, (se_stesso._totale - 1) // se_stesso.PAGINA)
@@ -663,13 +663,13 @@ classe VisoreDatabase(VisoreBase):
         scelte = se_stesso.griglia.selezionate()
         se non scelte o non se_stesso.tabella o se_stesso.è_vista:
             ritorna
-        se non messagebox.askyesno("Elimina righe", f"Elimino {lunghezza(scelte)} righe da «{se_stesso.tabella}»? Non si può annullare.", parent=se_stesso):
+        se non messagebox.askyesno("Elimina righe", f"Elimino {lunghezza_di(scelte)} righe da «{se_stesso.tabella}»? Non si può annullare.", parent=se_stesso):
             ritorna
         prova:
             per i in scelte:
                 se_stesso.conn.elimina_riga(se_stesso.tabella, se_stesso._ids[i])
         eccetto dbm.ErroreDatabase come errore:
-            messagebox.showwarning("Eliminazione non riuscita", testo(errore), parent=se_stesso)
+            messagebox.showwarning("Eliminazione non riuscita", tipo_testo(errore), parent=se_stesso)
         se_stesso.carica_dati()
 
     definisci esporta_dati(se_stesso):
@@ -684,9 +684,9 @@ classe VisoreDatabase(VisoreBase):
             r = se_stesso.conn.esegui_una(f"SELECT * FROM {se_stesso.conn.citato(se_stesso.tabella)}" + (f" WHERE ({filtro})" se filtro altrimenti ""))
             se_stesso.conn.esporta_csv(r, percorso)
         eccetto (dbm.ErroreDatabase, OSError) come errore:
-            messagebox.showerror("Esportazione non riuscita", testo(errore), parent=se_stesso)
+            messagebox.showerror("Esportazione non riuscita", tipo_testo(errore), parent=se_stesso)
             ritorna
-        se_stesso._messaggio(f"Esportate {lunghezza(r.righe)} righe in {percorso}" + (" (limite raggiunto)" se r.troncato altrimenti ""))
+        se_stesso._messaggio(f"Esportate {lunghezza_di(r.righe)} righe in {percorso}" + (" (limite raggiunto)" se r.troncato altrimenti ""))
 
     definisci importa_csv(se_stesso):
         se non se_stesso.tabella o se_stesso.è_vista:
@@ -698,7 +698,7 @@ classe VisoreDatabase(VisoreBase):
         prova:
             n = se_stesso.conn.importa_csv(se_stesso.tabella, percorso)
         eccetto (dbm.ErroreDatabase, OSError) come errore:
-            messagebox.showerror("Importazione non riuscita", testo(errore), parent=se_stesso)
+            messagebox.showerror("Importazione non riuscita", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso.carica_dati()
         se_stesso._messaggio(f"Importate {n} righe in «{se_stesso.tabella}».")
@@ -723,13 +723,13 @@ classe VisoreDatabase(VisoreBase):
                 r = se_stesso.conn.esegui_una(f"SHOW CREATE TABLE {se_stesso.conn.citato(se_stesso.tabella)}")
                 creazione = r.righe[0][1] se r.righe altrimenti ""
         eccetto dbm.ErroreDatabase come errore:
-            se_stesso._messaggio(testo(errore), Vero)
+            se_stesso._messaggio(tipo_testo(errore), Vero)
             ritorna
         se_stesso.griglia_struttura.imposta(
             ["Colonna", "Tipo", "Chiave", "Non nulla", "Predefinito", "Riferisce"],
             [[k.nome, k.tipo, "PK" se k.chiave altrimenti "", "sì" se k.non_nullo altrimenti "", k.predefinito,
               (f"{esterne[k.nome][0]}.{esterne[k.nome][1]}" se k.nome in esterne altrimenti "")] per k in colonne])
-        se_stesso._testo_creazione(testo(creazione))
+        se_stesso._testo_creazione(tipo_testo(creazione))
 
     definisci nuova_tabella(se_stesso):
         sql = DialogoTabella(se_stesso.winfo_toplevel(), se_stesso.colori, se_stesso.conn).mostra()
@@ -738,7 +738,7 @@ classe VisoreDatabase(VisoreBase):
         prova:
             se_stesso.conn.esegui(sql)
         eccetto dbm.ErroreDatabase come errore:
-            messagebox.showerror("Tabella non creata", testo(errore), parent=se_stesso)
+            messagebox.showerror("Tabella non creata", tipo_testo(errore), parent=se_stesso)
             ritorna
         nome = sql.split("(", 1)[0].replace("CREATE TABLE", "").strip().strip('"`')
         se_stesso.tabella = nome
@@ -754,7 +754,7 @@ classe VisoreDatabase(VisoreBase):
         prova:
             se_stesso.conn.esegui(sql)
         eccetto dbm.ErroreDatabase come errore:
-            messagebox.showerror("Colonna non aggiunta", testo(errore), parent=se_stesso)
+            messagebox.showerror("Colonna non aggiunta", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso.carica_struttura()
         se_stesso.carica_dati()
@@ -778,7 +778,7 @@ classe VisoreDatabase(VisoreBase):
         prova:
             se_stesso.conn.modifica_colonna(se_stesso.tabella, vecchia, nuova)
         eccetto dbm.ErroreDatabase come errore:
-            messagebox.showerror("Colonna non modificata", testo(errore), parent=se_stesso)
+            messagebox.showerror("Colonna non modificata", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso.carica_struttura()
         se_stesso.carica_dati()
@@ -793,7 +793,7 @@ classe VisoreDatabase(VisoreBase):
         prova:
             se_stesso.conn.elimina_tabella(se_stesso.tabella, se_stesso.è_vista)
         eccetto dbm.ErroreDatabase come errore:
-            messagebox.showerror("Eliminazione non riuscita", testo(errore), parent=se_stesso)
+            messagebox.showerror("Eliminazione non riuscita", tipo_testo(errore), parent=se_stesso)
             ritorna
         se_stesso.tabella = Nessuno
         se_stesso.aggiorna_elenco()
@@ -806,8 +806,8 @@ classe VisoreDatabase(VisoreBase):
         prova:
             r = se_stesso.conn.esegui(testo_sql)
         eccetto dbm.ErroreDatabase come errore:
-            se_stesso._messaggio(testo(errore), Vero)
-            se_stesso.griglia_sql.imposta(["Errore"], [[testo(errore)]])
+            se_stesso._messaggio(tipo_testo(errore), Vero)
+            se_stesso.griglia_sql.imposta(["Errore"], [[tipo_testo(errore)]])
             ritorna
         se_stesso.risultato_sql = r
         se_stesso.griglia_sql.imposta(r.colonne, r.righe) se r.colonne altrimenti se_stesso.griglia_sql.imposta(["Esito"], [[r.riassunto()]])
@@ -844,7 +844,7 @@ classe VisoreDatabase(VisoreBase):
             ritorna
         riga = se_stesso.editor_sql.get("insert linestart", "insert")
         parola = riga.replace("(", " ").replace(",", " ").split(" ")[-1].strip('"`')
-        se lunghezza(parola) < 2:
+        se lunghezza_di(parola) < 2:
             ritorna
         candidati = [t per t, _ in se_stesso.conn.tabelle() se t.lower().startswith(parola.lower())]
         se se_stesso.tabella:
@@ -864,9 +864,9 @@ classe VisoreDatabase(VisoreBase):
         prova:
             se_stesso.conn.esporta_csv(r, percorso)
         eccetto OSError come errore:
-            messagebox.showerror("Esportazione non riuscita", testo(errore), parent=se_stesso)
+            messagebox.showerror("Esportazione non riuscita", tipo_testo(errore), parent=se_stesso)
             ritorna
-        se_stesso._messaggio(f"Esportate {lunghezza(r.righe)} righe in {percorso}")
+        se_stesso._messaggio(f"Esportate {lunghezza_di(r.righe)} righe in {percorso}")
 
     # ------------------------------------------------------------------ chiusura
     definisci chiudi(se_stesso):

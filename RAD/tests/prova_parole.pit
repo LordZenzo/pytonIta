@@ -7,7 +7,7 @@ definisci aggiungi_elemento(x):
     passa
 elenco_nomi = 3
 """
-stampa("builtin:", lunghezza(BUILTIN), "moduli:", lunghezza(MODULI))
+stampa("builtin:", lunghezza_di(BUILTIN), "moduli:", lunghezza_di(MODULI))
 stampa(alias_importati(sorgente))
 stampa([v[0] per v in suggerisci("elen", sorgente)][:6])
 stampa([v[0] per v in suggerisci("de", sorgente)][:6])

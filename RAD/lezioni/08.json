@@ -14,7 +14,7 @@
   },
   {
    "tipo": "stampa",
-   "codice": "d = {\"a\": 1}\nd[\"b\"] = 2\nstampa(lunghezza(d))",
+   "codice": "d = {\"a\": 1}\nd[\"b\"] = 2\nstampa(lunghezza_di(d))",
    "giusta": "2",
    "sbagliate": [
     "1",
@@ -60,7 +60,7 @@
   },
   {
    "tipo": "stampa",
-   "codice": "stampa(lunghezza({1, 2, 2, 3}))",
+   "codice": "stampa(lunghezza_di({1, 2, 2, 3}))",
    "giusta": "3",
    "sbagliate": [
     "4",

@@ -35,7 +35,7 @@ programma = {"principale": {"radici": [{"x": 30, "y": 30, "pila": [
          "b": {"t": "fnv:fattoriale", "i": {"p0": {"t": "sottrai", "i": {"a": {"t": "variabile", "c": {"nome": "n"}}}, "l": {"b": "1"}}}}}}}}]}]}]}
 # strumenti dell'AI (senza rete): usa direttamente la classe Strumenti
 strumenti = ai.Strumenti(app, cfg, app.ponte)
-stampa("catalogo:", lunghezza(strumenti.esegui("tipi_mattonelle", {})[0].splitlines()), "tipi")
+stampa("catalogo:", lunghezza_di(strumenti.esegui("tipi_mattonelle", {})[0].splitlines()), "tipi")
 esito, errore = strumenti.esegui("imposta_mattonelle", {"nome": "calcolo", "programma": programma})
 stampa("imposta_mattonelle:", errore, esito)
 esito, errore = strumenti.esegui("imposta_mattonelle", {"nome": "sbagliato", "programma": {"principale": {"radici": [{"pila": [{"t": "avvio"}, {"t": "inesistente"}]}]}}})
@@ -49,7 +49,7 @@ esito, errore = strumenti.esegui("ottieni_mattonelle", {"nome": "calcolo"})
 stampa("ottieni_mattonelle:", errore, json.loads(esito)["funzioni"][0]["radici"][0]["pila"][0]["c"])
 radice.update()
 ed = app.schede[os.path.abspath(os.path.join(cart, "calcolo.mattonelle.json"))]
-stampa("viste nell'editor:", lista(ed.viste))
+stampa("viste nell'editor:", tipo_lista(ed.viste))
 ed.vai_alla_funzione("fattoriale")
 ed.vedi_codice()
 app.chat.t.configure(state="normal")

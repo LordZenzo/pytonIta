@@ -62,7 +62,7 @@ classe DialogoPuntoArresto(DialogoBase):
         d = dettagli o {}
         se_stesso.columnconfigure(1, weight=1)
         se_stesso.var_se = tk.StringVar(value=d.get("se", ""))
-        se_stesso.var_dopo = tk.StringVar(value=testo(d.get("dopo")) se d.get("dopo") altrimenti "")
+        se_stesso.var_dopo = tk.StringVar(value=tipo_testo(d.get("dopo")) se d.get("dopo") altrimenti "")
         se_stesso.var_messaggio = tk.StringVar(value=d.get("messaggio", ""))
         e1 = se_stesso.riga("Fermati solo se", se_stesso.campo(se_stesso.var_se, 44), 0)
         se_stesso.riga("Dal passaggio numero", se_stesso.campo(se_stesso.var_dopo, 8), 1)
@@ -98,7 +98,7 @@ classe DialogoNuovoProgetto(DialogoBase):
                   foreground=colori["primo_piano"]).pack(side="left", padx=(6, 0))
         se_stesso.riga("In cartella:", lambda p: cornice, 1)
         se_stesso.riga("Modello:", lambda p: ttk.Combobox(p, textvariable=se_stesso.var_modello, state="readonly",
-                                                         values=lista(MODELLI.values()), width=36), 2)
+                                                         values=tipo_lista(MODELLI.values()), width=36), 2)
         se_stesso.pulsanti(3, "Crea progetto", se_stesso._conferma)
         se_stesso.nome.focus_set()
         se_stesso.nome.select_range(0, "end")
@@ -127,7 +127,7 @@ classe DialogoNuovaFinestra(DialogoBase):
     definisci __inizializza__(se_stesso, genitore, colori, esistenti=(), titolo="Nuova finestra", prefisso="Finestra"):
         DialogoBase.__init__(se_stesso, genitore, titolo, colori, 400, 150)
         se_stesso.esistenti = {elemento.lower() per elemento in esistenti}
-        se_stesso.var_nome = tk.StringVar(value=prefisso + testo(lunghezza(esistenti) + 1))
+        se_stesso.var_nome = tk.StringVar(value=prefisso + tipo_testo(lunghezza_di(esistenti) + 1))
         se_stesso.grid_columnconfigure(1, weight=1)
         elemento = se_stesso.riga("Nome:", se_stesso.campo(se_stesso.var_nome, 26), 0)
         se_stesso.pulsanti(1, "Crea", se_stesso._conferma)
@@ -182,7 +182,7 @@ classe DialogoModelloFinestra(DialogoBase):
     definisci _proposta(se_stesso, modello):
         base = se_stesso.PROPOSTE.get(modello, "Finestra")
         n = 1
-        proposta = base se modello != "vuota" altrimenti base + testo(lunghezza(se_stesso.esistenti) + 1)
+        proposta = base se modello != "vuota" altrimenti base + tipo_testo(lunghezza_di(se_stesso.esistenti) + 1)
         mentre proposta.lower() in se_stesso.esistenti:
             n += 1
             proposta = f"{base}{n}"
@@ -252,7 +252,7 @@ classe DialogoCerca(DialogoBase):
         se_stesso.risultati = se_stesso.progetto.cerca(chiave)
         per rel, n, riga in se_stesso.risultati:
             se_stesso.elenco.insert("end", f"{rel}:{n}   {riga}")
-        se_stesso.stato.configure(text=f"{lunghezza(se_stesso.risultati)} risultati" + ("  (limite raggiunto)" se lunghezza(se_stesso.risultati) >= 200 altrimenti ""))
+        se_stesso.stato.configure(text=f"{lunghezza_di(se_stesso.risultati)} risultati" + ("  (limite raggiunto)" se lunghezza_di(se_stesso.risultati) >= 200 altrimenti ""))
 
     definisci _apri(se_stesso, evento=Nessuno):
         sel = se_stesso.elenco.curselection()
@@ -313,7 +313,7 @@ classe DialogoInformazioni(DialogoBase):
                  foreground=c["accento"]).place(x=148, y=66)
         tk.Label(se_stesso, text="Ambiente di sviluppo per pytonIta", font=(FONT_UI, 10), background=c["pannello"],
                  foreground=c["tenue"]).place(x=148, y=90)
-        versione_py = ".".join(testo(x) per x in sys.version_info[:3])
+        versione_py = ".".join(tipo_testo(x) per x in sys.version_info[:3])
         corpo = ("Editor con suggerimenti in italiano, progetti, debugger, progettista di finestre,\n"
                  "programmazione a mattonelle, lezioni integrate e assistente AI (Claude)\n"
                  "che può usare l'ambiente stesso.\n\n"
@@ -448,7 +448,7 @@ classe DialogoCronologiaAI(DialogoBase):
         se_stesso.elenco.delete(0, "end")
         per g in se_stesso.gruppi:
             segno = "↶ " se g.get("annullato") altrimenti ""
-            se_stesso.elenco.insert("end", f"{segno}{g['quando'][5:16]}  {g.get('descrizione') o g['id']}  ({lunghezza(g['modifiche'])} file)")
+            se_stesso.elenco.insert("end", f"{segno}{g['quando'][5:16]}  {g.get('descrizione') o g['id']}  ({lunghezza_di(g['modifiche'])} file)")
         se se_stesso.gruppi:
             se_stesso.elenco.selection_set(0)
         se_stesso._scelta()

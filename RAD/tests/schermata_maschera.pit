@@ -6,7 +6,7 @@ da PIL importa ImageGrab
 da rad importa database_modello come dbm
 da rad importa maschera_dati
 
-uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
 cartella = tempfile.mkdtemp()
 db = os.path.join(cartella, "negozio.db")
 c = dbm.apri_sqlite(db)

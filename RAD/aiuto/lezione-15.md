@@ -76,8 +76,8 @@ importa interfaccia come tk
 
 definisci calcola():
     prova:
-        prezzo = decimale(prezzo_casella.get().sostituisci(",", "."))
-        sconto = decimale(sconto_casella.get().sostituisci(",", "."))
+        prezzo = tipo_decimale(prezzo_casella.get().sostituisci(",", "."))
+        sconto = tipo_decimale(sconto_casella.get().sostituisci(",", "."))
     eccetto ErroreDiValore:
         risultato.configure(text="Inserisci due numeri", fg="red")
         ritorna
@@ -127,7 +127,7 @@ Se preferisci costruire la logica con i blocchi colorati, prova i [programmi a m
 importa interfaccia come tk
 
 definisci misura():
-    risultato.configure(text=f"{lunghezza(casella.get())} caratteri")
+    risultato.configure(text=f"{lunghezza_di(casella.get())} caratteri")
 
 finestra = tk.Finestra()
 finestra.title("Lunghezza")

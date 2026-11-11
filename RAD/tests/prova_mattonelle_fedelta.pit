@@ -28,7 +28,7 @@ classe Norm(ast.NodeTransformer):
         se_stesso.generic_visit(n)
         valori = []
         per v in n.values:
-            se isinstance(v, ast.BoolOp) e tipo(v.op) == tipo(n.op):
+            se isinstance(v, ast.BoolOp) e tipo_di(v.op) == tipo_di(n.op):
                 valori.extend(v.values)
             altrimenti:
                 valori.append(v)
@@ -44,7 +44,7 @@ classe Norm(ast.NodeTransformer):
         ritorna n
     definisci visit_UnaryOp(se_stesso, n):
         se_stesso.generic_visit(n)
-        se isinstance(n.op, ast.Not) e isinstance(n.operand, ast.Compare) e lunghezza(n.operand.ops) == 1:
+        se isinstance(n.op, ast.Not) e isinstance(n.operand, ast.Compare) e lunghezza_di(n.operand.ops) == 1:
             valore = n.operand.ops[0]
             se isinstance(valore, ast.In):
                 n.operand.ops[0] = ast.NotIn()
@@ -86,20 +86,20 @@ definisci primo_diverso(n1, n2):
                 se r:
                     ritorna r
             ritorna Nessuno
-        se isinstance(a, lista):
+        se isinstance(a, tipo_lista):
             per x, y in zip(a, b):
                 r = rec(x, y)
                 se r:
                     ritorna r
-            se lunghezza(a) != lunghezza(b):
-                ritorna (a[min(lunghezza(a), lunghezza(b)):][:1], b[min(lunghezza(a), lunghezza(b)):][:1])
+            se lunghezza_di(a) != lunghezza_di(b):
+                ritorna (a[min(lunghezza_di(a), lunghezza_di(b)):][:1], b[min(lunghezza_di(a), lunghezza_di(b)):][:1])
             ritorna Nessuno
         ritorna Nessuno se a == b altrimenti (a, b)
     r = rec(n1, n2)
     se non r:
         ritorna "?"
     definisci u(x):
-        se isinstance(x, lista):
+        se isinstance(x, tipo_lista):
             ritorna "[" + "; ".join(u(y) per y in x) + "]"
         prova:
             ritorna ast.unparse(x)[:90]
@@ -136,7 +136,7 @@ per f in sorted(glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.a
             ok += 1
         altrimenti:
             diff.append((os.path.basename(f), k, "diverso", primo_diverso(n1, n2)))
-stampa("funzioni confrontate:", tot, "| identiche (AST):", ok, "| diverse:", lunghezza(diff), "| tutte uguali:", ok == tot e tot > 1000)
+stampa("funzioni confrontate:", tot, "| identiche (AST):", ok, "| diverse:", lunghezza_di(diff), "| tutte uguali:", ok == tot e tot > 1000)
 importa collections
 per x in diff[:60]:
     stampa(x[0], x[1], "|", x[3])

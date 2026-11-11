@@ -23,12 +23,12 @@ definisci esegui(nome, righe, ambiente=Nessuno, opzioni=()):
 
 
 # ---------------------------------------------------------------- errori gravi: il programma non parte
-r = esegui("nascosta.pit", ['testo = "ciao"', "stampa('non deve comparire')", "stampa(testo(5))"])
-verifica(r.returncode != 0 e "richiama la variabile «testo»" in r.stderr e "non deve comparire" non in r.stdout, "una variabile che nasconde testo() e viene richiamata blocca l'esecuzione")
+r = esegui("nascosta.pit", ['tipo_testo = "ciao"', "stampa('non deve comparire')", "stampa(tipo_testo(5))"])
+verifica(r.returncode != 0 e "richiama la variabile «tipo_testo»" in r.stderr e "non deve comparire" non in r.stdout, "una variabile che nasconde tipo_testo() e viene richiamata blocca l'esecuzione")
 verifica("riga 3" in r.stderr, "l'errore indica la riga")
 
-r = esegui("nascosta_locale.pit", ["definisci f(x):", "    lista = [1]", "    ritorna lista(x)", "stampa(f(3))"])
-verifica(r.returncode != 0 e "«lista»" in r.stderr, "anche la variabile locale che nasconde lista()")
+r = esegui("nascosta_locale.pit", ["definisci f(x):", "    tipo_lista = [1]", "    ritorna tipo_lista(x)", "stampa(f(3))"])
+verifica(r.returncode != 0 e "«tipo_lista»" in r.stderr, "anche la variabile locale che nasconde tipo_lista()")
 
 r = esegui("inglese.pit", ["se Vero:", "    pass"])
 verifica(r.returncode != 0 e "«passa»" in r.stderr, "«pass» invece di «passa» blocca e suggerisce la parola giusta")
@@ -46,7 +46,7 @@ r = esegui("piu_errori.pit", ["classe = 1", "con = 2", "pass"])
 verifica(r.stderr.count("ErroreGrave") == 3 e "3 errori gravi" in r.stderr, "li elenca tutti")
 
 # ---------------------------------------------------------------- casi leciti: il programma parte
-r = esegui("lambda.pit", ["inverso = lambda t, v: ([k per k, w in t.items() se w == v] o [v])[0]", "stampa(inverso({'a': 1}, 1))"])
+r = esegui("lambda.pit", ["inverso_di = lambda t, v: ([k per k, w in t.items() se w == v] o [v])[0]", "stampa(inverso_di({'a': 1}, 1))"])
 verifica(r.returncode == 0 e r.stdout.split() == ["a"], "una variabile con una lambda può avere il nome di una funzione predefinita")
 
 r = esegui("metodi.pit", ["classe Doc:", "    definisci elimina(se_stesso):", "        ritorna 'ok'", "    definisci prova(se_stesso):", "        ritorna 'p'", "stampa(Doc().elimina(), Doc().prova())"])
@@ -61,8 +61,8 @@ verifica(r.returncode != 0 e "«e»" in r.stderr, "«come e» è bloccato")
 r = esegui("operatori.pit", ["a = Vero", "b = Falso", "stampa(a e non b, a o b)"])
 verifica(r.returncode == 0 e r.stdout.split() == ["Vero", "Vero"], "gli operatori e/o funzionano come prima")
 
-r = esegui("non_chiamata.pit", ['testo = "ciao"', "stampa(testo.upper())"])
-verifica(r.returncode == 0 e r.stdout.split() == ["CIAO"], "una variabile chiamata testo mai richiamata come funzione non blocca")
+r = esegui("non_chiamata.pit", ['tipo_testo = "ciao"', "stampa(tipo_testo.upper())"])
+verifica(r.returncode == 0 e r.stdout.split() == ["CIAO"], "una variabile chiamata tipo_testo mai richiamata come funzione non blocca")
 
 r = esegui("attributo.pit", ["classe P:", "    pass", "x = P()", "x.classe = 3", "stampa(x.classe)"], opzioni=())
 verifica(r.returncode != 0, "pass resta bloccato anche dentro una classe")
@@ -70,7 +70,7 @@ verifica(r.returncode != 0, "pass resta bloccato anche dentro una classe")
 r = esegui("attributo2.pit", ["classe P:", "    passa", "x = P()", "x.classe = 3", "stampa(x.classe)"])
 verifica(r.returncode == 0 e r.stdout.split() == ["3"], "un attributo può chiamarsi come una parola chiave")
 
-r = esegui("ignora.pit", ['testo = "a"', "stampa(testo(1))   # controlla: ok"])
+r = esegui("ignora.pit", ['tipo_testo = "a"', "stampa(tipo_testo(1))   # controlla: ok"])
 verifica("ErroreGrave" non in r.stderr e "ErroreDiTipo" in r.stderr, "«# controlla: ok» salta il controllo di quella riga")
 
 r = esegui("ignora_file.pit", ["# controlla: ignora-file", "classe = 5", "stampa(classe)"])
@@ -81,16 +81,16 @@ verifica(r.returncode == 0 e r.stdout.split() == ["7"], "PITONIT_SENZA_CONTROLLO
 
 # ---------------------------------------------------------------- i moduli importati
 con open(os.path.join(cartella, "modulo_cattivo.pit"), "w", encoding="utf-8") come f:
-    f.write('testo = "x"\ndefinisci f():\n    ritorna testo(1)\n')
+    f.write('tipo_testo = "x"\ndefinisci f():\n    ritorna tipo_testo(1)\n')
 r = esegui("importa_cattivo.pit", ["importa modulo_cattivo", "stampa('arrivato')"])
-verifica(r.returncode != 0 e "testo" in r.stderr e "arrivato" non in r.stdout, "un modulo .pit importato con un errore grave non si importa")
+verifica(r.returncode != 0 e "tipo_testo" in r.stderr e "arrivato" non in r.stdout, "un modulo .pit importato con un errore grave non si importa")
 
 # ---------------------------------------------------------------- il comando di controllo con gli avvisi
 p = os.path.join(cartella, "avvisi.pit")
 con open(p, "w", encoding="utf-8") come f:
-    f.write('print(zzz)\ntesto = "a"\n')
+    f.write('print(zzz)\ntipo_testo = "a"\n')
 r = subprocess.run([sys.executable, "-m", "_controlla", p], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella)
-verifica("«print» è inglese" in r.stdout e "«zzz» non è definito" in r.stdout e "nasconde la funzione predefinita testo()" in r.stdout, "pitonit -m _controlla elenca anche gli avvisi")
+verifica("«print» è inglese" in r.stdout e "«zzz» non è definito" in r.stdout e "nasconde la funzione predefinita tipo_testo()" in r.stdout, "pitonit -m _controlla elenca anche gli avvisi")
 
 # ---------------------------------------------------------------- tutto il codice di PitStudio passa il controllo
 radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

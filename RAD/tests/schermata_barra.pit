@@ -7,7 +7,7 @@ da rad.config importa Configurazione
 da rad.finestra importa Applicazione
 da rad importa barra
 
-uscita = sys.argv[1] se lunghezza(sys.argv) > 1 altrimenti tempfile.gettempdir()
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
 cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "config.json"))
 radice = tk.Tk()
 radice.geometry("1300x700+20+20")

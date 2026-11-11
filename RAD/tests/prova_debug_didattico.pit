@@ -51,7 +51,7 @@ definisci corri(programma, comandi, inizio=Vero, punti=Nessuno):
             se ev["evento"] in ("fermo", "frame"):
                 soste.append(ev)
                 se ev["evento"] == "fermo":
-                    per cmd in (comandi[k] se k < lunghezza(comandi) altrimenti ["continua"]):
+                    per cmd in (comandi[k] se k < lunghezza_di(comandi) altrimenti ["continua"]):
                         p.stdin.write((PREFISSO_COMANDO + cmd + "\n").encode("utf-8"))
                     p.stdin.flush()
                     k += 1
@@ -76,8 +76,8 @@ totale = a + b * 2
 se totale > 10 e a < 5:
     stampa(f"grande {totale}")
 nomi = ["Anna", "Luca"]
-n = lunghezza(nomi) + 1
-per i in intervallo(2):
+n = lunghezza_di(nomi) + 1
+per i in intervallo_di(2):
     totale = totale + i
 saluta = "ciao"
 stampa(saluta.maiuscolo())
@@ -91,8 +91,8 @@ verifica(per_riga[1] == [] e per_riga[2] == [], "una costante da sola non si spi
 verifica(per_riga[3] == ["a + b * 2", "3 + 4 * 2", "3 + 8", "11"], "somma e prodotto, un livello alla volta: " + str(per_riga[3]))
 verifica(per_riga[4] == ["totale > 10 e a < 5", "11 > 10 e 3 < 5", "Vero e Vero", "Vero"], "condizione con Vero/Falso in italiano: " + str(per_riga[4]))
 verifica(per_riga[5][0] == 'stampa(f"grande {totale}")' e per_riga[5][-1] == "stampa('grande 11')", "chiamata non sicura: si riducono gli argomenti: " + str(per_riga[5]))
-verifica(per_riga[7] == ["lunghezza(nomi) + 1", "lunghezza(['Anna', 'Luca']) + 1", "2 + 1", "3"], "funzione predefinita: " + str(per_riga[7]))
-verifica(per_riga[8][-1] == "intervallo(0, 2)", "intervallo: " + str(per_riga[8]))
+verifica(per_riga[7] == ["lunghezza_di(nomi) + 1", "lunghezza_di(['Anna', 'Luca']) + 1", "2 + 1", "3"], "funzione predefinita: " + str(per_riga[7]))
+verifica(per_riga[8][-1] == "intervallo_di(0, 2)", "intervallo: " + str(per_riga[8]))
 verifica(per_riga[9] == ["totale + i", "11 + 0", "11"], "dentro il ciclo: " + str(per_riga[9]))
 # variabili cambiate dall'ultima sosta
 per_riga_cambiate = {}
@@ -117,7 +117,7 @@ verifica("3 2" in uscita, "il programma ha fatto le sue due chiamate soltanto: "
 
 # ----------------------------------------------------------------- watchpoint
 prog3 = scrivi("watch.pit", '''totale = 0
-per i in intervallo(5):
+per i in intervallo_di(5):
     se i == 2:
         totale = totale + 10
     stampa("giro", i)
@@ -130,7 +130,7 @@ f = fermi(soste)
 righe = [(s["riga"], s["avviso"]) per s in f]
 stampa("watch:", righe)
 verifica(f[0]["riga"] == 1, "parte dalla prima riga")
-verifica(lunghezza(f) == 4, "tre soste del watchpoint dopo la prima: " + str(righe))
+verifica(lunghezza_di(f) == 4, "tre soste del watchpoint dopo la prima: " + str(righe))
 verifica("totale è stata creata: 0" in f[1]["avviso"] e "dopo la riga 1" in f[1]["avviso"] e f[1]["riga"] == 2, "la variabile creata: " + str(righe[1]))
 verifica("totale è cambiata: 0 → 10" in f[2]["avviso"] e "dopo la riga 4" in f[2]["avviso"] e f[2]["riga"] == 5, "il valore cambia: " + str(righe[2]))
 verifica("totale è cambiata: 10 → 0" in f[3]["avviso"] e f[3]["riga"] == 8, "cambia ancora: " + str(righe[3]))
@@ -140,16 +140,16 @@ verifica(f[2]["osservate"][0]["ferma"] e f[2]["osservate"][0]["cambiata"], "l'os
 
 # senza «ferma» il «continua» corre fino in fondo
 soste, uscita = corri(prog3, [['osserva ["totale"]', "continua"]])
-verifica(lunghezza(fermi(soste)) == 1 e "fine 0" in uscita, "senza watchpoint il continua non si ferma: " + testo(lunghezza(fermi(soste))))
+verifica(lunghezza_di(fermi(soste)) == 1 e "fine 0" in uscita, "senza watchpoint il continua non si ferma: " + tipo_testo(lunghezza_di(fermi(soste))))
 # compatibilità: l'elenco semplice di stringhe resta valido
 soste, uscita = corri(prog3, [["passo"], ['osserva ["i", "totale"]', "passo"]])
 f = fermi(soste)
-verifica(lunghezza(f) >= 3 e [elemento["espressione"] per elemento in f[2]["osservate"]] == ["i", "totale"], "osserva con una lista di stringhe")
+verifica(lunghezza_di(f) >= 3 e [elemento["espressione"] per elemento in f[2]["osservate"]] == ["i", "totale"], "osserva con una lista di stringhe")
 
 # un watchpoint dentro una funzione: quando la funzione finisce non dà falsi allarmi
 prog4 = scrivi("funzione.pit", '''definisci somma(n):
     parziale = 0
-    per k in intervallo(n):
+    per k in intervallo_di(n):
         parziale += k
     ritorna parziale
 r = somma(4)
@@ -161,13 +161,13 @@ soste, uscita = corri(prog4, [['osserva [{"e": "parziale", "ferma": true}]', "co
 f = fermi(soste)
 cambi = [s["avviso"] per s in f se s["avviso"]]
 stampa("funzione:", cambi)
-verifica(lunghezza(cambi) >= 2 e all("parziale" in c per c in cambi), "il watch segue la variabile dentro la funzione: " + str(cambi))
+verifica(lunghezza_di(cambi) >= 2 e all("parziale" in c per c in cambi), "il watch segue la variabile dentro la funzione: " + str(cambi))
 verifica(non any("non esiste più" in c per c in cambi), "all'uscita dalla funzione non c'è un falso allarme: " + str(cambi))
 verifica("6" in uscita, "il programma arriva in fondo: " + uscita.strip()[-30:])
 
 # un punto di arresto interrompe comunque il controllo
 soste, uscita = corri(prog3, [['osserva [{"e": "i", "ferma": false}, {"e": "totale", "ferma": true}]', "continua"]], punti={os.path.join(cartella, "watch.pit"): [5]})
 f = fermi(soste)
-verifica(lunghezza(f) >= 3, "tra le soste del watch c'è anche il punto di arresto: " + str([(s["riga"], s["avviso"][:20]) per s in f]))
+verifica(lunghezza_di(f) >= 3, "tra le soste del watch c'è anche il punto di arresto: " + str([(s["riga"], s["avviso"][:20]) per s in f]))
 
 stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

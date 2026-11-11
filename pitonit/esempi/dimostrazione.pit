@@ -17,21 +17,21 @@ stampa([Vero, Falso, Nessuno], {"a": Vero})
 stampa(Vero e Falso, Vero o Falso, non Vero)
 
 definisci genera(n):
-    per i in intervallo(n):
+    per i in intervallo_di(n):
         produci i * i
 
-stampa(lista(genera(5)), somma(genera(4)))
+stampa(tipo_lista(genera(5)), somma_di(genera(4)))
 x = [3, 1, 2]
 x.ordina()
-stampa(x, ordinato(x, reverse=Vero))
+stampa(x, ordinato_di(x, reverse=Vero))
 confronta (1, 2):
     caso (a, b):
         stampa("coppia", a, b)
-tipo Numero = intero
-stampa(valuta("1 + 2"))
+tipo Numero = tipo_intero
+stampa(valuta_espressione("1 + 2"))
 esegui("stampa('dentro esegui')")
 prova:
-    intero("abc")
+    tipo_intero("abc")
 eccetto ErroreDiValore come errore:
     stampa("catturato:", errore)
 infine:

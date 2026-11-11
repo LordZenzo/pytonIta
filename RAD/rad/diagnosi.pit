@@ -43,7 +43,7 @@ definisci _riga_di_codice(percorso, numero):
     prova:
         con open(percorso, encoding="utf-8") come f:
             righe = f.read().split(chr(10))
-        ritorna righe[numero - 1] se 0 < numero <= lunghezza(righe) altrimenti ""
+        ritorna righe[numero - 1] se 0 < numero <= lunghezza_di(righe) altrimenti ""
     eccetto (OSError, UnicodeDecodeError):
         ritorna ""
 
@@ -161,7 +161,7 @@ definisci analizza(testo_errori, cartella=Nessuno, linguaggio_py=Falso):
                  "controlla il nome, l'estensione e che il file sia stato aggiunto al progetto (Progetto → Aggiungi risorse).")
     altrimenti_se en == "TypeError":
         se "concatenare" in messaggio o "concatenate" in messaggio:
-            aiuto = "Non si può unire testo e numero con «+». Converti il numero in testo, per esempio «\"Età: \" + testo(eta)», oppure usa un f-testo: f\"Età: {eta}\"."
+            aiuto = "Non si può unire testo e numero con «+». Converti il numero in testo, per esempio «\"Età: \" + tipo_testo(eta)», oppure usa un f-testo: f\"Età: {eta}\"."
         altrimenti_se "richiamabile" in messaggio o "not callable" in messaggio:
             aiuto = "Stai usando come funzione qualcosa che non lo è (una variabile, un numero, un testo). Controlla di non aver dato a una variabile lo stesso nome di una funzione e di non aver scritto «()» dopo un valore."
         altrimenti_se "argomenti" in messaggio o "argument" in messaggio:
@@ -169,12 +169,12 @@ definisci analizza(testo_errori, cartella=Nessuno, linguaggio_py=Falso):
         altrimenti_se "NoneType" in messaggio:
             aiuto = "Un valore è Nessuno: probabilmente una funzione non ha un «ritorna» e quindi non restituisce nulla."
         altrimenti_se "non supportato" in messaggio o "unsupported operand" in messaggio:
-            aiuto = "Stai combinando due tipi di valore che non si possono sommare, sottrarre o moltiplicare tra loro (per esempio un testo e un numero). Controlla i tipi con tipo(x)."
+            aiuto = "Stai combinando due tipi di valore che non si possono sommare, sottrarre o moltiplicare tra loro (per esempio un testo e un numero). Controlla i tipi con tipo_di(x)."
     altrimenti_se en == "ZeroDivisionError":
         aiuto = "Si è diviso per zero. Prima della divisione controlla il divisore: «se divisore != 0:»."
     altrimenti_se en == "IndexError":
-        aiuto = ("Hai chiesto un elemento che non c'è: gli indici partono da 0 e l'ultimo è lunghezza(lista) - 1 (oppure -1). "
-                 "Controlla con «lunghezza(...)» prima di leggere.")
+        aiuto = ("Hai chiesto un elemento che non c'è: gli indici partono da 0 e l'ultimo è lunghezza_di(lista) - 1 (oppure -1). "
+                 "Controlla con «lunghezza_di(...)» prima di leggere.")
     altrimenti_se en == "KeyError":
         aiuto = f"La chiave {messaggio} non è nel dizionario. Usa «dizionario.ottieni(chiave)» (restituisce Nessuno se manca) oppure controlla prima con «se chiave in dizionario:»."
     altrimenti_se en == "AttributeError":
