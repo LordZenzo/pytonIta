@@ -1,0 +1,176 @@
+"""Il componente Grafico: disegno (barre, linee, torta), generazione del codice, collegamento a una tabella, progettista ed esportazione in Python."""
+importa sys, os, tempfile, importlib, sqlite3, subprocess, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad importa form_modello, esporta_python
+da rad.form_modello importa Form
+importa grafico
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ---------------------------------------------------------------- le funzioni di aiuto
+verifica(grafico.voci_da(["Gen=12", "Feb=19,5", "Mar"]) == [("Gen", 12.0), ("Feb", 19.5), ("Mar", 0.0)], "voci da testo: " + str(grafico.voci_da(["Gen=12", "Feb=19,5", "Mar"])))
+verifica(grafico.voci_da([("a", 3), ("b", "4,5"), ("c", "x")]) == [("a", 3.0), ("b", 4.5), ("c", 0.0)], "voci da coppie")
+verifica(grafico.voci_da(Nessuno) == [] e grafico.voci_da([]) == [], "vuoto")
+verifica(grafico.formatta(12.0) == "12" e grafico.formatta(15.5) == "15.5" e grafico.formatta(0.333333) == "0.33", "formato dei numeri")
+verifica(grafico.passo_bello(30) == 10 e grafico.passo_bello(7) == 2 e grafico.passo_bello(0) == 1 e grafico.passo_bello(120) == 50, "passo dell'asse: " + str([grafico.passo_bello(x) per x in (30, 7, 0, 120)]))
+verifica(grafico.mescola("#000000", "#ffffff", 0.5) == "#7f7f7f", "mescola colori")
+
+# ---------------------------------------------------------------- disegno
+radice = tk.Tk()
+radice.geometry("500x400+20+20")
+dati = ["Gen=12", "Feb=19", "Mar=7", "Apr=-4"]
+
+
+definisci elementi(g, tipo_):
+    ritorna lunghezza(g.find_withtag("all")) se tipo_ == "tutti" altrimenti lunghezza([i per i in g.find_all() se g.type(i) == tipo_])
+
+
+g = grafico.Grafico(radice, tipo="barre", titolo="Vendite", dati=dati)
+g.place(x=0, y=0, width=400, height=300)
+radice.update()
+g.ridisegna()
+verifica(elementi(g, "rectangle") == 4, "4 barre: " + str(elementi(g, "rectangle")))
+testi = [g.itemcget(i, "text") per i in g.find_all() se g.type(i) == "text"]
+verifica("Vendite" in testi e "Gen" in testi e "19" in testi e "-4" in testi, "titolo, etichette e valori: " + str(testi))
+g.imposta_tipo("linee")
+verifica(elementi(g, "line") >= 1 e elementi(g, "oval") == 4 e elementi(g, "rectangle") == 0, "linee: un tratto e 4 punti")
+g.imposta_tipo("torta")
+verifica(elementi(g, "arc") == 3, "torta: 3 fette (il valore negativo si salta): " + str(elementi(g, "arc")))
+g.imposta_dati(["Solo=5"])
+verifica(elementi(g, "oval") == 1 e elementi(g, "arc") == 0, "una sola fetta è un cerchio intero")
+g.imposta_dati([])
+verifica("Nessun dato" in [g.itemcget(i, "text") per i in g.find_all() se g.type(i) == "text"], "senza dati lo scrive")
+g.imposta_dati(["a=0", "b=-3"])
+verifica("Nessun valore positivo" in [g.itemcget(i, "text") per i in g.find_all() se g.type(i) == "text"], "torta senza valori positivi")
+g.imposta_tipo("barre")
+g.imposta_dati(["a=5"] * 40)
+verifica(elementi(g, "rectangle") == 40, "molte barre")
+# finestra piccola e grande: non si rompe, e la torta e le barre seguono la misura
+g.place(x=0, y=0, width=80, height=70)
+radice.update()
+g.ridisegna()
+g.place(x=0, y=0, width=450, height=380)
+importa time
+per _ in intervallo(6):
+    radice.update()
+    time.sleep(0.03)
+verifica(elementi(g, "rectangle") == 40, "ridimensionato: ridisegnato")
+# valori tutti uguali e tutti zero
+g.imposta_dati(["a=0", "b=0"])
+verifica(elementi(g, "rectangle") == 2, "tutti zero: barre senza errori")
+radice.destroy()
+
+# ---------------------------------------------------------------- il modello e il codice generato
+f = Form("Vendite", "Vendite")
+f.larghezza, f.altezza = 520, 340
+f.aggiungi("Grafico", 10, 10, nome="grafico1", larghezza=500, altezza=300, tipo="torta", titolo="Quote", dati=["A=3", "B=1"], colore="#e45756")
+verifica(form_modello.usa_grafico(f) e "Grafico" in form_modello.ORDINE_PALETTE, "usa_grafico e palette")
+verifica("tipo" in form_modello.proprieta_di("Grafico") e "sfondo" in form_modello.proprieta_di("Grafico") e "stato" non in form_modello.proprieta_di("Grafico"), "proprietà del Grafico")
+ui = form_modello.genera_ui(f)
+verifica("importa grafico" in ui e "grafico.Grafico(radice," in ui e "tipo='torta'" in ui e "colore='#e45756'" in ui, "il codice generato importa e crea il Grafico")
+verifica(f.problemi() == [], "nessun avviso: " + str(f.problemi()))
+cartella = tempfile.mkdtemp()
+form_modello.salva_form(f, cartella)
+verifica(os.path.exists(os.path.join(cartella, "grafico.pit")), "grafico.pit copiato nel progetto")
+sys.path.insert(0, cartella)
+m = importlib.import_module("vendite")
+radice = tk.Tk()
+radice.geometry("+30+30")
+w = m.Vendite(radice)
+radice.update()
+radice.update()
+verifica(w.grafico1.tipo == "torta" e elementi(w.grafico1, "arc") == 2, "nella finestra vera: torta con 2 fette")
+verifica(w.grafico1.winfo_width() == 500 e w.grafico1.winfo_height() == 300, "e della misura disegnata")
+radice.destroy()
+
+# ---------------------------------------------------------------- collegato a una tabella
+c2 = tempfile.mkdtemp()
+db = os.path.join(c2, "vendite.db")
+conn = sqlite3.connect(db)
+conn.execute("CREATE TABLE mesi (id INTEGER PRIMARY KEY AUTOINCREMENT, mese TEXT, totale REAL)")
+conn.executemany("INSERT INTO mesi (mese, totale) VALUES (?, ?)", [("Gen", 10), ("Feb", 25.5), ("Mar", 8)])
+conn.commit()
+conn.close()
+f2 = Form("Mensile", "Mensile")
+f2.aggiungi("FonteDati", 400, 4, nome="fonte", database="vendite.db", tabella="mesi")
+f2.aggiungi("Grafico", 10, 40, nome="grafico_mesi", larghezza=480, altezza=240, tipo="barre", fonte="fonte", colonna_etichette="mese", colonna_valori="totale")
+f2.aggiungi("BarraNavigazione", 10, 4, nome="barra", larghezza=380, altezza=30, fonte="fonte")
+verifica("collega_grafico(se_stesso.grafico_mesi, 'mese', 'totale')" in form_modello.genera_ui(f2), "il collegamento alla fonte dati nel codice generato")
+form_modello.salva_form(f2, c2)
+sys.path.insert(0, c2)
+m2 = importlib.import_module("mensile")
+radice = tk.Tk()
+radice.geometry("+30+30")
+w2 = m2.Mensile(radice)
+radice.update()
+radice.update()
+g2 = w2.grafico_mesi
+etichette = [g2.itemcget(i, "text") per i in g2.find_all() se g2.type(i) == "text"]
+verifica(elementi(g2, "rectangle") == 3 e "Gen" in etichette e "Feb" in etichette e "25.5" in etichette, "il grafico mostra i 3 record della tabella: " + str(etichette))
+w2.fonte.fonte.salva({"mese": "Apr", "totale": "40"})
+w2.fonte.ricarica()
+radice.update()
+verifica(elementi(g2, "rectangle") == 4, "dopo un nuovo record il grafico si aggiorna: " + str(elementi(g2, "rectangle")))
+radice.destroy()
+
+# ---------------------------------------------------------------- il progettista
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.progettista importa Progettista
+
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci apri_file(se_stesso, p): passa
+    definisci apri_file_a_funzione(se_stesso, p, f): passa
+    definisci esegui_file(se_stesso, p): passa
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+col = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x650")
+configura_stile(radice, col)
+f3 = Form("Demo", "Demo")
+p = Progettista(radice, os.path.join(tempfile.mkdtemp(), "demo.form.json"), f3, col, cfg, Az())
+p.pack(fill="both", expand=Vero)
+applica(radice, col)
+radice.update()
+gc = p.aggiungi_componente("Grafico", 20, 20)
+radice.update()
+verifica(isinstance(p.widget[gc.nome], grafico.Grafico), "nel progettista il Grafico è disegnato")
+verifica(elementi(p.widget[gc.nome], "rectangle") == 4, "con i dati d'esempio: 4 barre")
+p.imposta_proprieta(gc.nome, "tipo", "torta")
+radice.update()
+verifica(elementi(p.widget[gc.nome], "arc") == 4, "cambiando il tipo l'anteprima segue: " + str(elementi(p.widget[gc.nome], "arc")))
+p.imposta_proprieta(gc.nome, "dati", ["x=1", "y=2"])
+radice.update()
+verifica(elementi(p.widget[gc.nome], "arc") == 2, "e i dati")
+p.seleziona([gc.nome])
+radice.update()
+etichette = [w.cget("text") per w in p.righe_ispettore.winfo_children() se w.winfo_class() == "Label"]
+verifica("Tipo di grafico" in etichette e "Titolo" in etichette, "campi nell'ispettore: " + str(etichette[:8]))
+radice.destroy()
+
+# ---------------------------------------------------------------- esportato in Python
+dest = os.path.join(tempfile.mkdtemp(), "e")
+e = esporta_python.esporta(c2, dest)
+verifica(e["errori"] == [] e os.path.exists(os.path.join(dest, "grafico.py")), "esportazione: " + str(e))
+python_ = shutil.which("python") o shutil.which("py")
+se python_:
+    open(os.path.join(dest, "p.py"), "w", encoding="utf-8").write("import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport mensile\nr = tk.Tk(); a = mensile.Mensile(r); r.update(); r.update()\ng = a.grafico_mesi\nprint(len([i for i in g.find_all() if g.type(i) == 'rectangle']))\nr.destroy()\n")
+    u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "p.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
+    verifica(u.returncode == 0 e u.stdout.strip().endswith("4"), "con Python normale: il grafico mostra i 4 record: " + u.stdout.strip() + u.stderr[-200:])
+
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

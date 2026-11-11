@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.49
+
+- **Componente Grafico**: barre, linee e torta disegnati con tkinter (nessuna libreria esterna), con titolo, valori, colore e legenda della torta. I dati si scrivono nell'ispettore (`etichetta=valore`) oppure arrivano da una tabella tramite la fonte dati (colonna delle etichette e colonna dei valori) e il grafico si aggiorna quando cambiano. Funziona nel progettista, nel programma, nell'esportazione in Python e nell'eseguibile.
+
 ## Novità della 1.48
 
 - **Guide di allineamento** nel progettista: trascinando un componente compaiono linee rosa quando un bordo o il centro coincide con quello di un altro componente (o del contenitore) e il componente si aggancia; casella **Guide** nella barra, Alt per non agganciare. («Distribuisci in modo uniforme» c'era già nel menu Allinea.)

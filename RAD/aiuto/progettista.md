@@ -35,6 +35,7 @@ Il progettista ti fa costruire una finestra con il mouse. Non devi scrivere il c
 | **CasellaCombinata** | un menu a tendina |
 | **BarraProgresso** | una barra di avanzamento |
 | **Albero** | una tabella con colonne (anche gerarchica) |
+| **Grafico** | un grafico a barre, a linee o a torta, con i dati scritti o presi da una tabella |
 | **Tela** | un'area dove disegnare |
 | **Riquadro** | un contenitore decorativo con bordo |
 | **Immagine** | un'immagine presa dal progetto |
@@ -121,6 +122,16 @@ Di solito i componenti stanno dove li metti (**libero**). Con la **griglia** inv
 **Con il mouse e la tastiera.** Trascinando un componente si evidenzia la cella di arrivo e, rilasciando, ci va. Oltre l'ultima riga o colonna si crea una riga o colonna nuova. Le frecce spostano di una cella. Un componente nuovo va nella cella sotto il puntatore, se è libera, altrimenti nella prima cella libera.
 
 **Nel programma.** Il codice generato usa il file `griglia.pit` (che PitStudio mette nel progetto) e dispone i componenti con lo stesso calcolo del progettista: quello che vedi è quello che ottieni, anche ridimensionando la finestra. Le finestre già disegnate restano libere finché non scegli la griglia. Nell'esportazione in Python e nell'eseguibile la griglia funziona allo stesso modo.
+
+## Il grafico
+
+Il componente **Grafico** disegna **barre**, **linee** o **torta** senza librerie esterne, e si ridisegna da solo quando la finestra cambia misura. Nell'ispettore:
+
+- **Tipo di grafico**, **Titolo**, **Mostra i valori**, **Colore** delle barre e della linea, **Sfondo** e **Colore del testo**;
+- **Dati**: l'elenco `etichetta=valore` separato da virgole, per esempio `Gen=12, Feb=19, Mar=7` (i decimali con il punto: `15.5`);
+- oppure **Fonte dati**: scegli una fonte dati della finestra, poi la **colonna delle etichette** e la **colonna dei valori** della tabella. Il grafico mostra tutti i record e si aggiorna quando i dati cambiano (nuovo record, modifica, eliminazione).
+
+Nel codice si cambia con `se_stesso.grafico1.imposta_dati([("Gen", 12), ("Feb", 19)])`, `imposta_tipo("torta")` e `imposta_titolo("...")`. PitStudio mette nel progetto il file `grafico.pit`, che si usa anche in finestre scritte a mano e funziona anche nell'esportazione in Python e nell'eseguibile.
 
 ## Guide di allineamento
 

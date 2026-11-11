@@ -87,6 +87,17 @@ TIPI["Timer"] = dict(classe_tk="", modulo="tk", larghezza=110, altezza=24, icona
 TIPI["Schede"] = dict(classe_tk="Schede", modulo="tema", larghezza=320, altezza=200, icona="▭", contenitore=Vero,
                       proprieta={"pagine": ("elenco", ["Pagina 1", "Pagina 2"], "Pagine (schede)")})
 TIPI["Riquadro"]["contenitore"] = Vero
+# grafico a barre, a linee o a torta (modelli_codice/grafico.pit): dati scritti qui o presi da una tabella
+TIPI["Grafico"] = dict(classe_tk="Grafico", modulo="grafico", larghezza=360, altezza=220, icona="▥",
+                       proprieta={"tipo": ("scelta:barre,linee,torta", "barre", "Tipo di grafico"),
+                                  "titolo": ("testo", "", "Titolo"),
+                                  "dati": ("elenco", ["Gen=12", "Feb=19", "Mar=7", "Apr=15"], "Dati: etichetta=valore, separati da virgola (decimali con il punto)"),
+                                  "mostra_valori": ("si_no", Vero, "Mostra i valori"),
+                                  "colore": ("colore", "", "Colore delle barre e della linea"),
+                                  "primo_piano": ("colore", "", "Colore del testo"),
+                                  "fonte": ("fonte", "", "Fonte dati (se vuota: i dati scritti qui)"),
+                                  "colonna_etichette": ("campo", "", "Colonna delle etichette"),
+                                  "colonna_valori": ("campo", "", "Colonna dei valori")})
 # disposizione dei componenti dentro finestra, riquadri e pagine di schede: «libero» (posizioni disegnate) o «griglia» (celle)
 PROPRIETA_LAYOUT = {"layout": ("scelta:libero,griglia", "libero", "Disposizione dei componenti"),
                     "colonne": ("testo", "", "Colonne: pesi (0 = misura naturale, 1 o più = si allarga), es. 0,1"),
@@ -146,7 +157,7 @@ per _tipo, _serve_campo in COLLEGABILI.items():
     se _serve_campo:
         TIPI[_tipo]["proprieta"]["campo"] = ("campo", "", "Campo della tabella")
 ORDINE_PALETTE = ["Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione",
-                  "PulsanteOpzione", "Cursore", "CasellaCombinata", "BarraProgresso", "Albero",
+                  "PulsanteOpzione", "Cursore", "CasellaCombinata", "BarraProgresso", "Albero", "Grafico",
                   "Tela", "Riquadro", "Schede", "Immagine", "Separatore", "BarraMenu", "Timer",
                   "FonteDati", "BarraNavigazione"]
 # Pulsante: apre un'altra finestra del progetto
@@ -197,10 +208,10 @@ definisci proprieta_di(tipo_):
         p["ancoraggio"] = ("ancoraggio", "sa", "Si aggancia ai bordi")
     altrimenti:
         ritorna p
-    se tipo_ non in ("Riquadro", "Schede", "Tela", "Separatore", "Immagine", "BarraProgresso", "Albero", "BarraNavigazione"):
+    se tipo_ non in ("Riquadro", "Schede", "Tela", "Separatore", "Immagine", "BarraProgresso", "Albero", "BarraNavigazione", "Grafico"):
         per k, v in COMUNI.items():
             p.setdefault(k, v)
-    se tipo_ in ("Riquadro", "Immagine", "BarraProgresso"):
+    se tipo_ in ("Riquadro", "Immagine", "BarraProgresso", "Grafico"):
         p.setdefault("sfondo", COMUNI["sfondo"])
     ritorna p
 
@@ -583,6 +594,11 @@ definisci _lit(valore):
     ritorna repr(valore)
 
 
+definisci usa_grafico(form):
+    """True se la finestra ha un Grafico (serve grafico.pit nel progetto)."""
+    ritorna any(c.tipo == "Grafico" per c in form.componenti)
+
+
 definisci usa_dati(form):
     """True se la finestra ha una fonte dati o una barra di navigazione (serve fonte_dati.pit nel progetto)."""
     ritorna any(c.tipo in ("FonteDati", "BarraNavigazione") per c in form.componenti)
@@ -618,6 +634,8 @@ definisci _codice_dati(form):
             campo = c.valori.get("campo") o ""
             se c.tipo == "BarraNavigazione":
                 r.append(f"{ind}se_stesso.{f.nome}.collega_barra(se_stesso.{c.nome})")
+            altrimenti_se c.tipo == "Grafico":
+                r.append(f"{ind}se_stesso.{f.nome}.collega_grafico(se_stesso.{c.nome}, {_lit(c.valori.get('colonna_etichette') o '')}, {_lit(c.valori.get('colonna_valori') o '')})")
             altrimenti_se c.tipo == "Albero":
                 r.append(f"{ind}se_stesso.{f.nome}.collega_griglia(se_stesso.{c.nome}{', modificabile=Vero' se c.valori.get('modificabile') altrimenti ''})")
             altrimenti_se c.tipo == "Elenco" e campo:
@@ -651,6 +669,8 @@ definisci genera_ui(form):
         r.append("importa fonte_dati come dati")
     se usa_griglia(form):
         r.append("importa griglia")
+    se usa_grafico(form):
+        r.append("importa grafico")
     r.append("")
     r.append("")
     r.append(f"classe {cl}UI:")
@@ -967,6 +987,16 @@ definisci _codice_componente(c, form=Nessuno):
                 r.append(f"{ind}{nome_att}.heading({_lit(nome_col)}, anchor={_lit(ancora_col)})")
         se gestore("al_selezione"):
             r.append(f"{ind}{nome_att}.associa('<<TreeviewSelect>>', {gestore('al_selezione')})")
+    altrimenti_se c.tipo == "Grafico":
+        o = [f"tipo={_lit(v.get('tipo') o 'barre')}", f"titolo={_lit(v.get('titolo') o '')}", f"dati={_lit(lista(v.get('dati', [])))}",
+             f"mostra_valori={_lit(bool(v.get('mostra_valori', Vero)))}"]
+        se v.get("colore"):
+            o.append(f"colore={_lit(v['colore'])}")
+        se v.get("sfondo"):
+            o.append(f"sfondo={_lit(v['sfondo'])}")
+        se v.get("primo_piano"):
+            o.append(f"testo_={_lit(v['primo_piano'])}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})")
     altrimenti_se c.tipo == "Tela":
         r.append(f"{ind}{nome_att} = {cl}(radice, background={_lit(v.get('sfondo') o '#ffffff')}, highlightthickness=0)")
     altrimenti_se c.tipo == "Riquadro":
@@ -1126,6 +1156,28 @@ definisci copia_aspetto(cartella, scritti=Nessuno):
             scritti.append(destinazione)
 
 
+MODELLO_GRAFICO = os.path.join(CARTELLA_MODELLI, "grafico.pit")
+
+
+definisci copia_grafico(cartella, scritti=Nessuno):
+    """Mette nel progetto grafico.pit (il componente Grafico); se la copia è diversa da quella di PitStudio la rinnova (la vecchia resta come .bak)."""
+    destinazione = os.path.join(cartella, "grafico.pit")
+    se non os.path.exists(MODELLO_GRAFICO):
+        ritorna
+    con open(MODELLO_GRAFICO, encoding="utf-8", newline="") come f:
+        nuova = f.read().replace("\r\n", chr(10))
+    se os.path.exists(destinazione):
+        con open(destinazione, encoding="utf-8", newline="") come f:
+            vecchia = f.read().replace("\r\n", chr(10))
+        se vecchia == nuova:
+            ritorna
+        shutil.copyfile(destinazione, destinazione + ".bak")
+    con open(destinazione, "w", encoding="utf-8", newline="\n") come f:
+        f.write(nuova)
+    se scritti è non Nessuno:
+        scritti.append(destinazione)
+
+
 MODELLO_GRIGLIA = os.path.join(CARTELLA_MODELLI, "griglia.pit")
 
 
@@ -1187,6 +1239,8 @@ definisci salva_form(form, cartella):
         copia_fonte_dati(cartella, scritti)
     se usa_griglia(form):
         copia_griglia(cartella, scritti)
+    se usa_grafico(form):
+        copia_grafico(cartella, scritti)
     se os.path.exists(p["logica"]):
         con open(p["logica"], encoding="utf-8") come f:
             attuale = f.read()

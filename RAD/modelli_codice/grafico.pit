@@ -1,0 +1,222 @@
+"""Grafico a barre, a linee e a torta disegnato con tkinter (nessuna libreria esterna). Questo file lo crea PitStudio nel progetto quando usi il componente «Grafico».
+
+    da grafico importa Grafico
+    g = Grafico(radice, tipo="barre", titolo="Vendite", dati=["Gen=12", "Feb=19", "Mar=7"])
+    g.posiziona(x=10, y=10, width=400, height=240)
+    g.imposta_dati([("Gen", 12), ("Feb", 19), ("Mar", 7)])      # o "Gen=12": cambia i dati e ridisegna
+    g.imposta_tipo("torta")                                       # barre, linee o torta
+
+Si ridisegna da solo quando cambia la misura. Con la fonte dati della finestra i dati arrivano dalla tabella (colonna delle etichette e colonna dei valori).
+"""
+importa math
+importa tkinter come tk
+
+COLORI = ["#4c78a8", "#f58518", "#54a24b", "#e45756", "#72b7b2", "#b279a2", "#eeca3b", "#9d755d"]
+
+
+definisci numero(valore):
+    """Un numero da un valore qualsiasi (anche testo con la virgola); se non si legge vale 0."""
+    prova:
+        ritorna float(testo(valore).strip().replace(",", ".")) se valore è non Nessuno altrimenti 0.0
+    eccetto ValueError:
+        ritorna 0.0
+
+
+definisci voci_da(dati):
+    """[(etichetta, valore)] da una lista di coppie o di testi «etichetta=valore»."""
+    risultato = []
+    per d in dati o []:
+        se isinstance(d, str):
+            etichetta, separatore, valore = d.rpartition("=")
+            risultato.append((etichetta.strip(), numero(valore)) se separatore altrimenti (d.strip(), 0.0))
+        altrimenti:
+            risultato.append((testo(d[0]), numero(d[1])))
+    ritorna risultato
+
+
+definisci formatta(v):
+    se abs(v - round(v)) < 1e-9:
+        ritorna testo(int(round(v)))
+    ritorna f"{v:.2f}".rstrip("0").rstrip(".")
+
+
+definisci _rgb(colore):
+    colore = colore.lstrip("#")
+    ritorna int(colore[0:2], 16), int(colore[2:4], 16), int(colore[4:6], 16)
+
+
+definisci mescola(a, b, quanto):
+    """Colore tra a e b (quanto = 0 è a, 1 è b), in esadecimale."""
+    prova:
+        ra, rb = _rgb(a), _rgb(b)
+    eccetto (ValueError, IndexError):
+        ritorna b
+    ritorna "#%02x%02x%02x" % tuple(int(x + (y - x) * quanto) per x, y in zip(ra, rb))
+
+
+definisci passo_bello(intervallo, tacche=4):
+    """Un passo «tondo» (1, 2, 5, 10...) per l'asse dei valori."""
+    se intervallo <= 0:
+        ritorna 1.0
+    grezzo = intervallo / tacche
+    potenza = 10 ** math.floor(math.log10(grezzo))
+    per m in (1, 2, 5, 10):
+        se grezzo <= m * potenza:
+            ritorna m * potenza
+    ritorna 10 * potenza
+
+
+classe Grafico(tk.Canvas):
+    """tipo: «barre», «linee» o «torta»."""
+
+    definisci __inizializza__(se_stesso, genitore, tipo="barre", titolo="", dati=(), mostra_valori=Vero, colore="", sfondo="#ffffff", testo_="#1f2933", **opzioni):
+        tk.Canvas.__init__(se_stesso, genitore, background=sfondo, highlightthickness=0, **opzioni)
+        se_stesso.tipo = tipo
+        se_stesso.titolo = titolo
+        se_stesso.mostra_valori = mostra_valori
+        se_stesso.colore = colore
+        se_stesso.colore_testo = testo_
+        se_stesso.sfondo_grafico = sfondo
+        se_stesso.voci = voci_da(dati)
+        se_stesso._lavoro = Nessuno
+        se_stesso.bind("<Configure>", se_stesso._cambio_misura)
+        se_stesso.ridisegna()
+
+    # ------------------------------------------------------------ dati e aspetto
+    definisci imposta_dati(se_stesso, dati):
+        se_stesso.voci = voci_da(dati)
+        se_stesso.ridisegna()
+
+    definisci imposta_tipo(se_stesso, tipo):
+        se_stesso.tipo = tipo
+        se_stesso.ridisegna()
+
+    definisci imposta_titolo(se_stesso, titolo):
+        se_stesso.titolo = titolo
+        se_stesso.ridisegna()
+
+    definisci _cambio_misura(se_stesso, evento=Nessuno):
+        # ridisegna una volta sola a fine ridimensionamento (la finestra manda molti eventi)
+        se se_stesso._lavoro è non Nessuno:
+            prova:
+                se_stesso.after_cancel(se_stesso._lavoro)
+            eccetto tk.TclError:
+                passa
+        se_stesso._lavoro = se_stesso.after(30, se_stesso.ridisegna)
+
+    # ------------------------------------------------------------ disegno
+    definisci ridisegna(se_stesso):
+        se_stesso._lavoro = Nessuno
+        prova:
+            se_stesso.delete("all")
+            larghezza = max(60, se_stesso.winfo_width())
+            altezza = max(60, se_stesso.winfo_height())
+        eccetto tk.TclError:
+            ritorna
+        testo_c = se_stesso.colore_testo
+        alto = 12
+        se se_stesso.titolo:
+            se_stesso.create_text(larghezza / 2, 14, text=se_stesso.titolo, fill=testo_c, font=("Segoe UI", 11, "bold"))
+            alto = 32
+        se non se_stesso.voci:
+            se_stesso.create_text(larghezza / 2, altezza / 2, text="Nessun dato", fill=mescola(se_stesso.sfondo_grafico, testo_c, 0.5), font=("Segoe UI", 10))
+            ritorna
+        se se_stesso.tipo == "torta":
+            se_stesso._torta(larghezza, altezza, alto)
+        altrimenti:
+            se_stesso._assi(larghezza, altezza, alto)
+
+    definisci _assi(se_stesso, larghezza, altezza, alto):
+        """Barre e linee: asse dei valori a sinistra con le linee di riferimento, etichette sotto."""
+        testo_c = se_stesso.colore_testo
+        tenue = mescola(se_stesso.sfondo_grafico, testo_c, 0.55)
+        linee = mescola(se_stesso.sfondo_grafico, testo_c, 0.15)
+        valori = [v per _, v in se_stesso.voci]
+        minimo = min(0.0, min(valori))
+        massimo = max(0.0, max(valori))
+        se massimo == minimo:
+            massimo = minimo + 1
+        passo = passo_bello(massimo - minimo)
+        base = math.floor(minimo / passo) * passo
+        cima = math.ceil(massimo / passo) * passo
+        etichette_asse = [formatta(base + i * passo) per i in intervallo(int(round((cima - base) / passo)) + 1)]
+        sinistra = 14 + 7 * max(lunghezza(t) per t in etichette_asse)
+        destra = 12
+        basso = altezza - 26
+        x0, x1 = sinistra, larghezza - destra
+        y_alto, y_basso = alto, basso
+        se x1 - x0 < 20 o y_basso - y_alto < 20:
+            ritorna
+
+        definisci y_di(v):
+            ritorna y_basso - (v - base) / (cima - base) * (y_basso - y_alto)
+        i = 0
+        mentre base + i * passo <= cima + passo / 1000:
+            v = base + i * passo
+            y = y_di(v)
+            se_stesso.create_line(x0, y, x1, y, fill=linee)
+            se_stesso.create_text(x0 - 6, y, text=formatta(v), anchor="e", fill=tenue, font=("Segoe UI", 8))
+            i += 1
+        y_zero = y_di(0)
+        se_stesso.create_line(x0, y_zero, x1, y_zero, fill=tenue)
+        n = lunghezza(se_stesso.voci)
+        fetta = (x1 - x0) / n
+        colore = se_stesso.colore o COLORI[0]
+        punti = []
+        per k, (etichetta, v) in enumera(se_stesso.voci):
+            centro = x0 + fetta * (k + 0.5)
+            y = y_di(v)
+            se se_stesso.tipo == "linee":
+                punti.append((centro, y))
+            altrimenti:
+                mezza = max(2, fetta * 0.35)
+                se_stesso.create_rectangle(centro - mezza, min(y, y_zero), centro + mezza, max(y, y_zero), fill=colore, outline="")
+            se se_stesso.mostra_valori:
+                se_stesso.create_text(centro, (y - 8) se v >= 0 altrimenti (y + 8), text=formatta(v), fill=testo_c, font=("Segoe UI", 8))
+            massimo_caratteri = max(3, int(fetta / 6.5))
+            nome = etichetta se lunghezza(etichetta) <= massimo_caratteri altrimenti etichetta[:max(1, massimo_caratteri - 1)] + "…"
+            se_stesso.create_text(centro, y_basso + 12, text=nome, fill=tenue, font=("Segoe UI", 8))
+        se se_stesso.tipo == "linee":
+            se lunghezza(punti) > 1:
+                se_stesso.create_line(*[c per p in punti per c in p], fill=colore, width=2, smooth=Falso)
+            per cx, cy in punti:
+                se_stesso.create_oval(cx - 3, cy - 3, cx + 3, cy + 3, fill=colore, outline=se_stesso.sfondo_grafico)
+
+    definisci _torta(se_stesso, larghezza, altezza, alto):
+        testo_c = se_stesso.colore_testo
+        positive = [(e, v) per e, v in se_stesso.voci se v > 0]
+        totale = sum(v per _, v in positive)
+        se totale <= 0:
+            se_stesso.create_text(larghezza / 2, altezza / 2, text="Nessun valore positivo", fill=testo_c, font=("Segoe UI", 10))
+            ritorna
+        larghezza_legenda = min(larghezza * 0.42, 190)
+        lato = min(larghezza - larghezza_legenda - 24, altezza - alto - 12)
+        se lato < 30:
+            lato = max(30, min(larghezza - 20, altezza - alto - 12))
+            larghezza_legenda = 0
+        x0 = 12
+        y0 = alto + (altezza - alto - 12 - lato) / 2
+        inizio = 90.0
+        per k, (etichetta, v) in enumera(positive):
+            estensione = v / totale * 360
+            colore = COLORI[k % lunghezza(COLORI)]
+            se lunghezza(positive) == 1:
+                se_stesso.create_oval(x0, y0, x0 + lato, y0 + lato, fill=colore, outline=se_stesso.sfondo_grafico, width=2)
+            altrimenti:
+                se_stesso.create_arc(x0, y0, x0 + lato, y0 + lato, start=inizio, extent=-estensione, fill=colore, outline=se_stesso.sfondo_grafico, width=2, style="pieslice")
+            inizio -= estensione
+        # legenda a destra
+        se larghezza_legenda:
+            lx = x0 + lato + 20
+            riga = 18
+            ly = max(alto, (altezza - riga * lunghezza(positive)) / 2)
+            per k, (etichetta, v) in enumera(positive):
+                colore = COLORI[k % lunghezza(COLORI)]
+                se_stesso.create_rectangle(lx, ly + 3, lx + 10, ly + 13, fill=colore, outline="")
+                percento = v / totale * 100
+                descrizione = etichetta + (f"  {formatta(v)} ({percento:.0f}%)" se se_stesso.mostra_valori altrimenti f"  {percento:.0f}%")
+                massimo_caratteri = max(6, int((larghezza - lx - 24) / 6.5))
+                se lunghezza(descrizione) > massimo_caratteri:
+                    descrizione = descrizione[:massimo_caratteri - 1] + "…"
+                se_stesso.create_text(lx + 16, ly + 8, text=descrizione, anchor="w", fill=testo_c, font=("Segoe UI", 9))
+                ly += riga

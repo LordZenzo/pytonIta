@@ -8,6 +8,7 @@ importa tkinter come tk
 da tkinter importa ttk, messagebox, colorchooser, filedialog, simpledialog
 
 da rad importa form_modello, schema_dati
+importa grafico          # (modelli_codice/grafico.pit: form_modello ha già messo quella cartella nel percorso)
 da rad.stile importa suggerisci come stile_suggerisci
 da rad.form_modello importa Form, TIPI, ORDINE_PALETTE, proprieta_di, nome_valido, colonne_albero, e_visivo, voci_menu, e_contenitore
 da rad.piattaforma importa FONT_MONO, FONT_UI, cursore, lega_rotella
@@ -101,6 +102,10 @@ definisci crea_widget_di_progetto(c, genitore, cartella):
                 per nome_col, larghezza_col, ancora_col in colonne_albero(v):
                     w.column(nome_col, width=larghezza_col, anchor=ancora_col)
                     w.heading(nome_col, anchor=ancora_col)
+        altrimenti_se t == "Grafico":
+            w = grafico.Grafico(genitore, tipo=v.get("tipo") o "barre", titolo=v.get("titolo") o "", dati=(lista(v.get("dati", [])) se non v.get("fonte") altrimenti
+                                ["Gen=12", "Feb=19", "Mar=7", "Apr=15"]), mostra_valori=bool(v.get("mostra_valori", Vero)), colore=v.get("colore") o "",
+                                sfondo=v.get("sfondo") o "#ffffff", testo_=v.get("primo_piano") o "#1f2933")
         altrimenti_se t == "Tela":
             w = tk.Canvas(genitore, background=v.get("sfondo") o "#ffffff", highlightthickness=0)
         altrimenti_se t == "Riquadro":

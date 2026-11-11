@@ -641,6 +641,7 @@ classe Collegamento:
         se_stesso.ricerca = ""
         se_stesso.campi = []            # (componente, colonna)
         se_stesso.griglie = []          # (componente, colonna o Nessuno)
+        se_stesso.grafici = []          # (componente Grafico, colonna delle etichette, colonna dei valori)
         se_stesso.barre = []
         se_stesso._muovo = Falso
 
@@ -687,6 +688,22 @@ classe Collegamento:
                 componente.bind("<Delete>", lambda ev: se_stesso.elimina(), add="+")
         altrimenti:
             componente.bind("<<ListboxSelect>>", se_stesso._scelta_griglia, add="+")
+
+    definisci collega_grafico(se_stesso, grafico, colonna_etichette="", colonna_valori=""):
+        """Un Grafico mostra i record della tabella: le etichette dalla colonna indicata (se vuota: il numero del record) e i valori dalla colonna dei valori."""
+        se_stesso.grafici.append((grafico, colonna_etichette, colonna_valori))
+        se_stesso._riempi_grafici()
+
+    definisci _riempi_grafici(se_stesso):
+        per grafico, colonna_etichette, colonna_valori in se_stesso.grafici:
+            voci = []
+            per i, (id_, valori) in enumera(se_stesso.record):
+                etichetta = valori.get(colonna_etichette) se colonna_etichette altrimenti i + 1
+                voci.append(("" se etichetta è Nessuno altrimenti testo(etichetta), valori.get(colonna_valori) se colonna_valori altrimenti 1))
+            prova:
+                grafico.imposta_dati(voci)
+            eccetto tk.TclError:
+                passa
 
     definisci collega_barra(se_stesso, barra):
         barra.collegamento = se_stesso
@@ -776,6 +793,7 @@ classe Collegamento:
             messagebox.showerror("Database", testo(problema), parent=se_stesso.radice)
             ritorna
         se_stesso._riempi_griglie()
+        se_stesso._riempi_grafici()
         indice = Nessuno
         se seleziona è non Nessuno:
             per i, (id_, valori) in enumera(se_stesso.record):
