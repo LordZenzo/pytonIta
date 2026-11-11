@@ -1,0 +1,168 @@
+"""Layout a griglia nelle finestre disegnate: modello, salvataggio, codice generato e finestra vera (stesse posizioni del calcolo, anche ridimensionando)."""
+importa sys, os, tempfile, json, importlib, subprocess, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad importa form_modello, esporta_python
+da rad.form_modello importa Form
+
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ----------------------------------------------------------------- una finestra libera non cambia
+libera = Form("Libera", "x")
+libera.aggiungi("Etichetta", 10, 10, nome="e1", testo="a")
+j = json.loads(libera.a_json())
+verifica("layout" non in j e "colonne" non in j, "il file di una finestra libera non ha chiavi nuove: " + testo(sorted(j)))
+verifica(form_modello.definizione_griglia(libera, "") è Nessuno e form_modello.rettangoli(libera) == {}, "finestra libera: nessuna griglia")
+verifica("griglia" non in form_modello.genera_ui_completa(libera), "e il codice generato non cambia: niente import")
+verifica("layout" in form_modello.proprieta_di("Riquadro") e "colonne" in form_modello.proprieta_di("Schede"), "riquadri e schede hanno le proprietà del layout")
+vecchio = Form.da_dizionario({"nome": "V", "componenti": [{"tipo": "Riquadro", "nome": "r", "x": 1, "y": 1}]})
+verifica(vecchio.componenti[0].valori["layout"] == "libero" e vecchio.layout == "libero", "un file vecchio si apre libero")
+
+# ----------------------------------------------------------------- finestra a griglia: etichette a sinistra, campi che si allargano
+f = Form("Anagrafica", "Anagrafica")
+f.larghezza, f.altezza = 420, 240
+f.layout = "griglia"
+f.colonne = "0, 1"
+f.righe = "0, 1, 0"
+f.margine, f.spazio = 12, 8
+e1 = f.aggiungi("Etichetta", 0, 0, nome="etichetta_nome", testo="Nome", larghezza=70, altezza=24)
+c1 = f.aggiungi("CampoTesto", 0, 0, nome="campo_nome", larghezza=150, altezza=26)
+e2 = f.aggiungi("Etichetta", 0, 0, nome="etichetta_note", testo="Note", larghezza=70, altezza=24)
+a1 = f.aggiungi("AreaTesto", 0, 0, nome="area_note", larghezza=150, altezza=60)
+p1 = f.aggiungi("Pulsante", 0, 0, nome="pulsante_ok", testo="OK", larghezza=90, altezza=30)
+form_modello.imposta_cella(e1, 0, 0)
+form_modello.imposta_cella(c1, 0, 1)
+form_modello.imposta_cella(e2, 1, 0, allinea="nw")
+form_modello.imposta_cella(a1, 1, 1)
+form_modello.imposta_cella(p1, 2, 1, allinea="e")
+verifica(form_modello.cella_di(c1) == {"riga": 0, "colonna": 1, "righe": 1, "colonne": 1, "allinea": "ew"}, "la cella del campo: allineamento predefinito «ew»: " + testo(form_modello.cella_di(c1)))
+verifica(form_modello.cella_di(p1)["allinea"] == "e", "allineamento scelto")
+rett = form_modello.rettangoli(f)
+verifica(rett["etichetta_nome"] == (12, 13, 70, 24) e rett["campo_nome"][0] == 12 + 70 + 8 e rett["campo_nome"][2] == 420 - 12 - 90, "etichetta e campo: " + testo((rett["etichetta_nome"], rett["campo_nome"])))
+verifica(rett["area_note"][3] == 60 + (240 - 24 - (26 + 60 + 30) - 16) e rett["area_note"][2] == rett["campo_nome"][2], "l'area di testo prende l'altezza che avanza (riga con peso 1): " + testo(rett["area_note"]))
+verifica(rett["pulsante_ok"][0] + rett["pulsante_ok"][2] == 420 - 12, "il pulsante sta a destra: " + testo(rett["pulsante_ok"]))
+verifica(rett["etichetta_note"][1] == rett["area_note"][1], "«nw»: l'etichetta Note sta in alto, come l'area")
+
+# salvataggio e rilettura
+r2 = Form.da_json(f.a_json())
+verifica(r2.layout == "griglia" e r2.colonne == "0, 1" e r2.righe == "0, 1, 0" e r2.margine == 12 e r2.spazio == 8, "il form si rilegge: " + testo(r2.layout))
+verifica(form_modello.rettangoli(r2) == rett, "e dà gli stessi rettangoli")
+
+# ----------------------------------------------------------------- codice generato
+ui = form_modello.genera_ui_completa(f)
+verifica("importa griglia" in ui e "griglia.disponi(radice, [" in ui, "il codice usa il motore")
+verifica("(se_stesso.campo_nome, 0, 1, 1, 1, 'ew', 150, 26)" in ui e "[0.0, 1.0], [0.0, 1.0, 0.0], 12, 8)" in ui, "le celle e i pesi sono nel codice: " + ui[ui.index("griglia.disponi"):][:400])
+verifica("se_stesso.campo_nome.posiziona(x=%d, y=%d, width=%d, height=%d)" % rett["campo_nome"] in ui, "la posizione di partenza viene dalla cella")
+verifica("relwidth" non in ui, "niente ancoraggi nelle griglie")
+
+# ----------------------------------------------------------------- riquadro a griglia dentro la finestra libera, e schede
+g = Form("Misto", "Misto")
+g.larghezza, g.altezza = 500, 400
+g.aggiungi("Pulsante", 10, 10, nome="libero1", testo="libero", larghezza=80, altezza=28)
+q = g.aggiungi("Riquadro", 10, 60, nome="quadro", larghezza=300, altezza=140, bordo=2)
+q.valori.update(layout="griglia", colonne="0,1", righe="1", margine=6, spazio=4)
+d1 = g.aggiungi("Etichetta", 0, 0, nome="dentro1", testo="x", larghezza=50, altezza=20, genitore="quadro")
+d2 = g.aggiungi("CampoTesto", 0, 0, nome="dentro2", larghezza=80, altezza=22, genitore="quadro")
+form_modello.imposta_cella(d1, 0, 0)
+form_modello.imposta_cella(d2, 0, 1)
+sc = g.aggiungi("Schede", 10, 220, nome="schede1", larghezza=320, altezza=160, pagine=["Uno", "Due"])
+sc.valori.update(layout="griglia", colonne="1", righe="1", margine=5, spazio=5)
+t1 = g.aggiungi("Albero", 0, 0, nome="albero1", larghezza=100, altezza=60, genitore="schede1#1")
+form_modello.imposta_cella(t1, 0, 0)
+rg = form_modello.rettangoli(g)
+verifica("libero1" non in rg e "quadro" non in rg, "i componenti nella finestra libera non hanno rettangolo calcolato")
+interno_q = (300 - 4, 140 - 4)
+verifica(rg["dentro1"] == (6, 6 + (interno_q[1] - 12 - 20) // 2, 50, 20) e rg["dentro2"] == (6 + 50 + 4, 6 + (interno_q[1] - 12 - 22) // 2, interno_q[0] - 6 - (6 + 50 + 4), 22), "nel riquadro (bordo 2, riga che si allunga): " + testo((rg["dentro1"], rg["dentro2"])))
+verifica(rg["albero1"] == (5, 5, 320 - 4 - 10, 160 - 26 - 10), "nella pagina delle schede (320-4 x 160-26) con margine 5: " + testo(rg["albero1"]))
+codice = form_modello.genera_ui_completa(g)
+verifica("griglia.disponi(se_stesso.quadro, [" in codice e "griglia.disponi(se_stesso.schede1_pagina2, [" in codice, "una chiamata per ogni contenitore a griglia")
+verifica("griglia.disponi(radice" non in codice, "e la finestra, libera, non ne ha")
+
+# ----------------------------------------------------------------- celle: da libero a griglia, prima cella vuota
+h = Form("Posizioni", "Posizioni")
+a = h.aggiungi("Etichetta", 10, 10, nome="a")
+b = h.aggiungi("CampoTesto", 120, 12, nome="b")
+c = h.aggiungi("Etichetta", 10, 52, nome="c")
+d = h.aggiungi("CampoTesto", 118, 50, nome="d")
+form_modello.assegna_celle(h, "")
+verifica([(form_modello.cella_di(x)["riga"], form_modello.cella_di(x)["colonna"]) per x in (a, b, c, d)] == [(0, 0), (0, 1), (1, 0), (1, 1)], "libero → griglia: le posizioni vicine fanno la stessa riga e colonna")
+verifica(form_modello.cella_vuota(h, "") == (2, 0) e form_modello.cella_vuota(h, "", 1) == (2, 1), "la prima cella libera è in una riga nuova: " + testo(form_modello.cella_vuota(h, "")))
+verifica(form_modello.cella_vuota(Form("Vuota", "x"), "") == (0, 0), "finestra senza componenti: la cella 0,0")
+form_modello.imposta_cella(d, 3, 1)
+verifica(form_modello.cella_vuota(h, "", 1) == (1, 1), "i buchi si riempiono: " + testo(form_modello.cella_vuota(h, "", 1)))
+
+# ----------------------------------------------------------------- finestra vera: stesse posizioni del calcolo, anche ridimensionando
+cartella = tempfile.mkdtemp()
+scritti = form_modello.salva_form(f, cartella)
+verifica(os.path.exists(os.path.join(cartella, "griglia.pit")), "il motore viene copiato nel progetto")
+verifica(open(os.path.join(cartella, "griglia.pit"), encoding="utf-8").read().replace("\r\n", chr(10)) == open(form_modello.MODELLO_GRIGLIA, encoding="utf-8").read().replace("\r\n", chr(10)), "copia identica")
+sys.path.insert(0, cartella)
+sys.modules.pop("griglia", Nessuno)
+importlib.invalidate_caches()
+m = importlib.import_module("anagrafica")
+radice = tk.Tk()
+radice.geometry("+20+20")
+w = m.Anagrafica(radice)
+radice.update()
+radice.update()
+
+
+definisci geometrie(finestra, nomi):
+    ritorna {n: (getattr(finestra, n).winfo_x(), getattr(finestra, n).winfo_y(), getattr(finestra, n).winfo_width(), getattr(finestra, n).winfo_height()) per n in nomi}
+
+
+nomi = ["etichetta_nome", "campo_nome", "etichetta_note", "area_note", "pulsante_ok"]
+verifica(geometrie(w, nomi) == {n: rett[n] per n in nomi}, "la finestra vera ha le posizioni calcolate: " + testo(geometrie(w, nomi)) + " contro " + testo({n: rett[n] per n in nomi}))
+radice.geometry("700x520")
+radice.update()
+radice.update()
+f.larghezza, f.altezza = 700, 520
+rett2 = form_modello.rettangoli(f)
+verifica(geometrie(w, nomi) == {n: rett2[n] per n in nomi}, "ridimensionata: stesse posizioni del calcolo (campi più larghi, area più alta): " + testo(geometrie(w, nomi)) + " contro " + testo({n: rett2[n] per n in nomi}))
+verifica(rett2["campo_nome"][2] > rett["campo_nome"][2] e rett2["area_note"][3] > rett["area_note"][3] e rett2["etichetta_nome"][2] == 70, "i campi si sono allargati, le etichette no")
+radice.geometry("300x200")
+radice.update()
+radice.update()
+f.larghezza, f.altezza = 300, 200
+rett3 = form_modello.rettangoli(f)
+verifica(geometrie(w, nomi) == {n: rett3[n] per n in nomi}, "rimpicciolita: stesse posizioni del calcolo")
+radice.destroy()
+f.larghezza, f.altezza = 420, 240
+
+# riquadro e schede dentro una finestra vera
+cartella2 = tempfile.mkdtemp()
+form_modello.salva_form(g, cartella2)
+sys.path.insert(0, cartella2)
+m2 = importlib.import_module("misto")
+radice = tk.Tk()
+radice.geometry("+30+30")
+w2 = m2.Misto(radice)
+radice.update()
+radice.update()
+nomi2 = ["dentro1", "dentro2"]
+verifica(geometrie(w2, nomi2) == {n: (rg[n][0] + 2, rg[n][1] + 2, rg[n][2], rg[n][3]) per n in nomi2}, "nel riquadro (i figli partono dentro il bordo di 2): " + testo(geometrie(w2, nomi2)) + " contro " + testo({n: (rg[n][0] + 2, rg[n][1] + 2, rg[n][2], rg[n][3]) per n in nomi2}))
+w2.schede1.select(1)
+radice.update()
+radice.update()
+verifica(geometrie(w2, ["albero1"])["albero1"] == rg["albero1"], "nella pagina delle schede: " + testo(geometrie(w2, ["albero1"])) + " contro " + testo(rg["albero1"]))
+radice.destroy()
+
+# ----------------------------------------------------------------- esportato in Python: funziona con Python normale
+dest = os.path.join(tempfile.mkdtemp(), "e")
+e = esporta_python.esporta(cartella, dest)
+verifica(e["errori"] == [] e os.path.exists(os.path.join(dest, "griglia.py")), "esportazione: " + testo(e))
+python_ = shutil.which("python") o shutil.which("py")
+se python_:
+    open(os.path.join(dest, "p.py"), "w", encoding="utf-8").write("import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport anagrafica\nr = tk.Tk(); a = anagrafica.Anagrafica(r); r.update(); r.update()\nprint(a.campo_nome.winfo_x(), a.campo_nome.winfo_width())\nr.destroy()\n")
+    u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "p.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
+    verifica(u.returncode == 0 e u.stdout.split() == [testo(rett["campo_nome"][0]), testo(rett["campo_nome"][2])], "con Python normale le stesse misure: " + u.stdout.strip() + u.stderr[-150:])
+
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

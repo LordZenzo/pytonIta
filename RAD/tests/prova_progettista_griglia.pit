@@ -1,0 +1,210 @@
+"""Il progettista con il layout a griglia: passaggio libero/griglia, celle, trascinamento, tasti freccia, ispettore, annulla, riquadri."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.form_modello importa Form
+da rad importa form_modello come fm
+da rad.progettista importa Progettista
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci apri_file(se_stesso, p): passa
+    definisci apri_file_a_funzione(se_stesso, p, f): passa
+    definisci esegui_file(se_stesso, p): passa
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x650")
+configura_stile(radice, c)
+d = tempfile.mkdtemp()
+f = Form("Demo", "Demo")
+p = Progettista(radice, os.path.join(d, "demo.form.json"), f, c, cfg, Az())
+p.pack(fill="both", expand=Vero)
+applica(radice, c)
+radice.update()
+
+
+definisci geom_reale(nome):
+    w = p.widget[nome]
+    ritorna (w.winfo_x(), w.winfo_y(), w.winfo_width(), w.winfo_height())
+
+
+# due righe etichetta + campo, disegnate libere
+p.aggiungi_componente("Etichetta", 20, 20)
+p.aggiungi_componente("CampoTesto", 140, 20)
+p.aggiungi_componente("Etichetta", 20, 70)
+p.aggiungi_componente("CampoTesto", 140, 70)
+radice.update()
+liberi = {n: geom_reale(n) per n in ("etichetta1", "campoTesto1", "etichetta2", "campoTesto2")}
+verifica(liberi["campoTesto1"][:2] == (f.trova("campoTesto1").x, f.trova("campoTesto1").y), "libero: posizione disegnata " + str(liberi["campoTesto1"]))
+verifica(non fm.usa_griglia(f) e p._rett == {}, "senza griglia niente rettangoli")
+
+# la finestra passa a griglia: ognuno nella sua cella
+f.layout = "libero"
+f.colonne = "0,1"
+f.layout = "griglia"
+fm.assegna_celle(f, "")
+p._disegna_griglia()
+radice.update()
+k = fm.cella_di(f.trova("campoTesto2"))
+verifica((k["riga"], k["colonna"]) == (1, 1), "il campo 2 è nella riga 1 colonna 1: " + str(k))
+verifica(p._rett.get("campoTesto1") è non Nessuno, "i rettangoli sono calcolati")
+verifica(geom_reale("campoTesto1") == tuple(p._rett["campoTesto1"]), "il widget sta dove dice il calcolo: " + str(geom_reale("campoTesto1")) + " " + str(p._rett["campoTesto1"]))
+l0 = geom_reale("campoTesto1")[2]
+
+# ridimensionando la finestra il campo (colonna con peso) si allarga
+f.larghezza = f.larghezza + 100
+p._disegna_griglia()
+radice.update()
+verifica(geom_reale("campoTesto1")[2] == l0 + 100, "il campo segue la larghezza della finestra: " + str(geom_reale("campoTesto1")[2]) + " vs " + str(l0 + 100))
+f.larghezza = f.larghezza - 100
+p._disegna_griglia()
+
+# ispettore: un componente in griglia mostra la cella e non X e Y
+p.seleziona(["campoTesto1"])
+radice.update()
+testi = [w.cget("text") per w in p.righe_ispettore.winfo_children() se w.winfo_class() == "Label"]
+verifica("Riga" in testi e "Colonna" in testi e "Allineamento" in testi, "campi della cella: " + str(testi[:12]))
+verifica("X" non in testi, "niente X in griglia")
+
+# cambio cella dall'ispettore
+p._imposta_cella(f.trova("campoTesto1"), "riga", 3)
+radice.update()
+verifica(fm.cella_di(f.trova("campoTesto1"))["riga"] == 3, "riga cambiata")
+verifica(geom_reale("campoTesto1")[1] > geom_reale("campoTesto2")[1], "e il widget si è spostato sotto: " + str(geom_reale("campoTesto1")))
+p._imposta_cella(f.trova("campoTesto1"), "riga", 0)
+
+# trascinamento: lo porto sulla riga 1, colonna 0 (la cella dell'etichetta 2 -> poi riga nuova)
+t = p._tracce[""]
+x_riga2 = t[0][0] + 2
+y_riga2 = t[2][1] + 2
+r, kol = p._cella_a("", x_riga2, y_riga2)
+verifica((r, kol) == (1, 0), "il punto è nella cella (1, 0): " + str((r, kol)))
+r, kol = p._cella_a("", 5000, 5000)
+verifica(r == 2 e kol == 2, "oltre le celle: riga e colonna nuove " + str((r, kol)))
+
+classe Ev:
+    definisci __init__(se_stesso, x, y, stato=0):
+        se_stesso.x_root = x
+        se_stesso.y_root = y
+        se_stesso.x = x
+        se_stesso.y = y
+        se_stesso.state = stato
+
+w1 = p.widget["campoTesto1"]
+sx, sy = p.superficie.winfo_rootx(), p.superficie.winfo_rooty()
+p._premi(Ev(w1.winfo_rootx() + 3, w1.winfo_rooty() + 3), "campoTesto1")
+p._trascina(Ev(sx + x_riga2, sy + y_riga2), "campoTesto1")
+radice.update()
+verifica(getattr(p, "_evid", Nessuno) è non Nessuno, "la cella di arrivo è evidenziata")
+p._rilascia(Ev(sx + x_riga2, sy + y_riga2), "campoTesto1")
+radice.update()
+k = fm.cella_di(f.trova("campoTesto1"))
+verifica((k["riga"], k["colonna"]) == (1, 0), "trascinato nella cella (1, 0): " + str(k))
+verifica(getattr(p, "_evid", Nessuno) è Nessuno, "evidenziazione tolta")
+# e coincide con la geometria disegnata
+verifica(geom_reale("campoTesto1") == tuple(p._rett["campoTesto1"]), "geometria dopo il trascinamento")
+
+# tasti freccia: sposta di cella
+p.seleziona(["campoTesto1"])
+p.sposta_selezione(1, 0)
+k = fm.cella_di(f.trova("campoTesto1"))
+verifica(k["colonna"] == 1, "freccia destra: colonna 1 " + str(k))
+p.sposta_selezione(0, -1)
+verifica(fm.cella_di(f.trova("campoTesto1"))["riga"] == 0, "freccia su: riga 0")
+p.sposta_selezione(-9, -9)
+k = fm.cella_di(f.trova("campoTesto1"))
+verifica(k["riga"] >= 0 e k["colonna"] >= 0, "mai sotto zero")
+
+# nuovo componente cliccato sulla finestra: va nella cella sotto il puntatore, se occupata nella prima libera
+n_prima = lunghezza(f.componenti)
+nuovo = p.aggiungi_componente("Pulsante", 10, 10)
+k = fm.cella_di(nuovo)
+occupate = {(fm.cella_di(a)["riga"], fm.cella_di(a)["colonna"]) per a in f.componenti se a.nome != nuovo.nome}
+verifica((k["riga"], k["colonna"]) non in occupate, "il nuovo componente non si sovrappone: " + str(k))
+radice.update()
+verifica(geom_reale(nuovo.nome) == tuple(p._rett[nuovo.nome]), "il nuovo è dove dice il calcolo")
+
+# duplica: stessa cosa
+p.seleziona([nuovo.nome])
+p.duplica()
+copia_ = f.componenti[-1]
+k2 = fm.cella_di(copia_)
+verifica((k2["riga"], k2["colonna"]) != (k["riga"], k["colonna"]), "il duplicato è in un'altra cella: " + str(k2))
+
+# annulla / ripeti conservano le celle
+stato_ = f.a_json()
+p.annulla()
+p.annulla()
+p.ripeti()
+p.ripeti()
+verifica(p.form.a_json() == stato_, "annulla e ripeti riportano le stesse celle")
+f = p.form
+
+# eliminare un componente ricalcola
+p.seleziona([copia_.nome])
+p.elimina_selezionati()
+radice.update()
+verifica(copia_.nome non in p.widget e copia_.nome non in p._rett, "eliminato")
+
+# ritorno a libero: ognuno tiene la posizione che aveva nella griglia
+prima = {n: tuple(r) per n, r in p._rett.items()}
+fm.congela_celle(f, "")
+f.layout = "libero"
+p._disegna_griglia()
+radice.update()
+verifica(p._rett == {}, "libero: nessun rettangolo")
+ok = tutti = Vero
+per n, r in prima.items():
+    cc = f.trova(n)
+    se (cc.x, cc.y, cc.larghezza, cc.altezza) != r:
+        ok = Falso
+verifica(ok, "tornando libero i componenti restano dove erano")
+radice.update()
+verifica(geom_reale("campoTesto1") == prima["campoTesto1"], "e anche i widget")
+
+# riquadro con griglia
+rq = p.aggiungi_componente("Riquadro", 20, 200, larghezza=300, altezza=120)
+radice.update()
+p.imposta_proprieta(rq.nome, "layout", "griglia")
+radice.update()
+verifica(f.trova(rq.nome).valori["layout"] == "griglia", "il riquadro passa a griglia")
+testi = [w.cget("text") per w in p.righe_ispettore.winfo_children() se w.winfo_class() == "Label"]
+p.seleziona([rq.nome])
+radice.update()
+testi = [w.cget("text") per w in p.righe_ispettore.winfo_children() se w.winfo_class() == "Label"]
+verifica(any("Colonne" in t per t in testi), "il riquadro a griglia mostra le colonne: " + str(testi))
+a = p.aggiungi_componente("Etichetta", 5, 5, genitore=rq.nome)
+b = p.aggiungi_componente("CampoTesto", 5, 5, genitore=rq.nome)
+radice.update()
+ka, kb = fm.cella_di(a), fm.cella_di(b)
+verifica((ka["riga"], ka["colonna"]) != (kb["riga"], kb["colonna"]), "due componenti nel riquadro in celle diverse: " + str((ka, kb)))
+bd = int(str(p.widget[rq.nome].cget("borderwidth")))
+definisci con_bordo(r):
+    ritorna (r[0] + bd, r[1] + bd, r[2], r[3])
+verifica(geom_reale(a.nome) == con_bordo(p._rett[a.nome]) e geom_reale(b.nome) == con_bordo(p._rett[b.nome]), "dentro il riquadro dove dice il calcolo: " + str((geom_reale(a.nome), p._rett[a.nome], bd)))
+p.imposta_proprieta(rq.nome, "layout", "libero")
+radice.update()
+verifica(f.trova(rq.nome).valori["layout"] == "libero" e a.nome non in p._rett, "il riquadro torna libero")
+p.seleziona([rq.nome])
+testi = [w.cget("text") per w in p.righe_ispettore.winfo_children() se w.winfo_class() == "Label"]
+verifica(non any("Colonne" in t per t in testi), "libero: i campi della griglia spariscono")
+
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

@@ -108,6 +108,20 @@ Aiuto
 **Ordine di tabulazione.** **⇅ Ordine…** nella barra del progettista cambia l'ordine dei componenti: è l'ordine in cui il tasto Tab passa da uno all'altro.
 
 
+## Disposizione a griglia
+
+Di solito i componenti stanno dove li metti (**libero**). Con la **griglia** invece ognuno sta in una *cella* (riga, colonna) e la finestra si adatta da sola quando la ridimensioni: i campi si allargano, le etichette restano della loro misura.
+
+**Come si attiva.** Clic su uno spazio vuoto della finestra e scegli *Disposizione → griglia*; vale anche per un **Riquadro** e per le pagine di una **Schede** (proprietà *Disposizione dei componenti*). Passando a griglia, ogni componente va nella cella che corrisponde alla sua posizione; tornando a *libero* ogni componente tiene la posizione che aveva nella griglia.
+
+**Colonne e righe.** Si scrivono come elenco di *pesi*: `0, 1` = due colonne, la prima della misura naturale (la più larga tra i suoi componenti), la seconda si allarga con la finestra. `1, 3` = due colonne che si dividono lo spazio in più nel rapporto 1 a 3. Le colonne e le righe che nessuno occupa e senza peso non prendono spazio. *Margine* e *Spazio tra le celle* sono in pixel.
+
+**Un componente.** Nell'ispettore, al posto di X e Y, trovi *Riga*, *Colonna*, *Righe occupate*, *Colonne occupate* (un componente può occupare più celle) e *Allineamento* (riempie la cella, riempie in larghezza, a sinistra, al centro…). *Larghezza propria* e *Altezza propria* contano quando il componente non riempie la cella, e per stabilire la misura naturale di una colonna o di una riga.
+
+**Con il mouse e la tastiera.** Trascinando un componente si evidenzia la cella di arrivo e, rilasciando, ci va. Oltre l'ultima riga o colonna si crea una riga o colonna nuova. Le frecce spostano di una cella. Un componente nuovo va nella cella sotto il puntatore, se è libera, altrimenti nella prima cella libera.
+
+**Nel programma.** Il codice generato usa il file `griglia.pit` (che PitStudio mette nel progetto) e dispone i componenti con lo stesso calcolo del progettista: quello che vedi è quello che ottieni, anche ridimensionando la finestra. Le finestre già disegnate restano libere finché non scegli la griglia. Nell'esportazione in Python e nell'eseguibile la griglia funziona allo stesso modo.
+
 ## Aspetto moderno
 
 ![La stessa finestra con l'aspetto classico e con i temi chiaro, scuro e verde](immagini/aspetto.png)

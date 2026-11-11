@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.43
+
+- **Disposizione a griglia** nel progettista: la finestra, un **Riquadro** o una pagina di **Schede** possono disporre i componenti in celle (riga, colonna, anche su più celle) con colonne e righe che si allargano con la finestra (*pesi*), margine, spazio e allineamento per ogni componente. Nell'ispettore si scelgono le celle; trascinando un componente si evidenzia la cella di arrivo, le frecce lo spostano di una cella. Si passa da *libero* a *griglia* e viceversa senza perdere le posizioni.
+- Il programma generato usa `griglia.pit` (messo nel progetto da PitStudio) con lo stesso calcolo del progettista: ciò che vedi è ciò che ottieni, anche ridimensionando. Funziona nell'esportazione in Python e nell'eseguibile. Le finestre esistenti restano libere.
+
 ## Novità della 1.42
 
 - **Corretto**: «Crea l'eseguibile» e «Esporta come Python» da PitStudio.exe si fermavano subito con «module 'os' has no attribute '__file__'» (l'interprete incorporato non ha quel dato): ora usano `sysconfig`. L'autotest di PitStudio.exe prova anche l'esportazione, e con `RAD_PROVA_EXE=1` la costruzione vera dell'exe e del Setup.

@@ -4,6 +4,13 @@ importa json
 importa os
 importa re
 importa shutil
+importa sys
+
+# il motore della disposizione a griglia sta con i modelli di codice (ne esiste una copia nei progetti che lo usano): qui serve per calcolare le posizioni
+_CARTELLA_MODELLI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice")
+se _CARTELLA_MODELLI non in sys.path:
+    sys.path.append(_CARTELLA_MODELLI)
+importa griglia
 
 # Tipi di componenti: classe tkinter (in italiano), modulo, proprietà con valori predefiniti
 # proprietà: nome -> (tipo, predefinito, descrizione). tipo: testo | numero | si_no | scelta:a,b | colore |
@@ -80,6 +87,23 @@ TIPI["Timer"] = dict(classe_tk="", modulo="tk", larghezza=110, altezza=24, icona
 TIPI["Schede"] = dict(classe_tk="Schede", modulo="tema", larghezza=320, altezza=200, icona="▭", contenitore=Vero,
                       proprieta={"pagine": ("elenco", ["Pagina 1", "Pagina 2"], "Pagine (schede)")})
 TIPI["Riquadro"]["contenitore"] = Vero
+# disposizione dei componenti dentro finestra, riquadri e pagine di schede: «libero» (posizioni disegnate) o «griglia» (celle)
+PROPRIETA_LAYOUT = {"layout": ("scelta:libero,griglia", "libero", "Disposizione dei componenti"),
+                    "colonne": ("testo", "", "Colonne: pesi (0 = misura naturale, 1 o più = si allarga), es. 0,1"),
+                    "righe": ("testo", "", "Righe: pesi, es. 0,0,1"),
+                    "margine": ("numero", 10, "Margine interno"),
+                    "spazio": ("numero", 6, "Spazio tra le celle")}
+PROPRIETA_LAYOUT_DIPENDENTI = ("colonne", "righe", "margine", "spazio")      # compaiono solo con il layout a griglia
+TIPI["Riquadro"]["proprieta"].update(PROPRIETA_LAYOUT)
+TIPI["Schede"]["proprieta"].update(PROPRIETA_LAYOUT)
+# allineamento di un componente nella sua cella (come «sticky» di Tk): nome mostrato -> valore
+ALLINEAMENTI_CELLA = [("riempie la cella", "nsew"), ("riempie in larghezza", "ew"), ("riempie in altezza", "ns"), ("a sinistra", "w"), ("a destra", "e"),
+                      ("in alto", "n"), ("in basso", "s"), ("in alto a sinistra", "nw"), ("in alto a destra", "ne"), ("in basso a sinistra", "sw"),
+                      ("in basso a destra", "se"), ("al centro", "")]
+ALLINEA_PREDEFINITO = {"Etichetta": "w", "CasellaSelezione": "w", "PulsanteOpzione": "w", "Pulsante": "w", "Immagine": "w",
+                       "CampoTesto": "ew", "CasellaCombinata": "ew", "Cursore": "ew", "BarraProgresso": "ew", "BarraNavigazione": "ew", "Separatore": "ew",
+                       "AreaTesto": "nsew", "Elenco": "nsew", "Albero": "nsew", "Tela": "nsew", "Riquadro": "nsew", "Schede": "nsew"}
+AREA_PAGINA = (4, 26)      # una pagina di Schede è più piccola delle Schede: 4 pixel in larghezza e 26 in altezza (linguette)
 # --- dati: una tabella di un database collegata ai componenti
 TIPI["FonteDati"] = dict(classe_tk="", modulo="tk", larghezza=130, altezza=24, icona="🗄", visivo=Falso,
                          proprieta={"dialetto": ("scelta:sqlite,mysql", "sqlite", "Tipo di database"),
@@ -223,6 +247,11 @@ classe Form:
         se_stesso.componenti = []
         se_stesso.ridimensionabile = Vero
         se_stesso.aspetto = "classico"      # "classico" (tkinter com'è) oppure un tema moderno: chiaro, scuro, verde, viola
+        se_stesso.layout = "libero"         # «libero» oppure «griglia» (le posizioni vengono dalle celle)
+        se_stesso.colonne = ""              # pesi delle colonne e delle righe della griglia, margine e spazio tra le celle
+        se_stesso.righe = ""
+        se_stesso.margine = 10
+        se_stesso.spazio = 6
 
     # --- modifica
     definisci nome_libero(se_stesso, tipo_):
@@ -294,10 +323,13 @@ classe Form:
 
     # --- serializzazione
     definisci a_dizionario(se_stesso):
-        ritorna {"versione": 1, "nome": se_stesso.nome, "titolo": se_stesso.titolo,
-                 "larghezza": se_stesso.larghezza, "altezza": se_stesso.altezza,
-                 "sfondo": se_stesso.sfondo, "ridimensionabile": se_stesso.ridimensionabile, "aspetto": se_stesso.aspetto,
-                 "componenti": [c.a_dizionario() per c in se_stesso.componenti]}
+        d = {"versione": 1, "nome": se_stesso.nome, "titolo": se_stesso.titolo,
+             "larghezza": se_stesso.larghezza, "altezza": se_stesso.altezza,
+             "sfondo": se_stesso.sfondo, "ridimensionabile": se_stesso.ridimensionabile, "aspetto": se_stesso.aspetto}
+        se se_stesso.layout == "griglia":                  # i file delle finestre libere restano com'erano
+            d.update(layout="griglia", colonne=se_stesso.colonne, righe=se_stesso.righe, margine=se_stesso.margine, spazio=se_stesso.spazio)
+        d["componenti"] = [c.a_dizionario() per c in se_stesso.componenti]
+        ritorna d
 
     @staticmethod
     definisci da_dizionario(d):
@@ -307,6 +339,11 @@ classe Form:
         f.sfondo = d.get("sfondo", "")
         f.ridimensionabile = d.get("ridimensionabile", Vero)
         f.aspetto = d.get("aspetto", "classico")
+        f.layout = d.get("layout", "libero") se d.get("layout") in ("libero", "griglia") altrimenti "libero"
+        f.colonne = d.get("colonne", "")
+        f.righe = d.get("righe", "")
+        f.margine = d.get("margine", 10)
+        f.spazio = d.get("spazio", 6)
         per cd in d.get("componenti", []):
             se cd.get("tipo") in TIPI:
                 f.componenti.append(Componente.da_dizionario(cd))
@@ -404,6 +441,137 @@ definisci finestre_aperte(form):
     ritorna lista(dict.fromkeys(nomi))
 
 
+# ---------------------------------------------------------------- layout a griglia
+definisci definizione_griglia(form, genitore):
+    """Come è fatta la griglia del contenitore `genitore` ('' = la finestra, 'nome' = un riquadro, 'nome#2' = una pagina di schede),
+    oppure Nessuno se il contenitore è libero: {colonne, righe (pesi), margine, spazio}."""
+    se non genitore:
+        se form.layout != "griglia":
+            ritorna Nessuno
+        leggi = lambda k, p: getattr(form, k, p)
+    altrimenti:
+        c = form.trova(genitore.split("#")[0])
+        se c è Nessuno o non e_contenitore(c.tipo) o c.valori.get("layout") != "griglia":
+            ritorna Nessuno
+        leggi = lambda k, p: c.valori.get(k, p)
+    ritorna {"colonne": griglia.pesi_da_testo(leggi("colonne", "")), "righe": griglia.pesi_da_testo(leggi("righe", "")),
+             "margine": int(leggi("margine", 10) o 0), "spazio": int(leggi("spazio", 6) o 0)}
+
+
+definisci cella_di(c):
+    """La cella di un componente in una griglia: riga, colonna, quante righe e colonne occupa, allineamento (n, s, e, w)."""
+    v = c.valori
+    ritorna {"riga": max(0, int(v.get("g_riga", 0))), "colonna": max(0, int(v.get("g_colonna", 0))),
+             "righe": max(1, int(v.get("g_righe", 1))), "colonne": max(1, int(v.get("g_colonne", 1))),
+             "allinea": v["g_allinea"] se "g_allinea" in v altrimenti ALLINEA_PREDEFINITO.get(c.tipo, "w")}
+
+
+definisci imposta_cella(c, riga=Nessuno, colonna=Nessuno, righe=Nessuno, colonne=Nessuno, allinea=Nessuno):
+    se riga è non Nessuno:
+        c.valori["g_riga"] = max(0, int(riga))
+    se colonna è non Nessuno:
+        c.valori["g_colonna"] = max(0, int(colonna))
+    se righe è non Nessuno:
+        c.valori["g_righe"] = max(1, int(righe))
+    se colonne è non Nessuno:
+        c.valori["g_colonne"] = max(1, int(colonne))
+    se allinea è non Nessuno:
+        c.valori["g_allinea"] = allinea
+
+
+definisci figli_in_griglia(form, genitore):
+    """I componenti visibili che stanno direttamente nel contenitore."""
+    ritorna [c per c in form.componenti se c.genitore == genitore e e_visivo(c.tipo)]
+
+
+definisci pagine_di(c):
+    """Le chiavi dei contenitori interni di un componente: «nome» per un riquadro, «nome#0», «nome#1»… per le pagine di una Schede."""
+    se c.tipo == "Schede":
+        ritorna [f"{c.nome}#{i}" per i in intervallo(max(1, lunghezza(lista(c.valori.get("pagine", [])))))]
+    ritorna [c.nome]
+
+
+definisci rettangoli(form, tracce=Nessuno):
+    """{nome: (x, y, larghezza, altezza)} dei componenti che stanno in un contenitore a griglia (gli altri usano le posizioni disegnate).
+    Si calcola dall'alto verso il basso: la misura di un riquadro in una griglia dipende dalla sua cella.
+    Se passi un dizionario in `tracce` ci scrive, per ogni contenitore a griglia, (inizi x, larghezze, inizi y, altezze) delle sue colonne e righe."""
+    rett = {}
+
+    definisci disponi(genitore, larghezza, altezza):
+        d = definizione_griglia(form, genitore)
+        figli = figli_in_griglia(form, genitore) se d è non Nessuno altrimenti []
+        se non figli:
+            ritorna
+        voci = []
+        per c in figli:
+            k = cella_di(c)
+            voci.append((k["riga"], k["colonna"], k["righe"], k["colonne"], k["allinea"], c.larghezza, c.altezza))
+        per c, r in zip(figli, griglia.calcola(larghezza, altezza, voci, d["colonne"], d["righe"], d["margine"], d["spazio"])):
+            rett[c.nome] = r
+        se tracce è non Nessuno:
+            tracce[genitore] = griglia.tracce(larghezza, altezza, voci, d["colonne"], d["righe"], d["margine"], d["spazio"])
+
+    disponi("", form.larghezza, form.altezza)
+    per c in ordine_creazione(form):
+        se non e_contenitore(c.tipo):
+            continua
+        x, y, w, h = rett.get(c.nome, (c.x, c.y, c.larghezza, c.altezza))
+        se c.tipo == "Schede":
+            per chiave in pagine_di(c):
+                disponi(chiave, w - AREA_PAGINA[0], h - AREA_PAGINA[1])
+        altrimenti:
+            b = int(c.valori.get("bordo", 0) o 0)
+            disponi(c.nome, w - 2 * b, h - 2 * b)
+    ritorna rett
+
+
+definisci usa_griglia(form):
+    ritorna form.layout == "griglia" o any(c.valori.get("layout") == "griglia" per c in form.componenti se e_contenitore(c.tipo))
+
+
+definisci congela_celle(form, genitore):
+    """Passando da «griglia» a «libero»: ogni componente tiene la posizione e la misura che aveva nella griglia."""
+    rett = rettangoli(form)
+    per c in figli_in_griglia(form, genitore):
+        se c.nome in rett:
+            c.x, c.y, c.larghezza, c.altezza = rett[c.nome]
+
+
+definisci cella_vuota(form, genitore, colonna=Nessuno, escludi=Nessuno):
+    """La prima cella libera per un componente nuovo: in `colonna` se c'è posto, altrimenti in una riga nuova. `escludi` = nome di un componente da non contare."""
+    figli = [c per c in figli_in_griglia(form, genitore) se c.nome != escludi]
+    occupate = set()
+    per c in figli:
+        k = cella_di(c)
+        per r in intervallo(k["riga"], k["riga"] + k["righe"]):
+            per col in intervallo(k["colonna"], k["colonna"] + k["colonne"]):
+                occupate.add((r, col))
+    se non figli:
+        ritorna 0, colonna o 0
+    ultima = max(r per r, _ in occupate)
+    colonna = colonna o 0
+    per r in intervallo(0, ultima + 1):
+        se (r, colonna) non in occupate:
+            ritorna r, colonna
+    ritorna ultima + 1, colonna
+
+
+definisci assegna_celle(form, genitore, tolleranza=12):
+    """Passando da «libero» a «griglia»: ogni componente va nella cella che corrisponde alla sua posizione (posizioni di partenza vicine = stessa riga o colonna)."""
+    figli = figli_in_griglia(form, genitore)
+    definisci gruppi(valori):
+        """Una funzione: posizione di partenza -> numero del gruppo (le posizioni entro la tolleranza dall'inizio di un gruppo ne fanno parte)."""
+        capi = []
+        per v in sorted(set(valori)):
+            se non capi o v - capi[-1] > tolleranza:
+                capi.append(v)
+        ritorna lambda v: max(i per i, k in enumera(capi) se k <= v + tolleranza)
+    colonna_di = gruppi([c.x per c in figli])
+    riga_di = gruppi([c.y per c in figli])
+    per c in figli:
+        imposta_cella(c, riga=riga_di(c.y), colonna=colonna_di(c.x), righe=1, colonne=1, allinea=ALLINEA_PREDEFINITO.get(c.tipo, "w"))
+
+
 definisci _lit(valore):
     """Letterale pytonIta per un valore Python."""
     se valore è Vero:
@@ -481,6 +649,8 @@ definisci genera_ui(form):
         r.append("da aspetto importa applica_aspetto")
     se usa_dati(form):
         r.append("importa fonte_dati come dati")
+    se usa_griglia(form):
+        r.append("importa griglia")
     r.append("")
     r.append("")
     r.append(f"classe {cl}UI:")
@@ -511,8 +681,10 @@ definisci genera_ui(form):
     se form.sfondo:
         r.append(f"        radice.configura(sfondo={_lit(form.sfondo)})")
     r.append("        se_stesso.immagini = []")
+    form._rettangoli = rettangoli(form)           # le posizioni dei componenti nelle griglie (si usano in _codice_componente)
     per c in ordine_creazione(form):
         r.extend(_codice_componente(c, form))
+    r.extend(_codice_griglie(form))
     r.extend(_codice_dati(form))
     r.append("        ritorna radice")
     r.append("")
@@ -660,6 +832,32 @@ definisci ordine_creazione(form):
             fatti.extend(in_attesa)
             interrompi
     ritorna fatti
+
+
+definisci _codice_griglie(form):
+    """Le chiamate che dispongono a griglia i componenti di ogni contenitore a griglia (e li ridispongono quando la finestra cambia misura)."""
+    r = []
+    contenitori = [""]
+    per c in form.componenti:
+        se e_contenitore(c.tipo):
+            contenitori.extend(pagine_di(c))
+    per genitore in contenitori:
+        d = definizione_griglia(form, genitore)
+        figli = figli_in_griglia(form, genitore)
+        se d è Nessuno o non figli:
+            continua
+        contenitore = "radice"
+        se genitore:
+            nome, _, indice = genitore.partition("#")
+            contenitore = f"se_stesso.{nome}_pagina{int(indice) + 1}" se indice altrimenti f"se_stesso.{nome}"
+        voci = []
+        per c in figli:
+            k = cella_di(c)
+            voci.append(f"            (se_stesso.{c.nome}, {k['riga']}, {k['colonna']}, {k['righe']}, {k['colonne']}, {_lit(k['allinea'])}, {c.larghezza}, {c.altezza})")
+        r.append(f"        griglia.disponi({contenitore}, [")
+        r.append(",\n".join(voci) + "],")
+        r.append(f"            {_lit(d['colonne'])}, {_lit(d['righe'])}, {d['margine']}, {d['spazio']})")
+    ritorna r
 
 
 definisci _geometria(c, form):
@@ -815,7 +1013,12 @@ definisci _codice_componente(c, form=Nessuno):
     altrimenti_se c.tipo == "BarraNavigazione":
         pulsanti = tuple(k per k in PULSANTI_BARRA se v.get(k, k non in PULSANTI_FACOLTATIVI))
         r.append(f"{ind}{nome_att} = dati.BarraDati(radice, pulsanti={_lit(pulsanti)}, posizione={_lit(bool(v.get('posizione', Vero)))}, cerca={_lit(bool(v.get('cerca')))}{'' se v.get('dati', Vero) altrimenti ', dati=Falso'})")
-    r.append(f"{ind}{nome_att}.posiziona({_geometria(c, form)})")
+    rett = getattr(form, "_rettangoli", Nessuno) se form è non Nessuno altrimenti Nessuno
+    se rett e c.nome in rett:
+        x_, y_, w_, h_ = rett[c.nome]          # in una griglia: la posizione di partenza viene dalla cella (poi disponi() la aggiorna)
+        r.append(f"{ind}{nome_att}.posiziona(x={x_}, y={y_}, width={w_}, height={h_})")
+    altrimenti:
+        r.append(f"{ind}{nome_att}.posiziona({_geometria(c, form)})")
     se c.genitore:
         padre = padre_codice(c)
         r = [riga.replace(f"{cl}(radice", f"{cl}({padre}", 1) se f"{cl}(radice" in riga altrimenti riga.replace("dati.BarraDati(radice", f"dati.BarraDati({padre}", 1) per riga in r]
@@ -923,6 +1126,28 @@ definisci copia_aspetto(cartella, scritti=Nessuno):
             scritti.append(destinazione)
 
 
+MODELLO_GRIGLIA = os.path.join(CARTELLA_MODELLI, "griglia.pit")
+
+
+definisci copia_griglia(cartella, scritti=Nessuno):
+    """Mette nel progetto griglia.pit (il motore della disposizione a griglia); se la copia è diversa da quella di PitStudio la rinnova (la vecchia resta come .bak)."""
+    destinazione = os.path.join(cartella, "griglia.pit")
+    se non os.path.exists(MODELLO_GRIGLIA):
+        ritorna
+    con open(MODELLO_GRIGLIA, encoding="utf-8", newline="") come f:
+        nuova = f.read().replace("\r\n", chr(10))
+    se os.path.exists(destinazione):
+        con open(destinazione, encoding="utf-8", newline="") come f:
+            vecchia = f.read().replace("\r\n", chr(10))
+        se vecchia == nuova:
+            ritorna
+        shutil.copyfile(destinazione, destinazione + ".bak")
+    con open(destinazione, "w", encoding="utf-8", newline="\n") come f:
+        f.write(nuova)
+    se scritti è non Nessuno:
+        scritti.append(destinazione)
+
+
 MODELLO_FONTE_DATI = os.path.join(CARTELLA_MODELLI, "fonte_dati.pit")
 
 
@@ -960,6 +1185,8 @@ definisci salva_form(form, cartella):
         copia_aspetto(cartella, scritti)
     se usa_dati(form):
         copia_fonte_dati(cartella, scritti)
+    se usa_griglia(form):
+        copia_griglia(cartella, scritti)
     se os.path.exists(p["logica"]):
         con open(p["logica"], encoding="utf-8") come f:
             attuale = f.read()

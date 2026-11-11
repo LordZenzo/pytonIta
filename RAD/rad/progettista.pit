@@ -549,6 +549,9 @@ classe Progettista(tk.Frame):
         se_stesso.area.pack(fill="both", expand=Vero)
         # maniglie per ridimensionare la finestra stessa (destra, sotto, angolo): elementi della tela, quindi non vengono distrutti
         se_stesso._ridim_finestra = Nessuno
+        se_stesso._rett = {}              # rettangoli dei componenti in un contenitore a griglia
+        se_stesso._tracce = {}
+        se_stesso._evid = Nessuno
         per etichetta_, lato_, cursore_ in (("mf_e", "e", cursore("size_we")), ("mf_s", "s", cursore("size_ns")), ("mf_se", "se", cursore("size_nw_se"))):
             se_stesso.area.tag_bind(etichetta_, "<ButtonPress-1>", lambda e, l=lato_: se_stesso._inizia_finestra(e, l))
             se_stesso.area.tag_bind(etichetta_, "<Enter>", lambda e, k=cursore_: se_stesso.area.configure(cursor=k))
@@ -650,6 +653,8 @@ classe Progettista(tk.Frame):
                     s.create_rectangle(x, y, x, y, outline=colore, tags="griglia")
         se_stesso.area.configure(scrollregion=(0, 0, se_stesso.form.larghezza + 80, se_stesso.form.altezza + 80))
         se_stesso.titolo.configure(text=f"{se_stesso.form.nome}  —  {se_stesso.form.larghezza}×{se_stesso.form.altezza}")
+        se form_modello.usa_griglia(se_stesso.form) o getattr(se_stesso, "_rett", Nessuno):
+            se_stesso._rilayout()
 
     definisci _modulo_aspetto(se_stesso):
         """Il modulo aspetto (modelli_codice/aspetto.pit), o Nessuno se non si trova."""
@@ -713,6 +718,130 @@ classe Progettista(tk.Frame):
             se_stesso._registra()
             se_stesso._riempi_ispettore()
 
+    # ------------------------------------------------------------ layout a griglia
+    definisci _geom(se_stesso, c):
+        """(x, y, larghezza, altezza) con cui è disegnato il componente: quelli della sua cella se sta in una griglia, altrimenti i suoi."""
+        r = getattr(se_stesso, "_rett", {}).get(c.nome)
+        ritorna r se r altrimenti (c.x, c.y, c.larghezza, c.altezza)
+
+    definisci _rilayout(se_stesso):
+        """Ricalcola le celle (stesso calcolo del programma generato) e rimette al loro posto i componenti disegnati."""
+        vecchi = getattr(se_stesso, "_rett", {})
+        tracce = {}
+        se_stesso._rett = form_modello.rettangoli(se_stesso.form, tracce)
+        se_stesso._tracce = tracce
+        se non se_stesso.widget:
+            ritorna
+        per nome in set(vecchi) | set(se_stesso._rett):
+            c = se_stesso.form.trova(nome)
+            w = se_stesso.widget.get(nome)
+            se c e w:
+                x, y, l, a = se_stesso._geom(c)
+                w.place_configure(x=x, y=y, width=l, height=a)
+        se_stesso._riposiziona_maniglie()
+        se_stesso._aggiorna_stato()
+
+    definisci _cella_a(se_stesso, genitore, x, y):
+        """(riga, colonna) della cella della griglia `genitore` che contiene il punto (x, y); oltre l'ultima riga o colonna è quella nuova."""
+        t = getattr(se_stesso, "_tracce", {}).get(genitore)
+        se non t:
+            ritorna 0, 0
+
+        definisci indice(p, inizi, misure):
+            ultima = -1
+            per i in intervallo(lunghezza(inizi)):
+                se misure[i] <= 0:
+                    continua
+                ultima = i
+                se p < inizi[i] + misure[i] + 3:
+                    ritorna i
+            ritorna ultima + 1
+        ritorna indice(y, t[2], t[3]), indice(x, t[0], t[1])
+
+    definisci _riquadro_cella(se_stesso, genitore, riga, colonna):
+        """(x, y, larghezza, altezza) della cella: se è una riga o colonna nuova sta dopo l'ultima."""
+        t = getattr(se_stesso, "_tracce", {}).get(genitore)
+        d = form_modello.definizione_griglia(se_stesso.form, genitore)
+        se non t o d è Nessuno o non t[0]:
+            ritorna 10, 10, 60, 24
+        definisci tratto(indice, inizi, misure):
+            se indice < lunghezza(inizi):
+                ritorna inizi[indice], max(6, misure[indice])
+            ritorna inizi[-1] + misure[-1] + d["spazio"], 60
+        x, l = tratto(colonna, t[0], t[1])
+        y, a = tratto(riga, t[2], t[3])
+        ritorna x, y, l, a
+
+    definisci _evidenzia_cella(se_stesso, genitore, riga, colonna, padre):
+        x, y, l, a = se_stesso._riquadro_cella(genitore, riga, colonna)
+        ev = getattr(se_stesso, "_evid", Nessuno)
+        se ev è non Nessuno e ev.master è non padre:
+            se_stesso._togli_evidenza()
+            ev = Nessuno
+        se ev è Nessuno:
+            ev = tk.Frame(padre, background=se_stesso.colori["accento"])
+            se_stesso._evid = ev
+        ev.place(x=x, y=y, width=l, height=a)
+        ev.tk.call("lower", ev._w)
+
+    definisci _togli_evidenza(se_stesso):
+        ev = getattr(se_stesso, "_evid", Nessuno)
+        se ev è non Nessuno:
+            prova:
+                ev.destroy()
+            eccetto tk.TclError:
+                passa
+        se_stesso._evid = Nessuno
+
+    definisci _cella_nuova(se_stesso, c, x, y=Nessuno):
+        """Un componente nuovo in un contenitore a griglia: nella cella sotto il puntatore se è libera, altrimenti nella prima libera."""
+        f = se_stesso.form
+        se form_modello.definizione_griglia(f, c.genitore) è Nessuno:
+            ritorna
+        occupate = set()
+        per a in form_modello.figli_in_griglia(f, c.genitore):
+            se a.nome != c.nome:
+                k = form_modello.cella_di(a)
+                per r in intervallo(k["riga"], k["riga"] + k["righe"]):
+                    per col in intervallo(k["colonna"], k["colonna"] + k["colonne"]):
+                        occupate.add((r, col))
+        se x è non Nessuno:
+            r, col = se_stesso._cella_a(c.genitore, x, y)
+        altrimenti:
+            r, col = form_modello.cella_di(c)["riga"], form_modello.cella_di(c)["colonna"]
+        se (r, col) in occupate o x è Nessuno:
+            r, col = form_modello.cella_vuota(f, c.genitore, col, escludi=c.nome)
+        form_modello.imposta_cella(c, riga=r, colonna=col, righe=1, colonne=1, allinea=form_modello.ALLINEA_PREDEFINITO.get(c.tipo, "w"))
+        se_stesso._rilayout()
+
+    definisci _imposta_cella(se_stesso, c, campo, valore):
+        prova:
+            valore = valore se campo == "allinea" altrimenti int(float(valore))
+        eccetto ValueError:
+            ritorna
+        form_modello.imposta_cella(c, **{campo: valore})
+        se_stesso._rilayout()
+        se_stesso._registra()
+
+    definisci _campi_cella(se_stesso, aggiungi_riga, c):
+        """Le righe dell'ispettore per un componente che sta in una griglia: cella, quante celle occupa, allineamento."""
+        k = form_modello.cella_di(c)
+        per etichetta, chiave in (("Riga", "riga"), ("Colonna", "colonna"), ("Righe occupate", "righe"), ("Colonne occupate", "colonne")):
+            aggiungi_riga(etichetta, lambda p, ch=chiave: se_stesso._spin(
+                p, k[ch], lambda v, ch=ch: se_stesso._imposta_cella(c, ch, v), 0 se ch in ("riga", "colonna") altrimenti 1, 99))
+        nomi = [n per n, _ in form_modello.ALLINEAMENTI_CELLA]
+        corrente = k["allinea"]
+        per n, s in form_modello.ALLINEAMENTI_CELLA:
+            se s == k["allinea"]:
+                corrente = n
+
+        definisci crea(p):
+            cb = ttk.Combobox(p, values=nomi, state="readonly", width=10)
+            cb.set(corrente)
+            cb.bind("<<ComboboxSelected>>", lambda ev: se_stesso._imposta_cella(c, "allinea", dict(form_modello.ALLINEAMENTI_CELLA)[cb.get()]))
+            ritorna cb
+        aggiungi_riga("Allineamento", crea)
+
     definisci ricostruisci(se_stesso):
         """Ricrea tutti i widget di disegno a partire dal modello."""
         per w in se_stesso.widget.values():
@@ -737,7 +866,8 @@ classe Progettista(tk.Frame):
 
     definisci _crea(se_stesso, c):
         w = crea_widget_di_progetto(c, se_stesso._padre_widget(c), se_stesso.cartella)
-        w.place(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
+        x_, y_, l_, a_ = se_stesso._geom(c)
+        w.place(x=x_, y=y_, width=l_, height=a_)
         se_stesso._rivesti(w, c)
         per sequenza, funzione in (("<ButtonPress-1>", se_stesso._premi), ("<B1-Motion>", se_stesso._trascina),
                                    ("<ButtonRelease-1>", se_stesso._rilascia), ("<Double-Button-1>", se_stesso._doppio),
@@ -778,11 +908,13 @@ classe Progettista(tk.Frame):
         per nome, bordo in bordi.items():
             c = se_stesso.form.trova(nome)
             se c:
-                bordo.place_configure(x=c.x - 1, y=c.y - 1, width=c.larghezza + 2, height=c.altezza + 2)
+                x_, y_, l_, a_ = se_stesso._geom(c)
+                bordo.place_configure(x=x_ - 1, y=y_ - 1, width=l_ + 2, height=a_ + 2)
         se pomelli e lunghezza(se_stesso.selezione_) == 1:
             c = se_stesso.form.trova(se_stesso.selezione_[0])
+            x_, y_, l_, a_ = se_stesso._geom(c)
             per chiave, (cursore, ax, ay) in MANIGLIE.items():
-                pomelli[chiave].place_configure(x=c.x + int(c.larghezza * ax) - 4, y=c.y + int(c.altezza * ay) - 4)
+                pomelli[chiave].place_configure(x=x_ + int(l_ * ax) - 4, y=y_ + int(a_ * ay) - 4)
 
     definisci _aggiorna_maniglie(se_stesso):
         per m in se_stesso.maniglie:
@@ -795,20 +927,21 @@ classe Progettista(tk.Frame):
             w = se_stesso.widget.get(nome)
             se non c o non w:
                 continua
+            x_, y_, l_, a_ = se_stesso._geom(c)
             # contorno di selezione
             bordo = tk.Frame(se_stesso._padre_widget(c), background=se_stesso.colori["accento"])
             per lato in ("n", "s", "e", "o"):
                 passa
             se_stesso.maniglie.append(bordo)
             se_stesso._bordi[nome] = bordo
-            bordo.place(x=c.x - 1, y=c.y - 1, width=c.larghezza + 2, height=c.altezza + 2)
+            bordo.place(x=x_ - 1, y=y_ - 1, width=l_ + 2, height=a_ + 2)
             bordo.tk.call("lower", bordo._w, w._w)
             w.tk.call("raise", w._w)
             se lunghezza(se_stesso.selezione_) == 1:
                 per chiave, (cursore, ax, ay) in MANIGLIE.items():
                     m = tk.Frame(se_stesso._padre_widget(c), background=se_stesso.colori["accento"], width=8, height=8,
                                  cursor=cursore, borderwidth=1, relief="solid")
-                    m.place(x=c.x + int(c.larghezza * ax) - 4, y=c.y + int(c.altezza * ay) - 4)
+                    m.place(x=x_ + int(l_ * ax) - 4, y=y_ + int(a_ * ay) - 4)
                     m.bind("<ButtonPress-1>", lambda e, k=chiave, n=nome: se_stesso._inizia_ridimensiona(e, k, n))
                     m.bind("<B1-Motion>", se_stesso._ridimensiona)
                     m.bind("<ButtonRelease-1>", se_stesso._fine_ridimensiona)
@@ -821,7 +954,12 @@ classe Progettista(tk.Frame):
             se_stesso.stato.configure(text=f"{lunghezza(se_stesso.form.componenti)} componenti")
         altrimenti_se lunghezza(se_stesso.selezione_) == 1:
             c = se_stesso.form.trova(se_stesso.selezione_[0])
-            se_stesso.stato.configure(text=f"{c.nome}  x={c.x} y={c.y}  {c.larghezza}×{c.altezza}")
+            x_, y_, l_, a_ = se_stesso._geom(c)
+            se c.nome in getattr(se_stesso, "_rett", {}):
+                k = form_modello.cella_di(c)
+                se_stesso.stato.configure(text=f"{c.nome}  riga={k['riga']} colonna={k['colonna']}  {l_}×{a_}")
+            altrimenti:
+                se_stesso.stato.configure(text=f"{c.nome}  x={c.x} y={c.y}  {c.larghezza}×{c.altezza}")
         altrimenti:
             se_stesso.stato.configure(text=f"{lunghezza(se_stesso.selezione_)} selezionati")
 
@@ -848,6 +986,7 @@ classe Progettista(tk.Frame):
 
     definisci aggiungi_componente(se_stesso, tipo_, x, y, **valori):
         c = se_stesso.form.aggiungi(tipo_, se_stesso._aggancia(x), se_stesso._aggancia(y), **valori)
+        se_stesso._cella_nuova(c, x, y)
         se_stesso._crea(c)
         se_stesso._registra()
         se_stesso.seleziona([c.nome])
@@ -917,8 +1056,22 @@ classe Progettista(tk.Frame):
         se abs(dx) + abs(dy) < 3 e non d["mosso"]:
             ritorna "break"
         d["mosso"] = Vero
+        se nome in getattr(se_stesso, "_rett", {}):
+            # in una griglia non si sposta in pixel: si sceglie la cella (evidenziata) e si lascia il mouse
+            c = se_stesso.form.trova(nome)
+            padre = se_stesso._padre_widget(c)
+            prova:
+                bordo = int(str(padre.cget("borderwidth")))
+            eccetto (tk.TclError, ValueError):
+                bordo = 0
+            riga, colonna = se_stesso._cella_a(c.genitore, e.x_root - padre.winfo_rootx() - bordo, e.y_root - padre.winfo_rooty() - bordo)
+            d["cella"] = (riga, colonna)
+            se_stesso._evidenzia_cella(c.genitore, riga, colonna, padre)
+            ritorna "break"
         per n, (x0, y0) in d["inizio"].items():
             c = se_stesso.form.trova(n)
+            se n in getattr(se_stesso, "_rett", {}):
+                continua
             c.x = max(0, se_stesso._aggancia(x0 + dx))
             c.y = max(0, se_stesso._aggancia(y0 + dy))
             se_stesso.widget[n].place_configure(x=c.x, y=c.y)
@@ -929,7 +1082,11 @@ classe Progettista(tk.Frame):
     definisci _rilascia(se_stesso, e, nome):
         d = se_stesso._trascinamento
         se_stesso._trascinamento = Nessuno
+        se_stesso._togli_evidenza()
         se d e d["mosso"]:
+            se d.get("cella") e nome in getattr(se_stesso, "_rett", {}):
+                form_modello.imposta_cella(se_stesso.form.trova(nome), riga=d["cella"][0], colonna=d["cella"][1])
+                se_stesso._rilayout()
             se_stesso._registra()
             se_stesso._riempi_ispettore()
         ritorna "break"
@@ -945,7 +1102,7 @@ classe Progettista(tk.Frame):
     definisci _inizia_ridimensiona(se_stesso, e, maniglia, nome):
         c = se_stesso.form.trova(nome)
         se_stesso._ridim = {"m": maniglia, "nome": nome, "x": e.x_root, "y": e.y_root,
-                            "geom": (c.x, c.y, c.larghezza, c.altezza)}
+                            "geom": se_stesso._geom(c)}
         ritorna "break"
 
     definisci _ridimensiona(se_stesso, e):
@@ -968,6 +1125,11 @@ classe Progettista(tk.Frame):
             nuovo_y = se_stesso._aggancia(y + dy)
             h = max(4, h + (y - nuovo_y))
             y = y + (r["geom"][3] - h)
+        se c.nome in getattr(se_stesso, "_rett", {}):
+            # in una griglia la misura disegnata è quella propria del componente (conta se non riempie la cella)
+            c.larghezza, c.altezza = w, h
+            se_stesso._rilayout()
+            ritorna "break"
         c.x, c.y, c.larghezza, c.altezza = max(0, x), max(0, y), w, h
         se_stesso.widget[c.nome].place_configure(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
         se_stesso._riposiziona_maniglie()
@@ -995,9 +1157,14 @@ classe Progettista(tk.Frame):
     definisci sposta_selezione(se_stesso, dx, dy):
         per n in se_stesso.selezione_:
             c = se_stesso.form.trova(n)
+            se n in getattr(se_stesso, "_rett", {}):
+                k = form_modello.cella_di(c)
+                form_modello.imposta_cella(c, riga=k["riga"] + (dy > 0) - (dy < 0), colonna=k["colonna"] + (dx > 0) - (dx < 0))
+                continua
             c.x = max(0, c.x + dx)
             c.y = max(0, c.y + dy)
             se_stesso.widget[n].place_configure(x=c.x, y=c.y)
+        se_stesso._rilayout()
         se_stesso._aggiorna_maniglie()
         se_stesso._aggiorna_stato()
         se_stesso._registra()
@@ -1092,6 +1259,7 @@ classe Progettista(tk.Frame):
                     passa
         se_stesso.widget = {k: v per k, v in se_stesso.widget.items() se se_stesso.form.trova(k)}      # tolti anche i componenti che stavano dentro
         se_stesso.selezione_ = []
+        se_stesso._rilayout()
         se_stesso._registra()
         se_stesso.seleziona([])
 
@@ -1105,6 +1273,7 @@ classe Progettista(tk.Frame):
             d["y"] += 16
             nuovo = form_modello.Componente.da_dizionario(d)
             se_stesso.form.componenti.append(nuovo)
+            se_stesso._cella_nuova(nuovo, Nessuno)
             se_stesso._crea(nuovo)
             nuovi.append(nuovo.nome)
         se nuovi:
@@ -1123,6 +1292,7 @@ classe Progettista(tk.Frame):
             d["y"] += 16
             nuovo = form_modello.Componente.da_dizionario(d)
             se_stesso.form.componenti.append(nuovo)
+            se_stesso._cella_nuova(nuovo, Nessuno)
             se_stesso._crea(nuovo)
             nuovi.append(nuovo.nome)
         se nuovi:
@@ -1243,6 +1413,12 @@ classe Progettista(tk.Frame):
             se_stesso._campo_form(aggiungi_riga, "Sfondo", "sfondo", "colore")
             se_stesso._campo_form(aggiungi_riga, "Ridimensionabile", "ridimensionabile", "si_no")
             se_stesso._campo_form(aggiungi_riga, "Aspetto", "aspetto", "scelta:classico,chiaro,scuro,verde,viola")
+            se_stesso._campo_form(aggiungi_riga, "Disposizione", "layout", "scelta:libero,griglia")
+            se se_stesso.form.layout == "griglia":
+                se_stesso._campo_form(aggiungi_riga, "Colonne (pesi)", "colonne", "testo")
+                se_stesso._campo_form(aggiungi_riga, "Righe (pesi)", "righe", "testo")
+                se_stesso._campo_form(aggiungi_riga, "Margine", "margine", "numero")
+                se_stesso._campo_form(aggiungi_riga, "Spazio tra le celle", "spazio", "numero")
             problemi = se_stesso.form.problemi()
             se problemi:
                 aggiungi_riga("Attenzione", lambda p: tk.Label(p, text="\n".join(problemi[:6]), justify="left",
@@ -1258,7 +1434,11 @@ classe Progettista(tk.Frame):
         c = se_stesso.form.trova(se_stesso.selezione_[0])
         se_stesso.intestazione_ispettore.configure(text=f"{c.tipo}")
         e = aggiungi_riga("Nome", lambda p: se_stesso._entry(p, c.nome, lambda v: se_stesso._rinomina(c, v)))
-        per etichetta, attributo in (("X", "x"), ("Y", "y"), ("Larghezza", "larghezza"), ("Altezza", "altezza")):
+        in_griglia = form_modello.definizione_griglia(se_stesso.form, c.genitore) è non Nessuno e e_visivo(c.tipo)
+        se in_griglia:
+            se_stesso._campi_cella(aggiungi_riga, c)
+        per etichetta, attributo in ((("Larghezza propria", "larghezza"), ("Altezza propria", "altezza")) se in_griglia
+                                     altrimenti (("X", "x"), ("Y", "y"), ("Larghezza", "larghezza"), ("Altezza", "altezza"))):
             minimo, massimo = se_stesso.limiti_geometria(c, attributo)
             se_stesso._spin_geometria[attributo] = aggiungi_riga(etichetta, lambda p, a=attributo, mn=minimo, mx=massimo: se_stesso._spin(
                 p, getattr(c, a), lambda v, a=a: se_stesso._imposta_geometria(c, a, v), mn, mx))
@@ -1266,6 +1446,8 @@ classe Progettista(tk.Frame):
             se tipo_ == "nascosta":
                 continua
             se c.tipo == "FonteDati" e chiave in ("server", "porta", "utente") e c.valori.get("dialetto") != "mysql":
+                continua
+            se e_contenitore(c.tipo) e chiave in form_modello.PROPRIETA_LAYOUT_DIPENDENTI e c.valori.get("layout") != "griglia":
                 continua
             aggiungi_riga(descrizione, lambda p, k=chiave, t=tipo_: se_stesso._editor_valore(p, c, k, t))
 
@@ -1341,10 +1523,13 @@ classe Progettista(tk.Frame):
                 ritorna 0, max(1, v.get("massimo", 100))
         se c.tipo == "Riquadro" e chiave == "bordo":
             ritorna 0, 20
+        se e_contenitore(c.tipo) e chiave in ("margine", "spazio"):
+            ritorna 0, 200
         ritorna -grande, grande
 
     definisci _campo_form(se_stesso, aggiungi_riga, etichetta, attributo, tipo_):
         f = se_stesso.form
+        minimo_, massimo_ = (0, 200) se attributo in ("margine", "spazio") altrimenti (60, 4000)
 
         definisci cambia(valore):
             prova:
@@ -1352,11 +1537,17 @@ classe Progettista(tk.Frame):
             eccetto ValueError:
                 ritorna
             se tipo_ == "numero":
-                nuovo = max(60, min(4000, nuovo))
+                nuovo = max(minimo_, min(massimo_, nuovo))
             se getattr(f, attributo) != nuovo:
+                se attributo == "layout" e nuovo != "griglia":
+                    form_modello.congela_celle(f, "")          # i componenti tengono la posizione che avevano nelle celle
                 setattr(f, attributo, nuovo)
+                se attributo == "layout" e nuovo == "griglia":
+                    form_modello.assegna_celle(f, "")          # ognuno nella cella che corrisponde alla sua posizione
                 se_stesso._disegna_griglia()
                 se_stesso._registra()
+                se attributo == "layout":
+                    se_stesso._riempi_ispettore()
         se tipo_ == "si_no":
             var = tk.BooleanVar(value=getattr(f, attributo))
             aggiungi_riga(etichetta, lambda p: tk.Checkbutton(p, variable=var, command=lambda: cambia(var.get()),
@@ -1379,7 +1570,7 @@ classe Progettista(tk.Frame):
         altrimenti_se tipo_ == "colore":
             aggiungi_riga(etichetta, lambda p: se_stesso._campo_colore(p, getattr(f, attributo), cambia))
         altrimenti_se tipo_ == "numero":
-            aggiungi_riga(etichetta, lambda p: se_stesso._spin(p, getattr(f, attributo), cambia, 60, 4000))
+            aggiungi_riga(etichetta, lambda p: se_stesso._spin(p, getattr(f, attributo), cambia, minimo_, massimo_))
         altrimenti:
             aggiungi_riga(etichetta, lambda p: se_stesso._entry(p, testo(getattr(f, attributo)), cambia))
 
@@ -1719,7 +1910,9 @@ classe Progettista(tk.Frame):
         n = max(0 se attributo in ("x", "y") altrimenti 4, min(4000, n))
         se getattr(c, attributo) != n:
             setattr(c, attributo, n)
-            se_stesso.widget[c.nome].place_configure(x=c.x, y=c.y, width=c.larghezza, height=c.altezza)
+            se_stesso._rilayout()
+            x_, y_, l_, a_ = se_stesso._geom(c)
+            se_stesso.widget[c.nome].place_configure(x=x_, y=y_, width=l_, height=a_)
             se_stesso._aggiorna_maniglie()
             se_stesso._aggiorna_stato()
             se_stesso._registra()
@@ -1742,6 +1935,23 @@ classe Progettista(tk.Frame):
 
     definisci _modifica(se_stesso, c, chiave, valore):
         se c.valori.get(chiave) == valore:
+            ritorna
+        se chiave.startswith("g_"):          # la cella in una griglia
+            c.valori[chiave] = valore
+            se_stesso._rilayout()
+            se_stesso._registra()
+            ritorna
+        se chiave == "layout" e e_contenitore(c.tipo):
+            se c.valori.get("layout") == "griglia" e valore != "griglia":
+                per k in form_modello.pagine_di(c):
+                    form_modello.congela_celle(se_stesso.form, k)
+            c.valori[chiave] = valore
+            se valore == "griglia":
+                per k in form_modello.pagine_di(c):
+                    form_modello.assegna_celle(se_stesso.form, k)
+            se_stesso._aggiorna_widget(c)
+            se_stesso._registra()
+            se_stesso._riempi_ispettore()
             ritorna
         c.valori[chiave] = valore
         se_stesso._aggiorna_widget(c)
