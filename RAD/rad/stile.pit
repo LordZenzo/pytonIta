@@ -167,6 +167,7 @@ classe PulsanteIcona(tk.Frame):
         se_stesso.accento = accento
         se_stesso.colori = colori
         se_stesso._attivo = Vero
+        se_stesso.colore_testo = Nessuno          # colore fisso dell'icona e del testo (per i pulsanti che mostrano uno stato, come «acceso»)
         # senza icona (comandi dei menu che non ne hanno una) il pulsante mostra solo il testo
         se_stesso.icona = tk.Label(se_stesso, text=glifo(icona) se icona altrimenti "", font=(famiglia_icone() o FONT_SIMBOLI, 12))
         se icona:
@@ -187,9 +188,14 @@ classe PulsanteIcona(tk.Frame):
     definisci applica_colori(se_stesso, c):
         se_stesso.colori = c
         se_stesso._colora(c["accento"] se se_stesso.accento altrimenti c["sfondo"],
-                          "#ffffff" se se_stesso.accento altrimenti c["primo_piano"])
+                          "#ffffff" se se_stesso.accento altrimenti (se_stesso.colore_testo o c["primo_piano"]))
         se se_stesso.suggerimento:
             se_stesso.suggerimento.colori = c
+
+    definisci imposta_colore_testo(se_stesso, colore):
+        """Colore fisso di icona e testo (Nessuno = quello del tema)."""
+        se_stesso.colore_testo = colore
+        se_stesso.applica_colori(se_stesso.colori)
 
     definisci _colora(se_stesso, sfondo, primo):
         se_stesso.configure(background=sfondo)
@@ -205,7 +211,7 @@ classe PulsanteIcona(tk.Frame):
     definisci _entra(se_stesso, e=Nessuno):
         se se_stesso._attivo:
             c = se_stesso.colori
-            se_stesso._colora(c["accento"] se se_stesso.accento altrimenti c["pulsante_attivo"], "#ffffff" se se_stesso.accento altrimenti c["primo_piano"])
+            se_stesso._colora(c["accento"] se se_stesso.accento altrimenti c["pulsante_attivo"], "#ffffff" se se_stesso.accento altrimenti (se_stesso.colore_testo o c["primo_piano"]))
 
     definisci _esci(se_stesso, e=Nessuno):
         se_stesso.applica_colori(se_stesso.colori)

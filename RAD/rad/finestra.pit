@@ -51,6 +51,7 @@ da rad.piattaforma importa FONT_MONO, FONT_SIMBOLI, FONT_UI, semi
 da rad importa piattaforma
 
 CARTELLA_PROGETTI = os.path.join(os.path.expanduser("~"), "RAD_progetti")
+COLORE_CHAT_APERTA = "#1e9e3a"       # verde del pulsante dell'assistente quando la chat è aperta
 
 
 classe Applicazione:
@@ -165,6 +166,7 @@ classe Applicazione:
         se_stesso._mostra_benvenuto()
         se non se_stesso.config_.ottieni("finestra.chat_visibile", Vero):
             se_stesso.corpo.forget(se_stesso.chat)
+        se_stesso._colora_pulsante_chat()
         se non se_stesso.config_.ottieni("finestra.console_visibile", Vero):
             se_stesso.centro.forget(se_stesso.console)
         se non se_stesso.config_.ottieni("finestra.progetti_visibile", Vero):
@@ -213,6 +215,16 @@ classe Applicazione:
             se_stesso.pulsanti_barra.append(b)
             se_stesso.pulsanti_per_id[x] = b
         se_stesso.pulsante_chat = se_stesso.pulsanti_per_id.get("Visualizza/Assistente AI")
+        se_stesso._colora_pulsante_chat()
+
+    definisci _chat_visibile(se_stesso):
+        ritorna hasattr(se_stesso, "chat") e testo(se_stesso.chat) in [testo(x) per x in se_stesso.corpo.panes()]
+
+    definisci _colora_pulsante_chat(se_stesso):
+        """Il pulsante dell'assistente nella barra è verde quando la chat è aperta, del colore normale (nero nel tema chiaro) quando è chiusa."""
+        b = getattr(se_stesso, "pulsante_chat", Nessuno)
+        se b è non Nessuno e hasattr(se_stesso, "corpo"):
+            b.imposta_colore_testo(COLORE_CHAT_APERTA se se_stesso._chat_visibile() altrimenti Nessuno)
 
     definisci personalizza_barra(se_stesso):
         """Apre «Personalizza barra»: aggiungere, togliere e riordinare i comandi dei menu nella barra."""
@@ -569,6 +581,7 @@ classe Applicazione:
         altrimenti:
             se_stesso.corpo.add(se_stesso.chat, minsize=280, width=se_stesso.config_.ottieni("finestra.pannello_destro", 430))
             se_stesso.chat.ingresso.focus_set()
+        se_stesso._colora_pulsante_chat()
 
     # ================================================================== progetti
     definisci ripristina_ultimo_progetto(se_stesso):

@@ -1,0 +1,42 @@
+"""Il pulsante «Assistente AI» nella barra è verde quando la chat è aperta e del colore normale quando è chiusa."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione, COLORE_CHAT_APERTA
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+cfg.imposta("finestra.chat_visibile", Vero, notifica=Falso)
+r = tk.Tk()
+r.geometry("1300x800+20+20")
+app = Applicazione(r, cfg)
+r.update()
+b = app.pulsante_chat
+verifica(b è non Nessuno, "il pulsante c'è nella barra")
+verifica(app._chat_visibile(), "la chat parte aperta")
+verifica(b.icona.cget("foreground") == COLORE_CHAT_APERTA, "aperta: icona verde: " + testo(b.icona.cget("foreground")))
+app.mostra_chat()
+r.update()
+verifica(non app._chat_visibile() e b.icona.cget("foreground") == app.colori["primo_piano"], "chiusa: colore normale: " + testo(b.icona.cget("foreground")))
+app.mostra_chat()
+r.update()
+verifica(b.icona.cget("foreground") == COLORE_CHAT_APERTA, "riaperta: di nuovo verde")
+# dopo un cambio di tema o il passaggio del mouse il verde resta
+b._entra()
+b._esci()
+verifica(b.icona.cget("foreground") == COLORE_CHAT_APERTA, "il verde resta dopo il passaggio del mouse")
+app.mostra_chat()
+app._costruisci_barra()
+r.update()
+verifica(app.pulsante_chat.icona.cget("foreground") == app.colori["primo_piano"], "la barra ricostruita rispetta lo stato (chiusa)")
+r.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")
