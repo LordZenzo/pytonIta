@@ -65,6 +65,10 @@ PREDEFINITI = {
         "storia": Vero,                  # copie di sicurezza per annullare le modifiche dell'assistente (.rad/storia)
         "registro": Vero,                # registro locale di token e codice generato (.rad/ai_registro.jsonl)
     },
+    "recupero": {
+        "attivo": Vero,                  # copie di sicurezza periodiche dei file con modifiche non salvate (.rad/recupero), proposte all'avvio dopo una chiusura improvvisa
+        "secondi": 30,
+    },
     "avvio": {
         "chiedi": Vero,                  # all'avvio la finestra «Aprire l'ultimo / nuovo progetto / lezione»; se Falso si riapre subito l'ultimo lavoro
     },

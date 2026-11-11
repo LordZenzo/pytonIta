@@ -18,6 +18,7 @@ da rad.storia importa Storia
 da rad importa claude_code
 da rad importa converti_progetto
 da rad importa modelli_finestra
+da rad importa recupero
 da rad importa esporta_python
 da rad importa navigazione
 da rad importa esempi
@@ -68,6 +69,7 @@ classe Applicazione:
         se_stesso.punti_arresto = {}     # percorso assoluto -> insieme di righe con punto di arresto (debugger)
         se_stesso.dettagli_punti = {}    # percorso assoluto -> {riga: {"se", "dopo", "messaggio"}} (punti con condizione)
         se_stesso.debug = SessioneDebug(se_stesso)
+        se_stesso.recupero = recupero.Recupero()
         se_stesso._sintassi = {}         # widget -> id del lavoro programmato
         se_stesso.ponte = PonteUI(radice)
         radice.title(NOME)
@@ -82,6 +84,9 @@ classe Applicazione:
             radice.after(250, se_stesso.mostra_avvio)           # la finestra d'avvio compare sopra la finestra già disegnata
         altrimenti:
             se_stesso.ripristina_ultimo_progetto()
+        se chiedi_avvio:
+            radice.after(1500, se_stesso.proponi_recupero)      # dopo una chiusura improvvisa: i file con modifiche non salvate
+        radice.after(se_stesso._ritardo_recupero(), se_stesso._ciclo_recupero)
 
     # ================================================================== struttura
     definisci _costruisci(se_stesso):
@@ -923,6 +928,7 @@ classe Applicazione:
             passa
         se p:
             elimina se_stesso.schede[p]
+            se_stesso.recupero.togli(p)             # salvato o scartato di proposito: la copia di sicurezza non serve più
         widget.destroy()
         se non se_stesso.schede:
             se_stesso._mostra_benvenuto()
@@ -986,6 +992,82 @@ classe Applicazione:
         se_stesso.info(f"Salvato {os.path.basename(se_stesso._percorso_di(w) o '')}")
         se isinstance(w, Editor):
             se_stesso._programma_sintassi(w, subito=Vero)
+
+    # ---- salvataggio di sicurezza
+    definisci _ritardo_recupero(se_stesso):
+        prova:
+            ritorna max(5, int(se_stesso.config_.ottieni("recupero.secondi", 30))) * 1000
+        eccetto (TypeError, ValueError):
+            ritorna 30000
+
+    definisci _ciclo_recupero(se_stesso):
+        prova:
+            se se_stesso.config_.ottieni("recupero.attivo", Vero):
+                se_stesso.salva_copie_di_sicurezza()
+        eccetto Exception:
+            passa
+        prova:
+            se_stesso.radice.after(se_stesso._ritardo_recupero(), se_stesso._ciclo_recupero)
+        eccetto tk.TclError:
+            passa
+
+    definisci salva_copie_di_sicurezza(se_stesso):
+        """Copia i file con modifiche non salvate in ~/.rad/recupero e toglie le copie dei file ormai salvati. Ritorna quante copie ha scritto."""
+        scritte = 0
+        per p, w in lista(se_stesso.schede.items()):
+            se getattr(w, "modificato", Falso) e hasattr(w, "contenuto"):
+                prova:
+                    se se_stesso.recupero.copia(p, w.contenuto()):
+                        scritte += 1
+                eccetto (tk.TclError, AttributeError):
+                    passa
+            altrimenti:
+                se_stesso.recupero.togli(p)
+        ritorna scritte
+
+    definisci proponi_recupero(se_stesso, voci=Nessuno):
+        """All'avvio: se ci sono copie di file con modifiche non salvate (chiusura improvvisa) chiede se ripristinarle. Ritorna il numero di file ripristinati."""
+        voci = se_stesso.recupero.elenco() se voci è Nessuno altrimenti voci
+        se non voci:
+            ritorna 0
+        elenco = "\n".join("  • " + v["percorso"] per v in voci[:8]) + (f"\n  … e altri {lunghezza(voci) - 8}" se lunghezza(voci) > 8 altrimenti "")
+        r = messagebox.askyesnocancel("Recupero", "PitStudio si è chiuso prima che le modifiche fossero salvate.\nHo trovato una copia di questi file:\n\n"
+                                      + elenco + "\n\nVuoi ripristinarle? (Sì = ripristina e riapri i file, No = scarta le copie, Annulla = decidi alla prossima apertura)",
+                                      parent=se_stesso.radice)
+        se r è Nessuno:
+            ritorna 0
+        se non r:
+            per v in voci:
+                se_stesso.recupero.togli(v["percorso"])
+            ritorna 0
+        ritorna se_stesso.ripristina_copie(voci)
+
+    definisci ripristina_copie(se_stesso, voci):
+        """Riapre i file e rimette il contenuto copiato (restano «modificati»: salvi tu). Le finestre del progettista tornano come erano; gli altri tipi di file
+        si salvano accanto all'originale con l'estensione .recuperato. Ritorna quanti ne ha ripristinati."""
+        fatti = 0
+        per v in voci:
+            p = v["percorso"]
+            w = se_stesso.apri_file(p)
+            se w è Nessuno:
+                continua
+            prova:
+                se isinstance(w, Editor):
+                    w.sostituisci_testo(v["contenuto"])
+                altrimenti_se isinstance(w, Progettista):
+                    w.imposta_form(form_modello.Form.da_json(v["contenuto"]))
+                    w._segna_modificato(Vero)
+                altrimenti:
+                    con open(p + ".recuperato", "w", encoding="utf-8") come fp:
+                        fp.write(v["contenuto"])
+                    se_stesso.info(f"Copia di «{os.path.basename(p)}» salvata come {os.path.basename(p)}.recuperato")
+            eccetto (OSError, ValueError, KeyError, TypeError) come errore:
+                se_stesso.info(f"Non sono riuscito a ripristinare {os.path.basename(p)}: {errore}")
+                continua
+            fatti += 1
+        se fatti:
+            se_stesso.info(f"Ripristinati {fatti} file con le modifiche non salvate: ricordati di salvarli.")
+        ritorna fatti
 
     definisci salva_tutto(se_stesso):
         per w in lista(se_stesso.schede.values()):
@@ -2225,6 +2307,7 @@ classe Applicazione:
                 ritorna
         se non se_stesso.chiudi_tutte_le_schede():
             ritorna
+        se_stesso.recupero.scarta_tutto()           # uscita normale: niente da recuperare
         se_stesso.chat.salva_cronologia()
         se_stesso.salva_stato_finestra()
         se_stesso.radice.destroy()

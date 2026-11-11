@@ -46,6 +46,12 @@ Scrivi la parola e premi **Tab**: si espande in un blocco pronto. Il cursore si 
 - **Ctrl+F** apre Trova/Sostituisci (con conteggio dei risultati); **Ctrl+G** salta a una riga; **Ctrl+Z / Ctrl+Y** annullano e ripetono senza limite.
 - Il salvataggio automatico si attiva nelle [impostazioni](#impostazioni).
 
+## Recupero dopo una chiusura improvvisa
+
+Se il computer si blocca o PitStudio viene terminato mentre hai modifiche non salvate, non le perdi: ogni 30 secondi PitStudio fa una **copia di sicurezza** dei file modificati (editor, finestre del progettista) in `~\.radecupero`. Alla prossima apertura ti chiede se **ripristinarle**: i file si riaprono con il contenuto copiato, segnati come «modificati», e li salvi tu. Rispondendo *No* le copie vengono scartate, con *Annulla* restano per la volta dopo. Le copie spariscono da sole quando salvi o chiudi la scheda, e all'uscita normale.
+
+Si accende e si regola in [Impostazioni](#impostazioni) → Editor. È diverso dal *Salvataggio automatico*, che scrive direttamente nel file: la copia di sicurezza non tocca mai il tuo file.
+
 ## Python classico (.py)
 
 L'editor apre anche i file **Python normale** (`.py`, parole inglesi): colori, suggerimenti, frammenti (`if`, `for`, `def`, `main`…) e controllo della sintassi

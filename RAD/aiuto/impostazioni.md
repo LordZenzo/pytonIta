@@ -22,6 +22,7 @@ per riportare PitStudio ai valori iniziali basta cancellare quel file.
 | Chiudi automaticamente parentesi e virgolette | per scrivere più in fretta |
 | Suggerimenti automatici e ritardo | puoi spegnerli (restano su **Ctrl+Spazio**) o regolarne la prontezza |
 | Salvataggio automatico | dopo N secondi dall'ultima modifica (0 = mai) |
+| Copia di sicurezza | copia periodica dei file non salvati, da ripristinare dopo una chiusura improvvisa (e ogni quanti secondi) |
 
 ## Esecuzione
 

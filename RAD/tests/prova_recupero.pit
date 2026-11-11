@@ -1,0 +1,135 @@
+"""Salvataggio di sicurezza: copie dei file non salvati, ritrovate dopo una chiusura improvvisa e ripristinate."""
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.editor importa Editor
+da rad.progettista importa Progettista
+da rad.recupero importa Recupero
+da rad importa form_modello
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ---------------------------------------------------------------- la classe da sola
+d = tempfile.mkdtemp()
+r = Recupero(os.path.join(d, "recupero"))
+file1 = os.path.join(d, "a.pit")
+file2 = os.path.join(d, "b.pit")
+open(file1, "w", encoding="utf-8").write("uno\n")
+open(file2, "w", encoding="utf-8", newline="").write("due\r\n")
+verifica(r.copia(file1, "uno modificato\n") == Vero, "prima copia scritta")
+verifica(r.copia(file1, "uno modificato\n") == Falso, "stesso contenuto: non si riscrive")
+verifica(r.copia(file1, "uno ancora piu modificato\n") == Vero, "contenuto cambiato: nuova copia")
+verifica(r.copia(file2, "due\n") == Vero, "copia di un file identico a quello su disco (a capo diversi)")
+voci = Recupero(os.path.join(d, "recupero")).elenco()          # come dopo un riavvio: un oggetto nuovo
+verifica([v["percorso"] per v in voci] == [os.path.abspath(file1)], "dopo il riavvio resta solo la copia che differisce dal disco: " + str([v["percorso"] per v in voci]))
+verifica(voci[0]["contenuto"] == "uno ancora piu modificato\n", "con l'ultimo contenuto")
+verifica(lunghezza(os.listdir(os.path.join(d, "recupero"))) == 1, "la copia inutile è stata cancellata")
+r.togli(file1)
+verifica(Recupero(os.path.join(d, "recupero")).elenco() == [], "tolta la copia, niente da recuperare")
+# file rovinato o a metà
+os.makedirs(os.path.join(d, "recupero"), exist_ok=Vero)
+open(os.path.join(d, "recupero", "rotto.json"), "w").write("{non json")
+verifica(Recupero(os.path.join(d, "recupero")).elenco() == [] e non os.path.exists(os.path.join(d, "recupero", "rotto.json")), "una copia rovinata si ignora e si cancella")
+# file sparito
+r.copia(os.path.join(d, "non_esiste.pit"), "x")
+verifica(Recupero(os.path.join(d, "recupero")).elenco() == [], "il file non c'è più: niente da recuperare")
+r.copia(file1, "x")
+r.scarta_tutto()
+verifica(Recupero(os.path.join(d, "recupero")).elenco() == [], "scarta_tutto")
+
+# ---------------------------------------------------------------- nell'applicazione
+cartella_temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella_temp, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+app.recupero = Recupero(os.path.join(cartella_temp, "recupero"))
+radice.update()
+prog = tempfile.mkdtemp()
+codice = os.path.join(prog, "prova.pit")
+open(codice, "w", encoding="utf-8").write("stampa('originale')\n")
+finestra_json = os.path.join(prog, "demo.form.json")
+f = form_modello.Form("Demo", "Demo")
+f.aggiungi("Pulsante", 10, 10)
+form_modello.salva_form(f, prog)
+
+w = app.apri_file(codice)
+verifica(isinstance(w, Editor), "aperto l'editor")
+verifica(app.salva_copie_di_sicurezza() == 0, "niente modifiche: niente copie")
+w.sostituisci_testo("stampa('modificato e non salvato')\n")
+w.modificato = Vero
+verifica(app.salva_copie_di_sicurezza() == 1, "una modifica non salvata: una copia")
+verifica(app.salva_copie_di_sicurezza() == 0, "senza altre modifiche non si riscrive")
+
+p = app.apri_file(finestra_json)
+verifica(isinstance(p, Progettista), "aperto il progettista")
+p.aggiungi_componente("Etichetta", 40, 60)
+verifica(app.salva_copie_di_sicurezza() == 1, "copia anche della finestra modificata")
+verifica(lunghezza(app.recupero.elenco()) == 2, "due copie")
+
+# salvando, la copia sparisce
+w.salva()
+verifica(app.salva_copie_di_sicurezza() == 0, "ciclo dopo il salvataggio")
+verifica([v["percorso"] per v in app.recupero.elenco()] == [os.path.abspath(finestra_json)], "il file salvato non ha più la copia (restano le altre)")
+
+# il timer parte e si riprogramma
+verifica(app._ritardo_recupero() == 30000, "intervallo predefinito: 30 secondi")
+cfg.imposta("recupero.secondi", 1, notifica=Falso)
+verifica(app._ritardo_recupero() == 5000, "mai sotto i 5 secondi")
+cfg.imposta("recupero.secondi", 30, notifica=Falso)
+
+# ---- chiusura improvvisa simulata: nuova applicazione, stessa cartella delle copie
+app.radice.destroy()
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app2 = Applicazione(radice, cfg)
+app2.recupero = Recupero(os.path.join(cartella_temp, "recupero"))
+radice.update()
+domande = []
+
+
+definisci chiede(titolo, messaggio, **k):
+    domande.append(messaggio)
+    ritorna Vero
+
+
+messagebox.askyesnocancel = chiede
+voci = app2.recupero.elenco()
+verifica(lunghezza(voci) == 1 e voci[0]["percorso"] == os.path.abspath(finestra_json), "la finestra modificata è da recuperare: " + str([v["percorso"] per v in voci]))
+n = app2.proponi_recupero()
+verifica(lunghezza(domande) == 1 e "demo.form.json" in domande[0], "ha chiesto con il nome del file")
+verifica(n == 1, "ripristinato un file")
+p2 = app2.schede.get(os.path.abspath(finestra_json))
+verifica(p2 è non Nessuno e p2.form.trova("etichetta1") è non Nessuno e p2.modificato, "la finestra ripristinata ha l'etichetta aggiunta ed è segnata come modificata")
+
+# rifiuto: «No» scarta le copie
+app2.recupero.copia(codice, "stampa('altra modifica')\n")
+messagebox.askyesnocancel = lambda *a, **k: Falso
+verifica(app2.proponi_recupero() == 0 e app2.recupero.elenco() == [], "«No» scarta le copie")
+# «Annulla» le tiene
+app2.recupero.copia(codice, "stampa('ancora')\n")
+messagebox.askyesnocancel = lambda *a, **k: Nessuno
+verifica(app2.proponi_recupero() == 0 e lunghezza(app2.recupero.elenco()) == 1, "«Annulla» tiene le copie per la prossima volta")
+
+# chiudere una scheda senza salvare toglie la copia
+messagebox.askyesnocancel = lambda *a, **k: Falso
+w2 = app2.apri_file(codice)
+w2.sostituisci_testo("x\n")
+w2.modificato = Vero
+app2.salva_copie_di_sicurezza()
+verifica(lunghezza(app2.recupero.elenco()) >= 1, "copia presente")
+app2.chiudi_scheda(w2)
+verifica(non any(v["percorso"] == os.path.abspath(codice) per v in app2.recupero.elenco()), "chiusa senza salvare: la copia è tolta")
+
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

@@ -19,6 +19,8 @@ SCHEDE = [
         ("editor.suggerimenti", "Suggerimenti automatici mentre scrivi", "si_no", Nessuno),
         ("editor.ritardo_suggerimenti_ms", "Ritardo suggerimenti (ms)", "numero", (0, 2000)),
         ("editor.salvataggio_automatico", "Salvataggio automatico dopo (secondi, 0 = no)", "numero", (0, 3600)),
+        ("recupero.attivo", "Copia di sicurezza dei file non salvati (per ritrovarli se PitStudio si chiude di colpo)", "si_no", Nessuno),
+        ("recupero.secondi", "Ogni quanti secondi si fa la copia di sicurezza", "numero", (5, 600)),
     ]),
     ("Esecuzione", [
         ("esecuzione.limite_memoria_mb", "Limite di memoria dei programmi (MB, 0 = nessuno)", "numero", (0, 65536)),

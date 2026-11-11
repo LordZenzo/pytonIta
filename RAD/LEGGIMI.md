@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.46
+
+- **Salvataggio di sicurezza**: ogni 30 secondi PitStudio copia in `~\.radecupero` i file con modifiche non salvate (editor e finestre del progettista, senza toccare i file). Dopo una chiusura improvvisa, alla riapertura propone di ripristinarli. Le copie spariscono quando salvi o chiudi la scheda. Si regola in Impostazioni → Editor.
+
 ## Novità della 1.45
 
 - **Modelli di finestra** in *Nuova finestra*: finestra vuota, **accesso**, **scheda anagrafica con database** (crea il database SQLite e la maschera), **impostazioni a schede**, **ricerca con elenco**. Sono già a griglia, con i gestori degli eventi e un codice d'esempio che funziona; si cambiano nel progettista.

@@ -1,0 +1,102 @@
+"""Salvataggio di sicurezza: copie periodiche dei file con modifiche non salvate, per ritrovarle dopo una chiusura improvvisa
+(blocco del computer, mancanza di corrente, PitStudio terminato). Le copie stanno in ~/.rad/recupero e si cancellano da sole quando salvi o chiudi la scheda."""
+importa os
+importa json
+importa hashlib
+importa time
+
+da rad.config importa CARTELLA
+
+CARTELLA_RECUPERO = os.path.join(CARTELLA, "recupero")
+
+
+definisci _impronta(testo_):
+    ritorna hashlib.sha1(testo_.encode("utf-8", "replace")).hexdigest()
+
+
+definisci _leggi(percorso):
+    prova:
+        con open(percorso, encoding="utf-8", errors="replace", newline="") come fp:
+            ritorna fp.read()
+    eccetto OSError:
+        ritorna Nessuno
+
+
+classe Recupero:
+    definisci __inizializza__(se_stesso, cartella=Nessuno):
+        se_stesso.cartella = cartella o CARTELLA_RECUPERO
+        se_stesso._ultimi = {}          # percorso -> impronta dell'ultimo contenuto copiato (per non riscrivere inutilmente)
+
+    definisci _file_copia(se_stesso, percorso):
+        chiave = hashlib.sha1(os.path.abspath(percorso).lower().encode("utf-8", "replace")).hexdigest()[:20]
+        ritorna os.path.join(se_stesso.cartella, chiave + ".json")
+
+    definisci copia(se_stesso, percorso, contenuto):
+        """Scrive la copia di sicurezza di `percorso`; ritorna Vero se ha scritto (Falso se il contenuto è lo stesso dell'ultima copia o non si può scrivere)."""
+        percorso = os.path.abspath(percorso)
+        impronta = _impronta(contenuto)
+        se se_stesso._ultimi.get(percorso) == impronta:
+            ritorna Falso
+        prova:
+            os.makedirs(se_stesso.cartella, exist_ok=Vero)
+            destinazione = se_stesso._file_copia(percorso)
+            temporaneo = destinazione + ".tmp"
+            con open(temporaneo, "w", encoding="utf-8") come fp:
+                json.dump({"percorso": percorso, "contenuto": contenuto, "ora": time.time()}, fp)
+            os.replace(temporaneo, destinazione)           # sostituzione intera: una chiusura a metà non lascia mai una copia rotta
+        eccetto OSError:
+            ritorna Falso
+        se_stesso._ultimi[percorso] = impronta
+        ritorna Vero
+
+    definisci togli(se_stesso, percorso):
+        percorso = os.path.abspath(percorso)
+        se_stesso._ultimi.pop(percorso, Nessuno)
+        prova:
+            os.remove(se_stesso._file_copia(percorso))
+        eccetto OSError:
+            passa
+
+    definisci scarta_tutto(se_stesso):
+        se_stesso._ultimi.clear()
+        prova:
+            nomi = os.listdir(se_stesso.cartella)
+        eccetto OSError:
+            ritorna
+        per nome in nomi:
+            se nome.endswith(".json") o nome.endswith(".tmp"):
+                prova:
+                    os.remove(os.path.join(se_stesso.cartella, nome))
+                eccetto OSError:
+                    passa
+
+    definisci elenco(se_stesso):
+        """Le copie che valgono ancora: [{"percorso", "contenuto", "ora", "copia"}]. Una copia uguale al file su disco (o di un file che non c'è più) è inutile e si cancella."""
+        risultato = []
+        prova:
+            nomi = sorted(os.listdir(se_stesso.cartella))
+        eccetto OSError:
+            ritorna risultato
+        per nome in nomi:
+            se non nome.endswith(".json"):
+                continua
+            file_copia = os.path.join(se_stesso.cartella, nome)
+            prova:
+                con open(file_copia, encoding="utf-8") come fp:
+                    d = json.load(fp)
+                percorso, contenuto = d["percorso"], d["contenuto"]
+            eccetto (OSError, ValueError, KeyError, TypeError):
+                prova:
+                    os.remove(file_copia)           # copia rovinata
+                eccetto OSError:
+                    passa
+                continua
+            su_disco = _leggi(percorso)
+            se su_disco è Nessuno o su_disco.replace("\r\n", "\n") == contenuto.replace("\r\n", "\n"):
+                prova:
+                    os.remove(file_copia)
+                eccetto OSError:
+                    passa
+                continua
+            risultato.append({"percorso": percorso, "contenuto": contenuto, "ora": d.get("ora", 0), "copia": file_copia})
+        ritorna risultato
