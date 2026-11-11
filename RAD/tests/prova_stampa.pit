@@ -24,7 +24,7 @@ definisci contenuti(b):
 
 definisci struttura_ok(b):
     """Controlla l'intestazione, la tabella xref (ogni oggetto sta dove dice) e il trailer. Ritorna (vero/falso, messaggio)."""
-    se non b.startswith(b"%PDF-1.4") o non b.rstrip().endswith(b"%%EOF"):
+    se non b.startswith(b"%PDF-1.7") o non b.rstrip().endswith(b"%%EOF"):
         ritorna Falso, "intestazione o fine"
     inizio = int(re.search(rb"startxref\n(\d+)\n%%EOF", b).group(1))
     se b[inizio:inizio + 4] != b"xref":
@@ -140,7 +140,7 @@ verifica("il componente non esiste" in t, "un componente che non c'è non rompe 
 # salvataggio, anteprima e stampa (senza aprire niente davvero)
 chiamate = []
 stampante.apri_pdf = lambda p: chiamate.append(("apri", p))
-stampante.stampa_pdf = lambda p: chiamate.append(("stampa", p)) o Vero
+stampante.stampa_pdf = lambda p, imp=Nessuno: chiamate.append(("stampa", p)) o Vero
 p1 = stampante_.salva_pdf(os.path.join(tempfile.mkdtemp(), "importi.pdf"))
 verifica(os.path.isfile(p1) e struttura_ok(open(p1, "rb").read())[0], "salva_pdf scrive il file")
 p2 = stampante_.anteprima()

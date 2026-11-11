@@ -16,7 +16,9 @@ Questo file lo crea PitStudio nel progetto quando usi il componente «Stampa».
     s.stampa()           # lo manda alla stampante (Windows: verbo «print» del programma PDF; altrove: lp)
 """
 importa os
+importa re
 importa sys
+importa json
 importa time
 importa math
 importa zlib
@@ -25,6 +27,8 @@ importa subprocess
 importa unicodedata
 
 A4 = (595.28, 841.89)
+MM = 72 / 25.4          # punti in un millimetro
+FORMATI = {"A3": (841.89, 1190.55), "A4": A4, "A5": (419.53, 595.28), "B5": (498.9, 708.66), "Letter": (612.0, 792.0), "Legal": (612.0, 1008.0)}
 
 # larghezze dei caratteri di Helvetica (millesimi di corpo) da 32 a 126; gli accentati valgono come la lettera di base
 _REGOLARE = (278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556,
@@ -36,6 +40,15 @@ _GRASSETTO = (278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 3
 
 COLORI = [(0.298, 0.471, 0.659), (0.961, 0.522, 0.094), (0.329, 0.635, 0.294), (0.894, 0.341, 0.337), (0.447, 0.718, 0.698), (0.698, 0.475, 0.635), (0.933, 0.792, 0.231),
           (0.616, 0.459, 0.376)]
+
+
+_RE_COLORE = re.compile(r"(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (rg|RG)")
+
+
+definisci _in_grigio(m):
+    """Un colore «r g b rg» (o RG) di un comando PDF diventa il grigio equivalente."""
+    g = 0.299 * float(m.group(1)) + 0.587 * float(m.group(2)) + 0.114 * float(m.group(3))
+    ritorna f"{g:.3f} {g:.3f} {g:.3f} {m.group(4)}"
 
 
 definisci larghezza_carattere(c, grassetto=Falso):
@@ -125,19 +138,29 @@ definisci passo_bello(intervallo, tacche=4):
 classe Documento:
     """Un documento PDF fatto di pagine A4 (verticali o orizzontali): si aggiungono titoli, testo, tabelle e grafici, e si salva."""
 
-    definisci __inizializza__(se_stesso, titolo="", orientamento="verticale", intestazione="", numeri_pagina=Vero, margine=48, dimensione=10):
-        larghezza, altezza = A4
+    definisci __inizializza__(se_stesso, titolo="", orientamento="verticale", intestazione="", numeri_pagina=Vero, margine=48, dimensione=10,
+                              carta="A4", margini=Nessuno, scala=100, bianco_nero=Falso, fronte_retro="no"):
+        """carta: A3, A4, A5, B5, Letter, Legal. margini: (alto, destro, basso, sinistro) in punti (se mancano vale `margine` per tutti; in alto e in basso
+        mai meno di 24 punti, c'è l'intestazione e il numero di pagina). scala: percentuale della dimensione del testo. bianco_nero: tutto in grigi."""
+        larghezza, altezza = FORMATI.get(carta, A4)
         se orientamento == "orizzontale":
             larghezza, altezza = altezza, larghezza
+        m_alto, m_destro, m_basso, m_sinistro = margini se margini altrimenti (margine, margine, margine, margine)
         se_stesso.larghezza = larghezza
         se_stesso.altezza = altezza
         se_stesso.titolo_documento = titolo
         se_stesso.intestazione = intestazione
         se_stesso.numeri_pagina = numeri_pagina
-        se_stesso.margine = margine
-        se_stesso.dimensione = dimensione
-        se_stesso.alto = margine + 16 se (intestazione o titolo) altrimenti margine          # lo spazio dell'intestazione
-        se_stesso.basso = margine + 8
+        se_stesso.margine = m_sinistro                                   # margine sinistro
+        se_stesso.margine_destro = m_destro
+        se_stesso.margine_alto_pt = max(24, m_alto)
+        se_stesso.margine_basso_pt = max(24, m_basso)
+        se_stesso.scala = max(0.25, scala / 100)
+        se_stesso.bianco_nero = bianco_nero
+        se_stesso.fronte_retro = fronte_retro
+        se_stesso.dimensione = dimensione * se_stesso.scala
+        se_stesso.alto = se_stesso.margine_alto_pt + 16 se (intestazione o titolo) altrimenti se_stesso.margine_alto_pt          # lo spazio dell'intestazione
+        se_stesso.basso = se_stesso.margine_basso_pt + 8
         se_stesso.pagine = []
         se_stesso.immagini = []          # (larghezza, altezza, byte RGB) delle immagini del documento
         se_stesso.y = 0
@@ -162,7 +185,7 @@ classe Documento:
     @property
     definisci utile(se_stesso):
         """La larghezza in cui si scrive (tra i margini)."""
-        ritorna se_stesso.larghezza - 2 * se_stesso.margine
+        ritorna se_stesso.larghezza - se_stesso.margine - se_stesso.margine_destro
 
     # ------------------------------------------------------------ primitive di disegno
     definisci _scrivi(se_stesso, x, y, testo_, dimensione, grassetto=Falso, colore=(0, 0, 0)):
@@ -191,7 +214,8 @@ classe Documento:
         se_stesso.pagine[-1].append(f"{riempimento[0]:.3f} {riempimento[1]:.3f} {riempimento[2]:.3f} rg 1 1 1 RG 0.8 w {percorso} h B")
 
     # ------------------------------------------------------------ contenuto
-    definisci titolo(se_stesso, testo_, dimensione=16):
+    definisci titolo(se_stesso, testo_, dimensione=Nessuno):
+        dimensione = dimensione o 16 * se_stesso.scala
         riga = dimensione * 1.3
         se_stesso._serve(riga + 6)
         se_stesso.y -= dimensione
@@ -454,25 +478,40 @@ classe Documento:
         se_stesso.y = alto - altezza * s - 10
 
     # ------------------------------------------------------------ salvataggio
-    definisci pdf(se_stesso):
-        """Il contenuto del file PDF, in byte."""
-        totale = lunghezza(se_stesso.pagine)
+    definisci pdf(se_stesso, pagine=Nessuno):
+        """Il contenuto del file PDF, in byte. `pagine`: i numeri (da 0) delle pagine da includere; Nessuno = tutte (i numeri «Pagina X di Y» restano quelli del documento intero)."""
+        totale_doc = lunghezza(se_stesso.pagine)
+        scelte = lista(pagine) se pagine è non Nessuno altrimenti lista(intervallo(totale_doc))
+        scelte = [i per i in scelte se 0 <= i < totale_doc] o [0]
+        totale = lunghezza(scelte)
         oggi = time.strftime("%d/%m/%Y")
         for_ = []
-        per i, comandi in enumera(se_stesso.pagine):
+        mar_a = se_stesso.margine_alto_pt
+        mar_b = se_stesso.margine_basso_pt
+        per i in scelte:
+            comandi = se_stesso.pagine[i]
             extra = []
             se se_stesso.titolo_documento o se_stesso.intestazione:
                 a_sinistra = se_stesso.intestazione o se_stesso.titolo_documento
-                extra.append(f"BT /F2 8 Tf 0.35 0.35 0.4 rg {se_stesso.margine:.2f} {se_stesso.altezza - se_stesso.margine + 4:.2f} Td ({_pdf_testo(a_sinistra)}) Tj ET")
+                x_fine = se_stesso.larghezza - se_stesso.margine_destro
+                extra.append(f"BT /F2 8 Tf 0.35 0.35 0.4 rg {se_stesso.margine:.2f} {se_stesso.altezza - mar_a + 4:.2f} Td ({_pdf_testo(a_sinistra)}) Tj ET")
                 destra = oggi
-                extra.append(f"BT /F1 8 Tf 0.35 0.35 0.4 rg {se_stesso.larghezza - se_stesso.margine - larghezza_testo(destra, 8):.2f} {se_stesso.altezza - se_stesso.margine + 4:.2f} Td ({_pdf_testo(destra)}) Tj ET")
-                extra.append(f"0.8 0.8 0.84 RG 0.5 w {se_stesso.margine:.2f} {se_stesso.altezza - se_stesso.margine:.2f} m {se_stesso.larghezza - se_stesso.margine:.2f} {se_stesso.altezza - se_stesso.margine:.2f} l S")
+                extra.append(f"BT /F1 8 Tf 0.35 0.35 0.4 rg {x_fine - larghezza_testo(destra, 8):.2f} {se_stesso.altezza - mar_a + 4:.2f} Td ({_pdf_testo(destra)}) Tj ET")
+                extra.append(f"0.8 0.8 0.84 RG 0.5 w {se_stesso.margine:.2f} {se_stesso.altezza - mar_a:.2f} m {x_fine:.2f} {se_stesso.altezza - mar_a:.2f} l S")
             se se_stesso.numeri_pagina:
-                numero_ = f"Pagina {i + 1} di {totale}"
-                extra.append(f"BT /F1 8 Tf 0.35 0.35 0.4 rg {(se_stesso.larghezza - larghezza_testo(numero_, 8)) / 2:.2f} {se_stesso.margine - 12:.2f} Td ({_pdf_testo(numero_)}) Tj ET")
-            for_.append("\n".join(comandi + extra))
+                numero_ = f"Pagina {i + 1} di {totale_doc}"
+                extra.append(f"BT /F1 8 Tf 0.35 0.35 0.4 rg {(se_stesso.larghezza - larghezza_testo(numero_, 8)) / 2:.2f} {mar_b - 12:.2f} Td ({_pdf_testo(numero_)}) Tj ET")
+            contenuto_ = "\n".join(comandi + extra)
+            se se_stesso.bianco_nero:
+                contenuto_ = _RE_COLORE.sub(_in_grigio, contenuto_)
+            for_.append(contenuto_)
         oggetti = []                  # corpo di ogni oggetto, a partire dal numero 1
-        oggetti.append(b"<< /Type /Catalog /Pages 2 0 R >>")
+        preferenze = " /PrintScaling /None"
+        se se_stesso.fronte_retro == "lato lungo":
+            preferenze += " /Duplex /DuplexFlipLongEdge"
+        altrimenti_se se_stesso.fronte_retro == "lato corto":
+            preferenze += " /Duplex /DuplexFlipShortEdge"
+        oggetti.append(f"<< /Type /Catalog /Pages 2 0 R /ViewerPreferences <<{preferenze} >> >>".encode("latin-1"))
         n_img = lunghezza(se_stesso.immagini)
         prima = 5 + n_img                       # numero dell'oggetto della prima pagina: dopo catalogo, pagine, due caratteri e le immagini
         figli = " ".join(f"{prima + 2 * i} 0 R" per i in intervallo(totale))
@@ -480,6 +519,12 @@ classe Documento:
         oggetti.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")
         oggetti.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>")
         per larg_i, alt_i, rgb in se_stesso.immagini:
+            se se_stesso.bianco_nero:
+                grigio = bytearray(lunghezza(rgb))
+                per k in intervallo(0, lunghezza(rgb) - 2, 3):
+                    g = int(0.299 * rgb[k] + 0.587 * rgb[k + 1] + 0.114 * rgb[k + 2])
+                    grigio[k] = grigio[k + 1] = grigio[k + 2] = g
+                rgb = grigio
             dati = zlib.compress(bytes(rgb))
             oggetti.append(f"<< /Type /XObject /Subtype /Image /Width {larg_i} /Height {alt_i} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {lunghezza(dati)} >>\nstream\n".encode("latin-1") + dati + b"\nendstream")
         xoggetti = (" /XObject << " + " ".join(f"/Im{k + 1} {5 + k} 0 R" per k in intervallo(n_img)) + " >>") se n_img altrimenti ""
@@ -487,7 +532,7 @@ classe Documento:
             flusso = zlib.compress(contenuto.encode("latin-1", "replace"))
             oggetti.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {se_stesso.larghezza:.2f} {se_stesso.altezza:.2f}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>{xoggetti} >> /Contents {prima + 1 + 2 * i} 0 R >>".encode("latin-1"))
             oggetti.append(f"<< /Length {lunghezza(flusso)} /Filter /FlateDecode >>\nstream\n".encode("latin-1") + flusso + b"\nendstream")
-        uscita = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+        uscita = bytearray(b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n")
         posizioni = []
         per n, corpo in enumera(oggetti):
             posizioni.append(lunghezza(uscita))
@@ -500,9 +545,10 @@ classe Documento:
         uscita += f"trailer\n<< /Size {lunghezza(oggetti) + 1} /Root 1 0 R >>\nstartxref\n{inizio_xref}\n%%EOF\n".encode("latin-1")
         ritorna bytes(uscita)
 
-    definisci salva(se_stesso, percorso):
+    definisci salva(se_stesso, percorso, pagine=Nessuno):
+        """Scrive il PDF; `pagine` = i numeri (da 0) delle pagine da includere, Nessuno = tutte."""
         con open(percorso, "wb") come f:
-            f.write(se_stesso.pdf())
+            f.write(se_stesso.pdf(pagine))
         ritorna percorso
 
 
@@ -517,17 +563,406 @@ definisci apri_pdf(percorso):
         subprocess.Popen(["xdg-open", percorso])
 
 
-definisci stampa_pdf(percorso):
-    """Manda il PDF alla stampante. Ritorna Vero se l'ha mandato, Falso se il sistema non sa stampare PDF (allora si apre il PDF e si stampa da lì)."""
-    prova:
-        se sys.platform.startswith("win"):
-            os.startfile(percorso, "print")
+# ---------------------------------------------------------------- le impostazioni di stampa
+classe Impostazioni:
+    """Tutte le impostazioni di una stampa. Si leggono e si cambiano come attributi (`imp.copie = 2`) o con imposta(copie=2, carta="A3").
+
+    stampante: nome della stampante ("" = quella predefinita del sistema) · copie · fascicola · carta (A3, A4, A5, B5, Letter, Legal) · orientamento (verticale, orizzontale) ·
+    margine_alto, margine_basso, margine_sinistro, margine_destro (millimetri) · scala (% della dimensione del testo) · pagine ("" = tutte, oppure «1-3, 5, 7-») ·
+    fronte_retro (no, lato lungo, lato corto) · colore (colore, bianco e nero) · qualita (bozza, normale, alta)."""
+
+    PREDEFINITE = {"stampante": "", "copie": 1, "fascicola": Vero, "carta": "A4", "orientamento": "verticale", "margine_alto": 15.0, "margine_basso": 15.0,
+                   "margine_sinistro": 15.0, "margine_destro": 15.0, "scala": 100, "pagine": "", "fronte_retro": "no", "colore": "colore", "qualita": "normale"}
+    SCELTE = {"carta": tuple(FORMATI), "orientamento": ("verticale", "orizzontale"), "fronte_retro": ("no", "lato lungo", "lato corto"), "colore": ("colore", "bianco e nero"),
+              "qualita": ("bozza", "normale", "alta")}
+
+    definisci __inizializza__(se_stesso, **valori):
+        per k, v in Impostazioni.PREDEFINITE.items():
+            setattr(se_stesso, k, v)
+        se_stesso.imposta(**valori)
+
+    definisci imposta(se_stesso, **valori):
+        """Cambia le impostazioni indicate (i valori fuori misura si riportano dentro i limiti; un nome sconosciuto è un errore)."""
+        per k, v in valori.items():
+            se k == "margine":                       # scorciatoia: lo stesso margine su tutti i lati
+                per lato in ("alto", "basso", "sinistro", "destro"):
+                    setattr(se_stesso, "margine_" + lato, v)
+                continua
+            se k non in Impostazioni.PREDEFINITE:
+                solleva ErroreDiNome(f"impostazione di stampa sconosciuta: {k}")
+            setattr(se_stesso, k, v)
+        se_stesso.normalizza()
+        ritorna se_stesso
+
+    definisci normalizza(se_stesso):
+        se_stesso.stampante = testo(se_stesso.stampante o "").strip()
+        se_stesso.copie = int(max(1, min(99, numero(se_stesso.copie))))
+        se_stesso.fascicola = bool(se_stesso.fascicola)
+        per k, ammessi in Impostazioni.SCELTE.items():
+            valore = testo(getattr(se_stesso, k)).strip().lower() se k != "carta" altrimenti testo(getattr(se_stesso, k)).strip()
+            se k == "carta":
+                valore = ([f per f in ammessi se f.lower() == valore.lower()] o ["A4"])[0]
+            altrimenti_se valore non in ammessi:
+                valore = Impostazioni.PREDEFINITE[k]
+            setattr(se_stesso, k, valore)
+        per lato in ("alto", "basso", "sinistro", "destro"):
+            setattr(se_stesso, "margine_" + lato, max(0.0, min(60.0, numero(getattr(se_stesso, "margine_" + lato)))))
+        se_stesso.scala = int(max(25, min(400, numero(se_stesso.scala))))
+        se_stesso.pagine = testo(se_stesso.pagine o "").strip()
+
+    definisci a_dizionario(se_stesso):
+        ritorna {k: getattr(se_stesso, k) per k in Impostazioni.PREDEFINITE}
+
+    definisci copia(se_stesso):
+        ritorna Impostazioni(**se_stesso.a_dizionario())
+
+    definisci margini_pt(se_stesso):
+        """(alto, destro, basso, sinistro) in punti, come li vuole Documento."""
+        ritorna (se_stesso.margine_alto * MM, se_stesso.margine_destro * MM, se_stesso.margine_basso * MM, se_stesso.margine_sinistro * MM)
+
+    definisci documento(se_stesso, titolo="", intestazione="", numeri_pagina=Vero):
+        """Un Documento vuoto con queste impostazioni (carta, orientamento, margini, scala, colori, fronte-retro)."""
+        ritorna Documento(titolo, se_stesso.orientamento, intestazione, numeri_pagina, carta=se_stesso.carta, margini=se_stesso.margini_pt(), scala=se_stesso.scala,
+                          bianco_nero=(se_stesso.colore == "bianco e nero"), fronte_retro=se_stesso.fronte_retro)
+
+
+definisci leggi_pagine(testo_, totale):
+    """«1-3, 5, 7-» diventa [0, 1, 2, 4, 6, ...] (numeri da 0, dentro il totale). Vuoto = tutte. Solleva ValueError se non si capisce o se non c'è nessuna pagina."""
+    testo_ = (testo_ o "").strip()
+    se non testo_:
+        ritorna lista(intervallo(totale))
+    scelte = []
+    per parte in testo_.replace(";", ",").split(","):
+        parte = parte.strip()
+        se non parte:
+            continua
+        se "-" in parte:
+            da_, _, a_ = parte.partition("-")
+            prima = int(da_) se da_.strip() altrimenti 1
+            ultima = int(a_) se a_.strip() altrimenti totale
+            se prima > ultima:
+                prima, ultima = ultima, prima
         altrimenti:
-            subprocess.run(["lp", percorso], check=Vero)
+            prima = ultima = int(parte)
+        scelte += [i - 1 per i in intervallo(prima, ultima + 1) se 1 <= i <= totale]
+    scelte = sorted(set(scelte))
+    se non scelte:
+        solleva ValueError("nessuna delle pagine indicate esiste")
+    ritorna scelte
+
+
+# ---------------------------------------------------------------- le stampanti del sistema
+_STAMPANTI = {"quando": 0, "elenco": [], "predefinita": ""}
+
+
+definisci _esegui(argomenti, attesa=10):
+    prova:
+        r = subprocess.run(argomenti, capture_output=Vero, text=Vero, encoding="utf-8", errors="replace", timeout=attesa,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        ritorna r.stdout
+    eccetto (OSError, subprocess.SubprocessError):
+        ritorna ""
+
+
+definisci elenco_stampanti(aggiorna=Falso):
+    """(nomi delle stampanti installate, nome di quella predefinita), letti dal sistema (Windows: PowerShell; altrove: CUPS). Il risultato si ricorda per un minuto."""
+    se non aggiorna e time.time() - _STAMPANTI["quando"] < 60:
+        ritorna lista(_STAMPANTI["elenco"]), _STAMPANTI["predefinita"]
+    nomi = []
+    predefinita = ""
+    se sys.platform.startswith("win"):
+        uscita = _esegui(["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                          "Get-CimInstance Win32_Printer | Select-Object Name, Default | ConvertTo-Json -Compress"])
+        prova:
+            dati = json.loads(uscita) se uscita.strip() altrimenti []
+            se isinstance(dati, dict):
+                dati = [dati]
+            per d in dati:
+                nomi.append(d["Name"])
+                se d.get("Default"):
+                    predefinita = d["Name"]
+        eccetto (ValueError, KeyError, TypeError):
+            passa
+    altrimenti:
+        nomi = [r.strip() per r in _esegui(["lpstat", "-e"]).splitlines() se r.strip()]
+        for_default = _esegui(["lpstat", "-d"]).strip()
+        se ":" in for_default:
+            predefinita = for_default.rsplit(":", 1)[1].strip()
+    _STAMPANTI.update({"quando": time.time(), "elenco": nomi, "predefinita": predefinita})
+    ritorna lista(nomi), predefinita
+
+
+definisci preferenze_stampante(nome=""):
+    """Apre le preferenze di stampa del sistema (cassetti, fronte-retro, qualità del driver). Ritorna Vero se le ha aperte (oggi solo su Windows)."""
+    se sys.platform.startswith("win"):
+        nome = nome o elenco_stampanti()[1]
+        se non nome:
+            ritorna Falso
+        prova:
+            subprocess.Popen(["rundll32", "printui.dll,PrintUIEntry", "/e", "/n", nome])
+            ritorna Vero
+        eccetto OSError:
+            ritorna Falso
+    ritorna Falso
+
+
+# ---------------------------------------------------------------- mandare il PDF alla stampante
+definisci piano_stampa(percorso, imp=Nessuno, piattaforma=Nessuno):
+    """Cosa fare per stampare il PDF con le impostazioni: una lista di passi {"tipo": "startfile", "verbo", "argomenti"} (Windows) o {"tipo": "comando", "argomenti": [...]}.
+    Le pagine scelte, il formato, l'orientamento, i margini, la scala e i colori sono già nel PDF; qui restano stampante, copie, fronte-retro e qualità."""
+    imp = imp o Impostazioni()
+    piattaforma = piattaforma o sys.platform
+    se piattaforma.startswith("win"):
+        verbo, argomenti = ("printto", '"' + imp.stampante + '"') se imp.stampante altrimenti ("print", "")
+        # ogni copia è un lavoro intero: è come stampare più volte il documento, e le copie escono già fascicolate
+        ritorna [{"tipo": "startfile", "percorso": percorso, "verbo": verbo, "argomenti": argomenti} per _ in intervallo(imp.copie)]
+    comando = ["lp"]
+    se imp.stampante:
+        comando += ["-d", imp.stampante]
+    comando += ["-n", testo(imp.copie), "-o", "media=" + imp.carta]
+    se imp.copie > 1:
+        comando += ["-o", "Collate=" + ("true" se imp.fascicola altrimenti "false")]
+    se imp.fronte_retro == "lato lungo":
+        comando += ["-o", "sides=two-sided-long-edge"]
+    altrimenti_se imp.fronte_retro == "lato corto":
+        comando += ["-o", "sides=two-sided-short-edge"]
+    altrimenti:
+        comando += ["-o", "sides=one-sided"]
+    comando += ["-o", "print-quality=" + {"bozza": "3", "normale": "4", "alta": "5"}[imp.qualita]]
+    se imp.colore == "bianco e nero":
+        comando += ["-o", "print-color-mode=monochrome"]
+    comando.append(percorso)
+    ritorna [{"tipo": "comando", "argomenti": comando}]
+
+
+definisci stampa_pdf(percorso, imp=Nessuno):
+    """Manda il PDF alla stampante con le impostazioni. Ritorna Vero se l'ha mandato, Falso se il sistema non sa stampare PDF (allora si apre il PDF e si stampa da lì)."""
+    prova:
+        per passo in piano_stampa(percorso, imp):
+            se passo["tipo"] == "startfile":
+                se passo["argomenti"]:
+                    os.startfile(passo["percorso"], passo["verbo"], passo["argomenti"])
+                altrimenti:
+                    os.startfile(passo["percorso"], passo["verbo"])
+            altrimenti:
+                subprocess.run(passo["argomenti"], check=Vero)
         ritorna Vero
     eccetto (OSError, subprocess.CalledProcessError, AttributeError):
         apri_pdf(percorso)
         ritorna Falso
+
+
+# ---------------------------------------------------------------- la finestra di stampa
+classe FinestraStampa:
+    """La finestra con tutte le impostazioni di stampa: stampante (con le preferenze del sistema), copie, carta, orientamento, margini, scala, pagine, fronte-retro, colore e qualità.
+    mostra() la apre e ritorna l'azione scelta: «stampa», «anteprima», «pdf» o Nessuno (annullata). Le impostazioni cambiate restano nell'oggetto `impostazioni`.
+
+        f = FinestraStampa(radice, impostazioni, "Stampa clienti", pagine_di=lambda imp: numero_di_pagine_con(imp))
+        azione = f.mostra()"""
+
+    FRONTE_RETRO = {"no": "Solo fronte", "lato lungo": "Fronte-retro (lato lungo)", "lato corto": "Fronte-retro (lato corto)"}
+    COLORI = {"colore": "Colore", "bianco e nero": "Bianco e nero"}
+    QUALITA = {"bozza": "Bozza", "normale": "Normale", "alta": "Alta"}
+
+    definisci __inizializza__(se_stesso, radice, impostazioni, titolo="Stampa", pagine_di=Nessuno, stampanti=Nessuno):
+        importa tkinter come tk
+        da tkinter importa ttk, messagebox
+        se_stesso._tk = tk
+        se_stesso._messagebox = messagebox
+        se_stesso.imp = impostazioni
+        se_stesso.pagine_di = pagine_di
+        se_stesso.azione = Nessuno
+        se_stesso._lavoro = Nessuno
+        se_stesso.finestra = f = tk.Toplevel(radice)
+        f.title(titolo)
+        f.transient(radice)
+        f.resizable(Falso, Falso)
+        corpo = ttk.Frame(f, padding=14)
+        corpo.grid(row=0, column=0)
+        nomi, predefinita = stampanti se stampanti è non Nessuno altrimenti elenco_stampanti()
+        se_stesso.PREDEFINITA = "(stampante predefinita" + (": " + predefinita + ")" se predefinita altrimenti ")")
+        i = se_stesso.imp
+        se_stesso.var_stampante = tk.StringVar(value=i.stampante o se_stesso.PREDEFINITA)
+        se_stesso.var_copie = tk.StringVar(value=testo(i.copie))
+        se_stesso.var_fascicola = tk.BooleanVar(value=i.fascicola)
+        se_stesso.var_formato = tk.StringVar(value=i.carta)
+        se_stesso.var_orientamento = tk.StringVar(value=i.orientamento)
+        se_stesso.var_margini = {lato: tk.StringVar(value=f"{getattr(i, 'margine_' + lato):g}") per lato in ("alto", "basso", "sinistro", "destro")}
+        se_stesso.var_scala = tk.StringVar(value=testo(i.scala))
+        se_stesso.var_tutte = tk.StringVar(value="tutte" se non i.pagine altrimenti "intervallo")
+        se_stesso.var_pagine = tk.StringVar(value=i.pagine)
+        se_stesso.var_fronte_retro = tk.StringVar(value=se_stesso.FRONTE_RETRO[i.fronte_retro])
+        se_stesso.var_colore = tk.StringVar(value=se_stesso.COLORI[i.colore])
+        se_stesso.var_qualita = tk.StringVar(value=se_stesso.QUALITA[i.qualita])
+        riga = [0]
+
+        definisci etichetta(testo_):
+            ttk.Label(corpo, text=testo_).grid(row=riga[0], column=0, sticky="w", pady=4, padx=(0, 10))
+
+        # stampante
+        etichetta("Stampante")
+        cornice = ttk.Frame(corpo)
+        cornice.grid(row=riga[0], column=1, columnspan=3, sticky="we", pady=4)
+        se_stesso.casella_stampante = ttk.Combobox(cornice, textvariable=se_stesso.var_stampante, values=[se_stesso.PREDEFINITA] + lista(nomi), width=34)
+        se_stesso.casella_stampante.pack(side="left", fill="x", expand=Vero)
+        ttk.Button(cornice, text="Preferenze…", command=se_stesso._preferenze).pack(side="left", padx=(6, 0))
+        riga[0] += 1
+        # copie
+        etichetta("Copie")
+        cornice = ttk.Frame(corpo)
+        cornice.grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        se_stesso.spin_copie = tk.Spinbox(cornice, from_=1, to=99, width=5, textvariable=se_stesso.var_copie)
+        se_stesso.spin_copie.pack(side="left")
+        ttk.Checkbutton(cornice, text="Fascicola le copie", variable=se_stesso.var_fascicola).pack(side="left", padx=14)
+        riga[0] += 1
+        # carta
+        etichetta("Formato della carta")
+        cornice = ttk.Frame(corpo)
+        cornice.grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        ttk.Combobox(cornice, textvariable=se_stesso.var_formato, values=lista(FORMATI), width=9, state="readonly").pack(side="left")
+        ttk.Radiobutton(cornice, text="Verticale", variable=se_stesso.var_orientamento, value="verticale").pack(side="left", padx=(14, 4))
+        ttk.Radiobutton(cornice, text="Orizzontale", variable=se_stesso.var_orientamento, value="orizzontale").pack(side="left", padx=4)
+        riga[0] += 1
+        # margini
+        etichetta("Margini (mm)")
+        cornice = ttk.Frame(corpo)
+        cornice.grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        per lato, nome_lato in (("alto", "Alto"), ("basso", "Basso"), ("sinistro", "Sinistro"), ("destro", "Destro")):
+            ttk.Label(cornice, text=nome_lato).pack(side="left", padx=(0, 3))
+            tk.Spinbox(cornice, from_=0, to=60, width=4, textvariable=se_stesso.var_margini[lato]).pack(side="left", padx=(0, 10))
+        riga[0] += 1
+        # scala
+        etichetta("Dimensione del testo (%)")
+        cornice = ttk.Frame(corpo)
+        cornice.grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        tk.Spinbox(cornice, from_=25, to=400, increment=5, width=5, textvariable=se_stesso.var_scala).pack(side="left")
+        riga[0] += 1
+        # pagine
+        etichetta("Pagine")
+        cornice = ttk.Frame(corpo)
+        cornice.grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        ttk.Radiobutton(cornice, text="Tutte", variable=se_stesso.var_tutte, value="tutte").pack(side="left")
+        ttk.Radiobutton(cornice, text="Pagine:", variable=se_stesso.var_tutte, value="intervallo").pack(side="left", padx=(12, 4))
+        se_stesso.campo_pagine = ttk.Entry(cornice, textvariable=se_stesso.var_pagine, width=14)
+        se_stesso.campo_pagine.pack(side="left")
+        ttk.Label(cornice, text="  es. 1-3, 5, 7-").pack(side="left")
+        riga[0] += 1
+        se_stesso.etichetta_pagine = ttk.Label(corpo, text="")
+        se_stesso.etichetta_pagine.grid(row=riga[0], column=1, columnspan=3, sticky="w")
+        riga[0] += 1
+        # fronte-retro, colore, qualità
+        etichetta("Fronte-retro")
+        ttk.Combobox(corpo, textvariable=se_stesso.var_fronte_retro, values=lista(se_stesso.FRONTE_RETRO.values()), state="readonly", width=26).grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        riga[0] += 1
+        etichetta("Colore")
+        ttk.Combobox(corpo, textvariable=se_stesso.var_colore, values=lista(se_stesso.COLORI.values()), state="readonly", width=16).grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        riga[0] += 1
+        etichetta("Qualità")
+        ttk.Combobox(corpo, textvariable=se_stesso.var_qualita, values=lista(se_stesso.QUALITA.values()), state="readonly", width=16).grid(row=riga[0], column=1, columnspan=3, sticky="w", pady=4)
+        riga[0] += 1
+        # pulsanti
+        pulsanti = ttk.Frame(corpo)
+        pulsanti.grid(row=riga[0], column=0, columnspan=4, sticky="e", pady=(14, 0))
+        ttk.Button(pulsanti, text="Annulla", command=se_stesso.chiudi).pack(side="right", padx=(6, 0))
+        se_stesso.pulsante_stampa = ttk.Button(pulsanti, text="Stampa", command=lambda: se_stesso._azione("stampa"))
+        se_stesso.pulsante_stampa.pack(side="right", padx=(6, 0))
+        ttk.Button(pulsanti, text="Salva come PDF…", command=lambda: se_stesso._azione("pdf")).pack(side="right", padx=(6, 0))
+        ttk.Button(pulsanti, text="Anteprima", command=lambda: se_stesso._azione("anteprima")).pack(side="right", padx=(6, 0))
+        f.bind("<Escape>", lambda ev: se_stesso.chiudi())
+        f.bind("<Return>", lambda ev: se_stesso._azione("stampa"))
+        f.protocol("WM_DELETE_WINDOW", se_stesso.chiudi)
+        per v in [se_stesso.var_formato, se_stesso.var_orientamento, se_stesso.var_scala, se_stesso.var_tutte, se_stesso.var_pagine] + lista(se_stesso.var_margini.values()):
+            v.trace_add("write", lambda *a: se_stesso._programma_pagine())
+        se_stesso._aggiorna_pagine()
+        f.update_idletasks()
+        x = radice.winfo_rootx() + max(0, (radice.winfo_width() - f.winfo_reqwidth()) // 2)
+        y = radice.winfo_rooty() + max(0, (radice.winfo_height() - f.winfo_reqheight()) // 3)
+        f.geometry(f"+{x}+{y}")
+
+    # ------------------------------------------------------------ lettura dei campi
+    definisci leggi(se_stesso, silenzioso=Falso):
+        """Rimette nelle impostazioni quello che c'è nei campi. Ritorna Falso (e avvisa) se qualcosa non è valido."""
+        i = se_stesso.imp
+        prova:
+            copie = int(se_stesso.var_copie.get())
+            scala = int(se_stesso.var_scala.get())
+            margini = {lato: float(v.get().replace(",", ".")) per lato, v in se_stesso.var_margini.items()}
+        eccetto ValueError:
+            se non silenzioso:
+                se_stesso._messagebox.showwarning("Stampa", "Copie, margini e dimensione del testo devono essere numeri.", parent=se_stesso.finestra)
+            ritorna Falso
+        scelta = se_stesso.var_stampante.get().strip()
+        pagine = se_stesso.var_pagine.get().strip() se se_stesso.var_tutte.get() == "intervallo" altrimenti ""
+        inverso = lambda tabella, valore: ([k per k, v in tabella.items() se v == valore] o [valore])[0]
+        i.imposta(stampante="" se scelta.startswith("(stampante predefinita") altrimenti scelta, copie=copie, fascicola=se_stesso.var_fascicola.get(),
+                  carta=se_stesso.var_formato.get(), orientamento=se_stesso.var_orientamento.get(), scala=scala, pagine=pagine,
+                  fronte_retro=inverso(se_stesso.FRONTE_RETRO, se_stesso.var_fronte_retro.get()), colore=inverso(se_stesso.COLORI, se_stesso.var_colore.get()),
+                  qualita=inverso(se_stesso.QUALITA, se_stesso.var_qualita.get()), **{"margine_" + lato: m per lato, m in margini.items()})
+        se pagine e se_stesso.pagine_di:
+            prova:
+                leggi_pagine(pagine, se_stesso.pagine_di(i))
+            eccetto ValueError come errore:
+                se non silenzioso:
+                    se_stesso._messagebox.showwarning("Stampa", "Le pagine indicate non vanno bene: " + testo(errore) + ".", parent=se_stesso.finestra)
+                ritorna Falso
+        ritorna Vero
+
+    definisci _programma_pagine(se_stesso):
+        se se_stesso._lavoro è non Nessuno:
+            prova:
+                se_stesso.finestra.after_cancel(se_stesso._lavoro)
+            eccetto se_stesso._tk.TclError:
+                passa
+        se_stesso._lavoro = se_stesso.finestra.after(350, se_stesso._aggiorna_pagine)
+
+    definisci _aggiorna_pagine(se_stesso):
+        se_stesso._lavoro = Nessuno
+        se non se_stesso.pagine_di:
+            ritorna
+        prova:
+            prova_ = se_stesso.imp.copia()
+            se non se_stesso.leggi_in(prova_):
+                ritorna
+            se_stesso.etichetta_pagine.configure(text=f"Il documento ha {se_stesso.pagine_di(prova_)} pagine con queste impostazioni.")
+        eccetto se_stesso._tk.TclError:
+            passa
+
+    definisci leggi_in(se_stesso, altre):
+        """Come leggi(), ma su una copia (serve a contare le pagine senza toccare le impostazioni vere)."""
+        originale = se_stesso.imp
+        se_stesso.imp = altre
+        prova:
+            ritorna se_stesso.leggi(silenzioso=Vero)
+        infine:
+            se_stesso.imp = originale
+
+    # ------------------------------------------------------------ azioni
+    definisci _preferenze(se_stesso):
+        scelta = se_stesso.var_stampante.get().strip()
+        se non preferenze_stampante("" se scelta.startswith("(stampante predefinita") altrimenti scelta):
+            se_stesso._messagebox.showinfo("Stampa", "Le preferenze della stampante si aprono solo su Windows e con una stampante installata.", parent=se_stesso.finestra)
+
+    definisci _azione(se_stesso, nome):
+        se se_stesso.leggi():
+            se_stesso.azione = nome
+            se_stesso.chiudi(nome)
+
+    definisci chiudi(se_stesso, azione=Nessuno):
+        se_stesso.azione = azione
+        prova:
+            se_stesso.finestra.destroy()
+        eccetto se_stesso._tk.TclError:
+            passa
+
+    definisci mostra(se_stesso):
+        """Apre la finestra (modale) e ritorna «stampa», «anteprima», «pdf» o Nessuno."""
+        prova:
+            se_stesso.finestra.grab_set()
+            se_stesso.finestra.focus_set()
+            se_stesso.finestra.wait_window()
+        eccetto se_stesso._tk.TclError:
+            passa
+        ritorna se_stesso.azione
 
 
 # ---------------------------------------------------------------- leggere un'immagine e una tela
@@ -624,7 +1059,10 @@ classe Stampante:
     """Stampa il contenuto di un componente della finestra: la tabella di un Albero, gli elementi di un Elenco, il testo di un'AreaTesto o un Grafico.
     `finestra` è l'oggetto che ha i componenti come attributi e `sorgente` il nome del componente (o il componente stesso)."""
 
-    definisci __inizializza__(se_stesso, radice, finestra, sorgente="", titolo="", intestazione="", orientamento="verticale", numeri_pagina=Vero):
+    definisci __inizializza__(se_stesso, radice, finestra, sorgente="", titolo="", intestazione="", orientamento="verticale", numeri_pagina=Vero,
+                              impostazioni=Nessuno, chiedi=Falso, nome="", ricorda=Falso):
+        """impostazioni: dizionario delle impostazioni di stampa (vedi Impostazioni); chiedi: mostra la finestra di stampa prima di stampare;
+        ricorda: le impostazioni scelte restano per la volta dopo (nome = il nome del componente, per distinguere più stampe)."""
         se_stesso.radice = radice
         se_stesso.finestra = finestra
         se_stesso.sorgente = sorgente
@@ -632,16 +1070,22 @@ classe Stampante:
         se_stesso.intestazione = intestazione
         se_stesso.orientamento = orientamento
         se_stesso.numeri_pagina = numeri_pagina
+        se_stesso.impostazioni = Impostazioni(**dict({"orientamento": orientamento}, **(impostazioni o {})))
+        se_stesso.chiedi = chiedi
+        se_stesso.nome = nome
+        se_stesso.ricorda = ricorda
+        se ricorda:
+            se_stesso._carica()
 
     definisci componente(se_stesso):
         se isinstance(se_stesso.sorgente, str):
             ritorna getattr(se_stesso.finestra, se_stesso.sorgente, Nessuno)
         ritorna se_stesso.sorgente
 
-    definisci documento(se_stesso):
-        """Il Documento con il contenuto del componente."""
+    definisci documento(se_stesso, imp=Nessuno):
+        """Il Documento con il contenuto del componente (con le impostazioni di stampa: carta, orientamento, margini, scala, colori)."""
         w = se_stesso.componente()
-        d = Documento(se_stesso.titolo, se_stesso.orientamento, se_stesso.intestazione, se_stesso.numeri_pagina)
+        d = (imp o se_stesso.impostazioni).documento(se_stesso.titolo, se_stesso.intestazione, se_stesso.numeri_pagina)
         se se_stesso.titolo:
             d.titolo(se_stesso.titolo)
         se w è Nessuno:
@@ -687,18 +1131,43 @@ classe Stampante:
         ritorna d
 
     definisci salva_pdf(se_stesso, percorso=Nessuno):
-        """Salva il PDF. Senza percorso chiede dove (finestra di salvataggio). Ritorna il percorso, o Nessuno se si annulla."""
+        """Salva il PDF (con le pagine scelte). Senza percorso chiede dove (finestra di salvataggio). Ritorna il percorso, o Nessuno se si annulla."""
         se percorso è Nessuno:
             da tkinter importa filedialog
             percorso = filedialog.asksaveasfilename(parent=se_stesso.radice, defaultextension=".pdf", filetypes=[("PDF", "*.pdf")],
                                                     initialfile=(se_stesso.titolo o "documento") + ".pdf")
             se non percorso:
                 ritorna Nessuno
-        ritorna se_stesso.documento().salva(percorso)
+        ritorna se_stesso._salva(percorso)
+
+    definisci _salva(se_stesso, percorso, imp=Nessuno):
+        """Scrive il PDF con le impostazioni (le pagine scelte, i colori, il fronte-retro...)."""
+        imp = imp o se_stesso.impostazioni
+        d = se_stesso.documento(imp)
+        ritorna d.salva(percorso, leggi_pagine(imp.pagine, lunghezza(d.pagine)))
 
     definisci _temporaneo(se_stesso):
         cartella = tempfile.mkdtemp(prefix="stampa_")
-        ritorna se_stesso.documento().salva(os.path.join(cartella, (se_stesso.titolo o "documento").replace("/", "_").replace("\\", "_") + ".pdf"))
+        ritorna se_stesso._salva(os.path.join(cartella, (se_stesso.titolo o "documento").replace("/", "_").replace(chr(92), "_") + ".pdf"))
+
+    definisci pagine(se_stesso, imp=Nessuno):
+        """Quante pagine ha il documento con le impostazioni (tutte, senza contare l'intervallo scelto)."""
+        ritorna lunghezza(se_stesso.documento(imp o se_stesso.impostazioni).pagine)
+
+    definisci finestra_stampa(se_stesso, titolo=Nessuno):
+        """Apre la finestra delle impostazioni di stampa. Ritorna l'azione scelta («stampa», «anteprima», «pdf») dopo averla eseguita, o Nessuno se si annulla."""
+        f = FinestraStampa(se_stesso.radice, se_stesso.impostazioni, titolo o ("Stampa: " + se_stesso.titolo se se_stesso.titolo altrimenti "Stampa"),
+                           pagine_di=lambda imp: lunghezza(se_stesso.documento(imp).pagine))
+        azione = f.mostra()
+        se azione:
+            se_stesso._ricorda()
+            se azione == "stampa":
+                se_stesso.stampa(chiedi=Falso)
+            altrimenti_se azione == "anteprima":
+                se_stesso.anteprima()
+            altrimenti_se azione == "pdf":
+                se_stesso.salva_pdf()
+        ritorna azione
 
     definisci anteprima(se_stesso):
         """Apre il PDF nel programma predefinito (da lì si guarda, si salva e si stampa). Ritorna il percorso del file."""
@@ -706,8 +1175,57 @@ classe Stampante:
         apri_pdf(percorso)
         ritorna percorso
 
-    definisci stampa(se_stesso):
-        """Manda il documento alla stampante (se il sistema non sa stampare PDF lo apre per stamparlo da lì). Ritorna il percorso del file."""
+    definisci stampa(se_stesso, chiedi=Nessuno):
+        """Manda il documento alla stampante con le impostazioni (se il sistema non sa stampare PDF lo apre per stamparlo da lì). Se `chiedi` è Vero (o, senza dire niente,
+        la proprietà «Chiedi prima di stampare» è accesa) mostra prima la finestra di stampa. Ritorna il percorso del file, o Nessuno se hai annullato."""
+        se chiedi è Nessuno:
+            chiedi = se_stesso.chiedi
+        se chiedi:
+            se se_stesso.finestra_stampa() != "stampa":
+                ritorna Nessuno                 # annullata, oppure l'azione scelta (anteprima, PDF) è già stata eseguita dalla finestra
+            ritorna ""
         percorso = se_stesso._temporaneo()
-        stampa_pdf(percorso)
+        stampa_pdf(percorso, se_stesso.impostazioni)
         ritorna percorso
+
+    # ------------------------------------------------------------ impostazioni
+    definisci imposta(se_stesso, **valori):
+        """Cambia le impostazioni di stampa, per esempio imposta(copie=2, carta="A3", orientamento="orizzontale", pagine="1-3")."""
+        se_stesso.impostazioni.imposta(**valori)
+        se_stesso._ricorda()
+        ritorna se_stesso.impostazioni
+
+    definisci stampanti(se_stesso):
+        """I nomi delle stampanti installate."""
+        ritorna elenco_stampanti()[0]
+
+    definisci stampante_predefinita(se_stesso):
+        ritorna elenco_stampanti()[1]
+
+    definisci preferenze_stampante(se_stesso):
+        """Apre le preferenze della stampante scelta (cassetti, fronte-retro, qualità del driver)."""
+        ritorna preferenze_stampante(se_stesso.impostazioni.stampante)
+
+    definisci _file_memoria(se_stesso):
+        base = os.environ.get("APPDATA") o os.path.join(os.path.expanduser("~"), ".config")
+        programma = os.path.splitext(os.path.basename(sys.argv[0] o "programma"))[0] o "programma"
+        ritorna os.path.join(base, "Stampante", f"{programma}_{se_stesso.nome o 'stampa'}.json")
+
+    definisci _carica(se_stesso):
+        prova:
+            con open(se_stesso._file_memoria(), encoding="utf-8") come fp:
+                se_stesso.impostazioni.imposta(**{k: v per k, v in json.load(fp).items() se k in Impostazioni.PREDEFINITE})
+        eccetto (OSError, ValueError, TypeError):
+            passa
+
+    definisci _ricorda(se_stesso):
+        """Con «Ricorda le impostazioni» le scelte restano per la volta dopo."""
+        se non se_stesso.ricorda:
+            ritorna
+        prova:
+            percorso = se_stesso._file_memoria()
+            os.makedirs(os.path.dirname(percorso), exist_ok=Vero)
+            con open(percorso, "w", encoding="utf-8") come fp:
+                json.dump(se_stesso.impostazioni.a_dizionario(), fp, indent=1)
+        eccetto OSError:
+            passa

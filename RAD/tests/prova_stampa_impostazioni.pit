@@ -1,0 +1,365 @@
+"""Le impostazioni di stampa: valori e limiti, pagine, formato e margini nel PDF, bianco e nero, fronte-retro, comandi per la stampante, elenco delle stampanti,
+finestra di stampa e proprietà del componente Stampa."""
+importa sys, os, re, zlib, tempfile, importlib, subprocess, shutil, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa ttk, messagebox
+da rad importa form_modello, esporta_python
+da rad.form_modello importa Form
+importa stampante
+da stampante importa Impostazioni, Documento, leggi_pagine
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci contenuti(b):
+    ritorna [zlib.decompress(m.group(1)).decode("latin-1") per m in re.finditer(rb"stream\n(.*?)\nendstream", b, re.S)]
+
+
+# ---------------------------------------------------------------- impostazioni: valori e limiti
+i = Impostazioni()
+verifica(i.copie == 1 e i.carta == "A4" e i.orientamento == "verticale" e i.margine_alto == 15 e i.scala == 100 e i.pagine == "" e i.fronte_retro == "no" e i.colore == "colore" e i.qualita == "normale" e i.stampante == "", "predefinite")
+i.imposta(copie=500, scala=5, carta="a3", orientamento="Orizzontale", colore="BIANCO E NERO", qualita="sconosciuta", margine_alto=-3, margine_destro=999, fronte_retro="lato lungo")
+verifica(i.copie == 99 e i.scala == 25 e i.carta == "A3" e i.orientamento == "orizzontale" e i.colore == "bianco e nero" e i.qualita == "normale", "limiti e scelte: " + str(i.a_dizionario()))
+verifica(i.margine_alto == 0 e i.margine_destro == 60 e i.fronte_retro == "lato lungo", "margini dentro 0-60 mm")
+i.imposta(margine=20)
+verifica(all(getattr(i, "margine_" + l) == 20 per l in ("alto", "basso", "sinistro", "destro")), "margine su tutti i lati")
+i.imposta(copie="3", scala="150", pagine=" 1-2 ")
+verifica(i.copie == 3 e i.scala == 150 e i.pagine == "1-2", "numeri scritti come testo")
+errore = Falso
+prova:
+    i.imposta(inesistente=1)
+eccetto ErroreDiNome:
+    errore = Vero
+verifica(errore, "un'impostazione sconosciuta è un errore")
+c = i.copia()
+c.copie = 7
+verifica(i.copie == 3 e Impostazioni(**i.a_dizionario()).a_dizionario() == i.a_dizionario(), "copia e ricostruzione dal dizionario")
+verifica(Impostazioni(orientamento="orizzontale", copie=2).orientamento == "orizzontale", "dal costruttore")
+
+# ---------------------------------------------------------------- intervallo di pagine
+verifica(leggi_pagine("", 5) == [0, 1, 2, 3, 4], "vuoto = tutte")
+verifica(leggi_pagine("1-3, 5", 6) == [0, 1, 2, 4], "1-3, 5")
+verifica(leggi_pagine("4-", 6) == [3, 4, 5] e leggi_pagine("-2", 6) == [0, 1], "intervalli aperti")
+verifica(leggi_pagine("5, 2, 2, 9", 6) == [1, 4], "ordinate, senza doppioni, solo quelle che esistono")
+verifica(leggi_pagine("3-1", 6) == [0, 1, 2], "intervallo al contrario")
+errori_p = 0
+per cattivo in ("a", "7-9", "0", "1-x"):
+    prova:
+        leggi_pagine(cattivo, 6)
+    eccetto ValueError:
+        errori_p += 1
+verifica(errori_p == 4, "testo non valido o fuori dal documento: ValueError (" + str(errori_p) + "/4)")
+
+# ---------------------------------------------------------------- nel PDF: formato, orientamento, margini, scala
+d = Impostazioni(carta="A3", orientamento="orizzontale", margine=10).documento("T", "Studio")
+verifica(abs(d.larghezza - 1190.55) < 0.01 e abs(d.altezza - 841.89) < 0.01, "A3 orizzontale")
+verifica(b"/MediaBox [0 0 1190.55 841.89]" in d.pdf(), "MediaBox A3 orizzontale")
+d2 = Impostazioni(carta="Letter").documento()
+verifica((d2.larghezza, d2.altezza) == (612.0, 792.0), "Letter")
+d3 = Impostazioni(margine_sinistro=30, margine_destro=10).documento()
+verifica(abs(d3.margine - 30 * stampante.MM) < 0.01 e abs(d3.utile - (595.28 - 40 * stampante.MM)) < 0.01, "margini sinistro e destro: larghezza utile " + str(d3.utile))
+d3.paragrafo("x")
+verifica(abs(float(re.search(r"([\d.]+) [\d.]+ Td", "\n".join(contenuti(d3.pdf()))).group(1)) - 30 * stampante.MM) < 0.01, "il testo parte dal margine sinistro")
+# i margini alto e basso non scendono sotto 24 punti (c'è l'intestazione)
+d4 = Impostazioni(margine=0).documento("T")
+verifica(d4.margine_alto_pt == 24 e d4.margine_basso_pt == 24, "minimo di 24 punti in alto e in basso")
+# scala del testo
+piccolo = Documento(scala=50)
+grande = Documento(scala=200)
+piccolo.titolo("a")
+grande.titolo("a")
+dim = lambda doc: float(re.search(r"/F2 ([\d.]+) Tf", "\n".join(contenuti(doc.pdf()))).group(1))
+verifica(abs(dim(piccolo) - 8) < 0.01 e abs(dim(grande) - 32) < 0.01, "la scala cambia la dimensione del titolo: " + str((dim(piccolo), dim(grande))))
+verifica(piccolo.dimensione == 5 e grande.dimensione == 20, "e quella del testo")
+# più grande = più pagine
+def_righe = [[f"riga {k}", "x"] per k in intervallo(80)]
+a1 = Documento(scala=100)
+a1.tabella(["A", "B"], def_righe)
+a2 = Documento(scala=200)
+a2.tabella(["A", "B"], def_righe)
+verifica(lunghezza(a2.pagine) > lunghezza(a1.pagine), "scala 200% occupa più pagine: " + str((lunghezza(a1.pagine), lunghezza(a2.pagine))))
+
+# ---------------------------------------------------------------- pagine scelte
+doc = Documento(titolo="Doc", intestazione="Ufficio")
+doc.tabella(["A", "B"], def_righe)
+doc.salta_pagina()
+doc.paragrafo("ultima")
+n = lunghezza(doc.pagine)
+verifica(n >= 3, "documento di più pagine: " + str(n))
+b = doc.pdf([1])
+verifica(f"/Count 1".encode() in b e b"Pagina 2 di " + str(n).encode() in b"\n".join(c.encode("latin-1") per c in contenuti(b)), "una pagina sola, con il suo numero originale")
+verifica(lunghezza(contenuti(b)) == 1, "un solo flusso")
+verifica(f"/Count {n}".encode() in doc.pdf(), "tutte per impostazione")
+verifica(f"/Count 2".encode() in doc.pdf([0, n - 1]), "due pagine non vicine")
+verifica(f"/Count 1".encode() in doc.pdf([99]), "un numero fuori misura: almeno la prima pagina (mai un PDF vuoto)")
+percorso = os.path.join(tempfile.mkdtemp(), "x.pdf")
+doc.salva(percorso, [0])
+verifica(f"/Count 1".encode() in open(percorso, "rb").read(), "salva con le pagine")
+
+# ---------------------------------------------------------------- bianco e nero e fronte-retro
+colorato = Documento(titolo="C", bianco_nero=Falso)
+colorato.grafico([("a", 3), ("b", 5)], "barre", "G")
+colorato.grafico([("a", 3), ("b", 5)], "torta", "T")
+t_col = "\n".join(contenuti(colorato.pdf()))
+verifica(any(m.group(1) != m.group(2) per m in re.finditer(r"(\d\.\d+) (\d\.\d+) \d\.\d+ (?:rg|RG)", t_col)), "con i colori ci sono colori veri")
+grigio = Documento(titolo="C", bianco_nero=Vero)
+grigio.grafico([("a", 3), ("b", 5)], "barre", "G")
+grigio.grafico([("a", 3), ("b", 5)], "torta", "T")
+t_g = "\n".join(contenuti(grigio.pdf()))
+verifica(all(m.group(1) == m.group(2) == m.group(3) per m in re.finditer(r"(\d\.\d+) (\d\.\d+) (\d\.\d+) (?:rg|RG)", t_g)) e " rg" in t_g, "in bianco e nero tutti i colori sono grigi")
+img = Documento(bianco_nero=Vero)
+img.immagine(2, 1, bytes([255, 0, 0, 0, 0, 255]))
+dati_img = re.search(rb"/Subtype /Image.*?stream\n(.*?)\nendstream", img.pdf(), re.S).group(1)
+px = zlib.decompress(dati_img)
+verifica(px[0] == px[1] == px[2] e px[3] == px[4] == px[5] e px[0] != px[3], "le immagini diventano grigie: " + str(list(px)))
+verifica(b"/Duplex" non in Documento().pdf() e b"/PrintScaling /None" in Documento().pdf(), "senza fronte-retro: niente /Duplex, scala di stampa 100%")
+verifica(b"/Duplex /DuplexFlipLongEdge" in Documento(fronte_retro="lato lungo").pdf(), "fronte-retro lato lungo")
+verifica(b"/Duplex /DuplexFlipShortEdge" in Documento(fronte_retro="lato corto").pdf(), "fronte-retro lato corto")
+
+# ---------------------------------------------------------------- cosa si manda alla stampante
+p = "C:\\x\\a.pdf"
+w1 = stampante.piano_stampa(p, Impostazioni(), "win32")
+verifica(w1 == [{"tipo": "startfile", "percorso": p, "verbo": "print", "argomenti": ""}], "Windows, stampante predefinita: verbo print: " + str(w1))
+w2 = stampante.piano_stampa(p, Impostazioni(stampante="HP Laser", copie=3), "win32")
+verifica(lunghezza(w2) == 3 e all(x["verbo"] == "printto" e x["argomenti"] == '"HP Laser"' per x in w2), "Windows, stampante scelta e 3 copie: tre lavori con printto")
+l1 = stampante.piano_stampa("/t/a.pdf", Impostazioni(), "linux")[0]["argomenti"]
+verifica(l1[0] == "lp" e l1[-1] == "/t/a.pdf" e "-d" non in l1 e l1[l1.index("-n") + 1] == "1" e "media=A4" in l1 e "sides=one-sided" in l1 e "print-quality=4" in l1 e "print-color-mode=monochrome" non in l1, "lp predefinito: " + str(l1))
+l2 = stampante.piano_stampa("/t/a.pdf", Impostazioni(stampante="Ufficio", copie=2, carta="A3", fronte_retro="lato corto", colore="bianco e nero", qualita="alta", fascicola=Falso), "linux")[0]["argomenti"]
+verifica(l2[l2.index("-d") + 1] == "Ufficio" e l2[l2.index("-n") + 1] == "2" e "media=A3" in l2 e "Collate=false" in l2 e "sides=two-sided-short-edge" in l2 e "print-quality=5" in l2 e "print-color-mode=monochrome" in l2, "lp con tutte le impostazioni: " + str(l2))
+verifica("sides=two-sided-long-edge" in stampante.piano_stampa("/t/a.pdf", Impostazioni(fronte_retro="lato lungo"), "darwin")[0]["argomenti"], "fronte-retro lato lungo")
+# stampa_pdf esegue il piano (senza stampare davvero)
+eseguiti = []
+vecchio_run = subprocess.run
+subprocess.run = lambda args, **k: eseguiti.append(args) o Nessuno
+vecchia_piattaforma = sys.platform
+sys.platform = "linux"
+verifica(stampante.stampa_pdf("/t/a.pdf", Impostazioni(copie=2)) == Vero e eseguiti[0][0] == "lp", "stampa_pdf esegue lp")
+sys.platform = vecchia_piattaforma
+subprocess.run = vecchio_run
+
+# ---------------------------------------------------------------- elenco delle stampanti
+vecchio_esegui = stampante._esegui
+chiamate_ps = []
+stampante._STAMPANTI.update({"quando": 0, "elenco": [], "predefinita": ""})
+vecchia_piattaforma = sys.platform
+sys.platform = "win32"
+stampante._esegui = lambda args, attesa=10: chiamate_ps.append(args) o json.dumps([{"Name": "HP Laser", "Default": Falso}, {"Name": "Microsoft Print to PDF", "Default": Vero}])
+nomi, pred = stampante.elenco_stampanti(aggiorna=Vero)
+verifica(nomi == ["HP Laser", "Microsoft Print to PDF"] e pred == "Microsoft Print to PDF", "Windows: elenco e predefinita: " + str((nomi, pred)))
+stampante.elenco_stampanti()
+verifica(lunghezza(chiamate_ps) == 1, "il risultato si ricorda (una sola lettura)")
+stampante._esegui = lambda args, attesa=10: json.dumps({"Name": "Unica", "Default": Vero})
+verifica(stampante.elenco_stampanti(aggiorna=Vero) == (["Unica"], "Unica"), "una sola stampante (JSON non in lista)")
+stampante._esegui = lambda args, attesa=10: ""
+verifica(stampante.elenco_stampanti(aggiorna=Vero) == ([], ""), "nessuna risposta: elenco vuoto, niente errori")
+stampante._esegui = lambda args, attesa=10: "{non json"
+verifica(stampante.elenco_stampanti(aggiorna=Vero) == ([], ""), "risposta rovinata: elenco vuoto")
+sys.platform = "linux"
+stampante._esegui = lambda args, attesa=10: ("Ufficio\nLaser\n" se args[1] == "-e" altrimenti "destinazione predefinita del sistema: Laser\n")
+verifica(stampante.elenco_stampanti(aggiorna=Vero) == (["Ufficio", "Laser"], "Laser"), "CUPS: " + str(stampante.elenco_stampanti(aggiorna=Vero)))
+sys.platform = vecchia_piattaforma
+stampante._esegui = vecchio_esegui
+stampante._STAMPANTI.update({"quando": 0, "elenco": [], "predefinita": ""})
+reale = stampante.elenco_stampanti(aggiorna=Vero)
+verifica(isinstance(reale[0], list) e isinstance(reale[1], str), "la lettura vera non dà errori: " + str(reale))
+
+# ---------------------------------------------------------------- il componente Stampante con le impostazioni
+radice = tk.Tk()
+radice.geometry("+20+20")
+
+
+classe Finestra:
+    passa
+
+
+fin = Finestra()
+fin.albero = ttk.Treeview(radice, columns=["Nome", "Importo"], show="headings")
+fin.albero.heading("Nome", text="Nome")
+fin.albero.heading("Importo", text="Importo")
+per k in intervallo(120):
+    fin.albero.insert("", "end", values=(f"Voce {k}", f"{k},50"))
+s = stampante.Stampante(radice, fin, "albero", titolo="Importi", impostazioni={"copie": 2, "carta": "A3", "pagine": "2"}, intestazione="Ufficio")
+verifica(s.impostazioni.copie == 2 e s.impostazioni.carta == "A3" e s.impostazioni.orientamento == "verticale", "impostazioni dal costruttore")
+totale = s.pagine()
+verifica(totale >= 2, "il documento ha più pagine: " + str(totale))
+p1 = s._salva(os.path.join(tempfile.mkdtemp(), "uno.pdf"))
+b1 = open(p1, "rb").read()
+verifica(b"/Count 1" in b1 e b"/MediaBox [0 0 841.89 1190.55]" in b1, "salva solo la pagina 2, in A3")
+s.imposta(pagine="", orientamento="orizzontale", colore="bianco e nero")
+verifica(s.impostazioni.orientamento == "orizzontale" e s.documento().larghezza > s.documento().altezza, "imposta(): orientamento orizzontale")
+verifica(s.documento(Impostazioni(carta="A5")).larghezza < 450, "documento con altre impostazioni senza toccare quelle vere")
+verifica(isinstance(s.stampanti(), list) e isinstance(s.stampante_predefinita(), str), "stampanti() e stampante_predefinita()")
+# stampa(): manda il PDF con le impostazioni
+chiamate = []
+stampante.apri_pdf = lambda p: chiamate.append(("apri", p))
+stampante.stampa_pdf = lambda p, imp=Nessuno: chiamate.append(("stampa", p, imp)) o Vero
+s.imposta(copie=3)
+percorso = s.stampa()
+verifica(chiamate[-1][0] == "stampa" e chiamate[-1][2].copie == 3 e chiamate[-1][2].colore == "bianco e nero", "stampa() passa le impostazioni a stampa_pdf")
+# con la finestra: simulata
+risposte = ["anteprima", Nessuno, "stampa"]
+
+
+classe FinestraFinta:
+    definisci __inizializza__(se_stesso, radice, impostazioni, titolo="", pagine_di=Nessuno, stampanti=Nessuno):
+        se_stesso.imp = impostazioni
+        se_stesso.pagine_di = pagine_di
+        FinestraFinta.ultima = se_stesso
+
+    definisci mostra(se_stesso):
+        ritorna risposte.pop(0)
+
+
+vera = stampante.FinestraStampa
+stampante.FinestraStampa = FinestraFinta
+chiamate.clear()
+verifica(s.finestra_stampa() == "anteprima" e chiamate[-1][0] == "apri", "finestra → anteprima apre il PDF")
+verifica(FinestraFinta.ultima.pagine_di(Impostazioni()) >= 2, "la finestra sa contare le pagine")
+n_prima = lunghezza(chiamate)
+verifica(s.finestra_stampa() è Nessuno e lunghezza(chiamate) == n_prima, "annullando non succede niente")
+s.chiedi = Vero
+verifica(s.stampa() == "" e chiamate[-1][0] == "stampa", "con «chiedi» stampa() apre la finestra e poi stampa")
+risposte[:] = [Nessuno]
+verifica(s.stampa() è Nessuno, "con «chiedi» e annullando: nessuna stampa")
+stampante.FinestraStampa = vera
+# memoria
+os.environ["APPDATA"] = tempfile.mkdtemp()
+m1 = stampante.Stampante(radice, fin, "albero", titolo="X", nome="stampa1", ricorda=Vero)
+m1.imposta(copie=4, scala=120)
+m2 = stampante.Stampante(radice, fin, "albero", titolo="X", nome="stampa1", ricorda=Vero)
+verifica(m2.impostazioni.copie == 4 e m2.impostazioni.scala == 120, "ricorda: le impostazioni tornano la volta dopo")
+m3 = stampante.Stampante(radice, fin, "albero", titolo="X", nome="stampa1", ricorda=Falso)
+verifica(m3.impostazioni.copie == 1, "senza «ricorda» no")
+
+# ---------------------------------------------------------------- la finestra di stampa
+messaggi = []
+messagebox.showwarning = lambda titolo, testo_, **k: messaggi.append(testo_)
+imp = Impostazioni(copie=2, margine=10)
+conteggi = []
+f = stampante.FinestraStampa(radice, imp, "Stampa prova", pagine_di=lambda i: conteggi.append(i.copia()) o 5, stampanti=(["HP Laser", "PDF"], "HP Laser"))
+radice.update()
+verifica(f.var_copie.get() == "2" e f.var_formato.get() == "A4" e f.var_orientamento.get() == "verticale" e f.var_margini["alto"].get() == "10", "valori iniziali nei campi")
+verifica(f.var_stampante.get().startswith("(stampante predefinita: HP Laser") e "HP Laser" in lista(f.casella_stampante["values"]), "elenco delle stampanti e predefinita")
+verifica("5 pagine" in f.etichetta_pagine.cget("text"), "il numero di pagine è mostrato: " + f.etichetta_pagine.cget("text"))
+f.var_stampante.set("PDF")
+f.var_copie.set("4")
+f.var_fascicola.set(Falso)
+f.var_formato.set("A3")
+f.var_orientamento.set("orizzontale")
+f.var_margini["sinistro"].set("25,5")
+f.var_scala.set("80")
+f.var_tutte.set("intervallo")
+f.var_pagine.set("1-3, 5")
+f.var_fronte_retro.set("Fronte-retro (lato lungo)")
+f.var_colore.set("Bianco e nero")
+f.var_qualita.set("Alta")
+f.finestra.update()
+conteggi.clear()
+f._aggiorna_pagine()
+verifica(conteggi e conteggi[-1].carta == "A3" e conteggi[-1].scala == 80 e conteggi[-1].margine_sinistro == 25.5, "per contare le pagine usa le impostazioni correnti (su una copia)")
+verifica(imp.copie == 2 e imp.carta == "A4", "ma quelle vere non cambiano finché non confermi")
+verifica(f.leggi() == Vero, "leggi() accetta i campi")
+verifica((imp.stampante, imp.copie, imp.fascicola, imp.carta, imp.orientamento, imp.margine_sinistro, imp.scala, imp.pagine, imp.fronte_retro, imp.colore, imp.qualita) ==
+         ("PDF", 4, Falso, "A3", "orizzontale", 25.5, 80, "1-3, 5", "lato lungo", "bianco e nero", "alta"), "tutte le impostazioni lette dai campi: " + str(imp.a_dizionario()))
+f.var_stampante.set("(stampante predefinita: HP Laser)")
+f.leggi()
+verifica(imp.stampante == "", "la stampante predefinita vale «»")
+f.var_copie.set("molte")
+verifica(f.leggi() == Falso e "numeri" in messaggi[-1], "copie non numeriche: avviso")
+f.var_copie.set("2")
+f.var_pagine.set("9-12")
+verifica(f.leggi() == Falso e "pagine" in messaggi[-1].lower(), "pagine che non esistono: avviso: " + messaggi[-1])
+f.var_pagine.set("1-2")
+f.var_tutte.set("tutte")
+f.leggi()
+verifica(imp.pagine == "", "«Tutte» cancella l'intervallo")
+f._azione("pdf")
+verifica(f.azione == "pdf", "il pulsante sceglie l'azione")
+radice.update()
+f2 = stampante.FinestraStampa(radice, Impostazioni(), "Altra", stampanti=([], ""))
+f2.chiudi()
+verifica(f2.azione è Nessuno, "annullare: nessuna azione")
+radice.destroy()
+
+# ---------------------------------------------------------------- il componente nel progettista e nel codice generato
+form = Form("Rapporto", "Rapporto")
+form.larghezza, form.altezza = 520, 340
+form.aggiungi("Albero", 10, 10, nome="clienti", larghezza=400, altezza=200, colonne=["Nome", "Citta"])
+st = form.aggiungi("Stampa", 420, 10, nome="stampa1", sorgente="clienti", titolo="Clienti")
+prop = form_modello.proprieta_di("Stampa")
+verifica(all(k in prop per k in ("stampante", "copie", "fascicola", "formato", "margine", "scala", "pagine", "fronte_retro", "colore", "qualita", "chiedi", "ricorda")), "proprietà del componente Stampa: " + str(lista(prop)))
+ui = form_modello.genera_ui(form)
+verifica("impostazioni=" non in ui e "chiedi=" non in ui e "ricorda=" non in ui, "con tutto predefinito il codice resta com'era")
+st.valori.update(stampante="HP Laser", copie=2, formato="A3", margine=10, pagine="1-2", fronte_retro="lato lungo", colore="bianco e nero", qualita="alta", chiedi=Vero, ricorda=Vero, fascicola=Falso)
+ui = form_modello.genera_ui(form)
+verifica("impostazioni={'stampante': 'HP Laser', 'copie': 2, 'fascicola': Falso, 'carta': 'A3', 'margine': 10, 'pagine': '1-2', 'fronte_retro': 'lato lungo', 'colore': 'bianco e nero', 'qualita': 'alta'}" in ui
+         e "chiedi=Vero" in ui e "nome='stampa1'" in ui e "ricorda=Vero" in ui, "il codice generato porta le impostazioni diverse da quelle predefinite: " + ui[ui.find("stampante.Stampante") - 20:ui.find("stampante.Stampante") + 400])
+st.valori.update(chiedi=Falso, ricorda=Falso)
+cartella = tempfile.mkdtemp()
+form_modello.salva_form(form, cartella)
+sys.path.insert(0, cartella)
+m = importlib.import_module("rapporto")
+radice = tk.Tk()
+radice.geometry("+30+30")
+w = m.Rapporto(radice)
+radice.update()
+verifica(w.stampa1.impostazioni.stampante == "HP Laser" e w.stampa1.impostazioni.copie == 2 e w.stampa1.impostazioni.carta == "A3" e w.stampa1.impostazioni.margine_alto == 10 e w.stampa1.impostazioni.fascicola == Falso, "nella finestra vera le impostazioni sono quelle scelte")
+w.clienti.insert("", "end", values=("Anna", "Roma"))
+b = open(w.stampa1._salva(os.path.join(tempfile.mkdtemp(), "r.pdf")), "rb").read()
+verifica(b"/MediaBox [0 0 841.89 1190.55]" in b e b"/DuplexFlipLongEdge" in b, "e il PDF le rispetta (A3, fronte-retro)")
+radice.destroy()
+
+# progettista: la proprietà «Stampante» è un elenco
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.progettista importa Progettista
+
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci apri_file(se_stesso, p): passa
+    definisci apri_file_a_funzione(se_stesso, p, f): passa
+    definisci esegui_file(se_stesso, p): passa
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+
+
+stampante._STAMPANTI.update({"quando": 9999999999, "elenco": ["HP Laser", "PDF"], "predefinita": "HP Laser"})
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_config.json"))
+col = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x650")
+configura_stile(radice, col)
+f3 = Form("Demo", "Demo")
+p = Progettista(radice, os.path.join(tempfile.mkdtemp(), "demo.form.json"), f3, col, cfg, Az())
+p.pack(fill="both", expand=Vero)
+applica(radice, col)
+radice.update()
+s1 = p.aggiungi_componente("Stampa", 300, 20)
+p.seleziona([s1.nome])
+radice.update()
+combo = [w_ per w_ in p.righe_ispettore.winfo_children() se w_.winfo_class() == "TCombobox"]
+verifica(any("HP Laser" in lista(c["values"]) o lista(c["values"]) == [] per c in combo), "l'ispettore ha il campo Stampante")
+etichette = [w_.cget("text") per w_ in p.righe_ispettore.winfo_children() se w_.winfo_class() == "Label"]
+verifica("Copie" in etichette e "Fronte-retro" in etichette e "Formato della carta" in etichette, "le impostazioni sono nell'ispettore: " + str(etichette[:20]))
+radice.destroy()
+
+# ---------------------------------------------------------------- esportato in Python
+dest = os.path.join(tempfile.mkdtemp(), "e")
+e = esporta_python.esporta(cartella, dest)
+verifica(e["errori"] == [] e os.path.exists(os.path.join(dest, "stampante.py")), "esportazione: " + str(e))
+python_ = shutil.which("python") o shutil.which("py")
+se python_:
+    open(os.path.join(dest, "p.py"), "w", encoding="utf-8").write("import os, sys, tkinter as tk\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\nimport rapporto, stampante\nr = tk.Tk(); a = rapporto.Rapporto(r); r.update()\na.clienti.insert('', 'end', values=('Anna', 'Roma'))\na.stampa1.imposta(copie=3, pagine='')\nprint(a.stampa1.impostazioni.copie, a.stampa1.impostazioni.carta, a.stampa1.pagine())\nprint(a.stampa1._salva(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'x.pdf')))\nprint(stampante.leggi_pagine('1-2', 5))\nprint(stampante.piano_stampa('a.pdf', a.stampa1.impostazioni, 'linux')[0]['argomenti'][:3])\nr.destroy()\n")
+    u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "p.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=60, env=dict(os.environ, PYTHONUTF8="1"))
+    verifica(u.returncode == 0 e "3 A3 1" in u.stdout e "[0, 1]" in u.stdout e os.path.isfile(os.path.join(dest, "x.pdf")), "con Python normale funziona tutto: " + u.stdout.strip() + u.stderr[-400:])
+
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")

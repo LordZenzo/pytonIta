@@ -90,7 +90,19 @@ TIPI["Stampa"] = dict(classe_tk="Stampante", modulo="stampante", larghezza=110, 
                                  "titolo": ("testo", "", "Titolo del documento"),
                                  "intestazione": ("testo", "", "Intestazione di ogni pagina"),
                                  "orientamento": ("scelta:verticale,orizzontale", "verticale", "Orientamento della pagina"),
-                                 "numeri_pagina": ("si_no", Vero, "Numero di pagina in fondo")})
+                                 "numeri_pagina": ("si_no", Vero, "Numero di pagina in fondo"),
+                                 "stampante": ("stampante", "", "Stampante (vuoto = quella predefinita del sistema)"),
+                                 "copie": ("numero", 1, "Copie"),
+                                 "fascicola": ("si_no", Vero, "Fascicola le copie"),
+                                 "formato": ("scelta:A4,A3,A5,B5,Letter,Legal", "A4", "Formato della carta"),
+                                 "margine": ("numero", 15, "Margini (millimetri)"),
+                                 "scala": ("numero", 100, "Dimensione del testo (%)"),
+                                 "pagine": ("testo", "", "Pagine da stampare (vuoto = tutte; es. 1-3, 5)"),
+                                 "fronte_retro": ("scelta:no,lato lungo,lato corto", "no", "Fronte-retro"),
+                                 "colore": ("scelta:colore,bianco e nero", "colore", "Colore"),
+                                 "qualita": ("scelta:bozza,normale,alta", "normale", "Qualità"),
+                                 "chiedi": ("si_no", Falso, "Mostra la finestra di stampa prima di stampare"),
+                                 "ricorda": ("si_no", Falso, "Ricorda le impostazioni scelte dall'utente")})
 TIPI["Schede"] = dict(classe_tk="Schede", modulo="tema", larghezza=320, altezza=200, icona="▭", contenitore=Vero,
                       proprieta={"pagine": ("elenco", ["Pagina 1", "Pagina 2"], "Pagine (schede)")})
 TIPI["Riquadro"]["contenitore"] = Vero
@@ -1065,7 +1077,22 @@ definisci _codice_componente(c, form=Nessuno):
     altrimenti_se c.tipo == "Stampa":
         o = [f"se_stesso", f"{_lit((v.get('sorgente') o '').strip())}", f"titolo={_lit(v.get('titolo') o '')}", f"intestazione={_lit(v.get('intestazione') o '')}",
              f"orientamento={_lit(v.get('orientamento') o 'verticale')}", f"numeri_pagina={_lit(bool(v.get('numeri_pagina', Vero)))}"]
-        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})          # {n}.anteprima(), {n}.salva_pdf(), {n}.stampa()")
+        # le impostazioni di stampa diverse da quelle predefinite
+        imp = {}
+        per chiave, nome_imp, predefinito in (("stampante", "stampante", ""), ("copie", "copie", 1), ("fascicola", "fascicola", Vero), ("formato", "carta", "A4"),
+                                              ("margine", "margine", 15), ("scala", "scala", 100), ("pagine", "pagine", ""), ("fronte_retro", "fronte_retro", "no"),
+                                              ("colore", "colore", "colore"), ("qualita", "qualita", "normale")):
+            valore = v.get(chiave, predefinito)
+            se valore != predefinito e valore è non Nessuno:
+                imp[nome_imp] = valore
+        se imp:
+            o.append("impostazioni={" + ", ".join(f"{_lit(k)}: {_lit(x)}" per k, x in imp.items()) + "}")
+        se v.get("chiedi"):
+            o.append("chiedi=Vero")
+        se v.get("ricorda"):
+            o.append(f"nome={_lit(n)}")
+            o.append("ricorda=Vero")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(o)})          # {n}.finestra_stampa(), {n}.stampa(), {n}.anteprima(), {n}.salva_pdf(), {n}.imposta(copie=2)")
         ritorna r
     altrimenti_se c.tipo == "FonteDati":
         ritorna r                     # si crea in fondo (_codice_dati), quando i componenti legati esistono

@@ -20,6 +20,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 - **Stampa e PDF**: il componente **Stampa** produce un PDF (A4, verticale o orizzontale) con il contenuto di un Albero, un Elenco, un'AreaTesto, un'Etichetta, un Grafico, una Tela (il disegno) o un'Immagine, con titolo, intestazione, data e «Pagina X di Y»; si può guardare (`anteprima()`), salvare (`salva_pdf()`) e stampare (`stampa()`). Le tabelle lunghe vanno su più pagine con l'intestazione ripetuta. Il PDF è scritto da PitStudio, senza librerie esterne (file `stampante.pit` nel progetto, con la classe `Documento` per i documenti fatti a mano); funziona anche nell'esportazione in Python e nell'eseguibile.
 
+## Novità della 1.50 (impostazioni di stampa)
+
+- **Tutte le impostazioni di stampa**: stampante (elenco di quelle installate), copie e fascicola, formato della carta (A3, A4, A5, B5, Letter, Legal), orientamento, margini sui quattro lati, dimensione del testo in %, pagine da stampare (`1-3, 5, 7-`), fronte-retro, colore o bianco e nero, qualità. Si scelgono nelle proprietà del componente Stampa o da codice (`imposta(...)`), e una **finestra di stampa** (anche con il pulsante **Preferenze…** del driver, su Windows) si apre da codice con `finestra_stampa()` o prima di ogni stampa con la proprietà «Mostra la finestra di stampa prima di stampare». Le scelte dell'utente si possono ricordare. Funziona anche nell'esportazione in Python.
+
 ## Novità della 1.49
 
 - **Componente Grafico**: barre, linee e torta disegnati con tkinter (nessuna libreria esterna), con titolo, valori, colore e legenda della torta. I dati si scrivono nell'ispettore (`etichetta=valore`) oppure arrivano da una tabella tramite la fonte dati (colonna delle etichette e colonna dei valori) e il grafico si aggiorna quando cambiano. Funziona nel progettista, nel programma, nell'esportazione in Python e nell'eseguibile.

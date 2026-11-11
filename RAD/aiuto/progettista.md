@@ -132,6 +132,38 @@ Il componente **Stampa** (senza aspetto, come il Timer) stampa o salva in **PDF*
 - **Titolo** del documento, **Intestazione** di ogni pagina (in alto, con la data) e il **numero di pagina** in fondo («Pagina 2 di 5»);
 - **Orientamento**: verticale o orizzontale (A4).
 
+### Le impostazioni di stampa
+
+Dall'ispettore (o da codice) si impostano tutte:
+
+| Impostazione | Cosa fa |
+|---|---|
+| **Stampante** | quella da usare; vuoto = la predefinita del sistema (l'elenco delle stampanti installate si legge aprendo la lista) |
+| **Copie** e **Fascicola** | quante copie; sulla stampa da Windows ogni copia è un lavoro intero, quindi esce già fascicolata |
+| **Formato della carta** | A4, A3, A5, B5, Letter, Legal |
+| **Orientamento** | verticale o orizzontale |
+| **Margini** | in millimetri, su ogni lato (in alto e in basso mai meno di 24 punti: ci sono l'intestazione e il numero di pagina) |
+| **Dimensione del testo** | in percentuale: 80 per far stare più righe, 150 per leggere meglio |
+| **Pagine** | vuoto = tutte, oppure `1-3, 5, 7-` |
+| **Fronte-retro** | solo fronte, lato lungo, lato corto |
+| **Colore** | a colori o in bianco e nero (tutti i colori diventano grigi, anche nelle immagini) |
+| **Qualità** | bozza, normale, alta (la usano i sistemi con CUPS: Linux e macOS) |
+
+**La finestra di stampa.** Con **Mostra la finestra di stampa prima di stampare** acceso, `stampa()` apre una finestra con tutte queste impostazioni (e il numero di pagine che risulta), il pulsante **Preferenze…** per le impostazioni del driver della stampante (cassetti, qualità; su Windows) e i pulsanti **Anteprima**, **Salva come PDF…**, **Stampa** e **Annulla**. Da codice si apre quando vuoi con `se_stesso.stampa1.finestra_stampa()`. Con **Ricorda le impostazioni** le scelte dell'utente restano per la volta dopo.
+
+Da codice:
+
+    s = se_stesso.stampa1
+    s.imposta(copie=2, formato="A3", orientamento="orizzontale", pagine="1-3", colore="bianco e nero")
+    s.impostazioni.fronte_retro = "lato lungo"    # oppure si cambia direttamente l'attributo
+    s.stampanti()                                 # i nomi delle stampanti installate
+    s.stampante_predefinita()
+    s.preferenze_stampante()                      # apre le preferenze del driver (Windows)
+    s.finestra_stampa()                           # la finestra con tutte le impostazioni
+    s.stampa(chiedi=False)                        # stampa subito, senza chiedere
+
+**Come arrivano alla stampante.** Il formato, l'orientamento, i margini, la scala, le pagine scelte e il bianco e nero sono scritti nel PDF stesso. La stampante, le copie, il fronte-retro e la qualità li manda PitStudio al sistema: su Linux e macOS con `lp` (tutte le opzioni), su Windows al programma che apre i PDF con il comando di stampa su una stampante precisa; se quel programma non lo supporta (alcuni visualizzatori stampano solo sulla stampante predefinita), il PDF si apre e la stampa si finisce da lì.
+
 Poi, per esempio nel gestore di un pulsante:
 
     se_stesso.stampa1.anteprima()      # apre il PDF nel programma predefinito: da lì si guarda, si salva e si stampa

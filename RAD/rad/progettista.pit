@@ -9,6 +9,7 @@ da tkinter importa ttk, messagebox, colorchooser, filedialog, simpledialog
 
 da rad importa form_modello, schema_dati
 importa grafico          # (modelli_codice/grafico.pit: form_modello ha già messo quella cartella nel percorso)
+importa stampante        # (modelli_codice/stampante.pit: l'elenco delle stampanti per la proprietà «Stampante»)
 da rad.stile importa suggerisci come stile_suggerisci
 da rad.form_modello importa Form, TIPI, ORDINE_PALETTE, proprieta_di, nome_valido, colonne_albero, e_visivo, voci_menu, e_contenitore
 da rad.piattaforma importa FONT_MONO, FONT_UI, cursore, lega_rotella
@@ -2121,6 +2122,24 @@ classe Progettista(tk.Frame):
                 n = se_stesso._numero(v, valore)
                 se_stesso._modifica(c, chiave, max(minimo, min(massimo, n)))
             ritorna se_stesso._spin(genitore, valore, cambia, minimo, massimo)
+        se tipo_ == "stampante":
+            cb = ttk.Combobox(genitore, width=12)
+            cb.set(valore o "")
+
+            definisci riempi():
+                prova:
+                    cb["values"] = [""] + stampante.elenco_stampanti()[0]
+                eccetto Exception:
+                    cb["values"] = [""]
+            cb.configure(postcommand=riempi)
+
+            definisci scelto(ev=Nessuno):
+                se_stesso._modifica(c, chiave, cb.get().strip())
+            cb.bind("<<ComboboxSelected>>", scelto)
+            cb.bind("<Return>", scelto)
+            cb.bind("<FocusOut>", scelto)
+            stile_suggerisci(cb, "La stampante da usare; vuoto = quella predefinita del sistema (l'elenco si legge quando apri la lista)", c_)
+            ritorna cb
         se tipo_.startswith("componente:"):
             tipi_ = tipo_.split(":", 1)[1].split(",")
             cb = ttk.Combobox(genitore, width=12, state="readonly")
