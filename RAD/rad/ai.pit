@@ -10,7 +10,7 @@ importa uuid
 importa urllib.request
 importa urllib.error
 
-da rad importa esecuzione, parole, form_modello, mattonelle_modello, limiti
+da rad importa esecuzione, parole, form_modello, mattonelle_modello, limiti, controllo
 
 LIMITE_RISULTATO = 24000
 
@@ -47,7 +47,7 @@ DEFINIZIONI = [
          "testo": {"type": "string"}, "estensioni": {"type": "array", "items": {"type": "string"}}},
          "required": ["testo"]}},
     {"name": "controlla_sintassi",
-     "description": "Controlla la sintassi pytonIta di un file del progetto (o di un testo). Restituisce 'ok' o riga/colonna/messaggio.",
+     "description": "Controlla la sintassi pytonIta di un file del progetto (o di un testo). Restituisce 'ok' o riga/colonna/messaggio; segnala anche gli errori gravi del controllo (parole chiave usate come nomi, funzioni predefinite nascoste da una variabile) che impedirebbero al programma di partire.",
      "input_schema": {"type": "object", "properties": {
          "percorso": {"type": "string"}, "codice": {"type": "string"}}}},
     {"name": "esegui_programma",
@@ -605,8 +605,15 @@ classe Strumenti:
             se non percorso:
                 solleva ErroreDiValore("indica 'percorso' o 'codice'")
             codice = se_stesso._contenuto(percorso)
-        r = esecuzione.controlla_sintassi(codice, percorso o "<codice>", "py" se (percorso o "").lower().endswith((".py", ".pyw")) altrimenti "pit")
-        ritorna "ok" se r è Nessuno altrimenti f"errore di sintassi alla riga {r[0]}, colonna {r[1]}: {r[2]}"
+        linguaggio = "py" se (percorso o "").lower().endswith((".py", ".pyw")) altrimenti "pit"
+        r = esecuzione.controlla_sintassi(codice, percorso o "<codice>", linguaggio)
+        se r è non Nessuno:
+            ritorna f"errore di sintassi alla riga {r[0]}, colonna {r[1]}: {r[2]}"
+        # il controllo prima dell'esecuzione: questi errori gravi impedirebbero al programma di partire
+        gravi = [q per q in controllo.trova(codice, linguaggio) se q["grave"]]
+        se gravi:
+            ritorna "sintassi ok, ma il programma non partirebbe (errori gravi del controllo):\n" + "\n".join(f"riga {q['riga']}: {q['motivo']}" per q in gravi[:20])
+        ritorna "ok"
 
     definisci s_membri_modulo(se_stesso, modulo, prefisso=""):
         cartelle = [se_stesso.progetto.cartella] se se_stesso.ambiente.progetto altrimenti []
@@ -669,6 +676,12 @@ classe Strumenti:
             ritorna Nessuno
         errore = esecuzione.controlla_sintassi(nuovo, percorso)
         se errore è Nessuno:
+            # sintassi giusta: ma il programma partirebbe? (parole chiave come nomi, funzioni predefinite nascoste)
+            se percorso.lower().endswith(".pit"):
+                gravi = [q per q in controllo.trova(nuovo, "pit") se q["grave"]]
+                gravi_prima = [q per q in controllo.trova(vecchio, "pit") se q["grave"]] se vecchio è non Nessuno altrimenti []
+                se gravi e non gravi_prima:
+                    ritorna (gravi[0]["riga"], gravi[0]["inizio"], "errore grave: " + gravi[0]["motivo"])
             ritorna Nessuno
         se vecchio è non Nessuno e esecuzione.controlla_sintassi(vecchio, percorso) è non Nessuno:
             ritorna Nessuno

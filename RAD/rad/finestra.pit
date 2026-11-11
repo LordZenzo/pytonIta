@@ -20,6 +20,7 @@ da rad importa converti_progetto
 da rad importa modelli_finestra
 da rad importa recupero
 da rad importa omonimi
+da rad importa controllo
 da rad importa esporta_python
 da rad importa navigazione
 da rad importa esempi
@@ -1108,11 +1109,22 @@ classe Applicazione:
                     widget.cancella_omonimi()
             altrimenti:
                 widget.cancella_omonimi()
+        # il controllo prima dell'esecuzione: gli stessi errori gravi che bloccherebbero il programma
+        widget.cancella_controllo()
+        se non errore e se_stesso.config_.ottieni("editor.controllo", Vero):
+            prova:
+                widget.segna_controllo(controllo.trova(widget.contenuto(), widget.linguaggio))
+            eccetto Exception:
+                widget.cancella_controllo()
         se errore:
             riga, colonna, messaggio = errore
             widget.segna_errore(riga, messaggio)
             se widget è se_stesso._scheda_corrente():
                 se_stesso.testo_stato.configure(text=f"⚠ riga {riga}: {messaggio}")
+        altrimenti_se widget.errori_gravi():
+            gravi = [q per q in widget._controllo se q["grave"]]
+            se widget è se_stesso._scheda_corrente():
+                se_stesso.testo_stato.configure(text=f"⛔ riga {gravi[0]['riga']}: {gravi[0]['motivo']}" + (f"  (e altri {lunghezza_di(gravi) - 1})" se lunghezza_di(gravi) > 1 altrimenti ""))
         altrimenti_se widget è se_stesso._scheda_corrente():
             se_stesso.testo_stato.configure(text=p)
 

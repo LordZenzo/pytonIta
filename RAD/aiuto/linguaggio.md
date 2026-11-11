@@ -48,6 +48,8 @@ La scelta in una riga si scrive con `X se condizione altrimenti Y` (come `X if c
 
 ## Regole da ricordare
 
+Gli errori che nascono dai nomi sono raccolti, con gli esempi e come correggerli, in [I trabocchetti più comuni](#trabocchetti).
+
 - **`Vero`, `Falso`, `Nessuno`**: scrivere `True`, `False` o `None` in un file `.pit` dà un errore che spiega cosa usare.
 - **Parole riservate come nomi**: parole italiane molto naturali come `classe`, `con` (connessione), `prova`, `da`, `elimina`, `produci` sono anche parole chiave. L'interprete le sa leggere come nomi, ma **il controllo che gira prima dell'esecuzione le considera un errore grave e il programma non parte**: scegli un altro nome (`nome_classe`, `connessione`, `esperimento`, `cancella`, `aspetta`…). Fanno eccezione gli *attributi* (`oggetto.classe`) e i *metodi* (`definisci elimina(se_stesso):` dentro una classe). Le lettere `e` e `o` sono gli operatori «and» e «or»: neppure come nomi di una lettera sola si possono usare (scrivi `evento`, `errore`, `elemento`).
 - **Parole chiave inglesi**: `pass`, `class`, `def`, `return`… sarebbero nomi qualunque e l'errore comparirebbe solo se la riga viene eseguita. Il controllo le blocca prima e dice come si scrivono in italiano (`pass` → `passa`).

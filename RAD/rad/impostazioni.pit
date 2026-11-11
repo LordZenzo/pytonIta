@@ -18,6 +18,7 @@ SCHEDE = [
         ("editor.chiudi_parentesi", "Chiudi automaticamente parentesi e virgolette", "si_no", Nessuno),
         ("editor.suggerimenti", "Suggerimenti automatici mentre scrivi", "si_no", Nessuno),
         ("editor.omonimi", "Evidenzia le variabili omonime (stesso nome per cose diverse)", "si_no", Nessuno),
+        ("editor.controllo", "Sottolinea gli errori gravi mentre scrivi (il programma non partirebbe)", "si_no", Nessuno),
         ("editor.ritardo_suggerimenti_ms", "Ritardo suggerimenti (ms)", "numero", (0, 2000)),
         ("editor.salvataggio_automatico", "Salvataggio automatico dopo (secondi, 0 = no)", "numero", (0, 3600)),
         ("recupero.attivo", "Copia di sicurezza dei file non salvati (per ritrovarli se PitStudio si chiude di colpo)", "si_no", Nessuno),

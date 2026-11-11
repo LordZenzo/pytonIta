@@ -56,6 +56,7 @@ classe Editor(tk.Frame):
         se_stesso.cartelle_progetto = cartelle_progetto
         se_stesso.linguaggio = linguaggio_di(percorso) o "pit"
         se_stesso._omonimi = []             # punti evidenziati dal controllo delle variabili omonime (rad/omonimi.pit)
+        se_stesso._controllo = []           # punti sottolineati dal controllo prima dell'esecuzione (rad/controllo.pit)
         se_stesso.modificato = Falso
         se_stesso._lavoro_evidenzia = Nessuno
         se_stesso._lavoro_suggerimenti = Nessuno
@@ -193,6 +194,9 @@ classe Editor(tk.Frame):
         t.tag_configure("trova", background=c["avviso"], foreground="#000000")
         t.tag_configure("omonimo", background="#44395f" se c["editor"] < "#808080" altrimenti "#e8e0ff")
         t.tag_configure("errore_riga", background="#5a2a2a" se c["editor"] < "#808080" altrimenti "#fadada")
+        t.tag_configure("controllo_grave", underline=Vero, background="#6b2a2a" se c["editor"] < "#808080" altrimenti "#ffc9c9",
+                        underlinefg="#ff6b6b" se c["editor"] < "#808080" altrimenti "#d00000")
+        t.tag_configure("controllo_avviso", underline=Vero, underlinefg="#ffae42" se c["editor"] < "#808080" altrimenti "#c26a00")
         t.tag_configure("riga_debug", background="#5b4b10" se c["editor"] < "#808080" altrimenti "#fff1a8")
         t.tag_configure("parentesi", background=c["selezione"])
         t.tag_raise("sel")
@@ -252,7 +256,7 @@ classe Editor(tk.Frame):
 
     definisci _movimento_mouse(se_stesso, evento_tk):
         se_stesso._nascondi_doc()
-        se se_stesso.fornitore_doc è Nessuno e non se_stesso._omonimi:
+        se se_stesso.fornitore_doc è Nessuno e non se_stesso._omonimi e non se_stesso._controllo:
             ritorna
         se_stesso._lavoro_doc = se_stesso.after(650, lambda: se_stesso._mostra_doc(evento_tk.x, evento_tk.y))
 
@@ -261,7 +265,7 @@ classe Editor(tk.Frame):
         prova:
             nome = se_stesso.parola_a_indice(f"@{x},{y}")
             testo_ = se_stesso.fornitore_doc(se_stesso, nome) se nome e se_stesso.fornitore_doc altrimenti Nessuno
-            avviso = se_stesso.messaggio_omonimo(f"@{x},{y}")
+            avviso = se_stesso.messaggio_controllo(f"@{x},{y}") o se_stesso.messaggio_omonimo(f"@{x},{y}")
         eccetto (tk.TclError, ValueError):
             ritorna
         se avviso:
@@ -1020,6 +1024,42 @@ classe Editor(tk.Frame):
     definisci cancella_omonimi(se_stesso):
         se_stesso._omonimi = []
         se_stesso.t.tag_remove("omonimo", "1.0", "end")
+
+    # ------------------------------------------------------------ controllo prima dell'esecuzione
+    definisci segna_controllo(se_stesso, punti):
+        """Sottolinea i punti trovati da rad.controllo.trova: rosso per gli errori gravi (il programma non partirebbe), arancione per gli avvisi."""
+        se_stesso.cancella_controllo()
+        se_stesso._controllo = tipo_lista(punti)
+        per p in se_stesso._controllo:
+            prova:
+                se_stesso.t.tag_add("controllo_grave" se p["grave"] altrimenti "controllo_avviso", f"{p['riga']}.{p['inizio']}", f"{p['riga']}.{p['fine']}")
+            eccetto tk.TclError:
+                passa
+        se_stesso.t.tag_lower("controllo_avviso", "sel")
+        se_stesso.t.tag_lower("controllo_grave", "sel")
+
+    definisci cancella_controllo(se_stesso):
+        se_stesso._controllo = []
+        se_stesso.t.tag_remove("controllo_grave", "1.0", "end")
+        se_stesso.t.tag_remove("controllo_avviso", "1.0", "end")
+
+    definisci errori_gravi(se_stesso):
+        """Quanti punti gravi ha segnato l'ultimo controllo."""
+        ritorna lunghezza_di([p per p in se_stesso._controllo se p["grave"]])
+
+    definisci messaggio_controllo(se_stesso, indice):
+        """Il motivo della sottolineatura sotto il mouse, oppure Nessuno."""
+        t = se_stesso.t
+        nomi = t.tag_names(indice)
+        se "controllo_grave" non in nomi e "controllo_avviso" non in nomi:
+            ritorna Nessuno
+        parola = se_stesso.parola_a_indice(indice)
+        riga = int(t.index(indice).split(".")[0])
+        candidati = [p per p in se_stesso._controllo se p["nome"] == parola]
+        se non candidati:
+            ritorna Nessuno
+        p = min(candidati, key=lambda q: abs(q["riga"] - riga))
+        ritorna ("Errore grave: " se p["grave"] altrimenti "Attenzione: ") + p["motivo"]
 
     definisci messaggio_omonimo(se_stesso, indice):
         """Il motivo per cui la parola sotto il mouse è evidenziata come omonima, oppure Nessuno. Si cerca per nome e riga più vicina: le righe possono essersi spostate scrivendo."""

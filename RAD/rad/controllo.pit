@@ -1,0 +1,42 @@
+"""Il controllo prima dell'esecuzione, visto dall'editor.
+
+L'interprete blocca i programmi con errori gravi (parole chiave usate come nomi, funzioni predefinite nascoste da una variabile
+e richiamate); qui gli stessi controlli (_controlla.py) si vedono già mentre scrivi: gli errori gravi sono sottolineati in rosso,
+gli avvisi (una variabile che nasconde una funzione predefinita, un nome non definito) in arancione.
+"""
+importa re
+
+prova:
+    importa _controlla
+eccetto ImportError:
+    _controlla = Nessuno
+
+_PAROLA = re.compile(r"\w+")
+# gli avvisi che non si mostrano nell'editor: scrivere print o len al posto di stampa e lunghezza_di è lecito, solo meno italiano
+_NON_MOSTRARE = ("è inglese",)
+
+
+definisci disponibile():
+    ritorna _controlla è non Nessuno
+
+
+definisci trova(sorgente, linguaggio="pit"):
+    """Elenco dei punti da sottolineare: [{"riga", "inizio", "fine", "nome", "motivo", "grave"}] (riga da 1, colonne in caratteri da 0, «fine» esclusa)."""
+    se linguaggio != "pit" o _controlla è Nessuno:
+        ritorna []
+    prova:
+        errori, avvisi, righe = _controlla.analizza(sorgente.encode("utf-8"), "<editor>")
+    eccetto Exception:
+        ritorna []
+    trovati = []
+    per grave, elenco in ((Vero, errori), (Falso, avvisi)):
+        per riga, colonna_byte, messaggio in elenco:
+            se non grave e almeno_uno_vero(x in messaggio per x in _NON_MOSTRARE):
+                continua
+            testo_riga = righe[riga - 1] se 0 < riga <= lunghezza_di(righe) altrimenti ""
+            inizio = lunghezza_di(testo_riga.encode("utf-8")[:colonna_byte].decode("utf-8", "ignore"))
+            m = _PAROLA.match(testo_riga, inizio)
+            fine = m.end() se m altrimenti inizio + 1
+            trovati.append({"riga": riga, "inizio": inizio, "fine": fine, "nome": testo_riga[inizio:fine],
+                            "motivo": messaggio, "grave": grave})
+    ritorna trovati

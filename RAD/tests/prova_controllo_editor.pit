@@ -1,0 +1,95 @@
+"""Il controllo prima dell'esecuzione nell'editor: errori gravi sottolineati in rosso, avvisi in arancione, suggerimento, barra di stato, impostazione, chat AI."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa controllo
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ---------------------------------------------------------------- controllo.trova
+verifica(controllo.disponibile(), "il controllo dell'interprete è disponibile")
+t = controllo.trova('classe = "3A"\nstampa(classe)\n')
+verifica([(p["riga"], p["nome"], p["grave"]) per p in t] == [(1, "classe", Vero), (2, "classe", Vero)], "una parola chiave usata come nome: " + str([(p["riga"], p["nome"]) per p in t]))
+t = controllo.trova('tipo_testo = "ciao"\nx = tipo_testo(5)\n')
+verifica(lunghezza_di([p per p in t se p["grave"]]) == 1 e [p per p in t se p["grave"]][0]["riga"] == 2, "una funzione predefinita nascosta e richiamata è grave")
+verifica(lunghezza_di([p per p in t se non p["grave"]]) == 1, "e la variabile che la nasconde è un avviso")
+verifica(controllo.trova("print(1)\n") == [], "scrivere print invece di stampa non si mostra nell'editor")
+verifica(controllo.trova("stampa(nome_che_non_esiste)\n")[0]["grave"] == Falso, "un nome non definito è un avviso")
+verifica(controllo.trova("definisci f(:\n    x = \n") == [], "codice con errori di sintassi: niente (ci pensa il controllo della sintassi)")
+verifica(controllo.trova("x = 1\n", "py") == [], "in Python classico niente")
+t = controllo.trova("é = 1\nclasse = 2\n")
+verifica(t[0]["inizio"] == 0 e t[0]["fine"] == 6 e t[0]["riga"] == 2, "colonne in caratteri, anche dopo caratteri accentati")
+t = controllo.trova("é = 'è'; classe = 1\n")
+verifica(t[0]["inizio"] == 9 e t[0]["fine"] == 15, "colonna in caratteri e non in byte: " + str((t[0]["inizio"], t[0]["fine"])))
+
+# ---------------------------------------------------------------- nell'editor
+cartella = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+codice = os.path.join(cartella, "prova.pit")
+open(codice, "w", encoding="utf-8").write('classe = "3A"\nstampa(classe)\ntipo_lista = [1]\nx = tipo_lista(2)\n')
+w = app.apri_file(codice)
+radice.update()
+app._controlla(w)
+radice.update()
+rosso = w.t.tag_ranges("controllo_grave")
+arancio = w.t.tag_ranges("controllo_avviso")
+verifica(lunghezza_di(rosso) == 6 e tipo_testo(rosso[0]) == "1.0", "tre punti gravi sottolineati in rosso: " + str([tipo_testo(i) per i in rosso]))
+verifica(lunghezza_di(arancio) == 2 e tipo_testo(arancio[0]) == "3.0", "la variabile che nasconde la funzione è in arancione: " + str([tipo_testo(i) per i in arancio]))
+verifica(w.errori_gravi() == 3, "tre errori gravi segnati")
+verifica("Errore grave" in (w.messaggio_controllo("2.9") o "") e "parola chiave" in (w.messaggio_controllo("2.9") o ""), "il suggerimento sul mouse dice il motivo")
+verifica("Attenzione" in (w.messaggio_controllo("3.2") o ""), "l'avviso ha un'altra intestazione")
+verifica(w.messaggio_controllo("4.0") è Nessuno, "sulle altre parole niente")
+verifica("riga 1" in app.testo_stato.cget("text") e "⛔" in app.testo_stato.cget("text"), "la barra di stato mostra il primo errore grave: " + app.testo_stato.cget("text")[:100])
+
+# correggendo, le sottolineature spariscono
+w.t.delete("1.0", "end")
+w.t.insert("1.0", 'nome_classe = "3A"\nstampa(nome_classe)\n')
+app._controlla(w)
+verifica(lunghezza_di(w.t.tag_ranges("controllo_grave")) == 0 e w.errori_gravi() == 0, "corretto il codice, niente più sottolineature")
+
+# impostazione spenta
+w.t.delete("1.0", "end")
+w.t.insert("1.0", 'classe = 1\n')
+cfg.imposta("editor.controllo", Falso, notifica=Falso)
+app._controlla(w)
+verifica(lunghezza_di(w.t.tag_ranges("controllo_grave")) == 0, "con l'impostazione spenta nessuna sottolineatura")
+cfg.imposta("editor.controllo", Vero, notifica=Falso)
+app._controlla(w)
+verifica(lunghezza_di(w.t.tag_ranges("controllo_grave")) == 2, "riaccesa, torna")
+
+# un errore di sintassi ha la precedenza e non lascia sottolineature vecchie
+w.t.delete("1.0", "end")
+w.t.insert("1.0", 'classe = (\n')
+app._controlla(w)
+verifica(lunghezza_di(w.t.tag_ranges("controllo_grave")) == 0 e lunghezza_di(w._righe_errore) == 1, "con un errore di sintassi non si mostrano i gravi")
+
+radice.destroy()
+
+# ---------------------------------------------------------------- la chat AI
+da rad.ai importa Strumenti
+st = Strumenti.__new__(Strumenti)
+risposta = st.s_controlla_sintassi(codice="classe = 1" + chr(10))
+verifica(risposta.startswith("sintassi ok, ma il programma non partirebbe") e "riga 1" in risposta, "controlla_sintassi riporta gli errori gravi: " + risposta[:80])
+verifica(st.s_controlla_sintassi(codice="x = 1" + chr(10) + "stampa(x)" + chr(10)) == "ok", "e dice ok sul codice a posto")
+verifica(st.s_controlla_sintassi(codice="x = (" + chr(10)).startswith("errore di sintassi"), "la sintassi sbagliata ha la precedenza")
+verifica(st._errore_di_sintassi("a.pit", "classe = 1" + chr(10), Nessuno)[2].startswith("errore grave"), "una scrittura con errori gravi nuovi viene rimandata all'assistente")
+verifica(st._errore_di_sintassi("a.pit", "classe = 1" + chr(10), "classe = 0" + chr(10)) è Nessuno, "ma se il file era già così non blocca le correzioni in più passi")
+verifica(st._errore_di_sintassi("a.pit", "x = 1" + chr(10), "x = 0" + chr(10)) è Nessuno, "codice a posto: nessun problema")
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_controllo_editor: ok")

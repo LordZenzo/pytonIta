@@ -32,20 +32,20 @@ lavoro = tempfile.mkdtemp()
 exe = Path(lavoro) / "Installa_pytonIta.exe"
 exe.write_bytes(b"MZ" + bytes(range(256)) * 400)
 impronta = hashlib.sha256(exe.read_bytes()).hexdigest()
-release = {"tag_name": "v1.99", "html_url": "https://github.com/LordZenzo/pytonIta/releases/tag/v1.99", "body": "Novità di prova",
+release = {"tag_name": "v99.0", "html_url": "https://github.com/LordZenzo/pytonIta/releases/tag/v99.0", "body": "Novità di prova",
            "assets": [{"name": "LEGGIMI.txt", "browser_download_url": "https://github.com/x/LEGGIMI.txt"},
                       {"name": "Installa_pytonIta.exe", "size": exe.stat().st_size, "digest": "sha256:" + impronta,
-                       "browser_download_url": "https://github.com/LordZenzo/pytonIta/releases/download/v1.99/Installa_pytonIta.exe"}]}
+                       "browser_download_url": "https://github.com/LordZenzo/pytonIta/releases/download/v99.0/Installa_pytonIta.exe"}]}
 file_release = Path(lavoro) / "ultima.json"
 file_release.write_text(json.dumps(release), encoding="utf-8")
 os.environ[ag.VARIABILE_ULTIMA] = file_release.as_uri()
 
 info = ag.controlla("1.33")
-verifica(info["nuova"] e info["versione"] == "1.99", "doveva risultare nuova la 1.99")
+verifica(info["nuova"] e info["versione"] == "99.0", "doveva risultare nuova la 99.0")
 verifica(info["note"] == "Novità di prova", "note")
 verifica(info["url_installatore"] e info["url_installatore"].endswith("Installa_pytonIta.exe"), "url dell'installatore")
 verifica(info["impronta"] == impronta, "impronta dalla Release")
-verifica(non ag.controlla("1.99")["nuova"], "stessa versione: non nuova")
+verifica(non ag.controlla("99.0")["nuova"], "stessa versione: non nuova")
 verifica(non ag.controlla("2.0")["nuova"], "versione più recente della Release: non nuova")
 
 # un indirizzo di download non di GitHub viene scartato
@@ -55,8 +55,8 @@ verifica(ag.controlla("1.33")["url_installatore"] è Nessuno, "indirizzo non fid
 
 # Linux e macOS: l'«installatore» sono i sorgenti della Release (tarball_url), non un .exe
 piattaforma.WINDOWS = Falso
-release["assets"][1]["browser_download_url"] = "https://github.com/LordZenzo/pytonIta/releases/download/v1.99/Installa_pytonIta.exe"
-release["tarball_url"] = "https://api.github.com/repos/LordZenzo/pytonIta/tarball/v1.99"
+release["assets"][1]["browser_download_url"] = "https://github.com/LordZenzo/pytonIta/releases/download/v99.0/Installa_pytonIta.exe"
+release["tarball_url"] = "https://api.github.com/repos/LordZenzo/pytonIta/tarball/v99.0"
 file_release.write_text(json.dumps(release), encoding="utf-8")
 info_l = ag.controlla("1.33")
 verifica(info_l["url_installatore"] == release["tarball_url"], "su Linux/mac si scaricano i sorgenti: " + tipo_testo(info_l["url_installatore"]))

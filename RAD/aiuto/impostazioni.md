@@ -23,6 +23,7 @@ per riportare PitStudio ai valori iniziali basta cancellare quel file.
 | Suggerimenti automatici e ritardo | puoi spegnerli (restano su **Ctrl+Spazio**) o regolarne la prontezza |
 | Salvataggio automatico | dopo N secondi dall'ultima modifica (0 = mai) |
 | Variabili omonime | evidenzia le variabili con lo stesso nome usato per cose diverse |
+| Errori gravi | sottolinea in rosso gli errori che impedirebbero al programma di partire (vedi «I trabocchetti più comuni») |
 | Copia di sicurezza | copia periodica dei file non salvati, da ripristinare dopo una chiusura improvvisa (e ogni quanti secondi) |
 
 ## Esecuzione

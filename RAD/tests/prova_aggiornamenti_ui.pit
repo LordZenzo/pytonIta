@@ -27,9 +27,9 @@ definisci verifica(c, m):
 exe = Path(radice_test) / "Installa_pytonIta.exe"
 exe.write_bytes(b"MZ" + bytes(range(256)) * 5000)
 impronta = hashlib.sha256(exe.read_bytes()).hexdigest()
-release = {"tag_name": "v1.99", "html_url": "https://github.com/LordZenzo/pytonIta/releases/tag/v1.99", "body": "Novità:\n- una\n- due",
+release = {"tag_name": "v99.0", "html_url": "https://github.com/LordZenzo/pytonIta/releases/tag/v99.0", "body": "Novità:\n- una\n- due",
            "assets": [{"name": "Installa_pytonIta.exe", "size": exe.stat().st_size, "digest": "sha256:" + impronta,
-                       "browser_download_url": "https://github.com/LordZenzo/pytonIta/releases/download/v1.99/Installa_pytonIta.exe"}]}
+                       "browser_download_url": "https://github.com/LordZenzo/pytonIta/releases/download/v99.0/Installa_pytonIta.exe"}]}
 fr = Path(radice_test) / "ultima.json"
 fr.write_text(json.dumps(release), encoding="utf-8")
 os.environ[ag.VARIABILE_ULTIMA] = fr.as_uri()
@@ -56,7 +56,7 @@ radice.update()
 # controllo automatico: una volta al giorno, e solo se attivo
 verifica(cfg.ottieni("aggiornamenti.controlla_all_avvio") è Vero, "controllo attivo di serie")
 app.avvio_aggiornamenti()
-verifica(aspetta(radice, lambda: "1.99" in app.testo_stato.cget("text")), "barra di stato: " + app.testo_stato.cget("text"))
+verifica(aspetta(radice, lambda: "99.0" in app.testo_stato.cget("text")), "barra di stato: " + app.testo_stato.cget("text"))
 verifica(cfg.ottieni("aggiornamenti.ultimo_controllo") != "", "data dell'ultimo controllo salvata")
 app.info("vuoto")
 app.avvio_aggiornamenti()
@@ -79,7 +79,7 @@ info["url_installatore"] = exe.as_uri()           # stesso file, via file:
 dialogo = aggiornamenti_ui.DialogoAggiornamento(radice, app.colori, info, lambda percorso: avviati.append(percorso))
 aggiornamenti_ui.messagebox.askyesno = lambda *a, **k: Vero
 dialogo.update()
-verifica("1.99" in dialogo.winfo_children()[0].cget("text"), "titolo con la versione")
+verifica("99.0" in dialogo.winfo_children()[0].cget("text"), "titolo con la versione")
 verifica("una" in dialogo.note.get("1.0", "end"), "note di rilascio")
 dialogo._scarica()
 verifica(aspetta(radice, lambda: avviati), "il download doveva finire")
