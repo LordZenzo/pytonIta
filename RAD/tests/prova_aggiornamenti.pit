@@ -46,7 +46,7 @@ verifica(info["note"] == "Novità di prova", "note")
 verifica(info["url_installatore"] e info["url_installatore"].endswith("Installa_pytonIta.exe"), "url dell'installatore")
 verifica(info["impronta"] == impronta, "impronta dalla Release")
 verifica(non ag.controlla("99.0")["nuova"], "stessa versione: non nuova")
-verifica(non ag.controlla("2.0")["nuova"], "versione più recente della Release: non nuova")
+verifica(non ag.controlla("100.0")["nuova"], "versione più recente della Release: non nuova")
 
 # un indirizzo di download non di GitHub viene scartato
 release["assets"][1]["browser_download_url"] = "https://example.com/Installa_pytonIta.exe"
