@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.42
+
+- **Spunte e pulsanti di scelta nel tema scuro**: prima la spunta ✓ era quasi invisibile (grigio chiaro su grigio chiaro), adesso si vede in tutta l'applicazione.
+- **Distribuzione dei programmi** (*Crea l'eseguibile*): le **informazioni di versione** (nome, versione, autore, descrizione, © autore) finiscono nell'`.exe` e si vedono in *Proprietà → Dettagli*; la spunta **Crea anche il programma di installazione** produce `Setup_<nome>.exe` (scelta della cartella, collegamenti, voce in *App* di Windows e disinstallazione, senza permessi di amministratore, fatto con PyInstaller: nessuno strumento esterno); la **firma facoltativa** con signtool (certificato `.pfx`, password mai salvata né scritta nel registro, marca temporale). La guida spiega anche i limiti dei certificati e l'avviso SmartScreen.
+
 ## Novità della 1.41
 
 - **Barra**: chi aveva già una barra personalizzata riceve una volta sola il pulsante «Console» accanto all'assistente (se poi lo toglie, non ricompare).

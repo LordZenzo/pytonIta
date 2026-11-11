@@ -2,13 +2,18 @@
 
 Serve un Python 3 normale installato (python.org): PitStudio lo usa soltanto per costruire; chi riceve l'.exe non ha bisogno di nulla.
 L'ambiente di costruzione (venv con PyInstaller e le librerie del progetto) sta in <progetto>/.rad/build e si riusa alle volte successive.
+
+Oltre all'.exe (Windows): le informazioni di versione (nome, versione, autore: si vedono in «Proprietà → Dettagli»), un programma di installazione
+Setup_<nome>.exe (fatto con lo stesso PyInstaller, vedi modelli_codice/setup_modello.py) e la firma facoltativa con signtool.
 """
+importa json
 importa os
 importa queue
 importa shutil
 importa subprocess
 importa sys
 importa threading
+importa zipfile
 importa tkinter come tk
 da tkinter importa ttk, messagebox, filedialog
 
@@ -18,6 +23,9 @@ da rad.stile importa suggerisci
 da rad.piattaforma importa FONT_MONO
 da rad importa piattaforma
 
+MODELLO_SETUP = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice", "setup_modello.py")
+URL_MARCA_TEMPORALE = "http://timestamp.digicert.com"       # serve a far restare valida la firma anche dopo la scadenza del certificato
+
 NASCONDI_CONSOLE = 0x08000000 se os.name == "nt" altrimenti 0          # CREATE_NO_WINDOW
 FILE_NON_DATI = ("requirements.txt", "installa_librerie.bat", "installa_librerie.sh", "LEGGIMI.txt", "CONVERSIONE.md")
 
@@ -25,11 +33,120 @@ FILE_NON_DATI = ("requirements.txt", "installa_librerie.bat", "installa_librerie
 classe Opzioni:
     """Come costruire l'eseguibile."""
 
-    definisci __inizializza__(se_stesso, nome, un_file=Vero, senza_console=Vero, icona=""):
+    definisci __inizializza__(se_stesso, nome, un_file=Vero, senza_console=Vero, icona="", versione="1.0.0", autore="", descrizione="", crea_setup=Falso, firma=Nessuno):
         se_stesso.nome = nome
         se_stesso.un_file = un_file
         se_stesso.senza_console = senza_console
         se_stesso.icona = icona
+        se_stesso.versione = versione o "1.0.0"
+        se_stesso.autore = autore
+        se_stesso.descrizione = descrizione
+        se_stesso.crea_setup = crea_setup
+        se_stesso.firma = firma                  # Nessuno oppure {"pfx": file, "password": testo, "soggetto": nome del certificato, "marca": url}
+
+
+# ---------------------------------------------------------------- informazioni di versione (Windows)
+definisci numeri_versione(versione):
+    """«1.2.3» diventa (1, 2, 3, 0): i quattro numeri che Windows vuole (le parti non numeriche valgono 0)."""
+    numeri = []
+    per parte in testo(versione).strip().split(".")[:4]:
+        cifre = "".join(c per c in parte se c.isdigit())
+        numeri.append(int(cifre) se cifre altrimenti 0)
+    mentre lunghezza(numeri) < 4:
+        numeri.append(0)
+    ritorna tuple(numeri)
+
+
+definisci _lit(testo_):
+    """Un testo come stringa Python tra apici, per il file delle informazioni di versione."""
+    ritorna "'" + testo(testo_).replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ") + "'"
+
+
+definisci testo_versione(opzioni, nome_file, descrizione=""):
+    """Il contenuto del file che PyInstaller trasforma nelle informazioni di versione dell'exe (funzione pura)."""
+    v = numeri_versione(opzioni.versione)
+    punti = ".".join(testo(x) per x in v)
+    campi = [("CompanyName", opzioni.autore), ("FileDescription", descrizione o opzioni.descrizione o opzioni.nome), ("FileVersion", punti),
+             ("InternalName", opzioni.nome), ("LegalCopyright", ("© " + opzioni.autore) se opzioni.autore altrimenti ""),
+             ("OriginalFilename", nome_file), ("ProductName", opzioni.nome), ("ProductVersion", punti)]
+    righe = ",\n        ".join(f"StringStruct({_lit(k)}, {_lit(x)})" per k, x in campi)
+    ritorna (f"VSVersionInfo(\n  ffi=FixedFileInfo(filevers={v}, prodvers={v}, mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),\n"
+             f"  kids=[\n    StringFileInfo([StringTable('040904B0', [\n        {righe}])]),\n"
+             f"    VarFileInfo([VarStruct('Translation', [1033, 1200])])\n  ]\n)\n")
+
+
+definisci scrivi_file_versione(cartella, opzioni, nome_file, descrizione=""):
+    """Scrive il file delle informazioni di versione in `cartella` e ne ritorna il percorso."""
+    os.makedirs(cartella, exist_ok=Vero)
+    percorso = os.path.join(cartella, "versione_" + nome_file.replace(" ", "_") + ".txt")
+    con open(percorso, "w", encoding="utf-8", newline="\n") come f:
+        f.write(testo_versione(opzioni, nome_file, descrizione))
+    ritorna percorso
+
+
+# ---------------------------------------------------------------- firma (signtool)
+definisci trova_signtool():
+    """Il percorso di signtool.exe (nel PATH o nel Windows SDK), oppure Nessuno."""
+    p = shutil.which("signtool")
+    se p:
+        ritorna p
+    importa glob
+    per modello in (r"C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe", r"C:\Program Files (x86)\Windows Kits\10\App Certification Kit\signtool.exe"):
+        trovati = sorted(glob.glob(modello))
+        se trovati:
+            ritorna trovati[-1]
+    ritorna Nessuno
+
+
+definisci comando_firma(signtool, percorso, firma, descrizione=""):
+    """La riga di comando di signtool (funzione pura). `firma`: {pfx, password, soggetto, marca}."""
+    c = [signtool, "sign", "/fd", "SHA256", "/tr", firma.get("marca") o URL_MARCA_TEMPORALE, "/td", "SHA256"]
+    se descrizione:
+        c += ["/d", descrizione]
+    se firma.get("pfx"):
+        c += ["/f", firma["pfx"]]
+        se firma.get("password"):
+            c += ["/p", firma["password"]]
+    altrimenti_se firma.get("soggetto"):
+        c += ["/n", firma["soggetto"]]
+    c.append(percorso)
+    ritorna c
+
+
+definisci firma_file(percorso, firma, scrivi, fermato=Nessuno, descrizione=""):
+    """Firma un file con signtool. Ritorna (riuscita, messaggio). La password non compare mai nel registro."""
+    signtool = trova_signtool()
+    se non signtool:
+        ritorna Falso, ("Non trovo signtool.exe. Si installa con il «Windows SDK» (componente «Strumenti di firma»): "
+                        "https://developer.microsoft.com/windows/downloads/windows-sdk/")
+    se non (firma.get("pfx") o firma.get("soggetto")):
+        ritorna Falso, "Scegli il file del certificato (.pfx) o il nome di un certificato installato."
+    se firma.get("pfx") e non os.path.exists(firma["pfx"]):
+        ritorna Falso, "Il file del certificato non esiste: " + firma["pfx"]
+    codice = _esegui(comando_firma(signtool, percorso, firma, descrizione), scrivi, os.path.dirname(percorso), fermato, nascondi=[firma.get("password", "")])
+    ritorna codice == 0, ("" se codice == 0 altrimenti "signtool non è riuscito a firmare: leggi il registro qui sopra (password o certificato sbagliati?).")
+
+
+# ---------------------------------------------------------------- impostazioni ricordate nel progetto
+definisci leggi_impostazioni(origine):
+    """Le scelte dell'ultima volta (versione, autore, descrizione, setup), dal manifesto del progetto. La password della firma non si salva."""
+    prova:
+        con open(os.path.join(origine, "progetto.rad.json"), encoding="utf-8") come f:
+            ritorna dict(json.load(f).get("exe") o {})
+    eccetto (OSError, ValueError):
+        ritorna {}
+
+
+definisci salva_impostazioni(origine, dati):
+    percorso = os.path.join(origine, "progetto.rad.json")
+    prova:
+        con open(percorso, encoding="utf-8") come f:
+            manifesto = json.load(f)
+        manifesto["exe"] = dati
+        con open(percorso, "w", encoding="utf-8", newline="\n") come f:
+            json.dump(manifesto, f, ensure_ascii=Falso, indent=2)
+    eccetto (OSError, ValueError):
+        passa
 
 
 # ---------------------------------------------------------------- ambiente
@@ -87,12 +204,14 @@ definisci usa_tkinter(sorgente):
     ritorna Falso
 
 
-definisci comando_pyinstaller(python, nome, principale, dist, lavoro, specifica, opzioni, dati):
+definisci comando_pyinstaller(python, nome, principale, dist, lavoro, specifica, opzioni, dati, file_versione=Nessuno):
     """La riga di comando di PyInstaller (funzione pura: si può provare senza costruire nulla)."""
     c = [python, "-m", "PyInstaller", "--noconfirm", "--clean", "--name", nome, "--distpath", dist, "--workpath", lavoro, "--specpath", specifica,
          "--onefile" se opzioni.un_file altrimenti "--onedir", "--windowed" se opzioni.senza_console altrimenti "--console"]
     se opzioni.icona e os.path.exists(opzioni.icona):
         c += ["--icon", opzioni.icona]
+    se file_versione:
+        c += ["--version-file", file_versione]
     per origine, destinazione in dati:
         c += ["--add-data", f"{origine}{os.pathsep}{destinazione}"]
     c.append(principale)
@@ -104,13 +223,20 @@ classe Interrotto(Exception):
     """L'utente ha premuto Ferma."""
 
 
-definisci _esegui(comando, scrivi, cwd, fermato):
-    """Lancia un comando mostrando l'uscita riga per riga. Ritorna il codice di uscita."""
-    scrivi("$ " + " ".join(f'"{x}"' se " " in x altrimenti x per x in comando[:12]) + (" …" se lunghezza(comando) > 12 altrimenti ""))
+definisci _maschera(testo_, nascondi):
+    per segreto in nascondi:
+        se segreto:
+            testo_ = testo_.replace(segreto, "***")
+    ritorna testo_
+
+
+definisci _esegui(comando, scrivi, cwd, fermato, nascondi=()):
+    """Lancia un comando mostrando l'uscita riga per riga (le parole in `nascondi`, come le password, diventano ***). Ritorna il codice di uscita."""
+    scrivi(_maschera("$ " + " ".join(f'"{x}"' se " " in x altrimenti x per x in comando[:12]) + (" …" se lunghezza(comando) > 12 altrimenti ""), nascondi))
     processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=Vero, encoding="utf-8", errors="replace", cwd=cwd,
                                 creationflags=NASCONDI_CONSOLE)
     per riga in processo.stdout:
-        scrivi(riga.rstrip())
+        scrivi(_maschera(riga.rstrip(), nascondi))
         se fermato e fermato():
             processo.terminate()
             solleva Interrotto()
@@ -118,9 +244,51 @@ definisci _esegui(comando, scrivi, cwd, fermato):
     ritorna processo.returncode
 
 
+definisci nome_sicuro(nome):
+    """Un nome adatto a un nome di file e di voce di registro."""
+    ritorna "".join(c per c in nome se c.isalnum() o c in "_-") o "programma"
+
+
+definisci costruisci_setup(python, build, dist, exe, opzioni, scrivi, fermato=Nessuno):
+    """Il programma di installazione Setup_<nome>.exe: un Setup (setup_modello.py) con dentro il programma. Ritorna il suo percorso."""
+    lavoro = os.path.join(build, "setup")
+    se os.path.exists(lavoro):
+        shutil.rmtree(lavoro, ignore_errors=Vero)
+    os.makedirs(lavoro)
+    pacchetto = os.path.join(lavoro, "setup_pacchetto.zip")
+    con zipfile.ZipFile(pacchetto, "w", zipfile.ZIP_DEFLATED) come z:
+        se opzioni.un_file:
+            z.write(exe, os.path.basename(exe))
+        altrimenti:
+            base = os.path.dirname(exe)
+            per radice, _, files in os.walk(base):
+                per f in files:
+                    z.write(os.path.join(radice, f), os.path.relpath(os.path.join(radice, f), base))
+    manifesto = {"nome": opzioni.nome, "id": nome_sicuro(opzioni.nome), "versione": opzioni.versione, "autore": opzioni.autore,
+                 "descrizione": opzioni.descrizione, "exe": os.path.basename(exe)}
+    con open(os.path.join(lavoro, "setup_manifesto.json"), "w", encoding="utf-8") come f:
+        json.dump(manifesto, f, ensure_ascii=Falso, indent=1)
+    shutil.copy2(MODELLO_SETUP, os.path.join(lavoro, "setup_programma.py"))
+    nome_setup = "Setup_" + nome_sicuro(opzioni.nome)
+    c = [python, "-m", "PyInstaller", "--noconfirm", "--clean", "--name", nome_setup, "--distpath", dist, "--workpath", os.path.join(build, "lavoro_setup"),
+         "--specpath", lavoro, "--onefile", "--windowed",
+         "--add-data", f"{pacchetto}{os.pathsep}.", "--add-data", f"{os.path.join(lavoro, 'setup_manifesto.json')}{os.pathsep}."]
+    se opzioni.icona e os.path.exists(opzioni.icona):
+        c += ["--icon", opzioni.icona]
+    se os.name == "nt":
+        c += ["--version-file", scrivi_file_versione(build, opzioni, nome_setup + ".exe", "Installazione di " + opzioni.nome)]
+    c.append(os.path.join(lavoro, "setup_programma.py"))
+    se _esegui(c, scrivi, lavoro, fermato) != 0:
+        solleva RuntimeError("PyInstaller non è riuscito a costruire il programma di installazione: leggi il registro qui sopra.")
+    percorso = os.path.join(dist, nome_setup + (".exe" se os.name == "nt" altrimenti ""))
+    se non os.path.exists(percorso):
+        solleva RuntimeError("Il programma di installazione non è stato creato.")
+    ritorna percorso
+
+
 definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
-    """Costruisce l'eseguibile. scrivi(testo) riceve l'avanzamento. Ritorna un dizionario: ok, exe, errore, cartella."""
-    risultato = {"ok": Falso, "exe": "", "errore": "", "cartella": ""}
+    """Costruisce l'eseguibile. scrivi(testo) riceve l'avanzamento. Ritorna un dizionario: ok, exe, errore, cartella, setup, avvisi."""
+    risultato = {"ok": Falso, "exe": "", "errore": "", "cartella": "", "setup": "", "avvisi": []}
     prova:
         python = trova_python()
         se non python:
@@ -163,7 +331,10 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
         scrivi("4/4  Costruisco l'eseguibile (può richiedere qualche minuto)…")
         dist = os.path.join(origine, "dist")
         os.makedirs(dist, exist_ok=Vero)
-        comando = comando_pyinstaller(py, opzioni.nome, principale, dist, os.path.join(build, "lavoro"), build, opzioni, dati_da_aggiungere(sorgente))
+        file_versione = Nessuno
+        se os.name == "nt":
+            file_versione = scrivi_file_versione(build, opzioni, opzioni.nome + ".exe", opzioni.descrizione)
+        comando = comando_pyinstaller(py, opzioni.nome, principale, dist, os.path.join(build, "lavoro"), build, opzioni, dati_da_aggiungere(sorgente), file_versione)
         se _esegui(comando, scrivi, sorgente, fermato) != 0:
             risultato["errore"] = "PyInstaller non è riuscito a costruire l'eseguibile: leggi il registro qui sopra."
             ritorna risultato
@@ -175,6 +346,20 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
             ritorna risultato
         risultato.update(ok=Vero, exe=exe, cartella=os.path.dirname(exe))
         scrivi(f"Fatto: {exe}  ({os.path.getsize(exe) / 1048576:.1f} MB)")
+        da_firmare = lambda percorso: firma_e_riporta(percorso, opzioni, scrivi, fermato, risultato)
+        se opzioni.firma:
+            scrivi("Firmo l'eseguibile…")
+            da_firmare(exe)
+        se opzioni.crea_setup:
+            se os.name != "nt":
+                risultato["avvisi"].append("Il programma di installazione si crea solo su Windows.")
+            altrimenti:
+                scrivi("Costruisco il programma di installazione (Setup)…")
+                risultato["setup"] = costruisci_setup(py, build, dist, exe, opzioni, scrivi, fermato)
+                scrivi(f"Fatto: {risultato['setup']}  ({os.path.getsize(risultato['setup']) / 1048576:.1f} MB)")
+                se opzioni.firma:
+                    scrivi("Firmo il programma di installazione…")
+                    da_firmare(risultato["setup"])
     eccetto Interrotto:
         risultato["errore"] = "Interrotto."
     eccetto Exception come e:
@@ -182,12 +367,23 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
     ritorna risultato
 
 
+definisci firma_e_riporta(percorso, opzioni, scrivi, fermato, risultato):
+    """Firma un file; se non ci riesce lo dice tra gli avvisi senza buttare il lavoro fatto (il file resta, senza firma)."""
+    riuscita, messaggio = firma_file(percorso, opzioni.firma, scrivi, fermato, opzioni.descrizione o opzioni.nome)
+    se riuscita:
+        scrivi("     firmato.")
+    altrimenti:
+        risultato["avvisi"].append(f"{os.path.basename(percorso)} non è firmato: {messaggio}")
+        scrivi("     NON firmato: " + messaggio)
+    ritorna riuscita
+
+
 # ---------------------------------------------------------------- finestra
 classe DialogoEseguibile(DialogoBase):
     """Opzioni e avanzamento della creazione dell'eseguibile."""
 
     definisci __inizializza__(se_stesso, genitore, colori, origine):
-        DialogoBase.__init__(se_stesso, genitore, "Crea l'eseguibile (.exe)", colori, 760, 600)
+        DialogoBase.__init__(se_stesso, genitore, "Crea l'eseguibile (.exe)", colori, 780, 760)
         se_stesso.resizable(Vero, Vero)
         se_stesso.origine = origine
         se_stesso.coda = queue.Queue()
@@ -200,8 +396,16 @@ classe DialogoEseguibile(DialogoBase):
         se_stesso.var_un_file = tk.BooleanVar(value=Vero)
         se_stesso.var_senza_console = tk.BooleanVar(value=Vero)
         se_stesso.var_icona = tk.StringVar()
+        salvate = leggi_impostazioni(origine)
+        se_stesso.var_versione = tk.StringVar(value=salvate.get("versione", "1.0.0"))
+        se_stesso.var_autore = tk.StringVar(value=salvate.get("autore", ""))
+        se_stesso.var_descrizione = tk.StringVar(value=salvate.get("descrizione", ""))
+        se_stesso.var_setup = tk.BooleanVar(value=bool(salvate.get("setup", Falso)))
+        se_stesso.var_firma = tk.BooleanVar(value=Falso)
+        se_stesso.var_pfx = tk.StringVar(value=salvate.get("pfx", ""))
+        se_stesso.var_password = tk.StringVar()
         se_stesso.grid_columnconfigure(1, weight=1)
-        se_stesso.grid_rowconfigure(5, weight=1)
+        se_stesso.grid_rowconfigure(13, weight=1)
         tk.Label(se_stesso, text="Il programma viene convertito in Python e impacchettato con PyInstaller: chi lo riceve non ha bisogno di Python.",
                  background=c["pannello"], foreground=c["tenue"], anchor="w", wraplength=720, justify="left").grid(row=0, column=0, columnspan=3, sticky="we", padx=14, pady=(12, 6))
         se_stesso.riga("Nome del programma:", se_stesso.campo(se_stesso.var_nome, 28), 1)
@@ -212,26 +416,49 @@ classe DialogoEseguibile(DialogoBase):
         b.pack(side="left", padx=(6, 0))
         suggerisci(b, "Scegli un file .ico per l'icona dell'eseguibile (facoltativo)", c)
         se_stesso.riga("Icona (.ico, facoltativa):", lambda p: riga_icona, 2)
+        se_stesso.riga("Versione:", se_stesso.campo(se_stesso.var_versione, 14), 3)
+        se_stesso.riga("Autore (o azienda):", se_stesso.campo(se_stesso.var_autore, 40), 4)
+        se_stesso.riga("Descrizione:", se_stesso.campo(se_stesso.var_descrizione, 56), 5)
         se_stesso.casella_un_file = tk.Checkbutton(se_stesso, text="Un solo file .exe (più comodo da spedire; parte un po' più lentamente)", variable=se_stesso.var_un_file,
                                                     background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"], selectcolor=c["casella"], anchor="w")
-        se_stesso.casella_un_file.grid(row=3, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.casella_un_file.grid(row=6, column=0, columnspan=3, sticky="we", padx=14)
         se_stesso.casella_console = tk.Checkbutton(se_stesso, text="Senza finestra nera (per i programmi con finestre; togli la spunta per i programmi da console)",
                                                     variable=se_stesso.var_senza_console, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
                                                     selectcolor=c["casella"], anchor="w")
-        se_stesso.casella_console.grid(row=4, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.casella_console.grid(row=7, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.casella_setup = tk.Checkbutton(se_stesso, text="Crea anche il programma di installazione (Setup_<nome>.exe): installa, crea i collegamenti e si disinstalla da «App» di Windows",
+                                                 variable=se_stesso.var_setup, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
+                                                 selectcolor=c["casella"], anchor="w", justify="left", wraplength=720)
+        se_stesso.casella_setup.grid(row=8, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.casella_firma = tk.Checkbutton(se_stesso, text="Firma i file con un certificato di firma del codice (facoltativo: toglie l'avviso «editore sconosciuto»)",
+                                                 variable=se_stesso.var_firma, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
+                                                 selectcolor=c["casella"], anchor="w", justify="left", wraplength=720)
+        se_stesso.casella_firma.grid(row=9, column=0, columnspan=3, sticky="we", padx=14)
+        riga_pfx = tk.Frame(se_stesso, background=c["pannello"])
+        se_stesso.campo(se_stesso.var_pfx, 40)(riga_pfx).pack(side="left", fill="x", expand=Vero)
+        b_pfx = tk.Button(riga_pfx, text="Sfoglia…", command=se_stesso._sfoglia_certificato, relief="flat", background=c["pulsante"], foreground=c["primo_piano"])
+        b_pfx.pack(side="left", padx=(6, 0))
+        se_stesso.riga("   Certificato (.pfx):", lambda p: riga_pfx, 10)
+        se_stesso.campo_password = se_stesso.riga("   Password del certificato:", se_stesso.campo(se_stesso.var_password, 28), 11)
+        se_stesso.campo_password.configure(show="•")
+        se_stesso.nota_firma = tk.Label(se_stesso, anchor="w", justify="left", wraplength=740, background=c["pannello"], foreground=c["tenue"])
+        se_stesso.nota_firma.grid(row=12, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso._nota_firma()
+        suggerisci(se_stesso.casella_setup, "Un unico file da spedire: chi lo apre sceglie la cartella e preme Installa (non servono i permessi di amministratore)", c)
+        suggerisci(se_stesso.casella_firma, "Serve il file del certificato (.pfx) e signtool.exe del Windows SDK. La password non viene salvata", c)
         suggerisci(se_stesso.casella_un_file, "Con la spunta: un unico file; senza: una cartella con l'.exe e i suoi file", c)
         suggerisci(se_stesso.casella_console, "Per i programmi che usano input()/print() lascia la finestra nera (togli la spunta)", c)
         corpo = tk.Frame(se_stesso, background=c["pannello"])
-        corpo.grid(row=5, column=0, columnspan=3, sticky="nsew", padx=14, pady=8)
+        corpo.grid(row=13, column=0, columnspan=3, sticky="nsew", padx=14, pady=8)
         se_stesso.registro = tk.Text(corpo, height=14, font=(FONT_MONO, 9), background=c["editor"], foreground=c["primo_piano"], relief="flat", state="disabled", wrap="none")
         barra = ttk.Scrollbar(corpo, orient="vertical", command=se_stesso.registro.yview)
         se_stesso.registro.configure(yscrollcommand=barra.set)
         barra.pack(side="right", fill="y")
         se_stesso.registro.pack(side="left", fill="both", expand=Vero)
         se_stesso.progresso = ttk.Progressbar(se_stesso, mode="indeterminate")
-        se_stesso.progresso.grid(row=6, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.progresso.grid(row=14, column=0, columnspan=3, sticky="we", padx=14)
         fondo = tk.Frame(se_stesso, background=c["pannello"])
-        fondo.grid(row=7, column=0, columnspan=3, sticky="e", padx=14, pady=10)
+        fondo.grid(row=15, column=0, columnspan=3, sticky="e", padx=14, pady=10)
         se_stesso.pulsante_chiudi = tk.Button(fondo, text="Chiudi", command=se_stesso._chiudi, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12)
         se_stesso.pulsante_chiudi.pack(side="right", padx=4)
         se_stesso.pulsante_cartella = tk.Button(fondo, text="Apri la cartella", command=se_stesso._apri_cartella, background=c["pulsante"], foreground=c["primo_piano"],
@@ -249,6 +476,18 @@ classe DialogoEseguibile(DialogoBase):
         se non trova_python():
             se_stesso._scrivi("ATTENZIONE: non trovo Python 3 sul computer. Installalo da https://www.python.org/downloads/ (con «Add python.exe to PATH»).")
 
+    definisci _nota_firma(se_stesso):
+        se trova_signtool():
+            se_stesso.nota_firma.configure(text="   signtool trovato. La password serve solo per questa costruzione: non viene salvata né scritta nel registro.")
+        altrimenti:
+            se_stesso.nota_firma.configure(text="   signtool.exe non trovato: per firmare installa il «Windows SDK» (strumenti di firma). Senza, i file restano non firmati.")
+
+    definisci _sfoglia_certificato(se_stesso):
+        p = filedialog.askopenfilename(parent=se_stesso, filetypes=[("Certificato", "*.pfx *.p12"), ("Tutti i file", "*.*")])
+        se p:
+            se_stesso.var_pfx.set(p)
+            se_stesso.var_firma.set(Vero)
+
     definisci _sfoglia_icona(se_stesso):
         p = filedialog.askopenfilename(parent=se_stesso, filetypes=[("Icona", "*.ico"), ("Tutti i file", "*.*")])
         se p:
@@ -262,12 +501,20 @@ classe DialogoEseguibile(DialogoBase):
 
     definisci opzioni(se_stesso):
         nome = "".join(ch per ch in se_stesso.var_nome.get().strip() se ch.isalnum() o ch in "_-. ").strip() o "programma"
-        ritorna Opzioni(nome, se_stesso.var_un_file.get(), se_stesso.var_senza_console.get(), se_stesso.var_icona.get().strip())
+        firma = Nessuno
+        se se_stesso.var_firma.get():
+            firma = {"pfx": se_stesso.var_pfx.get().strip(), "password": se_stesso.var_password.get(), "marca": URL_MARCA_TEMPORALE}
+        ritorna Opzioni(nome, se_stesso.var_un_file.get(), se_stesso.var_senza_console.get(), se_stesso.var_icona.get().strip(),
+                        se_stesso.var_versione.get().strip() o "1.0.0", se_stesso.var_autore.get().strip(), se_stesso.var_descrizione.get().strip(),
+                        se_stesso.var_setup.get(), firma)
 
     definisci _avvia(se_stesso):
         se se_stesso.thread è non Nessuno e se_stesso.thread.is_alive():
             ritorna
         opzioni = se_stesso.opzioni()
+        # si ricordano le scelte (non la password) nel manifesto del progetto
+        salva_impostazioni(se_stesso.origine, {"versione": opzioni.versione, "autore": opzioni.autore, "descrizione": opzioni.descrizione,
+                                               "setup": opzioni.crea_setup, "pfx": se_stesso.var_pfx.get().strip()})
         se_stesso.ferma_richiesto = Falso
         se_stesso.esito = Nessuno
         se_stesso.registro.configure(state="normal")
@@ -305,7 +552,13 @@ classe DialogoEseguibile(DialogoBase):
         se e.get("ok"):
             se_stesso.pulsante_cartella.configure(state="normal")
             se_stesso._scrivi("")
-            se_stesso._scrivi("L'eseguibile è pronto. Puoi spedirlo: non serve nient'altro.")
+            se e.get("setup"):
+                se_stesso._scrivi("Il programma di installazione è pronto: " + e["setup"])
+                se_stesso._scrivi("Spedisci quello: chi lo apre installa il programma e lo trova in «App» di Windows per disinstallarlo.")
+            altrimenti:
+                se_stesso._scrivi("L'eseguibile è pronto. Puoi spedirlo: non serve nient'altro.")
+            per avviso in e.get("avvisi", []):
+                se_stesso._scrivi("⚠ " + avviso)
         altrimenti:
             se_stesso._scrivi("")
             se_stesso._scrivi("NON RIUSCITO: " + e.get("errore", "errore sconosciuto"))

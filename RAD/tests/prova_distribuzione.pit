@@ -1,0 +1,243 @@
+"""Distribuzione dei programmi: informazioni di versione, firma (signtool simulato), programma di installazione Setup (installa e disinstalla davvero in cartelle di prova)
+e finestra «Crea l'eseguibile». La costruzione vera con PyInstaller solo con RAD_PROVA_EXE=1 (lenta, serve internet la prima volta)."""
+importa sys, os, tempfile, subprocess, json, shutil, zipfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice"))
+importa tkinter come tk
+da tkinter importa messagebox
+messagebox.showwarning = lambda *a, **k: Nessuno
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad importa crea_exe
+importa setup_modello come sm
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+base = tempfile.mkdtemp()
+
+# ----------------------------------------------------------------- informazioni di versione
+verifica(crea_exe.numeri_versione("1.2.3") == (1, 2, 3, 0), "1.2.3")
+verifica(crea_exe.numeri_versione("2") == (2, 0, 0, 0), "solo il maggiore")
+verifica(crea_exe.numeri_versione("1.0.0-beta") == (1, 0, 0, 0), "parti non numeriche: " + testo(crea_exe.numeri_versione("1.0.0-beta")))
+verifica(crea_exe.numeri_versione("1.2.3.4.5") == (1, 2, 3, 4), "al massimo quattro numeri")
+verifica(crea_exe.numeri_versione("") == (0, 0, 0, 0), "vuota")
+o = crea_exe.Opzioni("Gestione Cantina", versione="2.5.1", autore="Mario D'Angelo", descrizione="Registro \"vini\" e bottiglie è comodo")
+t = crea_exe.testo_versione(o, "Gestione Cantina.exe")
+verifica("filevers=(2, 5, 1, 0)" in t e "StringStruct('FileVersion', '2.5.1.0')" in t, "numeri di versione nel file")
+verifica("StringStruct('CompanyName', 'Mario D\\'Angelo')" in t, "l'apice è protetto: " + t[t.index("CompanyName"):t.index("CompanyName") + 50])
+verifica("è comodo" in t e "© Mario D'Angelo".replace("'", "\\'") in t, "lettere accentate e copyright")
+verifica("OriginalFilename', 'Gestione Cantina.exe'" in t e "ProductName', 'Gestione Cantina'" in t, "nome e file originale")
+verifica("0x409" non in t e "040904B0" in t e "[1033, 1200]" in t, "lingua")
+verifica(compile(t, "versione", "eval") è non Nessuno, "il file è sintassi valida")
+percorso_v = crea_exe.scrivi_file_versione(os.path.join(base, "b"), o, "Gestione Cantina.exe", "Descrizione del file")
+verifica(os.path.exists(percorso_v) e "Descrizione del file" in open(percorso_v, encoding="utf-8").read(), "file scritto con la descrizione indicata")
+vuota = crea_exe.Opzioni("X")
+verifica("'CompanyName', ''" in crea_exe.testo_versione(vuota, "X.exe") e "LegalCopyright', ''" in crea_exe.testo_versione(vuota, "X.exe"), "senza autore niente copyright")
+verifica("FileVersion', '1.0.0.0'" in crea_exe.testo_versione(vuota, "X.exe"), "versione predefinita 1.0.0")
+
+# il comando di PyInstaller
+c = crea_exe.comando_pyinstaller("py", "X", "x.py", "dist", "lavoro", "build", vuota, [], file_versione="v.txt")
+verifica(c[c.index("--version-file") + 1] == "v.txt", "--version-file")
+verifica("--version-file" non in crea_exe.comando_pyinstaller("py", "X", "x.py", "dist", "lavoro", "build", vuota, []), "senza file di versione niente opzione")
+
+# ----------------------------------------------------------------- firma
+verifica(crea_exe.nome_sicuro("Gestione Cantina (2)") == "GestioneCantina2", "nome sicuro")
+f1 = {"pfx": "c.pfx", "password": "segreta", "marca": "http://t.example"}
+cf = crea_exe.comando_firma("signtool.exe", "p.exe", f1, "Mio programma")
+verifica(cf[:2] == ["signtool.exe", "sign"] e cf[-1] == "p.exe" e "/fd" in cf e cf[cf.index("/tr") + 1] == "http://t.example" e cf[cf.index("/f") + 1] == "c.pfx" e cf[cf.index("/p") + 1] == "segreta" e cf[cf.index("/d") + 1] == "Mio programma", "comando di firma: " + testo(cf))
+cn = crea_exe.comando_firma("signtool.exe", "p.exe", {"soggetto": "Mio Nome"})
+verifica("/n" in cn e "/f" non in cn e cn[cn.index("/tr") + 1] == crea_exe.URL_MARCA_TEMPORALE, "certificato installato, marca predefinita")
+verifica(crea_exe._maschera("la password è segreta ok", ["segreta", ""]) == "la password è *** ok", "maschera")
+righe = []
+ok, m = crea_exe.firma_file(os.path.join(base, "x.exe"), {"pfx": "c.pfx"}, righe.append)
+verifica(crea_exe.trova_signtool() è non Nessuno o (non ok e "signtool" in m), "senza signtool lo dice")
+originale = crea_exe.trova_signtool
+crea_exe.trova_signtool = lambda: Nessuno
+ok, m = crea_exe.firma_file(os.path.join(base, "x.exe"), {"pfx": "c.pfx"}, righe.append)
+verifica(non ok e "signtool.exe" in m e "Windows SDK" in m, "messaggio senza signtool: " + m)
+# un signtool finto che registra i suoi argomenti
+finto = os.path.join(base, "signtool_finto.bat")
+registro = os.path.join(base, "argomenti.txt")
+open(finto, "w").write('@echo off\r\necho %* > "' + registro + '"\r\necho firmato con successo\r\nexit /b 0\r\n')
+crea_exe.trova_signtool = lambda: finto
+pfx = os.path.join(base, "c.pfx")
+open(pfx, "w").write("x")
+programma = os.path.join(base, "p.exe")
+open(programma, "w").write("x")
+righe = []
+ok, m = crea_exe.firma_file(programma, {"pfx": pfx, "password": "segretissima", "marca": ""}, righe.append, descrizione="Prova")
+verifica(ok, "firma riuscita: " + m)
+verifica("segretissima" in open(registro).read(), "il certificato e la password sono arrivati a signtool")
+verifica(non any("segretissima" in r per r in righe), "la password non compare nel registro: " + testo(righe))
+ok, m = crea_exe.firma_file(programma, {"pfx": os.path.join(base, "manca.pfx")}, righe.append)
+verifica(non ok e "non esiste" in m, "certificato mancante: " + m)
+ok, m = crea_exe.firma_file(programma, {}, righe.append)
+verifica(non ok e "certificato" in m, "senza certificato: " + m)
+open(finto, "w").write("@echo off\r\necho errore di password\r\nexit /b 1\r\n")
+risultato = {"avvisi": []}
+o2 = crea_exe.Opzioni("P", firma={"pfx": pfx, "password": "x"})
+verifica(non crea_exe.firma_e_riporta(programma, o2, righe.append, Nessuno, risultato) e lunghezza(risultato["avvisi"]) == 1 e "non è firmato" in risultato["avvisi"][0], "una firma fallita diventa un avviso: " + testo(risultato))
+crea_exe.trova_signtool = originale
+
+# ----------------------------------------------------------------- impostazioni ricordate
+origine = os.path.join(base, "Saluto")
+os.makedirs(origine)
+open(os.path.join(origine, "progetto.rad.json"), "w", encoding="utf-8").write(json.dumps({"nome": "Saluto", "principale": "principale.pit"}))
+open(os.path.join(origine, "principale.pit"), "w", encoding="utf-8").write('stampa("Ciao")\n')
+verifica(crea_exe.leggi_impostazioni(origine) == {}, "all'inizio niente")
+crea_exe.salva_impostazioni(origine, {"versione": "1.4", "autore": "Anna", "setup": Vero})
+verifica(crea_exe.leggi_impostazioni(origine)["versione"] == "1.4", "salvate")
+verifica(json.load(open(os.path.join(origine, "progetto.rad.json"), encoding="utf-8"))["principale"] == "principale.pit", "il resto del manifesto resta")
+verifica(crea_exe.leggi_impostazioni(os.path.join(base, "non_esiste")) == {}, "cartella senza manifesto")
+
+# ----------------------------------------------------------------- il programma di installazione (setup_modello.py)
+pacchetto = os.path.join(base, "pacchetto.zip")
+con zipfile.ZipFile(pacchetto, "w") come z:
+    z.writestr("Saluto.exe", "finto eseguibile")
+    z.writestr("dati/uno.txt", "uno")
+manifesto = os.path.join(base, "setup_manifesto.json")
+json.dump({"nome": "Saluto Prova", "versione": "1.4", "autore": "Anna", "descrizione": "Un saluto", "exe": "Saluto.exe"}, open(manifesto, "w", encoding="utf-8"))
+m = sm.leggi_manifesto(manifesto)
+verifica(m["id"] == "SalutoProva" e m["versione"] == "1.4", "manifesto con id: " + testo(m))
+sm.RADICE_REGISTRO = r"Software\PitStudioProva\Uninstall"
+desktop = os.path.join(base, "desk")
+menu = os.path.join(base, "menu")
+sm.cartella_desktop = lambda: desktop
+sm.cartella_menu_start = lambda: menu
+installato = os.path.join(base, "Programmi", "Saluto Prova")
+finto_disinstallatore = os.path.join(base, "Setup_finto.exe")
+open(finto_disinstallatore, "w").write("disinstallatore")
+avanzamenti = []
+creati = sm.installa(m, installato, pacchetto, Vero, Vero, lambda i, n: avanzamenti.append((i, n)), finto_disinstallatore)
+verifica(os.path.exists(os.path.join(installato, "Saluto.exe")) e os.path.exists(os.path.join(installato, "dati", "uno.txt")), "file copiati")
+verifica(avanzamenti[-1] == (2, 2), "avanzamento: " + testo(avanzamenti))
+verifica(os.path.exists(os.path.join(installato, "Disinstalla.exe")), "Disinstalla.exe copiato")
+verifica(os.path.exists(os.path.join(desktop, "Saluto Prova.lnk")) e os.path.exists(os.path.join(menu, "Saluto Prova", "Saluto Prova.lnk")), "collegamenti desktop e menu: " + testo(creati["collegamenti"]))
+verifica(os.path.exists(os.path.join(menu, "Saluto Prova", "Disinstalla Saluto Prova.lnk")), "collegamento per disinstallare")
+importa winreg
+con winreg.OpenKey(winreg.HKEY_CURRENT_USER, sm.RADICE_REGISTRO + "\\SalutoProva") come k:
+    verifica(winreg.QueryValueEx(k, "DisplayName")[0] == "Saluto Prova" e winreg.QueryValueEx(k, "DisplayVersion")[0] == "1.4" e winreg.QueryValueEx(k, "Publisher")[0] == "Anna", "voce di «App»")
+    verifica(winreg.QueryValueEx(k, "UninstallString")[0].endswith('Disinstalla.exe" --disinstalla'), "comando di disinstallazione: " + winreg.QueryValueEx(k, "UninstallString")[0])
+    verifica(winreg.QueryValueEx(k, "InstallLocation")[0] == os.path.abspath(installato), "cartella registrata")
+verifica(json.load(open(os.path.join(installato, "installato.json"), encoding="utf-8"))["id"] == "SalutoProva", "elenco di ciò che è stato creato")
+tolti = sm.disinstalla(installato, differita=Falso)
+verifica(non os.path.exists(installato), "cartella tolta")
+verifica(non os.path.exists(os.path.join(desktop, "Saluto Prova.lnk")) e non os.path.exists(os.path.join(menu, "Saluto Prova")), "collegamenti e cartella del menu tolti")
+sollevato = Falso
+prova:
+    winreg.OpenKey(winreg.HKEY_CURRENT_USER, sm.RADICE_REGISTRO + "\\SalutoProva")
+eccetto OSError:
+    sollevato = Vero
+verifica(sollevato, "voce di registro tolta")
+prova:
+    winreg.DeleteKey(winreg.HKEY_CURRENT_USER, r"Software\PitStudioProva\Uninstall")
+    winreg.DeleteKey(winreg.HKEY_CURRENT_USER, r"Software\PitStudioProva")
+eccetto OSError:
+    passa
+# senza collegamenti
+creati = sm.installa(m, installato, pacchetto, Falso, Falso, Nessuno, finto_disinstallatore)
+verifica(creati["collegamenti"] == [] e os.listdir(desktop) == [], "senza collegamenti non ne crea")
+sm.disinstalla(installato, differita=Falso)
+prova:
+    winreg.DeleteKey(winreg.HKEY_CURRENT_USER, r"Software\PitStudioProva\Uninstall")
+    winreg.DeleteKey(winreg.HKEY_CURRENT_USER, r"Software\PitStudioProva")
+eccetto OSError:
+    passa
+# disinstallazione differita (come fa Disinstalla.exe, che non può cancellare se stesso): lo script toglie la cartella appena può
+differita = os.path.join(base, "Cartella con spazi", "Dentro")
+os.makedirs(differita)
+open(os.path.join(differita, "file.txt"), "w").write("x")
+sm.disinstalla(differita, differita=Vero)
+t0 = time.time()
+mentre os.path.exists(differita) e time.time() - t0 < 20:
+    time.sleep(0.3)
+verifica(non os.path.exists(differita), "la rimozione differita toglie la cartella (anche con spazi nel percorso)")
+# un pacchetto con percorsi che escono dalla cartella si rifiuta
+cattivo = os.path.join(base, "cattivo.zip")
+con zipfile.ZipFile(cattivo, "w") come z:
+    z.writestr("Saluto.exe", "x")
+    z.writestr("../fuori.txt", "no")
+sollevato = Falso
+prova:
+    sm.installa(m, os.path.join(base, "altra"), cattivo, Falso, Falso, Nessuno, Nessuno)
+eccetto ValueError:
+    sollevato = Vero
+verifica(sollevato e non os.path.exists(os.path.join(base, "fuori.txt")), "percorso fuori dalla cartella rifiutato")
+# manca il programma nel pacchetto
+vuoto = os.path.join(base, "vuoto.zip")
+con zipfile.ZipFile(vuoto, "w") come z:
+    z.writestr("altro.txt", "x")
+sollevato = Falso
+prova:
+    sm.installa(m, os.path.join(base, "altra2"), vuoto, Falso, Falso, Nessuno, Nessuno)
+eccetto FileNotFoundError:
+    sollevato = Vero
+verifica(sollevato, "pacchetto senza il programma: errore chiaro")
+verifica(sm.cartella_predefinita(m).endswith(os.path.join("Programs", "Saluto Prova")), "cartella predefinita: " + sm.cartella_predefinita(m))
+
+# ----------------------------------------------------------------- la finestra
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice = tk.Tk()
+radice.geometry("900x700+20+20")
+d = crea_exe.DialogoEseguibile(radice, colori(cfg), origine)
+d.withdraw()
+radice.update()
+verifica(d.var_versione.get() == "1.4" e d.var_autore.get() == "Anna" e d.var_setup.get(), "la finestra ricorda le scelte dell'ultima volta")
+opz = d.opzioni()
+verifica(opz.versione == "1.4" e opz.autore == "Anna" e opz.crea_setup e opz.firma è Nessuno, "opzioni dalla finestra: firma spenta")
+d.var_versione.set("")
+d.var_firma.set(Vero)
+d.var_pfx.set("c:\\cert.pfx")
+d.var_password.set("pw")
+opz = d.opzioni()
+verifica(opz.versione == "1.0.0" e opz.firma == {"pfx": "c:\\cert.pfx", "password": "pw", "marca": crea_exe.URL_MARCA_TEMPORALE}, "versione predefinita e firma accesa: " + testo(opz.firma))
+verifica(d.campo_password.cget("show") == "•", "la password non si legge")
+verifica(d.nota_firma.cget("text").strip() != "", "nota sulla firma")
+verifica(getattr(d.casella_setup, "_suggerimento", Nessuno) è non Nessuno e getattr(d.casella_firma, "_suggerimento", Nessuno) è non Nessuno, "suggerimenti")
+d.destroy()
+radice.destroy()
+
+# ----------------------------------------------------------------- costruzione vera (lenta)
+se os.environ.get("RAD_PROVA_EXE") == "1":
+    sorgente_p = os.path.join(base, "PitProvaSetup")
+    os.makedirs(sorgente_p)
+    open(os.path.join(sorgente_p, "progetto.rad.json"), "w", encoding="utf-8").write(json.dumps({"nome": "PitProvaSetup", "principale": "principale.pit"}))
+    open(os.path.join(sorgente_p, "principale.pit"), "w", encoding="utf-8").write('stampa("Ciao dal programma installato")\n')
+    righe = []
+    opzioni = crea_exe.Opzioni("PitProvaSetup", un_file=Vero, senza_console=Falso, versione="3.1.4", autore="Gianni & C.", descrizione="Programma di prova", crea_setup=Vero)
+    esito = crea_exe.costruisci(sorgente_p, opzioni, righe.append)
+    stampa("costruzione:", esito["ok"], esito["errore"], esito["setup"] e os.path.basename(esito["setup"]))
+    verifica(esito["ok"] e os.path.exists(esito["exe"]) e os.path.exists(esito["setup"]), "exe e Setup creati: " + testo(righe[-6:]))
+    se esito["ok"]:
+        definisci versione_di(percorso):
+            r = subprocess.run(["powershell", "-NoProfile", "-Command", "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $v=(Get-Item '%s').VersionInfo; $v.CompanyName+'|'+$v.FileVersion+'|'+$v.ProductName+'|'+$v.FileDescription+'|'+$v.LegalCopyright" % percorso],
+                               capture_output=Vero, text=Vero, encoding="utf-8", errors="replace")
+            ritorna (r.stdout o "").strip()
+        v = versione_di(esito["exe"])
+        verifica(v.startswith("Gianni & C.|3.1.4.0|PitProvaSetup|Programma di prova|"), "informazioni di versione dell'exe: " + v)
+        vs = versione_di(esito["setup"])
+        verifica("3.1.4.0" in vs e "Installazione di PitProvaSetup" in vs, "informazioni di versione del Setup: " + vs)
+        cartella_inst = os.path.join(base, "Installato")
+        r = subprocess.run([esito["setup"], "/S", "--cartella=" + cartella_inst, "--senza-collegamenti"], capture_output=Vero, text=Vero, timeout=180)
+        verifica(r.returncode == 0 e os.path.exists(os.path.join(cartella_inst, "PitProvaSetup.exe")) e os.path.exists(os.path.join(cartella_inst, "Disinstalla.exe")), "Setup silenzioso installa: " + r.stderr[-200:])
+        r = subprocess.run([os.path.join(cartella_inst, "PitProvaSetup.exe")], capture_output=Vero, text=Vero, timeout=60, cwd=cartella_inst)
+        verifica("Ciao dal programma installato" in r.stdout, "il programma installato gira: " + r.stdout[-80:] + r.stderr[-80:])
+        r = subprocess.run([os.path.join(cartella_inst, "Disinstalla.exe"), "--disinstalla", "--silenzioso", "--cartella=" + cartella_inst], capture_output=Vero, text=Vero, timeout=60)
+        t0 = time.time()
+        mentre os.path.exists(cartella_inst) e time.time() - t0 < 40:
+            time.sleep(0.5)
+        verifica(non os.path.exists(cartella_inst), "Disinstalla.exe toglie la cartella (anche se è lui stesso dentro)")
+        prova:
+            winreg.OpenKey(winreg.HKEY_CURRENT_USER, sm.RADICE_REGISTRO.replace(r"Software\PitStudioProva\Uninstall", r"Software\Microsoft\Windows\CurrentVersion\Uninstall") + "\\PitProvaSetup")
+            verifica(Falso, "la voce di «App» doveva sparire")
+        eccetto OSError:
+            passa
+
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")
