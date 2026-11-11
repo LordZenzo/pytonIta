@@ -17,6 +17,7 @@ da rad importa registro_ai
 da rad.storia importa Storia
 da rad importa claude_code
 da rad importa converti_progetto
+da rad importa modelli_finestra
 da rad importa esporta_python
 da rad importa navigazione
 da rad importa esempi
@@ -1172,14 +1173,18 @@ classe Applicazione:
             messagebox.showinfo("Progetto", "Apri o crea prima un progetto.", parent=se_stesso.radice)
             ritorna
         esistenti = [os.path.basename(f)[:-len(".form.json")] per f in se_stesso.progetto.forms()]
-        nome = dialoghi.DialogoNuovaFinestra(se_stesso.radice, se_stesso.colori, esistenti).mostra()
-        se non nome:
+        scelta = dialoghi.DialogoModelloFinestra(se_stesso.radice, se_stesso.colori, esistenti, modelli_finestra.MODELLI).mostra()
+        se non scelta:
             ritorna
-        f = form_modello.Form(nome, nome)
+        nome, modello = scelta
         cartella = se_stesso.progetto.assoluto(cartella_relativa) se cartella_relativa altrimenti se_stesso.progetto.cartella
-        form_modello.salva_form(f, cartella)
+        prova:
+            r = modelli_finestra.crea(modello, nome, cartella)
+        eccetto (OSError, ValueError) come errore:
+            messagebox.showerror("Nuova finestra", f"Non sono riuscito a creare la finestra:\n{errore}", parent=se_stesso.radice)
+            ritorna
         se_stesso.pannello_progetto.aggiorna()
-        se_stesso.apri_file(form_modello.percorsi_form(cartella, nome)["json"])
+        se_stesso.apri_file(r["form"])
 
     definisci nuovo_mattonelle(se_stesso, cartella_relativa="", nome=Nessuno):
         """Crea un programma a mattonelle (con la finestra del flusso principale pronta) e lo apre."""

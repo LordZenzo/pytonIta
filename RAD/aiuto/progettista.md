@@ -122,6 +122,18 @@ Di solito i componenti stanno dove li metti (**libero**). Con la **griglia** inv
 
 **Nel programma.** Il codice generato usa il file `griglia.pit` (che PitStudio mette nel progetto) e dispone i componenti con lo stesso calcolo del progettista: quello che vedi è quello che ottieni, anche ridimensionando la finestra. Le finestre già disegnate restano libere finché non scegli la griglia. Nell'esportazione in Python e nell'eseguibile la griglia funziona allo stesso modo.
 
+## Modelli di finestra
+
+**File → Nuova finestra** chiede il nome e un **modello di partenza**:
+
+- **Finestra vuota**: da disegnare come vuoi.
+- **Accesso (utente e password)**: titolo, utente, password nascosta, messaggio, Annulla e Accedi. Il gestore `accedi` controlla che i campi siano pieni e saluta: il controllo vero delle credenziali lo scrivi tu.
+- **Scheda anagrafica con database**: crea un database SQLite (`<nome>.db`, tabella `persone` con due righe d'esempio) e la maschera collegata, con ricerca, elenco, campi e pulsanti Nuovo, Salva, Elimina.
+- **Impostazioni a schede**: due schede (Generale, Aspetto) con caselle, elenchi a scelta e cursore, e i pulsanti OK e Annulla in basso a destra.
+- **Ricerca con elenco**: campo, pulsante Cerca, tabella dei risultati e contatore; il gestore `cerca` filtra un elenco d'esempio da sostituire con i tuoi dati.
+
+Le finestre dei modelli sono già **a griglia**: si ridimensionano da sole. I componenti hanno nomi chiari (`campoUtente`, `pulsanteOk`…), e si cambia tutto nel progettista.
+
 ## La struttura (albero dei componenti)
 
 Sotto la palette, il pannello **STRUTTURA** mostra la gerarchia della finestra: la finestra, i componenti, i riquadri con quello che contengono e le pagine di ogni scheda. Serve soprattutto quando un componente è coperto da un altro o sta dentro un riquadro: un clic sulla riga lo seleziona, e la selezione resta la stessa nella finestra e nell'albero (anche con Maiusc e Ctrl per più componenti). Doppio clic: vai al gestore dell'evento. Clic destro: lo stesso menu della finestra.

@@ -1,0 +1,183 @@
+"""Modelli di finestra pronti per «Nuova finestra»: accesso, scheda anagrafica con database, impostazioni, ricerca con elenco.
+Sono finestre già disposte a griglia (si ridimensionano da sole), con i nomi dei componenti e i gestori degli eventi già scritti: si modificano poi nel progettista."""
+importa os
+importa re
+
+da rad importa form_modello
+
+# (id, titolo, descrizione)
+MODELLI = [
+    ("vuota", "Finestra vuota", "Una finestra senza componenti, da disegnare come vuoi."),
+    ("accesso", "Accesso (utente e password)", "Titolo, campi Utente e Password (nascosta), messaggio e pulsanti Accedi e Annulla. Il gestore «accedi» controlla che i campi siano pieni: aggiungi tu il controllo vero."),
+    ("anagrafica", "Scheda anagrafica con database", "Crea un database SQLite con la tabella «persone» (nome, cognome, e-mail, telefono, note) e una maschera con ricerca, elenco, campi e pulsanti Nuovo, Salva, Elimina."),
+    ("impostazioni", "Impostazioni a schede", "Due schede (Generale e Aspetto) con caselle, elenco a scelta e cursore, e i pulsanti OK e Annulla in basso."),
+    ("ricerca", "Ricerca con elenco", "Campo di ricerca, pulsante Cerca, tabella dei risultati e contatore. Il gestore «cerca» filtra un elenco d'esempio: sostituiscilo con i tuoi dati."),
+]
+
+
+definisci _metti(f, tipo_, riga, colonna, genitore="", nr=1, nc=1, allinea=Nessuno, **valori):
+    """Aggiunge un componente nella cella (riga, colonna) del suo contenitore a griglia."""
+    c = f.aggiungi(tipo_, 0, 0, genitore=genitore, **valori)
+    form_modello.imposta_cella(c, riga=riga, colonna=colonna, righe=nr, colonne=nc, allinea=allinea o form_modello.ALLINEA_PREDEFINITO.get(tipo_, "w"))
+    ritorna c
+
+
+definisci _griglia(f, colonne, righe, margine=16, spazio=8):
+    f.layout = "griglia"
+    f.colonne = colonne
+    f.righe = righe
+    f.margine = margine
+    f.spazio = spazio
+
+
+definisci _titolo(testo_, dimensione=16):
+    ritorna form_modello.font_componi("Segoe UI", dimensione, ["bold"])
+
+
+# ---------------------------------------------------------------- i modelli
+definisci _accesso(nome):
+    f = form_modello.Form(nome, "Accesso")
+    f.aspetto = "chiaro"
+    f.larghezza, f.altezza = 380, 270
+    _griglia(f, "0,1", "0,0,0,1,0", 22, 10)
+    _metti(f, "Etichetta", 0, 0, nc=2, nome="etichettaTitolo", testo="Accedi", larghezza=200, altezza=34, carattere=_titolo("Accedi", 16))
+    _metti(f, "Etichetta", 1, 0, nome="etichettaUtente", testo="Utente", larghezza=80, altezza=24)
+    _metti(f, "CampoTesto", 1, 1, nome="campoUtente", larghezza=200, altezza=28)
+    _metti(f, "Etichetta", 2, 0, nome="etichettaPassword", testo="Password", larghezza=80, altezza=24)
+    _metti(f, "CampoTesto", 2, 1, nome="campoPassword", nascondi=Vero, al_invio="accedi", larghezza=200, altezza=28)
+    _metti(f, "Etichetta", 3, 0, nc=2, nome="etichettaMessaggio", testo="", larghezza=200, altezza=24, allinea="nw", primo_piano="#c62828")
+    _metti(f, "Pulsante", 4, 0, nome="pulsanteAnnulla", testo="Annulla", al_clic="annulla", larghezza=90, altezza=32, allinea="w")
+    _metti(f, "Pulsante", 4, 1, nome="pulsanteAccedi", testo="Accedi", al_clic="accedi", larghezza=90, altezza=32, allinea="e")
+    ritorna f
+
+
+definisci _impostazioni(nome):
+    f = form_modello.Form(nome, "Impostazioni")
+    f.aspetto = "chiaro"
+    f.larghezza, f.altezza = 460, 360
+    _griglia(f, "1", "1,0", 14, 10)
+    schede = _metti(f, "Schede", 0, 0, nome="schede", larghezza=420, altezza=260, pagine=["Generale", "Aspetto"],
+                    layout="griglia", colonne="0,1", righe="0,0,0,1", margine=14, spazio=10)
+    _metti(f, "CasellaSelezione", 0, 0, "schede#0", nc=2, nome="casellaAvvio", testo="Avvia il programma con il sistema", larghezza=300, altezza=24)
+    _metti(f, "CasellaSelezione", 1, 0, "schede#0", nc=2, nome="casellaAggiornamenti", testo="Controlla gli aggiornamenti", selezionata=Vero, larghezza=300, altezza=24)
+    _metti(f, "Etichetta", 2, 0, "schede#0", nome="etichettaLingua", testo="Lingua", larghezza=70, altezza=24)
+    _metti(f, "CasellaCombinata", 2, 1, "schede#0", nome="sceltaLingua", valori=["Italiano", "English"], valore="Italiano", larghezza=160, altezza=26)
+    _metti(f, "Etichetta", 0, 0, "schede#1", nome="etichettaTema", testo="Tema", larghezza=70, altezza=24)
+    _metti(f, "CasellaCombinata", 0, 1, "schede#1", nome="sceltaTema", valori=["chiaro", "scuro", "verde", "viola"], valore="chiaro", larghezza=160, altezza=26)
+    _metti(f, "Etichetta", 1, 0, "schede#1", nome="etichettaDimensione", testo="Dimensione", larghezza=80, altezza=24)
+    _metti(f, "Cursore", 1, 1, "schede#1", nome="cursoreDimensione", da=8, a=24, valore=12, larghezza=200, altezza=48)
+    _metti(f, "CasellaSelezione", 2, 0, "schede#1", nc=2, nome="casellaCaratteriGrandi", testo="Caratteri grandi per la lettura", larghezza=300, altezza=24)
+    barra = _metti(f, "Riquadro", 1, 0, nome="barraPulsanti", larghezza=420, altezza=36, bordo=0, rilievo="piatto",
+                   layout="griglia", colonne="1,0,0", righe="0", margine=0, spazio=8, allinea="ew")
+    _metti(f, "Pulsante", 0, 1, "barraPulsanti", nome="pulsanteAnnulla", testo="Annulla", al_clic="annulla_clic", larghezza=90, altezza=32, allinea="e")
+    _metti(f, "Pulsante", 0, 2, "barraPulsanti", nome="pulsanteOk", testo="OK", al_clic="conferma_clic", larghezza=90, altezza=32, allinea="e")
+    ritorna f
+
+
+definisci _ricerca(nome):
+    f = form_modello.Form(nome, "Ricerca")
+    f.aspetto = "chiaro"
+    f.larghezza, f.altezza = 600, 420
+    _griglia(f, "0,1,0", "0,1,0", 16, 8)
+    _metti(f, "Etichetta", 0, 0, nome="etichettaCerca", testo="Cerca", larghezza=60, altezza=24)
+    _metti(f, "CampoTesto", 0, 1, nome="campoRicerca", al_invio="cerca", larghezza=300, altezza=28)
+    _metti(f, "Pulsante", 0, 2, nome="pulsanteCerca", testo="Cerca", al_clic="cerca", larghezza=90, altezza=30)
+    _metti(f, "Albero", 1, 0, nc=3, nome="elencoRisultati", colonne=["Nome", "Descrizione"], larghezze=[180, 380], allineamenti=["w", "w"], larghezza=560, altezza=260, allinea="nsew")
+    _metti(f, "Etichetta", 2, 0, nc=3, nome="etichettaRisultati", testo="Scrivi qualcosa e premi Cerca.", larghezza=400, altezza=24)
+    ritorna f
+
+
+MODELLI_FORM = {"accesso": _accesso, "impostazioni": _impostazioni, "ricerca": _ricerca}
+
+# corpo dei gestori (al posto del «passa» generato)
+CORPI = {
+    "accedi": '''        utente = se_stesso.campoUtente.get().strip()
+        password = se_stesso.campoPassword.get()
+        se non utente o non password:
+            se_stesso.etichettaMessaggio.configure(text="Scrivi l'utente e la password.")
+            ritorna
+        # DA FARE: qui controlla le credenziali (un database, un file, un servizio...)
+        se_stesso.etichettaMessaggio.configure(text="")
+        se_stesso.etichettaMessaggio.configure(text=f"Benvenuto, {utente}!")
+''',
+    "annulla": '''        se_stesso.radice.destroy()
+''',
+    "annulla_clic": '''        se_stesso.radice.destroy()
+''',
+    "conferma_clic": '''        # DA FARE: salva dove vuoi i valori scelti
+        scelte = {
+            "avvio": se_stesso.var_casellaAvvio.get(),
+            "aggiornamenti": se_stesso.var_casellaAggiornamenti.get(),
+            "lingua": se_stesso.sceltaLingua.get(),
+            "tema": se_stesso.sceltaTema.get(),
+            "dimensione": se_stesso.cursoreDimensione.get(),
+        }
+        stampa("Impostazioni scelte:", scelte)
+        se_stesso.radice.destroy()
+''',
+    "cerca": '''        parola = se_stesso.campoRicerca.get().strip().lower()
+        # DATI D'ESEMPIO: sostituiscili con i tuoi (un file, un database...)
+        dati = [("Mela", "Frutto rosso o verde"), ("Pera", "Frutto dolce"), ("Arancia", "Agrume ricco di vitamina C"),
+                ("Banana", "Frutto giallo"), ("Limone", "Agrume aspro")]
+        tabella = se_stesso.elencoRisultati
+        tabella.delete(*tabella.get_children())
+        trovati = 0
+        per nome, descrizione in dati:
+            se parola in nome.lower() o parola in descrizione.lower():
+                tabella.insert("", "end", values=(nome, descrizione))
+                trovati += 1
+        se_stesso.etichettaRisultati.configure(text=f"{trovati} risultati")
+''',
+}
+
+
+# ---------------------------------------------------------------- scrittura
+definisci _con_corpi(logica, modello):
+    """Mette il codice d'esempio dentro i gestori del modello (al posto del «passa» generato)."""
+    se non os.path.isfile(logica):
+        ritorna
+    con open(logica, encoding="utf-8", newline="") come fp:
+        testo_ = fp.read()
+    fine = "\r\n" se "\r\n" in testo_ altrimenti "\n"
+    testo_ = testo_.replace("\r\n", "\n")
+    per gestore, corpo in CORPI.items():
+        schema = re.compile(r"(    definisci " + re.escape(gestore) + r"\(se_stesso, evento=Nessuno\):\n(?:        #[^\n]*\n)*)        passa\n")
+        testo_ = schema.sub(lambda m: m.group(1) + corpo, testo_, count=1)
+    con open(logica, "w", encoding="utf-8", newline="") come fp:
+        fp.write(testo_.replace("\n", fine))
+
+
+definisci _crea_database(cartella, nome):
+    """Il database SQLite della scheda anagrafica, con la tabella persone e due righe d'esempio. Ritorna il percorso."""
+    importa sqlite3
+    percorso = os.path.join(cartella, nome.lower() + ".db")
+    se os.path.exists(percorso):
+        ritorna percorso
+    conn = sqlite3.connect(percorso)
+    prova:
+        conn.execute("CREATE TABLE IF NOT EXISTS persone (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, cognome TEXT, email TEXT, telefono TEXT, note TEXT)")
+        conn.executemany("INSERT INTO persone (nome, cognome, email, telefono, note) VALUES (?, ?, ?, ?, ?)",
+                         [("Anna", "Rossi", "anna.rossi@example.com", "333 1234567", "Esempio"), ("Marco", "Bianchi", "marco.bianchi@example.com", "340 7654321", "")])
+        conn.commit()
+    infine:
+        conn.close()
+    ritorna percorso
+
+
+definisci crea(modello, nome, cartella):
+    """Crea la finestra `nome` nella cartella con il modello scelto. Ritorna {"form": percorso .form.json, "logica": percorso .pit, "scritti": [...]}.
+    Solleva FileExistsError se la finestra esiste già."""
+    p = form_modello.percorsi_form(cartella, nome)
+    se os.path.exists(p["json"]) o os.path.exists(p["logica"]):
+        solleva FileExistsError(f"Esiste già una finestra chiamata «{nome}».")
+    se modello == "anagrafica":
+        da rad importa maschera_dati
+        db = _crea_database(cartella, nome)
+        r = maschera_dati.crea_maschera(cartella, nome, "persone", ["nome", "cognome", "email", "telefono", "note"], "sqlite", db)
+        ritorna {"form": r["form"], "logica": r["logica"], "scritti": r["scritti"]}
+    costruttore = MODELLI_FORM.get(modello)
+    f = costruttore(nome) se costruttore altrimenti form_modello.Form(nome, nome)
+    scritti = form_modello.salva_form(f, cartella)
+    se modello in MODELLI_FORM:
+        _con_corpi(p["logica"], modello)
+    ritorna {"form": p["json"], "logica": p["logica"], "scritti": scritti}

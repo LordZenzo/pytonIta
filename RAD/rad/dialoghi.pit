@@ -148,6 +148,70 @@ classe DialogoNuovaFinestra(DialogoBase):
         se_stesso.destroy()
 
 
+classe DialogoModelloFinestra(DialogoBase):
+    """Nuova finestra: nome e modello di partenza (vuota, accesso, scheda anagrafica con database, impostazioni, ricerca). Risultato: (nome, id del modello)."""
+
+    PROPOSTE = {"vuota": "Finestra", "accesso": "Accesso", "anagrafica": "Anagrafica", "impostazioni": "Impostazioni", "ricerca": "Ricerca"}
+
+    definisci __inizializza__(se_stesso, genitore, colori, esistenti, modelli):
+        DialogoBase.__init__(se_stesso, genitore, "Nuova finestra", colori, 580, 400)
+        se_stesso.esistenti = {e.lower() per e in esistenti}
+        se_stesso.modelli = modelli
+        se_stesso.var_nome = tk.StringVar(value=se_stesso._proposta("vuota"))
+        se_stesso._proposta_corrente = se_stesso.var_nome.get()
+        se_stesso.grid_columnconfigure(1, weight=1)
+        e = se_stesso.riga("Nome:", se_stesso.campo(se_stesso.var_nome, 26), 0)
+        tk.Label(se_stesso, text="Modello di partenza:", anchor="w", background=colori["pannello"], foreground=colori["primo_piano"]).grid(
+            row=1, column=0, columnspan=2, sticky="we", padx=14, pady=(6, 2))
+        se_stesso.elenco = tk.Listbox(se_stesso, activestyle="none", exportselection=Falso, height=5, background=colori["campo"], foreground=colori["primo_piano"],
+                                      selectbackground=colori["accento"], selectforeground="#ffffff", relief="flat", highlightthickness=0, font=(FONT_UI, 10))
+        per _, titolo_, _d in modelli:
+            se_stesso.elenco.insert("end", " " + titolo_)
+        se_stesso.elenco.selection_set(0)
+        se_stesso.elenco.grid(row=2, column=0, columnspan=2, sticky="we", padx=14)
+        se_stesso.descrizione = tk.Label(se_stesso, anchor="nw", justify="left", wraplength=540, background=colori["pannello"], foreground=colori["tenue"], height=4)
+        se_stesso.descrizione.grid(row=3, column=0, columnspan=2, sticky="we", padx=14, pady=6)
+        se_stesso.elenco.bind("<<ListboxSelect>>", se_stesso._scelto)
+        se_stesso.elenco.bind("<Double-Button-1>", lambda ev: se_stesso._conferma())
+        se_stesso._scelto()
+        se_stesso.pulsanti(4, "Crea", se_stesso._conferma)
+        e.focus_set()
+        e.select_range(0, "end")
+        se_stesso.bind("<Return>", lambda ev: se_stesso._conferma())
+
+    definisci _proposta(se_stesso, modello):
+        base = se_stesso.PROPOSTE.get(modello, "Finestra")
+        n = 1
+        proposta = base se modello != "vuota" altrimenti base + testo(lunghezza(se_stesso.esistenti) + 1)
+        mentre proposta.lower() in se_stesso.esistenti:
+            n += 1
+            proposta = f"{base}{n}"
+        ritorna proposta
+
+    definisci _modello_scelto(se_stesso):
+        sel = se_stesso.elenco.curselection()
+        ritorna se_stesso.modelli[sel[0]] se sel altrimenti se_stesso.modelli[0]
+
+    definisci _scelto(se_stesso, ev=Nessuno):
+        id_, titolo_, descrizione = se_stesso._modello_scelto()
+        se_stesso.descrizione.configure(text=descrizione)
+        # se il nome è ancora quello proposto, ne propone uno adatto al modello
+        se se_stesso.var_nome.get() == se_stesso._proposta_corrente:
+            se_stesso._proposta_corrente = se_stesso._proposta(id_)
+            se_stesso.var_nome.set(se_stesso._proposta_corrente)
+
+    definisci _conferma(se_stesso):
+        nome = se_stesso.var_nome.get().strip()
+        se non nome_valido(nome):
+            messagebox.showwarning("Nome non valido", "Usa lettere, cifre e _ (senza iniziare con una cifra, e senza parole riservate).", parent=se_stesso)
+            ritorna
+        se nome.lower() in se_stesso.esistenti:
+            messagebox.showwarning("Nome già usato", "Esiste già un elemento con questo nome.", parent=se_stesso)
+            ritorna
+        se_stesso.risultato = (nome, se_stesso._modello_scelto()[0])
+        se_stesso.destroy()
+
+
 classe DialogoCerca(DialogoBase):
     """Ricerca di testo in tutti i file del progetto; doppio clic su un risultato per aprirlo."""
 

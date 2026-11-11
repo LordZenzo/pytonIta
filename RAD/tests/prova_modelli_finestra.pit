@@ -1,0 +1,128 @@
+"""I modelli di finestra di «Nuova finestra»: si creano, si caricano, si avviano davvero e i gestori d'esempio funzionano."""
+importa sys, os, tempfile, importlib, sqlite3
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa form_modello come fm
+da rad importa modelli_finestra come mf
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci avvia(nome, cartella, larghezza=Nessuno):
+    importa interfaccia come itk
+    se cartella non in sys.path:
+        sys.path.insert(0, cartella)
+    modulo = importlib.import_module(nome.lower())
+    radice = itk.Finestra()
+    finestra = getattr(modulo, fm._nome_classe(nome))(radice)
+    radice.update()
+    ritorna radice, finestra
+
+
+verifica([m[0] per m in mf.MODELLI] == ["vuota", "accesso", "anagrafica", "impostazioni", "ricerca"], "elenco dei modelli")
+
+# ---- vuota
+d = tempfile.mkdtemp()
+r = mf.crea("vuota", "Libera", d)
+f = fm.carica_form(r["form"])
+verifica(lunghezza(f.componenti) == 0 e f.layout == "libero", "vuota: nessun componente, layout libero")
+try_ = Falso
+prova:
+    mf.crea("vuota", "Libera", d)
+eccetto FileExistsError:
+    try_ = Vero
+verifica(try_, "una finestra già esistente non si sovrascrive")
+
+# ---- accesso
+d = tempfile.mkdtemp()
+r = mf.crea("accesso", "Accesso1", d)
+f = fm.carica_form(r["form"])
+verifica(f.layout == "griglia" e f.trova("campoUtente") è non Nessuno e f.trova("campoPassword").valori["nascondi"] == Vero, "accesso: componenti e griglia")
+verifica(f.problemi() == [], "accesso: nessun avviso: " + str(f.problemi()))
+radice, w = avvia("Accesso1", d)
+larg0 = w.campoUtente.winfo_width()
+verifica(larg0 > 100, "il campo Utente ha una larghezza ragionevole: " + str(larg0))
+radice.geometry("640x300")
+radice.update()
+verifica(w.campoUtente.winfo_width() > larg0 + 150, "ridimensionando la finestra il campo si allarga: " + str((larg0, w.campoUtente.winfo_width())))
+w.accedi()
+verifica("password" in w.etichettaMessaggio.cget("text").lower(), "accedi con i campi vuoti avvisa: " + w.etichettaMessaggio.cget("text"))
+w.campoUtente.insert(0, "anna")
+w.campoPassword.insert(0, "x")
+w.accedi()
+verifica("anna" in w.etichettaMessaggio.cget("text"), "accedi con i campi pieni saluta: " + w.etichettaMessaggio.cget("text"))
+w.annulla()
+verifica(non radice.winfo_exists(), "annulla chiude la finestra") se Falso altrimenti Nessuno
+prova:
+    verifica(Falso, "annulla non ha chiuso") se radice.winfo_exists() altrimenti Nessuno
+eccetto Exception:
+    passa
+
+# ---- impostazioni
+d = tempfile.mkdtemp()
+r = mf.crea("impostazioni", "Impost1", d)
+f = fm.carica_form(r["form"])
+verifica(f.trova("schede") è non Nessuno e f.trova("casellaAvvio").genitore == "schede#0" e f.trova("sceltaTema").genitore == "schede#1", "impostazioni: i componenti stanno nelle pagine")
+verifica(f.trova("barraPulsanti").valori["layout"] == "griglia" e f.trova("pulsanteOk").genitore == "barraPulsanti", "impostazioni: barra dei pulsanti a griglia")
+verifica(f.problemi() == [], "impostazioni: nessun avviso: " + str(f.problemi()))
+radice, w = avvia("Impost1", d)
+verifica(w.sceltaLingua.get() == "Italiano" e w.var_casellaAggiornamenti.get() == Vero, "valori iniziali")
+verifica(w.pulsanteOk.winfo_rootx() > w.pulsanteAnnulla.winfo_rootx(), "OK a destra di Annulla")
+verifica(w.pulsanteOk.winfo_rootx() + w.pulsanteOk.winfo_width() > radice.winfo_rootx() + radice.winfo_width() - 40, "i pulsanti stanno a destra")
+w.conferma_clic()
+
+# ---- ricerca
+d = tempfile.mkdtemp()
+r = mf.crea("ricerca", "Ricerca1", d)
+f = fm.carica_form(r["form"])
+verifica(f.problemi() == [], "ricerca: nessun avviso: " + str(f.problemi()))
+radice, w = avvia("Ricerca1", d)
+w.campoRicerca.insert(0, "agrume")
+w.cerca()
+verifica(lunghezza(w.elencoRisultati.get_children()) == 2 e w.etichettaRisultati.cget("text") == "2 risultati", "cerca «agrume»: " + w.etichettaRisultati.cget("text"))
+w.campoRicerca.delete(0, "end")
+w.cerca()
+verifica(lunghezza(w.elencoRisultati.get_children()) == 5, "senza testo mostra tutto")
+radice.destroy()
+
+# ---- anagrafica con database
+d = tempfile.mkdtemp()
+r = mf.crea("anagrafica", "Anagrafica1", d)
+verifica(os.path.isfile(os.path.join(d, "anagrafica1.db")), "creato il database")
+conn = sqlite3.connect(os.path.join(d, "anagrafica1.db"))
+verifica(conn.execute("SELECT count(*) FROM persone").fetchone()[0] == 2, "due righe d'esempio")
+conn.close()
+f = fm.carica_form(r["form"])
+verifica(f.trova("fonte") è non Nessuno e f.trova("fonte").valori["tabella"] == "persone", "la maschera è legata alla tabella persone")
+radice, w = avvia("Anagrafica1", d)
+radice.destroy()
+
+# ---- la finestra di scelta
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.dialoghi importa DialogoModelloFinestra
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_mf.json"))
+radice = tk.Tk()
+dlg = DialogoModelloFinestra(radice, colori(cfg), ["Principale", "Ricerca"], mf.MODELLI)
+radice.update()
+verifica(dlg.var_nome.get() == "Finestra3", "nome proposto per la finestra vuota: " + dlg.var_nome.get())
+dlg.elenco.selection_clear(0, "end")
+dlg.elenco.selection_set(4)
+dlg._scelto()
+verifica(dlg.var_nome.get() == "Ricerca2", "il nome proposto segue il modello e non ripete uno già usato: " + dlg.var_nome.get())
+verifica("filtra" in dlg.descrizione.cget("text"), "la descrizione del modello è mostrata")
+dlg.var_nome.set("MiaRicerca")
+dlg.elenco.selection_clear(0, "end")
+dlg.elenco.selection_set(1)
+dlg._scelto()
+verifica(dlg.var_nome.get() == "MiaRicerca", "un nome scritto a mano non viene cambiato")
+dlg._conferma()
+verifica(dlg.risultato == ("MiaRicerca", "accesso"), "risultato: " + str(dlg.risultato))
+radice.destroy()
+stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")
