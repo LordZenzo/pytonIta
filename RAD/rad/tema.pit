@@ -1,4 +1,5 @@
 """Temi grafici di PitStudio e applicazione ai widget."""
+importa math
 importa tkinter
 da tkinter importa ttk
 da rad.piattaforma importa FONT_UI
@@ -41,8 +42,109 @@ definisci colori(config):
     ritorna base
 
 
+_COLORI_SCELTE = []          # bordo, riempimento e segno delle caselle, secondo il tema corrente
+
+
+# ---------------------------------------------------------------- caselle di spunta e pulsanti di scelta leggibili in ogni tema
+# Windows disegna la spunta sempre in nero: su un fondo scuro non si vede. Per questo la casella è disegnata da noi (sfondo del campo, bordo, segno nel colore del testo).
+definisci _segmento(px, py, ax, ay, bx, by):
+    dx, dy = bx - ax, by - ay
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+    ritorna math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+definisci _immagine_scelta(radice, tipo_, acceso, bordo, riempimento, segno):
+    cache = radice.__dict__.setdefault("_cache_scelte", {})
+    chiave = (tipo_, acceso, bordo, riempimento, segno)
+    se chiave in cache:
+        ritorna cache[chiave]
+    n = 16
+    img = tkinter.PhotoImage(master=radice, width=n, height=n)
+    vuoti = []
+    per y in intervallo(n):
+        riga = []
+        per x in intervallo(n):
+            se tipo_ == "check":
+                se x < 1 o x > 14 o y < 1 o y > 14:
+                    colore = riempimento
+                    vuoti.append((x, y))
+                altrimenti_se x in (1, 14) o y in (1, 14):
+                    colore = bordo
+                altrimenti_se acceso e min(_segmento(x, y, 4, 8, 7, 11), _segmento(x, y, 7, 11, 12, 4)) <= 1.1:
+                    colore = segno
+                altrimenti:
+                    colore = riempimento
+            altrimenti:
+                d = math.hypot(x - 7.5, y - 7.5)
+                se d > 7:
+                    colore = riempimento
+                    vuoti.append((x, y))
+                altrimenti_se d > 6:
+                    colore = bordo
+                altrimenti_se acceso e d <= 3:
+                    colore = segno
+                altrimenti:
+                    colore = riempimento
+            riga.append(colore)
+        img.put("{" + " ".join(riga) + "}", to=(0, y))
+    per x, y in vuoti:
+        img.transparency_set(x, y, Vero)
+    cache[chiave] = img
+    ritorna img
+
+
+definisci stila_scelta(w, bordo, riempimento, segno):
+    """Casella di spunta o pulsante di scelta con la spunta (il pallino) sempre visibile: sfondo del campo, segno nel colore del testo."""
+    prova:
+        se int(str(w.cget("indicatoron"))) == 0 e non getattr(w, "_scelta_tema", Falso):
+            ritorna          # già a pulsante: ha un suo aspetto
+        tipo_ = "check" se w.winfo_class() == "Checkbutton" altrimenti "radio"
+        r = w._root()
+        spento = _immagine_scelta(r, tipo_, Falso, bordo, riempimento, segno)
+        acceso = _immagine_scelta(r, tipo_, Vero, bordo, riempimento, segno)
+        fondo = w.cget("background")
+        w._scelta_img = (spento, acceso)
+        w._scelta_tema = Vero
+        w.configure(indicatoron=Falso, image=spento, selectimage=acceso, compound="left", borderwidth=0, relief="flat", overrelief="flat",
+                    offrelief="flat", selectcolor=fondo, activebackground=fondo, highlightthickness=0)
+    eccetto tkinter.TclError:
+        passa
+
+
+definisci _in_anteprima(w):
+    m = w
+    mentre m è non Nessuno:
+        se getattr(m, "_anteprima", Falso):
+            ritorna Vero
+        m = getattr(m, "master", Nessuno)
+    ritorna Falso
+
+
+definisci installa_scelte(colori_correnti):
+    """Fa sì che ogni Checkbutton e Radiobutton creato dopo abbia la casella leggibile (colori_correnti() = bordo, riempimento, segno)."""
+    se getattr(tkinter, "_scelte_installate", Falso):
+        ritorna
+
+    definisci avvolgi(classe):
+        originale = classe.__init__
+
+        definisci nuovo(se_stesso, *a, **k):
+            originale(se_stesso, *a, **k)
+            se non _in_anteprima(se_stesso):
+                colori_ = colori_correnti()
+                se colori_:
+                    stila_scelta(se_stesso, *colori_)
+        classe.__init__ = nuovo
+    avvolgi(tkinter.Checkbutton)
+    avvolgi(tkinter.Radiobutton)
+    tkinter._scelte_installate = Vero
+
+
 definisci configura_stile(radice, c, carattere_ui=(FONT_UI, 10)):
     """Imposta gli stili ttk in base ai colori c."""
+    _COLORI_SCELTE.clear()
+    _COLORI_SCELTE.extend([c["tenue"], c["campo"], c["primo_piano"]])
+    installa_scelte(lambda: tuple(_COLORI_SCELTE))
     s = ttk.Style(radice)
     prova:
         s.theme_use("clam")
@@ -128,6 +230,9 @@ definisci applica(widget, c):
             widget.configure(background=c["pannello"], foreground=c["primo_piano"],
                              activebackground=c["accento"], activeforeground="#ffffff",
                              relief="flat", borderwidth=0)
+        altrimenti_se cl in ("Checkbutton", "Radiobutton"):
+            se getattr(widget, "_scelta_tema", Falso):
+                stila_scelta(widget, *_COLORI_SCELTE)
         altrimenti_se cl == "Panedwindow":
             widget.configure(background=c["sfondo"], sashwidth=5, borderwidth=0)
     eccetto tkinter.TclError:

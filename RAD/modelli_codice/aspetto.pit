@@ -8,6 +8,7 @@
 I colori scritti a mano su un componente (sfondo=..., primo_piano=...) hanno la precedenza sull'aspetto.
 Questo file è stato creato da PitStudio (proprietà «Aspetto» della finestra) e si può usare anche con finestre scritte a mano.
 """
+importa math
 importa tkinter come tk
 da tkinter importa ttk
 
@@ -49,11 +50,107 @@ definisci _scuro(colore, fattore=0.85):
     ritorna "#%02x%02x%02x" % tuple(int(int(colore[i:i + 2], 16) * fattore) per i in (0, 2, 4))
 
 
+# ---------------------------------------------------------------- caselle di spunta e pulsanti di scelta leggibili in ogni tema
+# Windows disegna la spunta sempre in nero: su un fondo scuro non si vede. Per questo la casella è disegnata da noi (sfondo del campo, bordo, segno nel colore del testo).
+definisci _segmento(px, py, ax, ay, bx, by):
+    dx, dy = bx - ax, by - ay
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+    ritorna math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+definisci _immagine_scelta(radice, tipo_, acceso, bordo, riempimento, segno):
+    cache = radice.__dict__.setdefault("_cache_scelte", {})
+    chiave = (tipo_, acceso, bordo, riempimento, segno)
+    se chiave in cache:
+        ritorna cache[chiave]
+    n = 16
+    img = tk.PhotoImage(master=radice, width=n, height=n)
+    vuoti = []
+    per y in intervallo(n):
+        riga = []
+        per x in intervallo(n):
+            se tipo_ == "check":
+                se x < 1 o x > 14 o y < 1 o y > 14:
+                    colore = riempimento
+                    vuoti.append((x, y))
+                altrimenti_se x in (1, 14) o y in (1, 14):
+                    colore = bordo
+                altrimenti_se acceso e min(_segmento(x, y, 4, 8, 7, 11), _segmento(x, y, 7, 11, 12, 4)) <= 1.1:
+                    colore = segno
+                altrimenti:
+                    colore = riempimento
+            altrimenti:
+                d = math.hypot(x - 7.5, y - 7.5)
+                se d > 7:
+                    colore = riempimento
+                    vuoti.append((x, y))
+                altrimenti_se d > 6:
+                    colore = bordo
+                altrimenti_se acceso e d <= 3:
+                    colore = segno
+                altrimenti:
+                    colore = riempimento
+            riga.append(colore)
+        img.put("{" + " ".join(riga) + "}", to=(0, y))
+    per x, y in vuoti:
+        img.transparency_set(x, y, Vero)
+    cache[chiave] = img
+    ritorna img
+
+
+definisci stila_scelta(w, bordo, riempimento, segno):
+    """Casella di spunta o pulsante di scelta con la spunta (il pallino) sempre visibile: sfondo del campo, segno nel colore del testo."""
+    prova:
+        se int(str(w.cget("indicatoron"))) == 0 e non getattr(w, "_scelta_tema", Falso):
+            ritorna          # già a pulsante: ha un suo aspetto
+        tipo_ = "check" se w.winfo_class() == "Checkbutton" altrimenti "radio"
+        r = w._root()
+        spento = _immagine_scelta(r, tipo_, Falso, bordo, riempimento, segno)
+        acceso = _immagine_scelta(r, tipo_, Vero, bordo, riempimento, segno)
+        fondo = w.cget("background")
+        w._scelta_img = (spento, acceso)
+        w._scelta_tema = Vero
+        w.configure(indicatoron=Falso, image=spento, selectimage=acceso, compound="left", borderwidth=0, relief="flat", overrelief="flat",
+                    offrelief="flat", selectcolor=fondo, activebackground=fondo, highlightthickness=0)
+    eccetto tk.TclError:
+        passa
+
+
+definisci _in_anteprima(w):
+    m = w
+    mentre m è non Nessuno:
+        se getattr(m, "_anteprima", Falso):
+            ritorna Vero
+        m = getattr(m, "master", Nessuno)
+    ritorna Falso
+
+
+definisci installa_scelte(colori_correnti):
+    """Fa sì che ogni Checkbutton e Radiobutton creato dopo abbia la casella leggibile (colori_correnti() = bordo, riempimento, segno)."""
+    se getattr(tk, "_scelte_installate", Falso):
+        ritorna
+
+    definisci avvolgi(classe):
+        originale = classe.__init__
+
+        definisci nuovo(se_stesso, *a, **k):
+            originale(se_stesso, *a, **k)
+            se non _in_anteprima(se_stesso):
+                colori_ = colori_correnti()
+                se colori_:
+                    stila_scelta(se_stesso, *colori_)
+        classe.__init__ = nuovo
+    avvolgi(tk.Checkbutton)
+    avvolgi(tk.Radiobutton)
+    tk._scelte_installate = Vero
+
+
 definisci applica_aspetto(radice, nome="chiaro", font_base=Nessuno):
     """Imposta l'aspetto di tutta la finestra: va chiamata PRIMA di creare i componenti (che lo ereditano), così i colori scelti a mano restano."""
     c = colori_del_tema(nome)
     _corrente.clear()
     _corrente.update(c)
+    installa_scelte(lambda: (_corrente["tenue"], _corrente["scheda"], _corrente["testo"]) se _corrente altrimenti Nessuno)
     font_base = font_base o CARATTERE
     radice.configure(background=c["sfondo"])
     o = radice.option_add
@@ -140,5 +237,8 @@ definisci rivesti(widget, nome="chiaro", font_base=Nessuno):
             widget.configure(**valide)
         eccetto tk.TclError:
             passa
+    se classe in ("Checkbutton", "Radiobutton"):
+        widget._scelta_tema = Vero          # l'anteprima segue il tema scelto, anche se la casella era già a pulsante
+        stila_scelta(widget, c["tenue"], c["scheda"], c["testo"])
     per figlio in widget.winfo_children():
         rivesti(figlio, nome, font_base)

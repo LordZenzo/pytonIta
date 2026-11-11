@@ -637,7 +637,7 @@ classe PannelloLibrerie(tk.Frame):
             w.configure(background=c["pannello"])
         per w in (se_stesso.titolo, se_stesso.contatore, se_stesso.descrizione):
             w.configure(background=c["pannello"], foreground=c["tenue"] se w è non se_stesso.titolo altrimenti c["primo_piano"])
-        se_stesso.solo.configure(background=c["pannello"], foreground=c["tenue"], activebackground=c["pannello"], selectcolor=c["casella"],
+        se_stesso.solo.configure(background=c["pannello"], foreground=c["tenue"], activebackground=c["pannello"],
                                  activeforeground=c["primo_piano"])
         se_stesso.barra_online.configure(background=c["pannello"])
         per b in se_stesso.pulsanti_online:

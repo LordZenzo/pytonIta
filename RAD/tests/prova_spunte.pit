@@ -17,4 +17,41 @@ per nome, tema in TEMI.items():
     se l < 0.7:
         errori.append(nome)
         stampa("ERRORE: nel tema", nome, "il colore «casella» è troppo scuro (", tema["casella"], "): la spunta nera non si vedrebbe")
+
+# ---- caselle disegnate: in ogni tema la spunta ha un colore ben diverso dal riquadro (non dipende dal nero di Windows)
+importa tkinter come tk
+da rad.tema importa configura_stile, colori, applica
+da rad.config importa Configurazione
+
+
+definisci contrasto(a, b):
+    ritorna abs(luminanza(a) - luminanza(b))
+
+
+definisci come_esa(img, x, y):
+    v = img.get(x, y)
+    ritorna "#%02x%02x%02x" % tuple(v)
+
+
+cfg = Configurazione(os.path.join(os.environ["TEMP"], "rad_prova_spunte.json"))
+radice = tk.Tk()
+per nome_tema in TEMI:
+    cfg.imposta("tema", nome_tema)
+    c = colori(cfg)
+    configura_stile(radice, c)
+    cb = tk.Checkbutton(radice, text="prova", background=c["pannello"], foreground=c["primo_piano"])
+    rb = tk.Radiobutton(radice, text="prova", background=c["pannello"], foreground=c["primo_piano"], value=1)
+    per w, punto in ((cb, (6, 9)), (rb, (8, 8))):
+        verifica_ = int(str(w.cget("indicatoron"))) == 0 e str(w.cget("selectcolor")) == str(w.cget("background"))
+        se non verifica_:
+            errori.append(nome_tema)
+            stampa("ERRORE: tema", nome_tema, w.winfo_class(), "non ha la casella disegnata")
+            continua
+        spento = "#%02x%02x%02x" % tuple(w._scelta_img[0].get(*punto))
+        acceso = "#%02x%02x%02x" % tuple(w._scelta_img[1].get(*punto))
+        # la spunta (acceso) deve risaltare sul riquadro (spento) con un forte contrasto
+        se contrasto(acceso, spento) < 0.5:
+            errori.append(nome_tema)
+            stampa("ERRORE: tema", nome_tema, w.winfo_class(), "spunta poco visibile:", acceso, "su", spento)
+radice.destroy()
 stampa("PROVE FALLITE:" se errori altrimenti "tutte le prove superate", errori se errori altrimenti "")
