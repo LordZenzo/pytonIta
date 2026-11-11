@@ -46,7 +46,7 @@ cfg_radice = tk.Tk()
 cfg_radice.withdraw()
 
 
-definisci apri(id_, modulo, classe):
+definisci apri(id_, modulo, nome_classe):
     sys.path.insert(0, copie[id_])
     prova:
         m = importlib.import_module(modulo)
@@ -54,7 +54,7 @@ definisci apri(id_, modulo, classe):
         sys.path.remove(copie[id_])
     finestra = tk.Toplevel(cfg_radice)
     finestra.geometry("+30+30")
-    ritorna getattr(m, classe)(finestra), finestra
+    ritorna getattr(m, nome_classe)(finestra), finestra
 
 
 a, w = apri("calcolatrice", "calcolatrice", "Calcolatrice")

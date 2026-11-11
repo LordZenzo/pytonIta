@@ -1,0 +1,104 @@
+"""Controllo statico dell'interprete: parole chiave usate come nomi e funzioni predefinite nascoste bloccano l'esecuzione; i casi leciti no."""
+importa sys, os, tempfile, subprocess
+
+errori = []
+cartella = tempfile.mkdtemp()
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci esegui(nome, righe, ambiente=Nessuno, opzioni=()):
+    percorso = os.path.join(cartella, nome)
+    con open(percorso, "w", encoding="utf-8", newline="") come f:
+        f.write("\n".join(righe) + "\n")
+    env = dict(os.environ)
+    env.pop("PITONIT_SENZA_CONTROLLO", Nessuno)
+    se ambiente:
+        env.update(ambiente)
+    ritorna subprocess.run([sys.executable, *opzioni, percorso], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella, env=env)
+
+
+# ---------------------------------------------------------------- errori gravi: il programma non parte
+r = esegui("nascosta.pit", ['testo = "ciao"', "stampa('non deve comparire')", "stampa(testo(5))"])
+verifica(r.returncode != 0 e "richiama la variabile «testo»" in r.stderr e "non deve comparire" non in r.stdout, "una variabile che nasconde testo() e viene richiamata blocca l'esecuzione")
+verifica("riga 3" in r.stderr, "l'errore indica la riga")
+
+r = esegui("nascosta_locale.pit", ["definisci f(x):", "    lista = [1]", "    ritorna lista(x)", "stampa(f(3))"])
+verifica(r.returncode != 0 e "«lista»" in r.stderr, "anche la variabile locale che nasconde lista()")
+
+r = esegui("inglese.pit", ["se Vero:", "    pass"])
+verifica(r.returncode != 0 e "«passa»" in r.stderr, "«pass» invece di «passa» blocca e suggerisce la parola giusta")
+
+r = esegui("inglese2.pit", ["x = None", "stampa(x)"])
+verifica(r.returncode != 0 e "Nessuno" in r.stderr, "«None» invece di «Nessuno» (errore di sintassi già esistente)")
+
+r = esegui("riservata.pit", ['classe = "3A"', "stampa(classe)"])
+verifica(r.returncode != 0 e "«classe» è una parola chiave" in r.stderr, "una parola chiave italiana usata come nome di variabile")
+
+r = esegui("riservata_param.pit", ["definisci f(da, a):", "    ritorna a - da", "stampa(f(1, 5))"])
+verifica(r.returncode != 0 e "«da»" in r.stderr, "una parola chiave come nome di parametro")
+
+r = esegui("piu_errori.pit", ["classe = 1", "con = 2", "pass"])
+verifica(r.stderr.count("ErroreGrave") == 3 e "3 errori gravi" in r.stderr, "li elenca tutti")
+
+# ---------------------------------------------------------------- casi leciti: il programma parte
+r = esegui("lambda.pit", ["inverso = lambda t, v: ([k per k, w in t.items() se w == v] o [v])[0]", "stampa(inverso({'a': 1}, 1))"])
+verifica(r.returncode == 0 e r.stdout.split() == ["a"], "una variabile con una lambda può avere il nome di una funzione predefinita")
+
+r = esegui("metodi.pit", ["classe Doc:", "    definisci elimina(se_stesso):", "        ritorna 'ok'", "    definisci prova(se_stesso):", "        ritorna 'p'", "stampa(Doc().elimina(), Doc().prova())"])
+verifica(r.returncode == 0 e r.stdout.split() == ["ok", "p"], "un metodo può avere il nome di una parola chiave (è un attributo)")
+
+r = esegui("evento.pit", ["definisci g(e):", "    ritorna e + 1", "o = g(1)", "stampa(o)"])
+verifica(r.returncode == 0 e r.stdout.split() == ["2"], "«e» e «o» come nomi (evento, oggetto) restano ammessi")
+
+r = esegui("non_chiamata.pit", ['testo = "ciao"', "stampa(testo.upper())"])
+verifica(r.returncode == 0 e r.stdout.split() == ["CIAO"], "una variabile chiamata testo mai richiamata come funzione non blocca")
+
+r = esegui("attributo.pit", ["classe P:", "    pass", "x = P()", "x.classe = 3", "stampa(x.classe)"], opzioni=())
+verifica(r.returncode != 0, "pass resta bloccato anche dentro una classe")
+
+r = esegui("attributo2.pit", ["classe P:", "    passa", "x = P()", "x.classe = 3", "stampa(x.classe)"])
+verifica(r.returncode == 0 e r.stdout.split() == ["3"], "un attributo può chiamarsi come una parola chiave")
+
+r = esegui("ignora.pit", ['testo = "a"', "stampa(testo(1))   # controlla: ok"])
+verifica("ErroreGrave" non in r.stderr e "ErroreDiTipo" in r.stderr, "«# controlla: ok» salta il controllo di quella riga")
+
+r = esegui("ignora_file.pit", ["# controlla: ignora-file", "classe = 5", "stampa(classe)"])
+verifica(r.returncode == 0 e r.stdout.split() == ["5"], "«# controlla: ignora-file» nelle prime righe")
+
+r = esegui("bypass.pit", ["classe = 7", "stampa(classe)"], ambiente={"PITONIT_SENZA_CONTROLLO": "1"})
+verifica(r.returncode == 0 e r.stdout.split() == ["7"], "PITONIT_SENZA_CONTROLLO=1 salta il controllo")
+
+# ---------------------------------------------------------------- i moduli importati
+con open(os.path.join(cartella, "modulo_cattivo.pit"), "w", encoding="utf-8") come f:
+    f.write('testo = "x"\ndefinisci f():\n    ritorna testo(1)\n')
+r = esegui("importa_cattivo.pit", ["importa modulo_cattivo", "stampa('arrivato')"])
+verifica(r.returncode != 0 e "testo" in r.stderr e "arrivato" non in r.stdout, "un modulo .pit importato con un errore grave non si importa")
+
+# ---------------------------------------------------------------- il comando di controllo con gli avvisi
+p = os.path.join(cartella, "avvisi.pit")
+con open(p, "w", encoding="utf-8") come f:
+    f.write('print(zzz)\ntesto = "a"\n')
+r = subprocess.run([sys.executable, "-m", "_controlla", p], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella)
+verifica("«print» è inglese" in r.stdout e "«zzz» non è definito" in r.stdout e "nasconde la funzione predefinita testo()" in r.stdout, "pitonit -m _controlla elenca anche gli avvisi")
+
+# ---------------------------------------------------------------- tutto il codice di PitStudio passa il controllo
+radice = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+file_pit = []
+per base, _, nomi in os.walk(radice):
+    se ".git" in base:
+        continua
+    per n in nomi:
+        se n.endswith(".pit"):
+            file_pit.append(os.path.join(base, n))
+r = subprocess.run([sys.executable, "-m", "_controlla", *file_pit], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella)
+verifica(r.returncode == 0, "i file .pit di PitStudio non hanno errori gravi: " + "\n".join(x per x in r.stdout.splitlines() se "ErroreGrave" in x)[:600])
+
+se errori:
+    stampa("PROVE FALLITE:", len(errori))
+    sys.exit(1)
+stampa("prova_controllo: ok")

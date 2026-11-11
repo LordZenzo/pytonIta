@@ -16,6 +16,13 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 1.51 (controllo prima dell'esecuzione)
+
+- L'interprete controlla ogni programma `.pit` (e ogni modulo `.pit` importato) **prima di eseguirlo** e lo blocca se trova un errore grave: una parola chiave usata come nome (`pass`, `classe = ...`, `definisci f(da, a)`) oppure una funzione predefinita nascosta da una variabile e poi richiamata (`testo = "a"` ... `testo(5)`).
+- `pitonit -m _controlla programma.pit` mostra anche gli avvisi (nomi inglesi come `print`, nomi non definiti). `# controlla: ok` salta una riga, `# controlla: ignora-file` un file, `PITONIT_SENZA_CONTROLLO=1` il controllo.
+- I messaggi d'errore spiegano le parole inglesi (`pass` → `passa`) e «Forse intendevi» è in italiano.
+- `pitonit	oolserifica_tutto.py` esegue tutte le verifiche prima di una release.
+
 ## Novità della 1.50
 
 - **Stampa e PDF**: il componente **Stampa** produce un PDF (A4, verticale o orizzontale) con il contenuto di un Albero, un Elenco, un'AreaTesto, un'Etichetta, un Grafico, una Tela (il disegno) o un'Immagine, con titolo, intestazione, data e «Pagina X di Y»; si può guardare (`anteprima()`), salvare (`salva_pdf()`) e stampare (`stampa()`). Le tabelle lunghe vanno su più pagine con l'intestazione ripetuta. Il PDF è scritto da PitStudio, senza librerie esterne (file `stampante.pit` nel progetto, con la classe `Documento` per i documenti fatti a mano); funziona anche nell'esportazione in Python e nell'eseguibile.

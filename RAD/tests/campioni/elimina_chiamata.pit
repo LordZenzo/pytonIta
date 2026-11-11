@@ -1,3 +1,4 @@
+# controlla: ignora-file  (prova il lessico: usa apposta le parole riservate come nomi)
 definisci elimina(x):
     stampa("chiamata elimina", x)
 

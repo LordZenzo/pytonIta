@@ -29,17 +29,17 @@ p.pack(fill="both", expand=Vero)
 applica(radice, c)
 radice.update()
 
-definisci attendi(ms):
+definisci aspetta_che(ms):
     radice.after(ms, radice.quit)
     radice.mainloop()
 
 p.aggiungi_componente("Pulsante", 10, 10)
-attendi(1200)
+aspetta_che(1200)
 stampa("non in prova -> riavvii:", az.riavvii)
 az.in_prova = Vero
 p.imposta_proprieta("pulsante1", "testo", "A")
 p.imposta_proprieta("pulsante1", "testo", "B")
 p.sposta_selezione(5, 0)
-attendi(1500)
+aspetta_che(1500)
 stampa("in prova, tre modifiche ravvicinate -> riavvii:", az.riavvii, "| file salvato:", os.path.exists(os.path.join(d, "demo.form.json")))
 radice.destroy()

@@ -662,11 +662,11 @@ definisci nome_variabile_valido(nome):
 classe Funzione:
     """Una funzione costruita a mattonelle: la sua area ha come cappello 'definisci_funzione'."""
 
-    definisci __inizializza__(se_stesso, nome="funzione", parametri="", classe="", decoratori=""):
+    definisci __inizializza__(se_stesso, nome="funzione", parametri="", nome_classe="", decoratori=""):
         se_stesso.area = Area("definisci_funzione")
         se_stesso.area.cappello.campi["nome"] = nome
         se_stesso.area.cappello.campi["parametri"] = parametri
-        se_stesso.classe = classe            # se non è vuota, questa funzione è un metodo di quella classe
+        se_stesso.classe = nome_classe            # se non è vuota, questa funzione è un metodo di quella classe
         se_stesso.decoratori = decoratori    # righe come "@property", una per riga (solo metodi)
 
     @property
@@ -709,7 +709,7 @@ classe Funzione:
 
 
 classe Classe:
-    """Una classe: nome, classe di base e righe a livello di classe (attributi, costanti). I metodi sono Funzione con classe=nome."""
+    """Una classe: nome, classe di base e righe a livello di classe (attributi, costanti). I metodi sono Funzione con nome_classe=nome."""
 
     definisci __inizializza__(se_stesso, nome, base="", attributi=""):
         se_stesso.nome = nome
@@ -867,7 +867,7 @@ classe Programma:
         dati = d.get("funzioni", [])
         # prima si registrano nome e parametri di ogni funzione, cosi' le chiamate trovano la definizione
         per ad in dati:
-            f = Funzione(classe=ad.get("classe", ""), decoratori=ad.get("decoratori", ""))
+            f = Funzione(nome_classe=ad.get("classe", ""), decoratori=ad.get("decoratori", ""))
             per r in ad.get("radici", []):
                 per m in r.get("pila", []):
                     se m.get("t") == "definisci_funzione":

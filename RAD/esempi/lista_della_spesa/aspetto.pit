@@ -57,9 +57,9 @@ definisci applica_aspetto(radice, nome="chiaro", font_base=Nessuno):
     font_base = font_base o CARATTERE
     radice.configure(background=c["sfondo"])
     o = radice.option_add
-    per classe, opzioni in _opzioni_tk(c, font_base).items():
+    per classe_tk, opzioni in _opzioni_tk(c, font_base).items():
         per chiave, valore in opzioni.items():
-            o(f"*{classe}.{NOMI_OPZIONI.get(chiave, chiave)}", valore, 60)
+            o(f"*{classe_tk}.{NOMI_OPZIONI.get(chiave, chiave)}", valore, 60)
     _stili_ttk(radice, c, font_base)
     ritorna c
 
@@ -127,10 +127,10 @@ definisci rivesti(widget, nome="chiaro", font_base=Nessuno):
     c = colori_del_tema(nome)
     f = font_base o CARATTERE
     opzioni = _opzioni_tk(c, f)
-    classe = widget.winfo_class()
-    se classe in opzioni e classe != "Canvas":
+    classe_tk = widget.winfo_class()
+    se classe_tk in opzioni e classe_tk != "Canvas":
         valide = {}
-        per chiave, valore in opzioni[classe].items():
+        per chiave, valore in opzioni[classe_tk].items():
             prova:
                 widget.cget(chiave)
                 valide[chiave] = valore

@@ -126,8 +126,8 @@ definisci installa_scelte(colori_correnti):
     se getattr(tkinter, "_scelte_installate", Falso):
         ritorna
 
-    definisci avvolgi(classe):
-        originale = classe.__init__
+    definisci avvolgi(classe_tk):
+        originale = classe_tk.__init__
 
         definisci nuovo(se_stesso, *a, **k):
             originale(se_stesso, *a, **k)
@@ -135,8 +135,8 @@ definisci installa_scelte(colori_correnti):
                 colori_ = colori_correnti()
                 se colori_:
                     stila_scelta(se_stesso, *colori_)
-        classe.__init__ = nuovo
-        originale_configura = classe.configure
+        classe_tk.__init__ = nuovo
+        originale_configura = classe_tk.configure
 
         definisci configura(se_stesso, cnf=Nessuno, **k):
             # su una casella disegnata da noi il colore «selezionato» deve restare uguale allo sfondo (altrimenti la casella spuntata cambia colore)
@@ -146,8 +146,8 @@ definisci installa_scelte(colori_correnti):
                     k["selectcolor"] = k.get("background", k.get("bg"))
                     k.setdefault("activebackground", k["selectcolor"])
             ritorna originale_configura(se_stesso, cnf, **k)
-        classe.configure = configura
-        classe.config = configura
+        classe_tk.configure = configura
+        classe_tk.config = configura
     avvolgi(tkinter.Checkbutton)
     avvolgi(tkinter.Radiobutton)
     tkinter._scelte_installate = Vero

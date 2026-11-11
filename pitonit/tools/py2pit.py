@@ -77,7 +77,7 @@ def carica_builtin():
     albero = ast.parse(testo)
     tab = {}
     for nodo in albero.body:
-        if isinstance(nodo, ast.Assign) and nodo.targets[0].id in ("FUNZIONI", "ECCEZIONI"):
+        if isinstance(nodo, ast.Assign) and isinstance(nodo.targets[0], ast.Name) and nodo.targets[0].id in ("FUNZIONI", "ECCEZIONI"):
             tab.update(ast.literal_eval(nodo.value))
     return tab
 

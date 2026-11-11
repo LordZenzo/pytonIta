@@ -30,10 +30,10 @@ nuovo, avvisi = mattonelle_modello.genera_codice(prog)
 stampa("rigenerato uguale, senza avvisi:", nuovo.split("\n", 1)[1] == codice.split("\n", 1)[1], avvisi)
 
 # eseguire davvero: premo il pulsante dopo un attimo e leggo l'etichetta
-prova = codice.replace("    finestra.ciclo_principale()", """    finestra.dopo(300, lambda: (campo.inserisci(0, "Anna"), pulsante.invoke(), stampa(etichetta.cget("text")), finestra.distruggi()))
+prova_cod = codice.replace("    finestra.ciclo_principale()", """    finestra.dopo(300, lambda: (campo.inserisci(0, "Anna"), pulsante.invoke(), stampa(etichetta.cget("text")), finestra.distruggi()))
     finestra.ciclo_principale()""")
 f_prova = os.path.join(cartella, "prova_esegui.pit")
-open(f_prova, "w", encoding="utf-8").write(prova)
+open(f_prova, "w", encoding="utf-8").write(prova_cod)
 r = subprocess.run([PITONIT, f_prova], capture_output=Vero, text=Vero, encoding="utf-8", timeout=60, cwd=cartella)
 stampa("esecuzione:", repr(r.stdout.strip()), "| codice di uscita:", r.returncode, r.stderr.strip()[-200:])
 

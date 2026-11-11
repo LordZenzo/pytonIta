@@ -714,36 +714,36 @@ classe Collegamento:
     @staticmethod
     definisci _leggi(w):
         """Il contenuto di un componente, come testo."""
-        classe = w.winfo_class()
-        se classe == "Text":
+        classe_tk = w.winfo_class()
+        se classe_tk == "Text":
             ritorna w.get("1.0", "end-1c")
-        se classe == "Checkbutton":
+        se classe_tk == "Checkbutton":
             ritorna "1" se testo(w.getvar(testo(w.cget("variable")))) in ("1", "True", "true") altrimenti "0"
-        se classe == "Scale":
+        se classe_tk == "Scale":
             x = float(w.get())
             ritorna testo(int(x)) se x == int(x) altrimenti testo(x)
         ritorna w.get()
 
     @staticmethod
     definisci _scrivi(w, valore):
-        classe = w.winfo_class()
+        classe_tk = w.winfo_class()
         testo_ = "" se valore è Nessuno altrimenti testo(valore)
-        se classe == "Label":
+        se classe_tk == "Label":
             w.configure(text=testo_)
-        altrimenti_se classe == "Checkbutton":
+        altrimenti_se classe_tk == "Checkbutton":
             prova:
                 acceso = bool(int(float(testo_ o "0")))
             eccetto ValueError:
                 acceso = testo_.lower() in ("true", "vero", "si", "sì")
             w.select() se acceso altrimenti w.deselect()
-        altrimenti_se classe == "Scale":
+        altrimenti_se classe_tk == "Scale":
             prova:
                 w.set(float(testo_ o "0"))
             eccetto ValueError:
                 w.set(0)
-        altrimenti_se classe == "TCombobox":
+        altrimenti_se classe_tk == "TCombobox":
             w.set(testo_)
-        altrimenti_se classe == "Text":
+        altrimenti_se classe_tk == "Text":
             disattivo = testo(w.cget("state")) == "disabled"
             se disattivo:
                 w.configure(state="normal")

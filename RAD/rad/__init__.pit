@@ -5,6 +5,6 @@ importa sys come _sys
 # Versione di PitStudio: PRINCIPALE.MODIFICHE.<versione di Python di pitonit>
 # - il 2° numero sale a ogni modifica; il 3° (versione di Python) cambia solo se cambia l'interprete;
 # - il 1° numero sale solo per modifiche importanti. È l'unica riga da aggiornare a mano (la legge anche l'installatore).
-VERSIONE_BASE = "1.50"
+VERSIONE_BASE = "1.51"
 VERSIONE = VERSIONE_BASE + "." + ".".join(testo(x) per x in _sys.version_info[:3])
 NOME = "PitStudio"
