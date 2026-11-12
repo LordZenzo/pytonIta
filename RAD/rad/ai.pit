@@ -241,6 +241,10 @@ classe ClienteBase:
         """True se il fornitore (e il modello scelto) accetta immagini dai risultati degli strumenti."""
         ritorna Falso
 
+    definisci senza_strumenti(se_stesso):
+        """True se il modello non usa gli strumenti: l'agente non li offre e la chat allega il testo dei file."""
+        ritorna Falso
+
     definisci modello(se_stesso):
         ritorna se_stesso.modello_forzato o se_stesso.config_.ottieni(se_stesso.chiave_modello, se_stesso.modello_predefinito)
 
@@ -472,6 +476,10 @@ classe ClienteOllama(ClienteChat):
 
     definisci supporta_immagini(se_stesso):
         ritorna bool(se_stesso.config_.ottieni("ai.immagini_ollama", Falso))          # solo i modelli «vision» (llava, qwen2.5-vl…): lo decide l'utente
+
+    definisci senza_strumenti(se_stesso):
+        """I modelli piccoli non sanno chiamare strumenti: l'utente lo dice nelle impostazioni, e allora gli si allega il testo dei file."""
+        ritorna non se_stesso.config_.ottieni("ai.ollama_strumenti", Vero)
 
     definisci _invia(se_stesso, url, corpo, intestazioni):
         prova:
@@ -1138,7 +1146,8 @@ classe Agente:
                 se se_stesso.registro:
                     se_stesso.registro.scrivi("compattazione", richiesta=se_stesso.id_richiesta, token_risparmiati=risparmiati // 4)
             togli_immagini_vecchie(messaggi)
-            risposta = se_stesso.cliente.chiama(messaggi, sistema, se_stesso.definizioni o DEFINIZIONI)
+            offerti = [] se getattr(se_stesso.cliente, "senza_strumenti", lambda: Falso)() altrimenti (DEFINIZIONI se se_stesso.definizioni è Nessuno altrimenti se_stesso.definizioni)
+            risposta = se_stesso.cliente.chiama(messaggi, sistema, offerti)
             se_stesso._passi = passo + 1
             blocchi = risposta.get("content", [])
             messaggi.append({"role": "assistant", "content": blocchi})
@@ -1199,6 +1208,69 @@ definisci prompt_di_sistema(config, progetto):
     se extra:
         info += "\n## Istruzioni dell'utente\n" + extra + "\n"
     ritorna manuale + info
+
+
+# ---------------------------------------------------------------- modelli senza strumenti (Ollama piccoli): il testo dei file viene allegato alla domanda
+ESTENSIONI_ALLEGABILI = (".pit", ".py", ".md", ".txt", ".json", ".html", ".css", ".js", ".sql", ".csv", ".cfg", ".ini", ".toml", ".bat", ".sh", ".xml", ".yaml", ".yml")
+INIZIO_ALLEGATI = "<file_del_progetto>"
+
+ISTRUZIONI_SENZA_STRUMENTI = """
+
+## SENZA STRUMENTI
+In questa conversazione NON hai strumenti: non puoi leggere, cercare, scrivere o eseguire nulla. Ignora tutto ciò che il manuale dice sugli strumenti.
+Il testo dei file che servono ti viene dato dentro <file_del_progetto>, scritto dall'ambiente prima della domanda. Rispondi usando solo quello.
+Per proporre una modifica scrivi il codice corretto in un blocco di codice e dì in quale file va (e dopo quale riga o funzione): sarà l'utente a copiarlo.
+Se ti manca un file, chiedi all'utente di scrivere il suo nome nella domanda: così gli si allega.
+"""
+
+
+definisci contesto_file(ambiente, domanda, massimo=12000):
+    """Il testo dei file da allegare alla domanda per un modello senza strumenti: prima il file attivo, poi le altre schede aperte,
+    poi i file del progetto che la domanda nomina. Si ferma a `massimo` caratteri (il resto è troncato). Testo vuoto se non c'è un progetto."""
+    progetto = ambiente.progetto
+    se non progetto:
+        ritorna ""
+    stato = ambiente.stato_ide()
+    candidati = []
+    se stato.get("file_attivo"):
+        candidati.append(stato["file_attivo"])
+    per scheda in stato.get("schede_aperte", []):
+        candidati.append(scheda["file"])
+    minuscola = domanda.lower()
+    per relativo in progetto.tutti_i_file(Nessuno):
+        base = os.path.basename(relativo).lower()
+        se (lunghezza_di(base) >= 4 e base in minuscola) o relativo.lower() in minuscola:
+            candidati.append(relativo)
+    visti = set()
+    parti = []
+    usati = 0
+    per relativo in candidati:
+        se relativo in visti o non relativo.lower().endswith(ESTENSIONI_ALLEGABILI):
+            continua
+        visti.add(relativo)
+        prova:
+            assoluto = progetto.assoluto(relativo)
+            testo_ = ambiente.contenuto_aperto(assoluto)
+            se testo_ è Nessuno:
+                testo_ = progetto.leggi(relativo)
+        eccetto (OSError, ValueError):
+            continua
+        testo_ = testo_.replace("\r\n", "\n")
+        spazio = massimo - usati
+        se spazio < 200:
+            interrompi
+        se lunghezza_di(testo_) > spazio:
+            testo_ = testo_[:spazio] + "\n… (file troncato: troppo lungo)"
+        parti.append(f"### {relativo}\n```\n{testo_}\n```")
+        usati += lunghezza_di(testo_)
+    ritorna "\n\n".join(parti)
+
+
+definisci togli_allegati_vecchi(messaggi):
+    """Toglie dalle domande precedenti il testo dei file allegato allora (si rimanda aggiornato a ogni domanda): la conversazione non cresce a ogni giro."""
+    per m in messaggi:
+        se m.get("role") == "user" e isinstance(m.get("content"), list):
+            m["content"] = [b per b in m["content"] se non (isinstance(b, dict) e b.get("type") == "text" e b.get("text", "").startswith(INIZIO_ALLEGATI))]
 
 
 definisci prompt_professore(config, progetto, lezione):

@@ -1,0 +1,133 @@
+"""Modelli locali che non usano strumenti: l'agente non li offre, la chat allega il testo dei file (attivo, schede, nominati) entro un tetto, senza accumularlo."""
+importa sys, os, tempfile, json, threading
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da http.server importa BaseHTTPRequestHandler, HTTPServer
+da rad.config importa Configurazione
+da rad.progetto importa Progetto
+da rad importa ai
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+richieste = []
+
+
+classe Finto(BaseHTTPRequestHandler):
+    definisci log_message(se_stesso, *a):
+        passa
+
+    definisci do_POST(se_stesso):
+        corpo = json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])).decode("utf-8"))
+        richieste.append(corpo)
+        dati = json.dumps({"choices": [{"message": {"content": "Metti `x = 1` in aggiunta.pit"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 5, "completion_tokens": 2}}).encode("utf-8")
+        se_stesso.send_response(200)
+        se_stesso.send_header("content-type", "application/json")
+        se_stesso.send_header("content-length", tipo_testo(lunghezza_di(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+
+server = HTTPServer(("127.0.0.1", 0), Finto)
+threading.Thread(target=server.serve_forever, daemon=Vero).start()
+base = f"http://127.0.0.1:{server.server_port}"
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "config.json"))
+cfg.imposta("ai.fornitore", "ollama", notifica=Falso)
+cfg.imposta("ai.url_ollama", base + "/v1", notifica=Falso)
+verifica(non ai.crea_cliente(cfg).senza_strumenti(), "di norma Ollama usa gli strumenti")
+cfg.imposta("ai.ollama_strumenti", Falso, notifica=Falso)
+verifica(ai.crea_cliente(cfg).senza_strumenti(), "con l'opzione spenta il modello è senza strumenti")
+cfg.imposta("ai.fornitore", "claude", notifica=Falso)
+verifica(non ai.crea_cliente(cfg).senza_strumenti(), "gli altri fornitori non sono toccati")
+cfg.imposta("ai.fornitore", "ollama", notifica=Falso)
+
+# ---------------------------------------------------------------- l'agente non offre strumenti
+classe Ponte:
+    definisci esegui(se_stesso, f, tempo=60):
+        ritorna f()
+
+
+classe Ambiente:
+    """Il minimo che serve a contesto_file: progetto, schede aperte, testo non salvato."""
+    definisci __inizializza__(se_stesso, progetto, attivo, aperte, non_salvati):
+        se_stesso.progetto = progetto
+        se_stesso.attivo, se_stesso.aperte, se_stesso.non_salvati = attivo, aperte, non_salvati
+
+    definisci stato_ide(se_stesso):
+        ritorna {"file_attivo": se_stesso.attivo, "schede_aperte": [{"file": f} per f in se_stesso.aperte]}
+
+    definisci contenuto_aperto(se_stesso, assoluto):
+        ritorna se_stesso.non_salvati.get(os.path.basename(assoluto))
+
+
+st = ai.Strumenti(Ambiente(Nessuno, "", [], {}), cfg, Ponte())
+eventi = []
+agente = ai.Agente(ai.crea_cliente(cfg), st, cfg, lambda t, d: eventi.append((t, d)))
+messaggi = [{"role": "user", "content": [{"type": "text", "text": "ciao"}]}]
+agente.esegui(messaggi, "SISTEMA")
+verifica(richieste e "tools" non in richieste[-1], "senza strumenti: la richiesta non ha 'tools'")
+cfg.imposta("ai.ollama_strumenti", Vero, notifica=Falso)
+agente.cliente = ai.crea_cliente(cfg)
+agente.esegui([{"role": "user", "content": [{"type": "text", "text": "ciao"}]}], "SISTEMA")
+verifica("tools" in richieste[-1] e lunghezza_di(richieste[-1]["tools"]) > 5, "con gli strumenti: sono tutti offerti")
+
+# ---------------------------------------------------------------- il testo dei file allegato
+cartella = tempfile.mkdtemp()
+progetto = Progetto.nuovo(os.path.join(cartella, "P"), "P", "console")
+progetto.crea_file("principale.pit", "stampa('ciao')\n")
+progetto.crea_file("aggiunta.pit", "def_riga = 1\n")
+progetto.crea_file("note.pit", "N" * 30000)
+progetto.crea_file("dati.db", "binario")
+progetto.crea_file("sotto/altro_modulo.pit", "valore = 5\n")
+amb = Ambiente(progetto, "principale.pit", ["principale.pit", "dati.db"], {"principale.pit": "stampa('NON SALVATO')\n"})
+testo_ = ai.contesto_file(amb, "cosa fa il programma?")
+verifica("### principale.pit" in testo_ e "NON SALVATO" in testo_ e "stampa('ciao')" non in testo_, "il file attivo è quello nell'editor (anche non salvato): " + testo_[:100])
+verifica("aggiunta.pit" non in testo_ e "dati.db" non in testo_, "gli altri file non c'entrano; i binari non si allegano")
+testo_ = ai.contesto_file(amb, "aggiungi la riga a aggiunta.pit e guarda sotto/altro_modulo.pit")
+verifica("### aggiunta.pit" in testo_ e "### sotto/altro_modulo.pit" in testo_ e testo_.index("principale.pit") < testo_.index("aggiunta.pit"), "i file nominati nella domanda si aggiungono dopo il file attivo")
+testo_ = ai.contesto_file(amb, "leggi note.pit", massimo=3000)
+verifica("troncato" in testo_ e lunghezza_di(testo_) < 3600, "oltre il tetto il file è troncato: " + tipo_testo(lunghezza_di(testo_)))
+verifica(ai.contesto_file(Ambiente(Nessuno, "", [], {}), "ciao") == "", "senza progetto: niente")
+
+# ---------------------------------------------------------------- gli allegati vecchi non si accumulano
+conversazione = [{"role": "user", "content": [{"type": "text", "text": ai.INIZIO_ALLEGATI + "\n### a\n</file_del_progetto>"}, {"type": "text", "text": "prima domanda"}]},
+                 {"role": "assistant", "content": [{"type": "text", "text": "risposta"}]}]
+ai.togli_allegati_vecchi(conversazione)
+verifica(conversazione[0]["content"] == [{"type": "text", "text": "prima domanda"}], "resta la domanda, non i file di allora: " + tipo_testo(conversazione[0]))
+verifica("SENZA STRUMENTI" in ai.ISTRUZIONI_SENZA_STRUMENTI, "istruzioni per il modello")
+
+# ---------------------------------------------------------------- la chat vera (senza rete)
+importa tkinter come tk
+da rad.finestra importa Applicazione
+cfg.imposta("ai.ollama_strumenti", Falso, notifica=Falso)
+cfg.imposta("ai.chiave_api", "x", notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+app.apri_progetto(progetto.cartella)
+radice.update()
+chat = app.chat
+visti = []
+chat._lavora = lambda sistema: visti.append(sistema)
+chat.invia("che cosa c'è in aggiunta.pit?")
+chat.lavoro.join(3)
+ultimo = chat.messaggi[-1]["content"]
+verifica(ultimo[0]["text"].startswith(ai.INIZIO_ALLEGATI) e "def_riga = 1" in ultimo[0]["text"], "la domanda porta il testo dei file: " + tipo_testo(ultimo)[:160])
+verifica(visti e "SENZA STRUMENTI" in visti[-1], "e il sistema dice che non ci sono strumenti")
+chat.invia("e adesso?")
+chat.lavoro.join(3)
+vecchia = chat.messaggi[-2]["content"]          # la prima domanda (le risposte non ci sono: il lavoro è finto)
+verifica(tutti_veri(non b["text"].startswith(ai.INIZIO_ALLEGATI) per b in vecchia), "alla domanda dopo, i file della prima non restano nella conversazione")
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_ollama_senza_strumenti: ok")

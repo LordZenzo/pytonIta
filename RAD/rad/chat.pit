@@ -274,10 +274,16 @@ classe PannelloChat(tk.Frame):
             contesto = se_stesso.contesto_ide()
             se contesto:
                 contenuto.insert(0, {"type": "text", "text": "<contesto_ide>\n" + contesto + "\n</contesto_ide>"})
+        cliente = ai.crea_cliente(se_stesso.config_)
+        ai.togli_allegati_vecchi(se_stesso.messaggi)
+        se cliente.senza_strumenti():
+            # un modello che non usa strumenti non può leggere i file da solo: gli si allega il testo dei file che servono
+            allegati = se_stesso.ponte.esegui(lambda: ai.contesto_file(se_stesso.ambiente, domanda, int(se_stesso.config_.ottieni("ai.ollama_max_caratteri", 12000))))
+            se allegati:
+                contenuto.insert(0, {"type": "text", "text": ai.INIZIO_ALLEGATI + "\n" + allegati + "\n</file_del_progetto>"})
         se_stesso.messaggi.append({"role": "user", "content": contenuto})
         se_stesso._scrivi("Assistente\n", "etichetta_ai")
         se_stesso._imposta_occupato(Vero)
-        cliente = ai.crea_cliente(se_stesso.config_)
         # modello economico: per spiegazioni e piccole correzioni costa molto meno
         se (se_stesso.var_economico.get() se economico è Nessuno altrimenti economico):
             cliente.modello_forzato = cliente.modello_economico()
@@ -304,6 +310,8 @@ classe PannelloChat(tk.Frame):
             strumenti.nomi_ammessi = ai.NOMI_PROFESSORE
         altrimenti:
             sistema = se_stesso.ponte.esegui(lambda: ai.prompt_di_sistema(se_stesso.config_, se_stesso.ambiente.progetto))
+        se cliente.senza_strumenti():
+            sistema += ai.ISTRUZIONI_SENZA_STRUMENTI
         se_stesso.lavoro = threading.Thread(target=se_stesso._lavora, args=(sistema,), daemon=Vero)
         se_stesso.lavoro.start()
 

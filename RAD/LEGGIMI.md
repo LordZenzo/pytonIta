@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.16
+
+- **Modelli locali piccoli (Ollama) senza strumenti.** Molti modelli che girano sul PC non sanno chiamare strumenti. In Impostazioni → Assistente AI spegni «Il modello locale sa usare gli strumenti»: l'assistente non offre più strumenti, allega a ogni domanda il testo del file attivo, delle schede aperte e dei file che nomini (fino a un tetto di caratteri, anche se non salvati), e il modello risponde con codice da copiare. I file di una domanda non restano nelle successive. Il modello non può modificare file da solo. Nuova opzione anche per i modelli che leggono le immagini.
+
 ## Novità della 2.15
 
 - **Migrazione 1.x: nomi vecchi dentro le mattonelle.** Anche il codice scritto a mano nelle mattonelle (espressioni, mattonelle «codice», ingressi di valore, codice iniziale) viene aggiornato (`lunghezza(` → `lunghezza_di(`, ecc.), poi il `.pit` si rigenera. Non si toccano i nomi che il programma usa come variabili proprie e le frasi degli ingressi di testo.
