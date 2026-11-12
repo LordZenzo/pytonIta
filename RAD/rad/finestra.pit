@@ -721,8 +721,11 @@ classe Applicazione:
             ritorna
         cartella = os.path.abspath(cartella)
         se se_stesso.progetto e se_stesso.progetto.cartella != cartella:
+            se non se_stesso.chat.pronta_al_cambio():          # se l'assistente lavora, si chiede se fermarlo
+                ritorna
             se non se_stesso.chiudi_tutte_le_schede():
                 ritorna
+            se_stesso.chat.salva_cronologia()                  # la conversazione del progetto che si lascia resta salvata lì
         se non os.path.exists(os.path.join(cartella, "progetto.rad.json")):
             se messagebox.askyesno("Nuovo progetto", "Questa cartella non è un progetto PitStudio. Vuoi trasformarla in un progetto?", parent=se_stesso.radice):
                 p = Progetto(cartella)
@@ -741,7 +744,7 @@ classe Applicazione:
         se_stesso.radice.title(f"{se_stesso.progetto.nome} — {NOME}")
         se_stesso.testo_progetto.configure(text=f"📦 {se_stesso.progetto.nome}")
         se_stesso._aggiorna_recenti()
-        se_stesso.chat.carica_cronologia()
+        se_stesso.chat.carica_cronologia(forza=Vero)
         se_stesso.chat.aggiorna_annulla()
         se_stesso.console.pulisci()
         se_stesso._nascondi_benvenuto()

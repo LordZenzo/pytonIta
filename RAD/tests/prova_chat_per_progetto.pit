@@ -1,0 +1,122 @@
+"""La chat dell'assistente è del progetto: cambiando progetto si rinnova, riaprendolo si ritrova; se l'assistente lavora si chiede se fermarlo
+e la sua risposta non finisce nel progetto nuovo; il professore non cancella la conversazione; il file salvato non contiene immagini."""
+importa sys, os, tempfile, json, threading, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.chat importa PannelloChat
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+domande = []
+risposta = [Vero]
+messagebox.askyesno = lambda titolo="", testo_="", **k: domande.append(titolo) o risposta[0]
+messagebox.showinfo = lambda *a, **k: Nessuno
+messagebox.showwarning = lambda *a, **k: Nessuno
+
+cartella = tempfile.mkdtemp()
+p1 = Progetto.nuovo(os.path.join(cartella, "P1"), "P1", "console")
+p2 = Progetto.nuovo(os.path.join(cartella, "P2"), "P2", "console")
+cfg = Configurazione(os.path.join(cartella, "c.json"))
+radice = tk.Tk()
+radice.geometry("1300x760+30+30")
+app = Applicazione(radice, cfg)
+radice.update()
+chat = app.chat
+app.apri_progetto(p1.cartella)
+radice.update()
+IMMAGINE = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "A" * 400000}}
+chat.messaggi.append({"role": "user", "content": [{"type": "text", "text": "domanda su P1"}]})
+chat.messaggi.append({"role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "leggi_file", "input": {"percorso": "x"}}]})
+chat.messaggi.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "R" * 50000, "is_error": Falso}]})
+chat.messaggi.append({"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t2", "content": [{"type": "text", "text": "ecco"}, IMMAGINE]}]})
+chat.messaggi.append({"role": "assistant", "content": [{"type": "text", "text": "risposta su P1"}]})
+chat.token_ingresso, chat.costo = 500, 0.25
+chat.salva_cronologia()
+file1 = os.path.join(p1.cartella, ".rad", "chat.json")
+grezzo = open(file1, encoding="utf-8").read()
+verifica(lunghezza_di(grezzo) < 60000 e "AAAAAAAAAAAAAAAA" non in grezzo, "il file non contiene l'immagine e accorcia i risultati lunghi: " + tipo_testo(lunghezza_di(grezzo)) + " byte")
+verifica("risultato accorciato" in grezzo e "immagine non salvata" in grezzo, "con una nota")
+verifica(chat.messaggi[2]["content"][0]["content"] == "R" * 50000 e chat.messaggi[3]["content"][0]["content"][1]["type"] == "image", "la conversazione in memoria non è toccata")
+
+# si cambia progetto: la chat si rinnova, i contatori si azzerano
+app.apri_progetto(p2.cartella)
+radice.update()
+verifica(chat.messaggi == [] e "Ciao! Sono l'assistente" in chat.t.get("1.0", "end"), "in P2 la chat è nuova")
+verifica(chat.token_ingresso == 0 e chat.costo == 0.0, "e i contatori di token e costo ripartono da zero")
+verifica(domande == [], "senza assistente al lavoro non si chiede nulla")
+# si torna a P1: la sua conversazione
+app.apri_progetto(p1.cartella)
+radice.update()
+testo_ = chat.t.get("1.0", "end")
+verifica(lunghezza_di(chat.messaggi) == 5 e "domanda su P1" in testo_ e "risposta su P1" in testo_, "tornando a P1 si ritrova la sua chat: " + tipo_testo(lunghezza_di(chat.messaggi)))
+
+# l'assistente sta lavorando e si cambia progetto
+fermato = []
+coda_vecchia = chat.eventi
+chat.agente = type("AgenteFinto", (), {"arresto": threading.Event()})()
+terminato = threading.Event()
+
+
+definisci lavoro_lungo():
+    chat.agente.arresto.wait(10)
+    time.sleep(0.3)
+    coda_vecchia.put(("testo", "RISPOSTA FANTASMA"))
+    coda_vecchia.put(("fine", Nessuno))
+    terminato.set()
+
+
+chat.lavoro = threading.Thread(target=lavoro_lungo, daemon=Vero)
+chat.lavoro.start()
+chat.messaggi.append({"role": "user", "content": [{"type": "text", "text": "domanda ancora in corso"}]})
+risposta[0] = Falso
+app.apri_progetto(p2.cartella)
+radice.update()
+verifica(domande == ["Assistente al lavoro"] e app.progetto.cartella == p1.cartella, "l'assistente lavora: lo chiede e, se l'utente dice no, resta nel progetto: " + tipo_testo(app.progetto.cartella))
+risposta[0] = Vero
+app.apri_progetto(p2.cartella)
+radice.update()
+verifica(app.progetto.cartella == p2.cartella e chat.agente.arresto.is_set(), "se dice sì, l'assistente viene fermato e si apre l'altro progetto")
+verifica(chat.messaggi == [] e "domanda ancora in corso" non in chat.t.get("1.0", "end"), "la chat di P2 è nuova")
+terminato.wait(5)
+per _ in intervallo_di(30):
+    radice.update()
+    time.sleep(0.02)
+verifica("RISPOSTA FANTASMA" non in chat.t.get("1.0", "end"), "la risposta dell'assistente fermato non compare nella chat di P2")
+verifica(non os.path.exists(os.path.join(p2.cartella, ".rad", "chat.json")) o "FANTASMA" non in open(os.path.join(p2.cartella, ".rad", "chat.json"), encoding="utf-8").read(), "e non viene salvata in P2")
+verifica("domanda ancora in corso" in open(file1, encoding="utf-8").read() o "domanda su P1" in open(file1, encoding="utf-8").read(), "mentre quella di P1 è rimasta salvata")
+verifica(chat.pulsante_invia.cget("state") == "normal", "e in P2 si può scrivere")
+
+# il professore non cancella la conversazione del progetto
+app.apri_progetto(p1.cartella)
+radice.update()
+prima = open(file1, encoding="utf-8").read()
+verifica(chat.avvia_professore({"numero": 1, "titolo": "Prova", "testo": "x"}), "parte il professore")
+chat.messaggi.append({"role": "user", "content": [{"type": "text", "text": "domanda della lezione"}]})
+chat.salva_cronologia()
+verifica(open(file1, encoding="utf-8").read() == prima, "durante la lezione il file della chat del progetto non cambia")
+chat.esci_dal_professore()
+radice.update()
+verifica("domanda su P1" in chat.t.get("1.0", "end") e "domanda della lezione" non in chat.t.get("1.0", "end"), "uscendo dal professore si ritrova la chat del progetto")
+# tetto alla dimensione del file
+PannelloChat.LIMITE_FILE_CHAT = 3000
+chat.messaggi = [{"role": "user" se k % 2 == 0 altrimenti "assistant", "content": [{"type": "text", "text": f"messaggio {k} " + "x" * 400}]} per k in intervallo_di(40)]
+chat.salva_cronologia()
+salvati = json.loads(open(file1, encoding="utf-8").read())["messaggi"]
+verifica(lunghezza_di(salvati) < 40 e salvati[-1]["content"][0]["text"].startswith("messaggio 39") e salvati[0]["role"] == "user", "oltre il tetto restano gli ultimi messaggi, a coppie: " + tipo_testo(lunghezza_di(salvati)))
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_chat_per_progetto: ok")

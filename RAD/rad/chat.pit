@@ -296,7 +296,8 @@ classe PannelloChat(tk.Frame):
         se se_stesso.config_.ottieni("ai.storia", Vero):
             strumenti.storia = getattr(se_stesso.ambiente, "storia", Nessuno)
             strumenti.descrizione = domanda[:120]
-        se_stesso.agente = ai.Agente(cliente, strumenti, se_stesso.config_, lambda tipo_, dati: se_stesso.eventi.put((tipo_, dati)))
+        coda_richiesta = se_stesso.eventi
+        se_stesso.agente = ai.Agente(cliente, strumenti, se_stesso.config_, lambda tipo_, dati: coda_richiesta.put((tipo_, dati)))
         # registro delle richieste (token, validità del codice generato): un file per progetto
         registro = se_stesso.nuovo_registro()
         id_richiesta = uuid.uuid4().hex[:8]
@@ -334,14 +335,15 @@ classe PannelloChat(tk.Frame):
         se_stesso.invia(domanda, economico=economico)
 
     definisci _lavora(se_stesso, sistema):
+        coda = se_stesso.eventi            # la coda di questa richiesta: se si cambia progetto ne nasce una nuova e questa resta orfana
         prova:
             se_stesso.agente.esegui(se_stesso.messaggi, sistema)
         eccetto ai.ErroreAI come errore:
-            se_stesso.eventi.put(("errore", tipo_testo(errore)))
+            coda.put(("errore", tipo_testo(errore)))
         eccetto Eccezione come errore:
-            se_stesso.eventi.put(("errore", f"{tipo_di(errore).__name__}: {errore}"))
+            coda.put(("errore", f"{tipo_di(errore).__name__}: {errore}"))
         infine:
-            se_stesso.eventi.put(("fine", Nessuno))
+            coda.put(("fine", Nessuno))
 
     definisci ferma(se_stesso):
         se se_stesso.agente:
@@ -419,7 +421,8 @@ classe PannelloChat(tk.Frame):
         """Comincia una conversazione in cui l'assistente fa da professore della lezione (numero, titolo, testo)."""
         se se_stesso.lavoro e se_stesso.lavoro.is_alive():
             ritorna Falso
-        se_stesso.nuova_chat()
+        se_stesso.salva_cronologia()               # la conversazione del progetto resta salvata com'è
+        se_stesso.nuova_chat(salva=Falso)
         se_stesso.professore = dict(lezione)
         se_stesso.livello_indizio = 0
         se_stesso.pulsante_indizio.configure(text="💡 Indizio")
@@ -436,9 +439,9 @@ classe PannelloChat(tk.Frame):
             ritorna
         se_stesso.professore = Nessuno
         se_stesso.banda_professore.pack_forget()
-        se_stesso.nuova_chat()
+        se_stesso.carica_cronologia()              # si torna alla conversazione del progetto
 
-    definisci nuova_chat(se_stesso):
+    definisci nuova_chat(se_stesso, salva=Vero):
         se se_stesso.lavoro e se_stesso.lavoro.is_alive():
             ritorna
         se_stesso.messaggi = []
@@ -449,7 +452,8 @@ classe PannelloChat(tk.Frame):
         se_stesso.t.delete("1.0", "end")
         se_stesso.t.configure(state="disabled")
         se_stesso._benvenuto()
-        se_stesso.salva_cronologia()
+        se salva:
+            se_stesso.salva_cronologia()
         se_stesso.stato.configure(text="")
 
     definisci _file_cronologia(se_stesso):
@@ -458,21 +462,77 @@ classe PannelloChat(tk.Frame):
             ritorna Nessuno
         ritorna os.path.join(p.cartella, ".rad", "chat.json")
 
+    LIMITE_RISULTATO = 20000           # un risultato di strumento più lungo (un file intero, un elenco) si salva accorciato
+    LIMITE_FILE_CHAT = 3000000         # oltre questa dimensione si tengono solo gli ultimi messaggi
+
+    @staticmethod
+    definisci _per_il_file(messaggi):
+        """Copia della conversazione adatta al salvataggio: senza immagini (pesano megabyte) e con i risultati troppo lunghi accorciati."""
+        risultato = []
+        per m in messaggi:
+            contenuto = m.get("content")
+            se isinstance(contenuto, tipo_lista):
+                nuovo = []
+                per b in contenuto:
+                    se isinstance(b, dict) e b.get("type") == "image":
+                        nuovo.append({"type": "text", "text": "[immagine non salvata]"})
+                    altrimenti_se isinstance(b, dict) e b.get("type") == "tool_result":
+                        c = b.get("content")
+                        se isinstance(c, tipo_lista):
+                            c = [x se non (isinstance(x, dict) e x.get("type") == "image") altrimenti {"type": "text", "text": "[immagine non salvata]"} per x in c]
+                        altrimenti_se isinstance(c, tipo_testo) e lunghezza_di(c) > PannelloChat.LIMITE_RISULTATO:
+                            c = c[:PannelloChat.LIMITE_RISULTATO] + "\n… (risultato accorciato nel salvataggio)"
+                        nuovo.append(dict(b, content=c))
+                    altrimenti:
+                        nuovo.append(b)
+                risultato.append(dict(m, content=nuovo))
+            altrimenti:
+                risultato.append(m)
+        ritorna risultato
+
     definisci salva_cronologia(se_stesso):
+        """Salva la conversazione nel progetto aperto. La lezione del professore non si salva: non è la conversazione del progetto."""
         f = se_stesso._file_cronologia()
-        se non f:
+        se non f o se_stesso.professore:
             ritorna
         prova:
             os.makedirs(os.path.dirname(f), exist_ok=Vero)
+            messaggi = se_stesso._per_il_file(se_stesso.messaggi)
+            testo_ = json.dumps({"messaggi": messaggi}, ensure_ascii=Falso)
+            mentre lunghezza_di(testo_) > PannelloChat.LIMITE_FILE_CHAT e lunghezza_di(messaggi) > 2:
+                messaggi = messaggi[2:]                    # via i messaggi più vecchi, a coppie
+                testo_ = json.dumps({"messaggi": messaggi}, ensure_ascii=Falso)
             con open(f, "w", encoding="utf-8") come fl:
-                json.dump({"messaggi": se_stesso.messaggi}, fl, ensure_ascii=Falso)
+                fl.write(testo_)
         eccetto (OSError, ErroreDiTipo, ErroreDiValore):
             passa
 
-    definisci carica_cronologia(se_stesso):
-        """Ricarica la conversazione del progetto aperto e la riscrive a video."""
+    definisci pronta_al_cambio(se_stesso):
+        """Prima di cambiare progetto: se l'assistente sta lavorando chiede se fermarlo. Ritorna False se l'utente preferisce restare."""
+        se non (se_stesso.lavoro e se_stesso.lavoro.is_alive()):
+            ritorna Vero
+        se non messagebox.askyesno("Assistente al lavoro", "L'assistente sta ancora lavorando su questo progetto.\nLo fermo e apro l'altro progetto?",
+                                   parent=se_stesso.winfo_toplevel()):
+            ritorna Falso
+        se_stesso.ferma()
+        ritorna Vero
+
+    definisci carica_cronologia(se_stesso, forza=Falso):
+        """Ricarica la conversazione del progetto aperto e la riscrive a video. Con `forza` lo fa anche se l'assistente lavora ancora
+        (è stato fermato: i suoi eventi vanno in una coda abbandonata e non toccano la chat nuova)."""
         se se_stesso.lavoro e se_stesso.lavoro.is_alive():
-            ritorna
+            se non forza:
+                ritorna
+            se_stesso.eventi = queue.Queue()
+            se_stesso.lavoro = Nessuno
+            se_stesso._imposta_occupato(Falso)
+        se_stesso.token_ingresso = se_stesso.token_uscita = se_stesso.token_cache = 0
+        se_stesso.costo = 0.0
+        se_stesso.costo_ignoto = Falso
+        se_stesso.stato.configure(text="")
+        se se_stesso.professore:
+            se_stesso.professore = Nessuno
+            se_stesso.banda_professore.pack_forget()
         se_stesso.messaggi = []
         se_stesso.t.configure(state="normal")
         se_stesso.t.delete("1.0", "end")

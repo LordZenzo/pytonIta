@@ -16,6 +16,12 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.28
+
+- **La chat dell'assistente è del progetto.** Cambiando progetto la chat si rinnova da sola (contatori di token e costo compresi), e riaprendo un progetto si ritrova la sua conversazione. Se l'assistente sta ancora lavorando, PitStudio chiede se fermarlo prima di aprire l'altro progetto, e la sua risposta non finisce più nella chat (né nel file) del progetto nuovo.
+- **Il professore non cancella la chat del progetto:** la lezione non viene salvata, e uscendo dal professore si ritrova la conversazione del progetto.
+- **File della chat più leggero:** `.rad/chat.json` non contiene più le immagini (pesavano megabyte), accorcia i risultati di strumento molto lunghi e, oltre i 3 MB, tiene solo i messaggi più recenti.
+
 ## Novità della 2.27
 
 - **Moduli di PitStudio in un solo nodo.** Nel pannello Progetto i moduli che PitStudio copia nel progetto (aspetto, fonte_dati, griglia, grafico, scorrevole, stampante) e le loro copie `.bak` stanno sotto un nodo «⚙ Moduli di PitStudio (n)», che si apre e si chiude. Il nodo non si rinomina né si elimina; i file dentro si aprono come sempre. I tuoi file e le cartelle restano dove sono.
