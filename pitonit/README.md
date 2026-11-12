@@ -25,7 +25,9 @@ I file `.py` eseguiti con pitonit restano Python normale (inglese).
 | `Include/cpython/compile.h` | `PyCF_ITALIANO` (0x10000), salvato in `co_flags`: `esegui`/`valuta`/`compila` lo ereditano. |
 | `Modules/main.c` | File `.pit`, `-c`, stdin e console sono italiani; banner e `--version` «Pitonit». |
 | `Python/bltinmodule.c` | `esegui`/`valuta` usano i builtin italiani; `_aggiungi_alias` per i metodi. |
-| `Lib/importlib/_bootstrap_external.py` | `import` trova e compila i moduli `.pit` (italiani). |
+| `Lib/importlib/_bootstrap_external.py` | `import` trova e compila i moduli `.pit` (italiani) e li fa controllare da `_controlla`. |
+| `Lib/_controlla.py`, `Modules/main.c` (`pymain_controlla_file`) | Controllo statico prima dell'esecuzione: parole chiave usate come nomi, `l`/`I`/`e`/`o`, funzioni predefinite nascoste da una variabile e richiamate. Blocca il programma; `pitonit -m _controlla file.pit` mostra anche gli avvisi. |
+| `Python/symtable.c` | `classe_base()` (il vecchio `genitore`) conta come uso di `__class__`, come `super()`. |
 | `Lib/_italiano.py` | Builtin italiani (`stampa`, `lunghezza`...), eccezioni (`ErroreDiValore`...), alias dei metodi (`lista.aggiungi`, `testo.maiuscolo`...), errori e traceback tradotti, `Vero/Falso/Nessuno` nell'output. |
 | `Lib/matematica.py`, `casuale.py`, `tempo.py`, `sistema.py`, `sistema_operativo.py`, `collezioni.py`, `percorso.py`, `espressioni_regolari.py`, `funzioni_utili.py`, `iteratori.py`, `dati_classe.py`, `formato_json.py` | Moduli standard con nomi italiani (restano disponibili anche i nomi originali). |
 
@@ -37,7 +39,23 @@ Servono Visual Studio 2022 (C++) e git. Da `src\`:
 PCbuild\build.bat -p x64 -c Release --no-tkinter
 python ..\tools\installa.py
 ```
-(`src\` è un clone di CPython ramo 3.13 con la patch applicata.)
+(`src\` è un clone di CPython ramo 3.13 con la patch applicata. La cartella `src\` non è nel repository: contiene solo la patch.)
+
+### Ricostruire `src\` dalla patch
+```
+git clone --branch 3.13 https://github.com/python/cpython src
+cd src
+git checkout 42155a0               # «Post 3.13.18», la base della patch
+git apply --whitespace=nowarn ..\patch\pitonit.patch
+```
+
+### Rigenerare la patch dopo una modifica a `src\`
+```
+cd src
+git add -A
+git -c core.autocrlf=false diff --cached HEAD --no-color > ..\patch\pitonit.patch
+```
+Controlla che si applichi su una copia pulita di `42155a0` (`git apply --check`) prima di fare il commit.
 
 ## Librerie in italiano
 152 moduli (`ELENCO_LIBRERIE.md`, circa 8.700 alias): tkinter (`interfaccia`, `interfaccia.tema`, ...), ctypes (`tipi_c`), reportlab
