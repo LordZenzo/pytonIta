@@ -77,6 +77,41 @@ verifica(x_oggetti[0] > memoria_vista.MARGINE + memoria_vista.LARGHEZZA_NOME, "g
 condivise = [f_ per f_ in lay["frecce"] se f_[4]]
 verifica(lunghezza_di(condivise) >= 3, "le frecce verso la lista condivisa sono evidenziate: " + tipo_testo(lunghezza_di(condivise)))
 verifica(memoria_vista.disponi({}) == {"nomi": [], "oggetti": {}, "frecce": []}, "memoria vuota")
+
+
+definisci scatole_di(lay_):
+    """Tutti i rettangoli (nomi e oggetti) di una disposizione: (x0, y0, x1, y1)."""
+    ritorna [(x, y, x + larg, y + alt) per _, _, x, y, larg, alt, _ in lay_["nomi"]] + [(x, y, x + larg, y + alt) per x, y, larg, alt, _ in lay_["oggetti"].values()]
+
+
+definisci attraversamenti(lay_):
+    """Quanti tratti delle frecce passano DENTRO una scatola (esclusi i punti di partenza e di arrivo sui bordi)."""
+    scatole = scatole_di(lay_)
+    guasti = 0
+    per x1, y1, x2, y2, _, punti in lay_["frecce"]:
+        per k in intervallo_di(0, lunghezza_di(punti) - 2, 2):
+            ax, ay, bx, by = punti[k], punti[k + 1], punti[k + 2], punti[k + 3]
+            sx0, sx1, sy0, sy1 = min(ax, bx), max(ax, bx), min(ay, by), max(ay, by)
+            per bx0, by0, bx1, by1 in scatole:
+                se sx0 < bx1 - 1 e sx1 > bx0 + 1 e sy0 < by1 - 1 e sy1 > by0 + 1:
+                    guasti += 1
+    ritorna guasti
+
+
+verifica(attraversamenti(lay) == 0, "nessuna freccia attraversa una scatola: " + tipo_testo(attraversamenti(lay)))
+verifica(tutti_veri(f_[5][0:2] == [f_[0], f_[1]] e f_[5][-2:] == [f_[2], f_[3]] per f_ in lay["frecce"]), "ogni percorso parte e arriva dove deve")
+verifica(tutti_veri(tutti_veri(a == b o c == d per a, c, b, d in zip(f_[5][0::2], f_[5][1::2], f_[5][2::2], f_[5][3::2])) per f_ in lay["frecce"]), "i tratti sono orizzontali o verticali")
+# un caso difficile: salta una colonna, torna indietro, si punta da sola, due nomi sullo stesso oggetto
+D = {"tipo": "list", "testo": "", "elementi": []}
+difficile = {"nomi": [{"nome": "a", "valore": "", "ref": "A"}, {"nome": "b", "valore": "", "ref": "A"}, {"nome": "c", "valore": "", "ref": "D"}],
+             "oggetti": {"A": {"tipo": "list", "testo": "", "elementi": [{"chiave": 0, "valore": "", "ref": "B"}, {"chiave": 1, "valore": "", "ref": "D"}, {"chiave": 2, "valore": "", "ref": "A"}]},
+                         "B": {"tipo": "list", "testo": "", "elementi": [{"chiave": 0, "valore": "", "ref": "C"}]},
+                         "C": {"tipo": "dict", "testo": "", "elementi": [{"chiave": "k", "valore": "", "ref": "D"}, {"chiave": "z", "valore": "", "ref": "A"}]},
+                         "D": {"tipo": "list", "testo": "", "elementi": [{"chiave": 0, "valore": "", "ref": "A"}]}}}
+lay_d = memoria_vista.disponi(difficile)
+verifica(lunghezza_di(lay_d["frecce"]) == 3 + 3 + 1 + 2 + 1, "tutte le frecce ci sono: " + tipo_testo(lunghezza_di(lay_d["frecce"])))
+verifica(attraversamenti(lay_d) == 0, "caso difficile: nessuna freccia attraversa una scatola: " + tipo_testo(attraversamenti(lay_d)))
+verifica(min(min(f_[5][1::2]) per f_ in lay_d["frecce"]) >= 0, "e nessun percorso esce dall'alto")
 altezze = [v[1] per v in lay["oggetti"].values() se v[4] == 1]
 verifica(lunghezza_di(set(altezze)) == lunghezza_di(altezze), "oggetti della stessa colonna uno sotto l'altro, non sovrapposti")
 

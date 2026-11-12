@@ -16,7 +16,8 @@ COLORI_PREDEFINITI = {"editor": "#1e1e1e", "tenue": "#8a8a8a", "pannello": "#2b2
 
 
 definisci disponi(memoria):
-    """-> {"nomi": [(nome, testo, x, y, larghezza, altezza, ref)], "oggetti": {id: (x, y, larghezza, altezza, colonna)}, "frecce": [(x1, y1, x2, y2, condivisa)]}"""
+    """-> {"nomi": [(nome, testo, x, y, larghezza, altezza, ref)], "oggetti": {id: (x, y, larghezza, altezza, colonna)}, "frecce": [(x1, y1, x2, y2, condivisa, punti)]}
+    `punti` = percorso ad angoli retti [x, y, x, y, ...] da (x1, y1) a (x2, y2)."""
     nomi = memoria.get("nomi", [])
     oggetti = memoria.get("oggetti", {})
     risultato = {"nomi": [], "oggetti": {}, "frecce": []}
@@ -40,8 +41,19 @@ definisci disponi(memoria):
         per el in ogg.get("elementi", []):
             se el.get("ref"):
                 puntatori[el["ref"]] = puntatori.get(el["ref"], 0) + 1
+    # frecce da disegnare: (colonna di partenza, colonna di arrivo): servono prima delle posizioni, per lasciare in alto lo spazio delle corsie lunghe
+    lunghe = 0
+    per n in nomi:
+        se n.get("ref") in colonna e colonna[n["ref"]] != 1:
+            lunghe += 1
+    per ref, ogg in oggetti.items():
+        se ref in colonna:
+            per el in ogg.get("elementi", []):
+                se el.get("ref") in colonna e colonna[el["ref"]] != colonna[ref] + 1:
+                    lunghe += 1
+    alto = MARGINE + 4 * lunghe
     # i nomi
-    y = MARGINE
+    y = alto
     posizione_nome = {}
     per n in nomi:
         risultato["nomi"].append((n["nome"], n.get("valore") o "", MARGINE, y, LARGHEZZA_NOME, ALTEZZA_RIGA + 4, n.get("ref")))
@@ -52,24 +64,53 @@ definisci disponi(memoria):
     per ref, c in sorted(colonna.items(), key=lambda kv: (kv[1], kv[0])):
         per_colonna.setdefault(c, []).append(ref)
     per c, refs in per_colonna.items():
-        x = MARGINE + LARGHEZZA_NOME + SPAZIO_COLONNE + (c - 1) * (LARGHEZZA_OGGETTO + SPAZIO_COLONNE)
-        y = MARGINE
+        x = x_colonna(c)
+        y = alto
         per ref in refs:
             altezza = ALTEZZA_RIGA + max(1, lunghezza_di(oggetti[ref].get("elementi", []))) * ALTEZZA_RIGA + (ALTEZZA_RIGA se oggetti[ref].get("troncato") altrimenti 0)
             risultato["oggetti"][ref] = (x, y, LARGHEZZA_OGGETTO, altezza, c)
             y += altezza + SPAZIO_OGGETTI
-    # le frecce
+    # le frecce: da (x1, y1) sul bordo destro di chi punta a (x2, y2) sul bordo sinistro dell'oggetto. Percorso ad angoli retti: ogni freccia usa una corsia
+    # verticale propria negli spazi tra le colonne (così non attraversa le scatole); se salta una colonna, o torna indietro, passa sopra tutto il contenuto
+    da_tracciare = []
     per n in nomi:
         se n.get("ref") in risultato["oggetti"]:
             x1, y1 = posizione_nome[n["nome"]]
-            ox, oy, ol, oa, _ = risultato["oggetti"][n["ref"]]
-            risultato["frecce"].append((x1, y1, ox, oy + ALTEZZA_RIGA // 2, puntatori.get(n["ref"], 1) > 1))
-    per ref, (ox, oy, ol, oa, _) in risultato["oggetti"].items():
+            ox, oy, ol, oa, c_arrivo = risultato["oggetti"][n["ref"]]
+            da_tracciare.append((0, x1, y1, c_arrivo, ox, oy + ALTEZZA_RIGA // 2, puntatori.get(n["ref"], 1) > 1))
+    per ref, (ox, oy, ol, oa, c_partenza) in risultato["oggetti"].items():
         per i, el in enumera(oggetti[ref].get("elementi", [])):
             se el.get("ref") in risultato["oggetti"]:
-                tx, ty, tl, ta, _ = risultato["oggetti"][el["ref"]]
-                risultato["frecce"].append((ox + ol, oy + ALTEZZA_RIGA + i * ALTEZZA_RIGA + ALTEZZA_RIGA // 2, tx, ty + ALTEZZA_RIGA // 2, puntatori.get(el["ref"], 1) > 1))
+                tx, ty, tl, ta, c_arrivo = risultato["oggetti"][el["ref"]]
+                da_tracciare.append((c_partenza, ox + ol, oy + ALTEZZA_RIGA + i * ALTEZZA_RIGA + ALTEZZA_RIGA // 2, c_arrivo, tx, ty + ALTEZZA_RIGA // 2, puntatori.get(el["ref"], 1) > 1))
+    uso_spazio = {}                 # quante corsie ha già occupato ogni spazio tra colonne (indice = colonna a destra dello spazio)
+    corsie_alte = 0
+    per partenza, x1, y1, arrivo, x2, y2, condivisa in da_tracciare:
+        se arrivo == partenza + 1:
+            lx = _corsia(uso_spazio, arrivo, lunghezza_di(da_tracciare))
+            punti = [x1, y1, lx, y1, lx, y2, x2, y2]
+        altrimenti:
+            xa = _corsia(uso_spazio, partenza + 1, lunghezza_di(da_tracciare))
+            xb = _corsia(uso_spazio, arrivo, lunghezza_di(da_tracciare))
+            yh = MARGINE // 2 + 4 * corsie_alte
+            corsie_alte += 1
+            punti = [x1, y1, xa, y1, xa, yh, xb, yh, xb, y2, x2, y2]
+        risultato["frecce"].append((x1, y1, x2, y2, condivisa, punti))
     ritorna risultato
+
+
+definisci x_colonna(c):
+    """Ascissa del bordo sinistro delle scatole della colonna c (c >= 1)."""
+    ritorna MARGINE + LARGHEZZA_NOME + SPAZIO_COLONNE + (c - 1) * (LARGHEZZA_OGGETTO + SPAZIO_COLONNE)
+
+
+definisci _corsia(uso_spazio, colonna_destra, totale):
+    """Ascissa della prossima corsia libera nello spazio che precede la colonna indicata."""
+    n = uso_spazio.get(colonna_destra, 0)
+    uso_spazio[colonna_destra] = n + 1
+    sinistra = x_colonna(colonna_destra) - SPAZIO_COLONNE
+    passo = max(3, min(8, (SPAZIO_COLONNE - 16) // max(1, totale)))
+    ritorna sinistra + 8 + (n * passo) % (SPAZIO_COLONNE - 16)
 
 
 classe VistaMemoria(tk.Canvas):
@@ -132,10 +173,7 @@ classe VistaMemoria(tk.Canvas):
                 se_stesso.create_text(x + 6, y + alt - ALTEZZA_RIGA // 2, anchor="w", fill=c["tenue"], font=("Consolas", 9), text="… altri elementi non mostrati")
             larghezza = max(larghezza, x + larg)
             altezza = max(altezza, y + alt)
-        per x1, y1, x2, y2, condivisa in se_stesso.layout["frecce"]:
+        per x1, y1, x2, y2, condivisa, punti in se_stesso.layout["frecce"]:
             colore = "#e0a030" se condivisa altrimenti c["accento"]
-            se x2 > x1:
-                se_stesso.create_line(x1, y1, x2, y2, arrow="last", fill=colore, width=2 se condivisa altrimenti 1, smooth=Vero)
-            altrimenti:
-                se_stesso.create_line(x1, y1, x1 + 20, y1, x1 + 20, y2 - 30, x2 - 20, y2 - 30, x2 - 20, y2, x2, y2, arrow="last", fill=colore, smooth=Vero)
+            se_stesso.create_line(*punti, arrow="last", fill=colore, width=2 se condivisa altrimenti 1, joinstyle="round")
         se_stesso.configure(scrollregion=(0, 0, larghezza + MARGINE, altezza + MARGINE))

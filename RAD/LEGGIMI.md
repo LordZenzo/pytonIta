@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.18
+
+- **Frecce della memoria più ordinate.** Nel debugger le frecce tra variabili e oggetti ora girano ad angoli retti in corsie proprie negli spazi tra le colonne e non attraversano più le scatole; se saltano una colonna o tornano indietro (liste che si contengono) passano sopra il disegno.
+
 ## Novità della 2.17
 
 - **Gemini e DeepSeek vedono le immagini.** Lo strumento `vedi_anteprima` (l'assistente guarda la finestra che stai disegnando) ora funziona anche con Gemini e con i modelli «flash» di DeepSeek (non con `deepseek-chat`, che non legge immagini). Con Gemini, se l'API rifiuta la richiesta con l'immagine, PitStudio riprova da solo senza e non le manda più finché resta aperto. Provato solo con server finti: la forma delle immagini non è confermata dalle API vere.
