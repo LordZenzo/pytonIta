@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.19
+
+- **Strumento per i nomi di una lettera.** `pitonit.exe pitonit/tools/lettere_singole.py RAD` elenca per ogni file quante volte compare ogni lettera (esclusi i,j,k,n,x,y,z), dal file più pieno al meno pieno; `--file nome.pit` mostra le righe, `--lettera c` una lettera sola. Non cambia nulla: serve a ripulire il codice a poco a poco (oggi 3.600 casi in 193 file, quasi tutti `c`, `r`, `m`, `f`, `p`). Gli avvisi arancioni nell'editor restano gli stessi.
+
 ## Novità della 2.18
 
 - **Frecce della memoria più ordinate.** Nel debugger le frecce tra variabili e oggetti ora girano ad angoli retti in corsie proprie negli spazi tra le colonne e non attraversano più le scatole; se saltano una colonna o tornano indietro (liste che si contengono) passano sopra il disegno.

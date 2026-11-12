@@ -1,0 +1,39 @@
+"""Lo strumento tools/lettere_singole.py: conta i nomi di una lettera per file e per lettera, mostra le righe, ignora le lettere ammesse."""
+importa sys, os, tempfile, subprocess
+QUI = os.path.dirname(os.path.abspath(__file__))
+STRUMENTO = os.path.join(os.path.dirname(os.path.dirname(QUI)), "pitonit", "tools", "lettere_singole.py")
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci esegui(*argomenti):
+    r = subprocess.run([sys.executable, STRUMENTO, *argomenti], capture_output=Vero, text=Vero, encoding="utf-8")
+    ritorna r.returncode, r.stdout
+
+
+cartella = tempfile.mkdtemp()
+open(os.path.join(cartella, "uno.pit"), "w", encoding="utf-8").write("q = 1\nm = q + 2\nelenco = [m per m in intervallo_di(3)]\nx = 5\ni = 3\nstampa(q, m, x, i)\n")
+open(os.path.join(cartella, "due.pit"), "w", encoding="utf-8").write("b = 1\nstampa(b)\n")
+open(os.path.join(cartella, "pulito.pit"), "w", encoding="utf-8").write("totale = 1\nstampa(totale)\n")
+codice, uscita = esegui(cartella)
+verifica(codice == 0 e "uno.pit" in uscita e "due.pit" in uscita e "pulito.pit" non in uscita, "elenca solo i file con nomi di una lettera: " + uscita)
+verifica("q×" in uscita e "m×" in uscita e "b×1" in uscita, "dice quali lettere: " + uscita)
+verifica("x×" non in uscita e "i×" non in uscita, "le lettere ammesse (x, i) non contano: " + uscita)
+verifica(uscita.index("uno.pit") < uscita.index("due.pit"), "dal file più pieno al meno pieno")
+verifica("Totale:" in uscita, "il totale c'è")
+codice, uscita = esegui(cartella, "--file", "uno.pit")
+verifica("[q]" in uscita e "q = 1" in uscita, "con --file si vedono le righe: " + uscita)
+codice, uscita = esegui(cartella, "--lettera", "b")
+verifica("due.pit" in uscita e "uno.pit" non in uscita, "con --lettera solo quella: " + uscita)
+codice, uscita = esegui(os.path.join(cartella, "nessuna"))
+verifica("Nessun nome di una sola lettera" in uscita, "cartella vuota: " + uscita)
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_lettere_singole: ok")
