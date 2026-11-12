@@ -75,6 +75,22 @@ open(os.path.join(cartella, "duro.pit"), "w", encoding="utf-8").write("classe = 
 r = aggiorna_1x.aggiorna_progetto(cartella, applica=Vero)
 verifica("duro.pit" in r["residui"] e "duro.pit, riga 1" in aggiorna_1x.testo_rapporto(r, Vero), "una parola chiave come nome resta da sistemare a mano e viene detta")
 
+# ---------------------------------------------------------------- un programma a mattonelle col .pit vecchio
+da rad importa mattonelle_modello
+cartella_m = tempfile.mkdtemp()
+mattonelle_modello.salva_programma(mattonelle_modello.programma_di_esempio("principale"), cartella_m)
+pit_m = os.path.join(cartella_m, "principale.pit")
+giusto = open(pit_m, encoding="utf-8").read()
+vecchio_m = giusto.replace("lunghezza_di(", "lunghezza(").replace("tipo_testo(", "testo(")
+verifica(vecchio_m != giusto, "il programma di esempio usa nomi che cambiano (prova di partenza)")
+open(pit_m, "w", encoding="utf-8", newline="\n").write(vecchio_m)
+r = aggiorna_1x.aggiorna_progetto(cartella_m)
+verifica(r["programmi"] == ["principale.pit"], "il programma a mattonelle va rigenerato: " + tipo_testo(r))
+verifica(open(pit_m, encoding="utf-8").read() == vecchio_m, "la prova non scrive")
+r = aggiorna_1x.aggiorna_progetto(cartella_m, applica=Vero)
+verifica(open(pit_m, encoding="utf-8").read() == giusto e r["residui"] == {}, "applicato: il .pit torna quello generato dalle mattonelle")
+verifica(non aggiorna_1x.serve_aggiornamento(cartella_m), "poi non c'è più nulla da fare")
+
 # ---------------------------------------------------------------- dentro PitStudio: il comando e lo strumento dell'assistente
 importa tkinter come tk
 da tkinter importa messagebox

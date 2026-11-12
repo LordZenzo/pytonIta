@@ -218,6 +218,23 @@ definisci _finestre(cartella):
     ritorna risultato
 
 
+definisci _programmi_mattonelle(cartella):
+    """[(percorso del .mattonelle.json, percorso del .pit generato, programma)] dei programmi a mattonelle."""
+    da rad.mattonelle_modello importa carica_programma, percorsi_programma, SUFFISSO
+    risultato = []
+    per radice, cartelle, nomi in os.walk(cartella):
+        cartelle[:] = sorted(d per d in cartelle se d non in CARTELLE_ESCLUSE)
+        per nome in sorted(nomi):
+            se nome.lower().endswith(SUFFISSO):
+                json_ = os.path.join(radice, nome)
+                prova:
+                    programma = carica_programma(json_)
+                eccetto Eccezione:
+                    continua
+                risultato.append((json_, percorsi_programma(radice, programma.nome)["codice"], programma))
+    ritorna risultato
+
+
 definisci aggiorna_progetto(cartella, applica=Falso):
     """Esamina (e con applica=True aggiorna) il progetto. Ritorna
     {"finestre": [percorsi relativi dei _ui.pit rigenerati], "file": {percorso relativo: (funzioni, lettere)}, "residui": {percorso relativo: [(riga, messaggio)]}}."""
@@ -252,6 +269,25 @@ definisci aggiorna_progetto(cartella, applica=Falso):
             da_rifare.add(os.path.abspath(ui))
             se applica:
                 salva_form(form, os.path.dirname(json_))
+    # i programmi a mattonelle: il .pit è generato, si rigenera dalle mattonelle (correggerlo a mano non serve, verrebbe riscritto)
+    da rad.mattonelle_modello importa genera_codice
+    rapporto["programmi"] = []
+    per json_, codice_pit, programma in _programmi_mattonelle(cartella):
+        ui_generati.add(os.path.abspath(codice_pit))
+        prova:
+            attuale = open(codice_pit, encoding="utf-8", newline="").read().replace("\r\n", "\n") se os.path.exists(codice_pit) altrimenti ""
+            nuovo, _avvisi = genera_codice(programma)
+        eccetto Eccezione:
+            continua
+        se attuale != nuovo.replace("\r\n", "\n"):
+            rapporto["programmi"].append(os.path.relpath(codice_pit, cartella))
+            da_rifare.add(os.path.abspath(codice_pit))
+            se applica:
+                se os.path.exists(codice_pit):
+                    con open(codice_pit + ".bak", "wb") come f:
+                        f.write(open(codice_pit, "rb").read())
+                con open(codice_pit, "w", encoding="utf-8", newline="\n") come f:
+                    f.write(nuovo)
     per percorso in _file_pit(cartella):
         relativo = os.path.relpath(percorso, cartella)
         dati = open(percorso, "rb").read()
@@ -272,7 +308,7 @@ definisci aggiorna_progetto(cartella, applica=Falso):
 definisci serve_aggiornamento(cartella):
     """True se il progetto ha qualcosa da aggiornare (nomi vecchi, finestre generate col generatore vecchio) o errori gravi."""
     r = aggiorna_progetto(cartella, applica=Falso)
-    ritorna bool(r["moduli"] o r["finestre"] o r["file"] o r["residui"])
+    ritorna bool(r["moduli"] o r["finestre"] o r["programmi"] o r["file"] o r["residui"])
 
 
 definisci testo_rapporto(rapporto, applicato=Falso):
@@ -282,6 +318,8 @@ definisci testo_rapporto(rapporto, applicato=Falso):
         righe.append(("Moduli di PitStudio rinnovati" se applicato altrimenti "Moduli di PitStudio da rinnovare") + ": " + ", ".join(rapporto["moduli"]))
     se rapporto["finestre"]:
         righe.append(("Finestre rigenerate" se applicato altrimenti "Finestre da rigenerare") + " con il generatore nuovo: " + ", ".join(rapporto["finestre"]))
+    se rapporto["programmi"]:
+        righe.append(("Programmi a mattonelle rigenerati" se applicato altrimenti "Programmi a mattonelle da rigenerare") + " con il generatore nuovo: " + ", ".join(rapporto["programmi"]))
     per relativo, (funzioni, lettere) in rapporto["file"].items():
         dettagli = []
         se funzioni:
