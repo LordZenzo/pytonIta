@@ -162,12 +162,18 @@ classe Applicazione:
         se_stesso.sinistra = sinistra
         centro = tk.PanedWindow(se_stesso.corpo, orient="vertical", sashwidth=5, borderwidth=0)
         se_stesso.centro = centro
-        se_stesso.schede_nb = stile.SchedeChiudibili(centro, c, quando_chiudi=lambda w: se_stesso.chiudi_scheda(w))
-        se_stesso.schede_nb.bind("<<NotebookTabChanged>>", se_stesso._scheda_cambiata)
-        se_stesso.schede_nb.bind("<Button-2>", se_stesso._chiudi_con_clic_centrale)
-        se_stesso.schede_nb.bind("<Button-3>", se_stesso._menu_scheda)
+        # l'editor ha due gruppi di schede affiancabili; i contenuti delle schede hanno per genitore l'area comune (si spostano da un gruppo all'altro)
+        se_stesso.area_editor = tk.PanedWindow(centro, orient="horizontal", sashwidth=5, borderwidth=0)
+        se_stesso.schede_nb = stile.SchedeScorrevoli(se_stesso.area_editor, c, quando_chiudi=lambda w: se_stesso.chiudi_scheda(w), quando_attivato=se_stesso._gruppo_attivato)
+        se_stesso.schede_nb2 = stile.SchedeScorrevoli(se_stesso.area_editor, c, quando_chiudi=lambda w: se_stesso.chiudi_scheda(w), quando_attivato=se_stesso._gruppo_attivato)
+        se_stesso._gruppo_ultimo = se_stesso.schede_nb
+        per gruppo in (se_stesso.schede_nb, se_stesso.schede_nb2):
+            gruppo.bind("<<NotebookTabChanged>>", se_stesso._scheda_cambiata)
+            gruppo.bind("<Button-2>", se_stesso._chiudi_con_clic_centrale)
+            gruppo.bind("<Button-3>", se_stesso._menu_scheda)
+        se_stesso.area_editor.add(se_stesso.schede_nb, minsize=200, stretch="always")
         se_stesso.console = Console(centro, se_stesso.config_, se_stesso.colori, se_stesso)
-        centro.add(se_stesso.schede_nb, minsize=200, stretch="always")
+        centro.add(se_stesso.area_editor, minsize=200, stretch="always")
         centro.add(se_stesso.console, minsize=90, height=se_stesso.config_.ottieni("finestra.console_altezza", 190))
         se_stesso.chat = PannelloChat(se_stesso.corpo, se_stesso.config_, se_stesso.colori, se_stesso, se_stesso.ponte)
         se_stesso.corpo.add(sinistra, minsize=160, width=se_stesso.config_.ottieni("finestra.pannello_sinistro", 320))
@@ -386,6 +392,9 @@ classe Applicazione:
         vista.add_command(label="Console", command=lambda: se_stesso._commuta("console"))
         vista.add_command(label="Assistente AI", command=se_stesso.mostra_chat, accelerator="Ctrl+J")
         vista.add_separator()
+        vista.add_command(label="Dividi l'editor: apri la scheda a fianco", command=lambda: se_stesso.sposta_scheda_nell_altro_gruppo(), accelerator="Ctrl+" + chr(92))
+        vista.add_command(label="Unisci i gruppi di schede", command=lambda: se_stesso.unisci_gruppi())
+        vista.add_separator()
         vista.add_command(label="Tema chiaro / scuro", command=se_stesso.commuta_tema)
         vista.add_command(label="Ingrandisci il testo", command=lambda: se_stesso.zoom(1), accelerator="Ctrl++")
         vista.add_command(label="Riduci il testo", command=lambda: se_stesso.zoom(-1), accelerator="Ctrl+-")
@@ -449,7 +458,8 @@ classe Applicazione:
                  "rinomina": lambda: se_stesso.rinomina_simbolo(),
                  "ripulisci": lambda: se_stesso.ripulisci_codice(),
                  "suggerisci": lambda: se_stesso._su_editor("suggerisci", Vero),
-                 "chat": se_stesso.mostra_chat, "chiudi_scheda": se_stesso.chiudi_scheda_corrente}
+                 "chat": se_stesso.mostra_chat, "chiudi_scheda": se_stesso.chiudi_scheda_corrente,
+                 "dividi_editor": lambda: se_stesso.sposta_scheda_nell_altro_gruppo()}
         per nome, funzione in mappa.items():
             seq = s.get(nome)
             se non seq:
@@ -461,6 +471,9 @@ classe Applicazione:
             eccetto tk.TclError:
                 passa
         r.bind("<F1>", lambda evento: se_stesso.apri_aiuto(se_stesso._parola_sotto_cursore()) o "break")
+        se non getattr(se_stesso, "_focus_legato", Falso):          # una volta sola, anche se le scorciatoie si rileggono
+            r.bind_all("<FocusIn>", se_stesso._focus_cambiato, "+")
+            se_stesso._focus_legato = Vero
         r.bind("<Control-plus>", lambda evento: se_stesso.zoom(1) o "break")
         r.bind("<Control-equal>", lambda evento: se_stesso.zoom(1) o "break")
         r.bind("<Control-minus>", lambda evento: se_stesso.zoom(-1) o "break")
@@ -477,7 +490,8 @@ classe Applicazione:
         se_stesso.riga_barra.configure(background=c["bordo"])
         per b in se_stesso.pulsanti_barra:
             b.applica_colori(c)
-        se_stesso.schede_nb.applica_stile(c)
+        per gruppo in (se_stesso.schede_nb, se_stesso.schede_nb2):
+            gruppo.applica_stile(c)
         se_stesso.stato.configure(background=c["pannello"])
         se_stesso.testo_stato.configure(background=c["pannello"], foreground=c["primo_piano"])
         per lab, sep in se_stesso.segmenti_stato:
@@ -811,7 +825,8 @@ classe Applicazione:
         prova:
             os.makedirs(os.path.dirname(f), exist_ok=Vero)
             con open(f, "w", encoding="utf-8") come fl:
-                json.dump({"aperti": aperti, "attivo": se_stesso.progetto.relativo(attivo) se attivo e se_stesso.progetto.contiene(attivo) altrimenti "",
+                secondo = [se_stesso.progetto.relativo(p) per p, w in se_stesso.schede.items() se se_stesso.progetto.contiene(p) e se_stesso._gruppo_di(w) è se_stesso.schede_nb2]
+                json.dump({"aperti": aperti, "secondo_gruppo": secondo, "attivo": se_stesso.progetto.relativo(attivo) se attivo e se_stesso.progetto.contiene(attivo) altrimenti "",
                            "punti_arresto": {se_stesso.progetto.relativo(p): sorted(r) per p, r in se_stesso.punti_arresto.items() se se_stesso.progetto.contiene(p) e r},
                            "punti_dettagli": {se_stesso.progetto.relativo(p): {tipo_testo(r): d per r, d in dd.items() se r in se_stesso.punti_arresto.get(p, ())}
                                               per p, dd in se_stesso.dettagli_punti.items() se se_stesso.progetto.contiene(p) e dd},
@@ -837,18 +852,113 @@ classe Applicazione:
             p = os.path.join(se_stesso.progetto.cartella, rel)
             se os.path.exists(p):
                 se_stesso.apri_file(p)
+        per rel in d.get("secondo_gruppo", []):            # le schede che stavano nel gruppo a fianco tornano lì
+            w = se_stesso.schede.get(os.path.abspath(os.path.join(se_stesso.progetto.cartella, rel)))
+            se w è non Nessuno e se_stesso._gruppo_di(w) è se_stesso.schede_nb:
+                se_stesso.sposta_scheda_nell_altro_gruppo(w)
         attivo = d.get("attivo")
         se attivo:
             se_stesso.apri_file(os.path.join(se_stesso.progetto.cartella, attivo))
 
     # ================================================================== schede
+    # ---- i due gruppi di schede
+    @property
+    definisci gruppi(se_stesso):
+        ritorna [se_stesso.schede_nb, se_stesso.schede_nb2]
+
+    definisci _gruppo2_visibile(se_stesso):
+        ritorna str(se_stesso.schede_nb2) in [tipo_testo(x) per x in se_stesso.area_editor.panes()]
+
+    definisci _gruppo_di(se_stesso, widget):
+        """Il gruppo che contiene la scheda (None se non è in nessuno)."""
+        per gruppo in se_stesso.gruppi:
+            se str(widget) in gruppo.tabs():
+                ritorna gruppo
+        ritorna Nessuno
+
+    definisci _gruppo_attivo(se_stesso):
+        """Il gruppo in cui si sta lavorando: l'ultimo in cui si è cliccato, si è scelta una scheda o è andato il focus (il primo se i gruppi sono uno)."""
+        se se_stesso._gruppo2_visibile():
+            ritorna se_stesso._gruppo_ultimo
+        ritorna se_stesso.schede_nb
+
+    definisci _focus_cambiato(se_stesso, evento):
+        """Quando il focus entra nella scheda di un gruppo, quel gruppo diventa quello attivo."""
+        se non se_stesso._gruppo2_visibile():
+            ritorna
+        nome = str(evento.widget)
+        per gruppo in se_stesso.gruppi:
+            scelta = gruppo.select()
+            se scelta e (nome == scelta o nome.startswith(scelta + ".")):
+                se gruppo è non se_stesso._gruppo_ultimo:
+                    se_stesso._gruppo_ultimo = gruppo
+                    se_stesso._segna_gruppi()
+                ritorna
+
+    definisci _gruppo_attivato(se_stesso, gruppo):
+        se_stesso._gruppo_ultimo = gruppo
+        se_stesso._segna_gruppi()
+
+    definisci _segna_gruppi(se_stesso):
+        """La riga colorata in cima dice in quale dei due gruppi si scrive (solo quando i gruppi sono due)."""
+        doppio = se_stesso._gruppo2_visibile()
+        attivo = se_stesso._gruppo_ultimo se doppio altrimenti Nessuno
+        per gruppo in se_stesso.gruppi:
+            gruppo.segna_attivo(doppio e gruppo è attivo)
+
+    definisci _seleziona(se_stesso, widget):
+        """Sceglie la scheda nel suo gruppo e rende attivo quel gruppo."""
+        gruppo = se_stesso._gruppo_di(widget)
+        se gruppo è Nessuno:
+            ritorna
+        gruppo.select(widget)
+        se_stesso._gruppo_ultimo = gruppo
+        se_stesso._segna_gruppi()
+
+    definisci _aggiorna_gruppi(se_stesso):
+        """Il secondo gruppo c'è solo finché ha schede."""
+        se se_stesso._gruppo2_visibile() e non se_stesso.schede_nb2.tabs():
+            se_stesso.area_editor.forget(se_stesso.schede_nb2)
+            se_stesso._gruppo_ultimo = se_stesso.schede_nb
+        se_stesso._segna_gruppi()
+
+    definisci sposta_scheda_nell_altro_gruppo(se_stesso, widget=Nessuno):
+        """«Apri a fianco»: porta la scheda (quella corrente se non si dice) nell'altro gruppo; il secondo gruppo compare se serve."""
+        w = widget o se_stesso._scheda_corrente()
+        se w è Nessuno:
+            ritorna Falso
+        origine = se_stesso._gruppo_di(w)
+        se origine è Nessuno o w è se_stesso._benvenuto:
+            ritorna Falso
+        destinazione = se_stesso.schede_nb2 se origine è se_stesso.schede_nb altrimenti se_stesso.schede_nb
+        se destinazione è se_stesso.schede_nb2 e non se_stesso._gruppo2_visibile():
+            se_stesso.area_editor.add(se_stesso.schede_nb2, minsize=200, stretch="always")
+        titolo = se_stesso._titolo_scheda(w)
+        origine.forget(w)
+        destinazione.add(w, text=titolo)
+        destinazione.select(w)
+        se_stesso._gruppo_ultimo = destinazione
+        se_stesso._aggiorna_gruppi()
+        se_stesso.salva_sessione()
+        ritorna Vero
+
+    definisci unisci_gruppi(se_stesso):
+        """Riporta tutte le schede del secondo gruppo nel primo."""
+        per w in [se_stesso.schede_nb2.nametowidget(n) per n in se_stesso.schede_nb2.tabs()]:
+            titolo = se_stesso._titolo_scheda(w)
+            se_stesso.schede_nb2.forget(w)
+            se_stesso.schede_nb.add(w, text=titolo)
+        se_stesso._aggiorna_gruppi()
+        se_stesso.salva_sessione()
+
     definisci _scheda_corrente(se_stesso):
-        prova:
-            nome = se_stesso.schede_nb.select()
-            se nome:
-                ritorna se_stesso.schede_nb.nametowidget(nome)
-        eccetto (tk.TclError, KeyError):
-            passa
+        per gruppo in [se_stesso._gruppo_attivo()] + se_stesso.gruppi:
+            prova:
+                nome = gruppo.select()
+                se nome:
+                    ritorna gruppo.nametowidget(nome)
+            eccetto (tk.TclError, KeyError):
+                passa
         ritorna Nessuno
 
     definisci _percorso_di(se_stesso, widget):
@@ -870,8 +980,8 @@ classe Applicazione:
 
     definisci scheda_modificata(se_stesso, widget):
         prova:
-            se_stesso.schede_nb.tab(widget, text=se_stesso._titolo_scheda(widget))
-        eccetto tk.TclError:
+            se_stesso._gruppo_di(widget).tab(widget, text=se_stesso._titolo_scheda(widget))
+        eccetto (tk.TclError, AttributeError):
             passa
         se isinstance(widget, Editor) e widget.modificato:
             se_stesso._programma_sintassi(widget)
@@ -880,13 +990,14 @@ classe Applicazione:
     definisci _aggiungi_scheda(se_stesso, percorso, widget):
         se_stesso._nascondi_benvenuto()
         se_stesso.schede[percorso] = widget
-        se_stesso.schede_nb.add(widget, text=se_stesso._titolo_scheda(widget))
-        se_stesso.schede_nb.select(widget)
+        gruppo = se_stesso._gruppo_attivo()
+        gruppo.add(widget, text=se_stesso._titolo_scheda(widget))
+        se_stesso._seleziona(widget)
 
     definisci apri_file(se_stesso, percorso, riga=Nessuno):
         percorso = os.path.abspath(percorso)
         se percorso in se_stesso.schede:
-            se_stesso.schede_nb.select(se_stesso.schede[percorso])
+            se_stesso._seleziona(se_stesso.schede[percorso])
             w = se_stesso.schede[percorso]
         altrimenti:
             se non os.path.exists(percorso):
@@ -898,14 +1009,14 @@ classe Applicazione:
             prova:
                 se tipo_ == "form":
                     f = form_modello.carica_form(percorso)
-                    w = Progettista(se_stesso.schede_nb, percorso, f, se_stesso.colori, se_stesso.config_, se_stesso)
+                    w = Progettista(se_stesso.area_editor, percorso, f, se_stesso.colori, se_stesso.config_, se_stesso)
                 altrimenti_se tipo_ == "mattonelle":
                     prog = mattonelle_modello.carica_programma(percorso)
-                    w = EditorMattonelle(se_stesso.schede_nb, percorso, prog, se_stesso.colori, se_stesso.config_, se_stesso)
+                    w = EditorMattonelle(se_stesso.area_editor, percorso, prog, se_stesso.colori, se_stesso.config_, se_stesso)
                 altrimenti:
-                    w = crea_visore(se_stesso.schede_nb, percorso, se_stesso.colori, se_stesso.config_, se_stesso)
+                    w = crea_visore(se_stesso.area_editor, percorso, se_stesso.colori, se_stesso.config_, se_stesso)
                     se w è Nessuno:
-                        w = Editor(se_stesso.schede_nb, se_stesso.config_, se_stesso.colori, percorso,
+                        w = Editor(se_stesso.area_editor, se_stesso.config_, se_stesso.colori, percorso,
                                    sul_cambio=se_stesso.scheda_modificata, sul_cursore=se_stesso._cursore,
                                    cartelle_progetto=cartelle)
                         w.carica(percorso)
@@ -945,6 +1056,9 @@ classe Applicazione:
                 w.vai_a(int(ricerca.split(".")[0]))
 
     definisci _scheda_cambiata(se_stesso, evento=Nessuno):
+        se evento è non Nessuno e evento.widget in se_stesso.gruppi:
+            se_stesso._gruppo_ultimo = evento.widget
+            se_stesso._segna_gruppi()
         w = se_stesso._scheda_corrente()
         p = se_stesso._percorso_di(w)
         se_stesso.pannello_librerie.aggiorna_uso()
@@ -972,14 +1086,17 @@ classe Applicazione:
         p = se_stesso._percorso_di(widget)
         se hasattr(widget, "chiudi"):
             widget.chiudi()
+        gruppo = se_stesso._gruppo_di(widget)
         prova:
-            se_stesso.schede_nb.forget(widget)
+            se gruppo è non Nessuno:
+                gruppo.forget(widget)
         eccetto tk.TclError:
             passa
         se p:
             elimina se_stesso.schede[p]
             se_stesso.recupero.togli(p)             # salvato o scartato di proposito: la copia di sicurezza non serve più
         widget.destroy()
+        se_stesso._aggiorna_gruppi()
         se non se_stesso.schede:
             se_stesso._mostra_benvenuto()
         ritorna Vero
@@ -995,20 +1112,25 @@ classe Applicazione:
         ritorna Vero
 
     definisci _chiudi_con_clic_centrale(se_stesso, evento):
+        gruppo = evento.widget
         prova:
-            indice = se_stesso.schede_nb.index(f"@{evento.x},{evento.y}")
-            se_stesso.chiudi_scheda(se_stesso.schede_nb.nametowidget(se_stesso.schede_nb.tabs()[indice]))
+            indice = gruppo.index(f"@{evento.x},{evento.y}")
+            se_stesso.chiudi_scheda(gruppo.nametowidget(gruppo.tabs()[indice]))
         eccetto (tk.TclError, IndexError, KeyError):
             passa
 
     definisci _menu_scheda(se_stesso, evento):
+        gruppo = evento.widget
         prova:
-            indice = se_stesso.schede_nb.index(f"@{evento.x},{evento.y}")
-            w = se_stesso.schede_nb.nametowidget(se_stesso.schede_nb.tabs()[indice])
+            indice = gruppo.index(f"@{evento.x},{evento.y}")
+            w = gruppo.nametowidget(gruppo.tabs()[indice])
         eccetto (tk.TclError, IndexError, KeyError):
             ritorna
         m = tk.Menu(se_stesso.radice, tearoff=0)
         m.add_command(label="Chiudi", command=lambda: se_stesso.chiudi_scheda(w))
+        se w è non se_stesso._benvenuto:
+            m.add_command(label="Apri a fianco" se gruppo è se_stesso.schede_nb altrimenti "Sposta nell'altro gruppo",
+                          command=lambda: se_stesso.sposta_scheda_nell_altro_gruppo(w))
         m.add_command(label="Chiudi le altre", command=lambda: [se_stesso.chiudi_scheda(x) per x in tipo_lista(se_stesso.schede.values()) se x è non w])
         p = se_stesso._percorso_di(w)
         se p:
@@ -1696,10 +1818,10 @@ classe Applicazione:
             ritorna Nessuno
         chiave = "mysql://" + conn.nome_visibile
         se chiave in se_stesso.schede:
-            se_stesso.schede_nb.select(se_stesso.schede[chiave])
+            se_stesso._seleziona(se_stesso.schede[chiave])
             conn.chiudi()
             ritorna se_stesso.schede[chiave]
-        w = VisoreDatabase(se_stesso.schede_nb, chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
+        w = VisoreDatabase(se_stesso.area_editor, chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
         tema.applica(w, se_stesso.colori)
         w.applica_colori(se_stesso.colori)
         se_stesso._aggiungi_scheda(chiave, w)
@@ -1725,10 +1847,10 @@ classe Applicazione:
             ritorna Nessuno
         chiave = "postgres://" + conn.nome_visibile
         se chiave in se_stesso.schede:
-            se_stesso.schede_nb.select(se_stesso.schede[chiave])
+            se_stesso._seleziona(se_stesso.schede[chiave])
             conn.chiudi()
             ritorna se_stesso.schede[chiave]
-        w = VisoreDatabase(se_stesso.schede_nb, chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
+        w = VisoreDatabase(se_stesso.area_editor, chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
         tema.applica(w, se_stesso.colori)
         w.applica_colori(se_stesso.colori)
         se_stesso._aggiungi_scheda(chiave, w)
@@ -2020,7 +2142,7 @@ classe Applicazione:
         se se_stesso.schede:
             ritorna
         c = se_stesso.colori
-        f = tk.Frame(se_stesso.schede_nb, background=c["editor"])
+        f = tk.Frame(se_stesso.area_editor, background=c["editor"])
         centro = tk.Frame(f, background=c["editor"])
         centro.place(relx=0.5, rely=0.46, anchor="center")
         se_stesso._logo_benvenuto = stile.logo_tk(88)
@@ -2330,7 +2452,7 @@ classe Applicazione:
             scelto = progettisti[0]
         se scelto è Nessuno:
             solleva ErroreDiValore("Non c'è nessun progettista aperto" + (f" per la finestra «{nome}»" se nome altrimenti "") + ": aprilo con apri_file.")
-        se_stesso.schede_nb.select(scelto)
+        se_stesso._seleziona(scelto)
         se_stesso.radice.update()
         ritorna scelto.cattura_png()
 

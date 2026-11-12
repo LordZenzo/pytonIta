@@ -391,6 +391,269 @@ classe SchedeChiudibili(ttk.Notebook):
         se_stesso._premuta = Nessuno
 
 
+# --------------------------------------------------------------------------- gruppo di schede che scorre
+LARGHEZZA_MINIMA_SCHEDA = 130
+LARGHEZZA_MASSIMA_SCHEDA = 240
+
+
+classe SchedeScorrevoli(tk.Frame):
+    """Gruppo di schede come ttk.Notebook, ma con le linguette che non scendono sotto una larghezza minima: se non ci stanno tutte scorrono
+    (frecce ◀ ▶, rotella del mouse, e la scheda scelta viene portata in vista). Ogni linguetta ha la sua X. I contenuti delle schede NON sono figli
+    di questo gruppo ma di un genitore comune (`area`): così una scheda si può spostare in un altro gruppo senza ricrearla.
+
+    Metodi come quelli di ttk.Notebook: add, forget, select, tab, tabs, index («@x,y», «end», una scheda), nametowidget, bind (anche i clic
+    centrale e destro sulle linguette). Quando la scheda scelta cambia genera <<NotebookTabChanged>>."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, quando_chiudi=Nessuno, quando_attivato=Nessuno):
+        tk.Frame.__init__(se_stesso, genitore, borderwidth=0, highlightthickness=0)
+        se_stesso.colori = colori
+        se_stesso.quando_chiudi = quando_chiudi
+        se_stesso.quando_attivato = quando_attivato       # chiamata quando l'utente clicca sulle linguette di questo gruppo
+        se_stesso._schede = []                            # [{"widget", "titolo", "tab", "etichetta", "x"}]
+        se_stesso._selezionata = Nessuno
+        se_stesso._legami = {}                            # sequenza -> funzione (clic centrale e destro)
+        se_stesso._totale = 0
+        se_stesso._font = tkfont.Font(family=FONT_UI, size=9)
+        se_stesso.attivo = Falso
+        se_stesso.linea = tk.Frame(se_stesso, height=2, borderwidth=0)
+        se_stesso.linea.pack(side="top", fill="x")
+        se_stesso.barra = tk.Frame(se_stesso, height=30, borderwidth=0)
+        se_stesso.barra.pack(side="top", fill="x")
+        se_stesso.barra.pack_propagate(Falso)
+        se_stesso.freccia_sx = tk.Label(se_stesso.barra, text="◀", cursor="hand2", padx=6, borderwidth=0)
+        se_stesso.freccia_dx = tk.Label(se_stesso.barra, text="▶", cursor="hand2", padx=6, borderwidth=0)
+        se_stesso.striscia = tk.Canvas(se_stesso.barra, width=1, height=30, highlightthickness=0, borderwidth=0, xscrollincrement=40)
+        se_stesso.striscia.pack(side="left", fill="both", expand=Vero)
+        se_stesso.contenuto = tk.Frame(se_stesso, borderwidth=0, highlightthickness=0)
+        se_stesso.contenuto.pack(side="top", fill="both", expand=Vero)
+        se_stesso.freccia_sx.bind("<Button-1>", lambda evento: se_stesso._scorri(-3))
+        se_stesso.freccia_dx.bind("<Button-1>", lambda evento: se_stesso._scorri(3))
+        per w in (se_stesso.striscia, se_stesso.barra, se_stesso.freccia_sx, se_stesso.freccia_dx):
+            w.bind("<MouseWheel>", se_stesso._rotella)
+            w.bind("<Button-4>", lambda evento: se_stesso._scorri(-3))
+            w.bind("<Button-5>", lambda evento: se_stesso._scorri(3))
+        se_stesso.striscia.bind("<Configure>", lambda evento: se_stesso._ridisponi())
+        se_stesso.applica_stile(colori)
+
+    # ------------------------------------------------------------ aspetto
+    definisci applica_stile(se_stesso, c):
+        se_stesso.colori = c
+        se_stesso.configure(background=c["sfondo"])
+        se_stesso.barra.configure(background=c["sfondo"])
+        se_stesso.striscia.configure(background=c["sfondo"])
+        se_stesso.contenuto.configure(background=c["editor"])
+        se_stesso.segna_attivo(se_stesso.attivo)
+        per f in (se_stesso.freccia_sx, se_stesso.freccia_dx):
+            f.configure(background=c["pannello"], foreground=c["primo_piano"])
+        per voce in se_stesso._schede:
+            se_stesso._colora(voce)
+
+    definisci segna_attivo(se_stesso, attivo):
+        """Una sottile riga colorata in cima dice qual è il gruppo in cui si sta scrivendo."""
+        se_stesso.attivo = attivo
+        se_stesso.linea.configure(background=se_stesso.colori["accento"] se attivo altrimenti se_stesso.colori["sfondo"])
+
+    definisci _colora(se_stesso, voce, sopra=Falso):
+        c = se_stesso.colori
+        scelta = voce["widget"] è se_stesso._selezionata
+        sfondo = c["editor"] se scelta altrimenti (c["pulsante"] se sopra altrimenti c["pannello"])
+        testo_ = c["primo_piano"] se (scelta o sopra) altrimenti c["tenue"]
+        voce["tab"].configure(background=sfondo)
+        voce["etichetta"].configure(background=sfondo, foreground=testo_)
+        voce["x"].configure(background=sfondo, foreground=c["tenue"])
+
+    # ------------------------------------------------------------ schede
+    definisci tabs(se_stesso):
+        ritorna tuple(str(v["widget"]) per v in se_stesso._schede)
+
+    definisci _voce(se_stesso, widget):
+        per v in se_stesso._schede:
+            se v["widget"] è widget o str(v["widget"]) == str(widget):
+                ritorna v
+        solleva tk.TclError(f"la scheda {widget} non è in questo gruppo")
+
+    definisci _testo_adattato(se_stesso, titolo):
+        """Il titolo accorciato con «…» se supera la larghezza massima della linguetta."""
+        disponibile = LARGHEZZA_MASSIMA_SCHEDA - 44
+        se se_stesso._font.measure(titolo) <= disponibile:
+            ritorna titolo
+        mentre titolo e se_stesso._font.measure(titolo + "…") > disponibile:
+            titolo = titolo[:-1]
+        ritorna titolo + "…"
+
+    definisci add(se_stesso, widget, text="", **altro):
+        tab = tk.Frame(se_stesso.striscia, borderwidth=0, highlightthickness=0, cursor="arrow")
+        etichetta = tk.Label(tab, text=se_stesso._testo_adattato(text), font=(FONT_UI, 9), borderwidth=0, anchor="w")
+        x = tk.Label(tab, text="✕", font=(FONT_UI, 9), borderwidth=0, cursor="hand2", padx=4)
+        etichetta.pack(side="left", padx=(12, 4), pady=5)
+        x.pack(side="right", padx=(0, 6))
+        voce = {"widget": widget, "titolo": text, "tab": tab, "etichetta": etichetta, "x": x, "id": Nessuno}
+        se_stesso._schede.append(voce)
+        per w in (tab, etichetta):
+            w.bind("<ButtonPress-1>", lambda evento, v=voce: se_stesso._clic(v))
+            w.bind("<Enter>", lambda evento, v=voce: se_stesso._colora(v, Vero))
+            w.bind("<Leave>", lambda evento, v=voce: se_stesso._colora(v))
+        x.bind("<ButtonRelease-1>", lambda evento, v=voce: se_stesso._chiudi(v))
+        x.bind("<Enter>", lambda evento, v=voce: v["x"].configure(background=se_stesso.colori["errore"], foreground="#ffffff"))
+        x.bind("<Leave>", lambda evento, v=voce: se_stesso._colora(v))
+        suggerisci(x, "Chiudi la scheda  (Ctrl+W)", se_stesso.colori)
+        per w in (tab, etichetta, x):
+            w.bind("<MouseWheel>", se_stesso._rotella)
+        per sequenza, funzione in se_stesso._legami.items():
+            se_stesso._lega_tab(voce, sequenza, funzione)
+        se_stesso._colora(voce)
+        se_stesso._ridisponi()
+        se se_stesso._selezionata è Nessuno:
+            se_stesso.select(widget)
+
+    definisci forget(se_stesso, widget):
+        voce = se_stesso._voce(widget)
+        indice = se_stesso._schede.index(voce)
+        era_scelta = voce["widget"] è se_stesso._selezionata
+        se_stesso._schede.remove(voce)
+        voce["tab"].destroy()
+        prova:
+            voce["widget"].place_forget()
+        eccetto tk.TclError:
+            passa
+        se era_scelta:
+            se_stesso._selezionata = Nessuno
+            se se_stesso._schede:
+                se_stesso.select(se_stesso._schede[min(indice, lunghezza_di(se_stesso._schede) - 1)]["widget"])
+            altrimenti:
+                se_stesso.event_generate("<<NotebookTabChanged>>")
+        se_stesso._ridisponi()
+
+    definisci select(se_stesso, widget=Nessuno):
+        """Senza argomenti dà il percorso della scheda scelta («» se non ce n'è); con una scheda la sceglie."""
+        se widget è Nessuno:
+            ritorna str(se_stesso._selezionata) se se_stesso._selezionata è non Nessuno altrimenti ""
+        voce = se_stesso._voce(widget)
+        cambiata = voce["widget"] è non se_stesso._selezionata
+        se cambiata e se_stesso._selezionata è non Nessuno:
+            prova:
+                se_stesso._selezionata.place_forget()
+            eccetto tk.TclError:
+                passa
+        se_stesso._selezionata = voce["widget"]
+        voce["widget"].place(in_=se_stesso.contenuto, x=0, y=0, relwidth=1, relheight=1)
+        voce["widget"].lift()
+        per v in se_stesso._schede:
+            se_stesso._colora(v)
+        se_stesso._porta_in_vista(voce)
+        se cambiata:
+            se_stesso.event_generate("<<NotebookTabChanged>>")
+
+    definisci tab(se_stesso, widget, opzione=Nessuno, **opzioni):
+        voce = se_stesso._voce(widget)
+        se "text" in opzioni:
+            voce["titolo"] = opzioni["text"]
+            voce["etichetta"].configure(text=se_stesso._testo_adattato(opzioni["text"]))
+            se_stesso._ridisponi()
+        se opzione == "text":
+            ritorna voce["titolo"]
+        ritorna Nessuno
+
+    definisci index(se_stesso, quale):
+        se quale == "end":
+            ritorna lunghezza_di(se_stesso._schede)
+        se isinstance(quale, tipo_testo) e quale.startswith("@"):
+            x_, y_ = quale[1:].split(",")
+            assoluta_x = se_stesso.winfo_rootx() + int(x_)
+            assoluta_y = se_stesso.winfo_rooty() + int(y_)
+            per i, v in enumera(se_stesso._schede):
+                t = v["tab"]
+                se t.winfo_ismapped() e t.winfo_rootx() <= assoluta_x < t.winfo_rootx() + t.winfo_width() e t.winfo_rooty() <= assoluta_y < t.winfo_rooty() + t.winfo_height():
+                    ritorna i
+            solleva tk.TclError("nessuna scheda sotto il mouse")
+        ritorna se_stesso._schede.index(se_stesso._voce(quale))
+
+    # ------------------------------------------------------------ eventi
+    definisci bind(se_stesso, sequenza=Nessuno, funzione=Nessuno, add=Nessuno):
+        se sequenza in ("<Button-2>", "<Button-3>"):
+            se_stesso._legami[sequenza] = funzione
+            se_stesso._lega_barra(sequenza, funzione)
+            per v in se_stesso._schede:
+                se_stesso._lega_tab(v, sequenza, funzione)
+            ritorna Nessuno
+        ritorna tk.Frame.bind(se_stesso, sequenza, funzione, add)
+
+    definisci _evento_relativo(se_stesso, evento):
+        """Lo stesso evento con le coordinate rispetto a questo gruppo (come le avrebbe date ttk.Notebook)."""
+        nuovo = tk.Event()
+        nuovo.__dict__.update(evento.__dict__)
+        nuovo.x = evento.x_root - se_stesso.winfo_rootx()
+        nuovo.y = evento.y_root - se_stesso.winfo_rooty()
+        nuovo.widget = se_stesso
+        ritorna nuovo
+
+    definisci _lega_barra(se_stesso, sequenza, funzione):
+        per w in (se_stesso.striscia, se_stesso.barra):
+            w.bind(sequenza, lambda evento: funzione(se_stesso._evento_relativo(evento)))
+
+    definisci _lega_tab(se_stesso, voce, sequenza, funzione):
+        per w in (voce["tab"], voce["etichetta"], voce["x"]):
+            w.bind(sequenza, lambda evento: funzione(se_stesso._evento_relativo(evento)))
+
+    definisci _clic(se_stesso, voce):
+        se se_stesso.quando_attivato:
+            se_stesso.quando_attivato(se_stesso)
+        se_stesso.select(voce["widget"])
+
+    definisci _chiudi(se_stesso, voce):
+        se se_stesso.quando_chiudi e voce in se_stesso._schede:
+            se_stesso.quando_chiudi(voce["widget"])
+
+    # ------------------------------------------------------------ disposizione e scorrimento
+    definisci _ridisponi(se_stesso):
+        """Mette le linguette una dopo l'altra, ciascuna larga quanto il suo testo ma non meno del minimo, e mostra le frecce se servono."""
+        x = 2
+        per v in se_stesso._schede:
+            larghezza = se_stesso._font.measure(v["etichetta"].cget("text")) + 44
+            larghezza = max(LARGHEZZA_MINIMA_SCHEDA, min(LARGHEZZA_MASSIMA_SCHEDA, larghezza))
+            v["tab"].configure(width=larghezza, height=28)
+            v["tab"].pack_propagate(Falso)
+            se v["id"] è Nessuno:
+                v["id"] = se_stesso.striscia.create_window(x, 2, window=v["tab"], anchor="nw")
+            altrimenti:
+                se_stesso.striscia.coords(v["id"], x, 2)
+            x += larghezza + 2
+        se_stesso._totale = x
+        se_stesso.striscia.configure(scrollregion=(0, 0, x, 30))
+        servono = x > se_stesso.striscia.winfo_width() > 1
+        se servono e non se_stesso.freccia_sx.winfo_ismapped():
+            se_stesso.freccia_sx.pack(side="left", fill="y", before=se_stesso.striscia)
+            se_stesso.freccia_dx.pack(side="right", fill="y", before=se_stesso.striscia)
+        altrimenti_se non servono e se_stesso.freccia_sx.winfo_ismapped():
+            se_stesso.freccia_sx.pack_forget()
+            se_stesso.freccia_dx.pack_forget()
+            se_stesso.striscia.xview_moveto(0)
+
+    definisci _scorri(se_stesso, passi):
+        se se_stesso._totale > se_stesso.striscia.winfo_width():
+            se_stesso.striscia.xview_scroll(passi, "units")
+
+    definisci _rotella(se_stesso, evento):
+        se_stesso._scorri(-3 se evento.delta > 0 altrimenti 3)
+        ritorna "break"
+
+    definisci _porta_in_vista(se_stesso, voce):
+        """Fa scorrere la striscia perché la linguetta scelta si veda per intero."""
+        se_stesso.update_idletasks()
+        se voce["id"] è Nessuno:
+            ritorna
+        x0, y0 = se_stesso.striscia.coords(voce["id"])
+        x1 = x0 + voce["tab"].winfo_reqwidth()
+        visibile = se_stesso.striscia.winfo_width()
+        se visibile <= 1:
+            ritorna
+        sinistra = se_stesso.striscia.canvasx(0)
+        se x0 < sinistra:
+            se_stesso.striscia.xview_moveto(max(0, (x0 - 4) / max(1, se_stesso._totale)))
+        altrimenti_se x1 > sinistra + visibile:
+            se_stesso.striscia.xview_moveto(min(1.0, (x1 - visibile + 4) / max(1, se_stesso._totale)))
+
+
 definisci scurisci_colore(colore, f=0.75):
     colore = colore.lstrip("#")
     r, g, b = int(colore[0:2], 16), int(colore[2:4], 16), int(colore[4:6], 16)

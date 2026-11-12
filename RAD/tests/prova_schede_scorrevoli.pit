@@ -1,0 +1,107 @@
+"""Gruppo di schede scorrevole: linguette mai sotto la larghezza minima, frecce e scorrimento, X che chiude, clic destro/centrale con le coordinate giuste, spostamento di una scheda tra due gruppi."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.stile importa SchedeScorrevoli, LARGHEZZA_MINIMA_SCHEDA
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+c = colori(cfg)
+radice = tk.Tk()
+radice.geometry("700x400+20+20")
+area = tk.PanedWindow(radice, orient="horizontal")
+area.pack(fill="both", expand=Vero)
+chiuse = []
+attivate = []
+g1 = SchedeScorrevoli(area, c, quando_chiudi=lambda w: chiuse.append(w), quando_attivato=lambda g: attivate.append(g))
+g2 = SchedeScorrevoli(area, c)
+area.add(g1, stretch="always")
+radice.update()
+cambi = []
+g1.bind("<<NotebookTabChanged>>", lambda evento: cambi.append(g1.select()))
+pagine = []
+per k in intervallo_di(20):
+    p = tk.Label(area, text=f"pagina {k}")        # i contenuti hanno il genitore COMUNE, non il gruppo
+    pagine.append(p)
+    g1.add(p, text=f"file_numero_{k}.pit")
+radice.update()
+verifica(lunghezza_di(g1.tabs()) == 20 e g1.select() == str(pagine[0]), "20 schede, la prima è scelta")
+verifica(tutti_veri(int(v["tab"].cget("width")) >= LARGHEZZA_MINIMA_SCHEDA per v in g1._schede), "nessuna linguetta sotto la larghezza minima: " + tipo_testo(min(int(v["tab"].cget("width")) per v in g1._schede)))
+verifica(g1.freccia_sx.winfo_ismapped() e g1.freccia_dx.winfo_ismapped(), "con tante schede compaiono le frecce")
+verifica(tutti_veri(v["x"].winfo_width() > 4 per v in g1._schede[:3]), "e la X di ogni linguetta ha spazio")
+# la scheda scelta viene portata in vista
+g1.select(pagine[19])
+radice.update()
+ultima = g1._schede[19]["tab"]
+verifica(ultima.winfo_rootx() + ultima.winfo_width() <= g1.striscia.winfo_rootx() + g1.striscia.winfo_width() + 2, "la ventesima scheda si vede per intero dopo averla scelta")
+verifica(cambi[-1] == str(pagine[19]) e pagine[19].winfo_ismapped() e non pagine[0].winfo_ismapped(), "evento di cambio scheda e contenuto mostrato: " + tipo_testo(cambi[-2:]))
+g1.select(pagine[0])
+radice.update()
+verifica(g1.striscia.canvasx(0) <= 4, "tornando alla prima scorre all'inizio")
+# le frecce scorrono
+g1._scorri(3)
+radice.update()
+verifica(g1.striscia.canvasx(0) > 0, "la freccia fa scorrere")
+# la rotella
+g1.striscia.xview_moveto(0)
+radice.update()
+g1.striscia.event_generate("<MouseWheel>", delta=-120)
+radice.update()
+verifica(g1.striscia.canvasx(0) > 0, "la rotella fa scorrere")
+# la X chiama quando_chiudi
+g1.select(pagine[2])
+radice.update()
+g1._schede[2]["x"].event_generate("<ButtonRelease-1>")
+verifica(chiuse == [pagine[2]], "la X chiede di chiudere quella scheda")
+# index con le coordinate e clic destro
+g1.striscia.xview_moveto(0)
+radice.update()
+t0 = g1._schede[0]["tab"]
+x_rel = t0.winfo_rootx() - g1.winfo_rootx() + 10
+y_rel = t0.winfo_rooty() - g1.winfo_rooty() + 8
+verifica(g1.index(f"@{x_rel},{y_rel}") == 0, "index(@x,y) trova la prima linguetta")
+ricevuti = []
+g1.bind("<Button-3>", lambda evento: ricevuti.append((evento.widget, evento.x, evento.y)))
+g1._schede[0]["etichetta"].event_generate("<Button-3>", x=5, y=5, rootx=t0.winfo_rootx() + 20, rooty=t0.winfo_rooty() + 10)
+verifica(ricevuti e ricevuti[0][0] è g1, "il clic destro arriva con il gruppo come widget")
+verifica(ricevuti e g1.index(f"@{ricevuti[0][1]},{ricevuti[0][2]}") == 0, "e con le coordinate rispetto al gruppo: " + tipo_testo(ricevuti))
+# il titolo
+g1.tab(pagine[0], text="● file_modificato.pit")
+radice.update()
+verifica(g1.tab(pagine[0], "text") == "● file_modificato.pit" e g1._schede[0]["etichetta"].cget("text").startswith("● file_modificato"), "il titolo si aggiorna")
+g1.tab(pagine[1], text="un_nome_di_file_davvero_lunghissimo_che_non_ci_sta_nella_linguetta_per_niente.pit")
+verifica(g1._schede[1]["etichetta"].cget("text").endswith("…") e g1._schede[1]["tab"].winfo_reqwidth() <= 260, "un titolo lungo si accorcia")
+# chiusura di una scheda: ne sceglie un'altra
+g1.select(pagine[0])
+g1.forget(pagine[0])
+radice.update()
+verifica(lunghezza_di(g1.tabs()) == 19 e g1.select() == str(pagine[1]), "dopo la chiusura si sceglie la vicina")
+# sposta una scheda nell'altro gruppo (il contenuto ha il genitore comune: funziona)
+area.add(g2, stretch="always")
+radice.update()
+g1.forget(pagine[5])
+g2.add(pagine[5], text="spostata.pit")
+radice.update()
+verifica(g2.tabs() == (str(pagine[5]),) e g2.select() == str(pagine[5]) e pagine[5].winfo_ismapped() e str(pagine[5]) non in g1.tabs(), "la scheda passa all'altro gruppo e si vede")
+verifica(pagine[5].master è area, "senza essere stata ricreata (il genitore resta quello comune)")
+g2.forget(pagine[5])
+verifica(g2.select() == "" e g2.tabs() == (), "un gruppo vuoto non ha schede scelte")
+g1.segna_attivo(Vero)
+verifica(g1.linea.cget("background") == c["accento"], "il gruppo attivo ha la riga colorata")
+g1.segna_attivo(Falso)
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_schede_scorrevoli: ok")

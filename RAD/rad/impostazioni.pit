@@ -105,6 +105,7 @@ SCHEDE = [
         ("scorciatoie.suggerisci", "Mostra suggerimenti", "testo", Nessuno),
         ("scorciatoie.chat", "Mostra/nascondi chat", "testo", Nessuno),
         ("scorciatoie.chiudi_scheda", "Chiudi scheda", "testo", Nessuno),
+        ("scorciatoie.dividi_editor", "Apri la scheda a fianco", "testo", Nessuno),
     ]),
 ]
 

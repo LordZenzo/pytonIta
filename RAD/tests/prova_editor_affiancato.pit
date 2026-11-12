@@ -1,0 +1,111 @@
+"""Editor affiancato: due gruppi di schede, «apri a fianco», scheda corrente dal gruppo attivo, chiusura, sessione, unione dei gruppi."""
+importa sys, os, tempfile, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.editor importa Editor
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cartella = tempfile.mkdtemp()
+progetto = Progetto.nuovo(os.path.join(cartella, "P"), "P", "console")
+nomi = ["uno.pit", "due.pit", "tre.pit", "quattro.pit"]
+per n in nomi:
+    progetto.crea_file(n, f"stampa('{n}')\n")
+cfg = Configurazione(os.path.join(cartella, "c.json"))
+radice = tk.Tk()
+radice.geometry("1400x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+app.apri_progetto(progetto.cartella)
+radice.update()
+percorsi = {n: os.path.join(progetto.cartella, n) per n in nomi}
+per n in nomi:
+    app.apri_file(percorsi[n])
+radice.update()
+w = {n: app.schede[os.path.abspath(percorsi[n])] per n in nomi}
+verifica(app._gruppo2_visibile() == Falso, "all'inizio c'è un solo gruppo")
+verifica(tutti_veri(app._gruppo_di(w[n]) è app.schede_nb per n in nomi), "tutte le schede sono nel primo gruppo")
+verifica(app._scheda_corrente() è w["quattro.pit"], "la scheda corrente è l'ultima aperta")
+verifica(w["uno.pit"].master è app.area_editor, "i contenuti hanno il genitore comune")
+verifica(app.salva_sessione() è Nessuno, "salva_sessione non dà errori")
+
+# «apri a fianco»
+verifica(app.sposta_scheda_nell_altro_gruppo(w["due.pit"]), "apri a fianco funziona")
+radice.update()
+verifica(app._gruppo2_visibile() e app._gruppo_di(w["due.pit"]) è app.schede_nb2, "compare il secondo gruppo con la scheda")
+verifica(w["due.pit"].winfo_ismapped() e app.schede_nb2.winfo_width() > 100, "e si vede")
+verifica(app._scheda_corrente() è w["due.pit"], "la scheda spostata diventa la corrente")
+verifica(app.schede_nb.select() == str(w["quattro.pit"]) o app._gruppo_di(w["uno.pit"]) è app.schede_nb, "il primo gruppo continua a funzionare")
+# con più schede di quante ne stiano le frecce si vedono anche in un gruppo stretto (in pack la striscia si prendeva tutto lo spazio)
+per gruppo in (app.schede_nb, app.schede_nb2):
+    radice.update()
+    verifica((gruppo._totale <= gruppo.striscia.winfo_width() + gruppo.freccia_sx.winfo_width() * 2) o (gruppo.freccia_sx.winfo_ismapped() e gruppo.freccia_dx.winfo_ismapped()), "frecce visibili quando le schede non ci stanno: " + tipo_testo((gruppo._totale, gruppo.striscia.winfo_width(), gruppo.freccia_sx.winfo_ismapped())))
+# il gruppo attivo cambia con i clic e con la scheda scelta
+app._gruppo_attivato(app.schede_nb)
+radice.update()
+verifica(app._scheda_corrente() è app._gruppo_attivo().nametowidget(app._gruppo_attivo().select()), "scheda corrente = scheda scelta del gruppo attivo")
+verifica(app.schede_nb.attivo e non app.schede_nb2.attivo, "il gruppo attivo ha la riga colorata, l'altro no")
+app._gruppo_attivato(app.schede_nb2)
+verifica(app._scheda_corrente() è w["due.pit"] e app.schede_nb2.attivo, "cliccando sul secondo gruppo la corrente è la sua")
+# stato dell'IDE per l'assistente: vede le schede dei due gruppi
+stato = app.stato_ide()
+verifica({s["file"] per s in stato["schede_aperte"]} >= {"uno.pit", "due.pit", "tre.pit", "quattro.pit"}, "stato_ide elenca le schede di entrambi i gruppi")
+verifica(stato["file_attivo"] == "due.pit", "e il file attivo è quello del gruppo attivo: " + tipo_testo(stato["file_attivo"]))
+# la modifica cambia il titolo nel gruppo giusto
+w["due.pit"].t.insert("end", "x = 1\n")
+radice.update()
+verifica(app.schede_nb2._schede[0]["etichetta"].cget("text").startswith("●"), "il pallino «modificato» compare nella linguetta del secondo gruppo")
+# sessione: si salva con il secondo gruppo
+app.salva_sessione()
+sessione = json.loads(open(app._file_sessione(), encoding="utf-8").read())
+verifica(sessione["secondo_gruppo"] == ["due.pit"], "la sessione ricorda il secondo gruppo: " + tipo_testo(sessione.get("secondo_gruppo")))
+# chiudere l'ultima scheda del secondo gruppo lo fa sparire
+app.salva_scheda()
+app.chiudi_scheda(w["due.pit"], chiedi=Falso)
+radice.update()
+verifica(non app._gruppo2_visibile(), "chiusa l'ultima scheda il secondo gruppo sparisce")
+verifica(app._scheda_corrente() è non Nessuno, "e c'è ancora una scheda corrente")
+# di nuovo a fianco, poi unisci
+app.apri_file(percorsi["due.pit"])
+radice.update()
+w["due.pit"] = app.schede[os.path.abspath(percorsi["due.pit"])]
+app.sposta_scheda_nell_altro_gruppo(w["tre.pit"])
+app.sposta_scheda_nell_altro_gruppo(w["due.pit"])
+radice.update()
+verifica(lunghezza_di(app.schede_nb2.tabs()) == 2, "due schede nel secondo gruppo")
+app.unisci_gruppi()
+radice.update()
+verifica(non app._gruppo2_visibile() e tutti_veri(app._gruppo_di(w[n]) è app.schede_nb per n in ("uno.pit", "due.pit", "tre.pit", "quattro.pit")), "unisci riporta tutto nel primo gruppo")
+# ripristino della sessione: la scheda a fianco torna a fianco
+app.sposta_scheda_nell_altro_gruppo(w["tre.pit"])
+app.salva_sessione()
+app.chiudi_tutte_le_schede()
+radice.update()
+verifica(non app.schede, "chiuse tutte le schede")
+app.ripristina_sessione()
+radice.update()
+w3 = app.schede.get(os.path.abspath(percorsi["tre.pit"]))
+verifica(w3 è non Nessuno e app._gruppo_di(w3) è app.schede_nb2 e app._gruppo2_visibile(), "alla riapertura «tre.pit» è di nuovo a fianco")
+# la scheda con il clic destro: il menu ha la voce
+verifica(tutti_veri(hasattr(app, n) per n in ("sposta_scheda_nell_altro_gruppo", "unisci_gruppi")), "i comandi esistono")
+# il benvenuto non si sposta
+app.chiudi_tutte_le_schede()
+radice.update()
+app._mostra_benvenuto()
+verifica(app.sposta_scheda_nell_altro_gruppo(app._benvenuto) == Falso, "la scheda di benvenuto non si sposta")
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_editor_affiancato: ok")

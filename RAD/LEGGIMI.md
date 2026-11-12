@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.26
+
+- **Editor affiancato.** Due gruppi di schede uno accanto all'altro: tasto destro su una scheda → «Apri a fianco» (o Visualizza → «Dividi l'editor», Ctrl+\). Il secondo gruppo compare quando serve e sparisce quando si svuota; «Unisci i gruppi di schede» riporta tutto nel primo. Una riga colorata in cima dice in quale gruppo si scrive; salva, F5, il debug e l'assistente lavorano sulla scheda del gruppo attivo. I gruppi si ricordano alla riapertura del progetto. Un file ha una sola scheda: «apri a fianco» la sposta.
+- **Linguette che scorrono.** Le linguette non scendono sotto una larghezza minima (il pulsante di chiusura resta sempre visibile): se non ci stanno tutte, scorrono con le frecce ◀ ▶ o con la rotella, e la scheda scelta viene portata in vista. I titoli molto lunghi si accorciano con «…».
+
 ## Novità della 2.25
 
 - **`tempo.pausa(secondi)`** è il nome italiano di `time.sleep` (prima solo `tempo.aspetta`, che continua a funzionare). Aggiornati lezione 14, guida delle librerie, mattonella «aspetta» e l'indice delle librerie (tempo 1.1). Il nome `aspetta` resta in `asincronia`.
