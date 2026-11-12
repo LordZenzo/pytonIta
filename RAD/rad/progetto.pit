@@ -526,6 +526,14 @@ classe DialogoGruppoFinestra(tk.Toplevel):
         ritorna se_stesso.risultato
 
 
+definisci nomi_moduli_pitstudio():
+    """I nomi (minuscoli) dei moduli che PitStudio copia nei progetti: quelli della cartella dei modelli di codice."""
+    prova:
+        ritorna {n.lower() per n in os.listdir(form_modello.CARTELLA_MODELLI) se n.lower().endswith(".pit")}
+    eccetto OSError:
+        ritorna set()
+
+
 classe PannelloProgetto(tk.Frame):
     """Albero del progetto con menu contestuale e barra degli strumenti."""
 
@@ -607,7 +615,22 @@ classe PannelloProgetto(tk.Frame):
                     per x in membri:
                         gruppi[x] = (base, membri)
         fatti = set()
+        # i moduli che PitStudio copia nel progetto (aspetto, fonte_dati, griglia, grafico, scorrevole, stampante…) e le loro copie .bak stanno in un solo nodo
+        moduli = []
+        se non relativo:
+            modelli = nomi_moduli_pitstudio()
+            moduli = sorted(n per n in file_ se (n[:-4] se n.endswith(".bak") altrimenti n).lower() in modelli)
+        modulo_fatto = Falso
         per nome_, e_cartella in elenco:
+            se nome_ in moduli:
+                se modulo_fatto:
+                    continua
+                modulo_fatto = Vero
+                g = se_stesso.albero.insert(nodo, "end", text=f"⚙  Moduli di PitStudio   ({lunghezza_di(moduli)})", values=("", "m"))
+                se_stesso._nodi["@moduli"] = g
+                per x in moduli:
+                    se_stesso._inserisci_voce(g, relativo, x, Falso)
+                continua
             se nome_ in gruppi:
                 base, membri = gruppi[nome_]
                 se base in fatti:

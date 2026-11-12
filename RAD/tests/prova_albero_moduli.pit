@@ -1,0 +1,95 @@
+"""Pannello Progetto: i moduli che PitStudio copia nel progetto (e le loro copie .bak) stanno in un solo nodo «Moduli di PitStudio»; il nodo non si rinomina né si elimina."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox, simpledialog
+mostrati = []
+messagebox.showwarning = lambda *a, **k: mostrati.append(a)
+messagebox.showerror = lambda *a, **k: mostrati.append(a)
+messagebox.askyesno = lambda *a, **k: mostrati.append(("domanda",)) o Falso
+simpledialog.askstring = lambda *a, **k: mostrati.append(("nome",)) o Nessuno
+da rad importa progetto
+da rad.config importa Configurazione
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+classe Azioni:
+    definisci __inizializza__(se_stesso):
+        se_stesso.aperti = []
+        se_stesso.eliminati = []
+        se_stesso.schede = {}
+
+    definisci apri_file(se_stesso, p): se_stesso.aperti.append(p)
+    definisci file_eliminato(se_stesso, p): se_stesso.eliminati.append(p)
+    definisci file_rinominato(se_stesso, v, n): passa
+    definisci salva_tutto(se_stesso): passa
+    definisci info(se_stesso, m): passa
+
+
+verifica({"aspetto.pit", "fonte_dati.pit", "griglia.pit", "grafico.pit", "scorrevole.pit", "stampante.pit"} <= progetto.nomi_moduli_pitstudio(), "i moduli dei modelli di codice: " + tipo_testo(sorted(progetto.nomi_moduli_pitstudio())))
+cart = tempfile.mkdtemp()
+p = progetto.Progetto(cart)
+per nome in ("aspetto.pit", "fonte_dati.pit", "fonte_dati.pit.bak", "stampante.pit", "stampante.pit.bak", "principale.pit", "mio_modulo.pit", "dati.db", "sotto/aspetto.pit"):
+    p.crea_file(nome, "x = 1\n")
+p.imposta_principale("principale.pit")
+radice = tk.Tk()
+azioni = Azioni()
+pannello = progetto.PannelloProgetto(radice, azioni, Configurazione(os.path.join(tempfile.mkdtemp(), "c.json")))
+pannello.pack(fill="both", expand=Vero)
+pannello.imposta_progetto(p)
+radice.update()
+albero = pannello.albero
+in_radice = [(albero.item(n, "text"), albero.item(n, "values")[1]) per n in albero.get_children("")]
+testi = [t per t, _ in in_radice]
+nodo = [n per n in albero.get_children("") se albero.item(n, "values")[1] == "m"]
+verifica(lunghezza_di(nodo) == 1 e "Moduli di PitStudio" in albero.item(nodo[0], "text") e "(5)" in albero.item(nodo[0], "text"), "un solo nodo, con il numero dei file: " + tipo_testo(testi))
+figli = [albero.item(n, "text").split("  ", 1)[1].split(" ")[0] per n in albero.get_children(nodo[0])]
+verifica(figli == ["aspetto.pit", "fonte_dati.pit", "fonte_dati.pit.bak", "stampante.pit", "stampante.pit.bak"], "dentro ci sono i moduli e i .bak: " + tipo_testo(figli))
+verifica(tutti_veri(non t.endswith("aspetto.pit") e "stampante" non in t e "fonte_dati" non in t per t in testi se "Moduli" non in t), "e non compaiono più in radice: " + tipo_testo(testi))
+verifica(any("principale.pit" in t per t in testi) e any("mio_modulo.pit" in t per t in testi) e any("dati.db" in t per t in testi), "i file dell'utente restano dove sono")
+verifica(any(t.endswith("sotto") o "sotto" in t per t in testi), "le cartelle restano")
+# nelle sottocartelle un file che si chiama come un modulo non si raggruppa
+cartella_ = [n per n in albero.get_children("") se albero.item(n, "values")[1] == "d" e "sotto" in albero.item(n, "text")][0]
+albero.item(cartella_, open=Vero)
+pannello._carica_figli(cartella_)
+verifica([albero.item(n, "text") per n in albero.get_children(cartella_)] != [] e tutti_veri(albero.item(n, "values")[1] != "m" per n in albero.get_children(cartella_)), "dentro le cartelle nessun raggruppamento")
+# il nodo non si rinomina né si elimina né diventa principale
+albero.selection_set(nodo[0])
+albero.focus(nodo[0])
+pannello.rinomina()
+pannello.cancella()
+pannello.imposta_principale()
+verifica(mostrati == [] e azioni.eliminati == [] e p.principale == "principale.pit", "rinomina, elimina e «principale» non fanno nulla sul nodo")
+pannello._doppio_clic()
+verifica(azioni.aperti == [], "il doppio clic sul nodo non apre file")
+# un file dentro il nodo si apre normalmente
+figlio = albero.get_children(nodo[0])[0]
+albero.selection_set(figlio)
+albero.focus(figlio)
+pannello._doppio_clic()
+verifica(azioni.aperti == [p.assoluto("aspetto.pit")], "un modulo dentro il nodo si apre")
+# lo stato aperto si ricorda dopo l'aggiornamento
+albero.item(nodo[0], open=Vero)
+pannello.aggiorna()
+radice.update()
+nodo2 = [n per n in albero.get_children("") se albero.item(n, "values")[1] == "m"][0]
+verifica(albero.item(nodo2, "open") e lunghezza_di(albero.get_children(nodo2)) == 5, "dopo «Aggiorna» il nodo resta aperto")
+# senza moduli non c'è il nodo
+p2 = progetto.Progetto(tempfile.mkdtemp())
+p2.crea_file("a.pit", "x = 1\n")
+pannello.imposta_progetto(p2)
+radice.update()
+verifica(non [n per n in albero.get_children("") se albero.item(n, "values")[1] == "m"], "senza moduli di PitStudio il nodo non c'è")
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_albero_moduli: ok")

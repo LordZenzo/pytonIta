@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.27
+
+- **Moduli di PitStudio in un solo nodo.** Nel pannello Progetto i moduli che PitStudio copia nel progetto (aspetto, fonte_dati, griglia, grafico, scorrevole, stampante) e le loro copie `.bak` stanno sotto un nodo «⚙ Moduli di PitStudio (n)», che si apre e si chiude. Il nodo non si rinomina né si elimina; i file dentro si aprono come sempre. I tuoi file e le cartelle restano dove sono.
+
 ## Novità della 2.26
 
 - **Editor affiancato.** Due gruppi di schede uno accanto all'altro: tasto destro su una scheda → «Apri a fianco» (o Visualizza → «Dividi l'editor», Ctrl+\). Il secondo gruppo compare quando serve e sparisce quando si svuota; «Unisci i gruppi di schede» riporta tutto nel primo. Una riga colorata in cima dice in quale gruppo si scrive; salva, F5, il debug e l'assistente lavorano sulla scheda del gruppo attivo. I gruppi si ricordano alla riapertura del progetto. Un file ha una sola scheda: «apri a fianco» la sposta.
