@@ -139,11 +139,11 @@ ALLINEA_PREDEFINITO = {"Etichetta": "w", "CasellaSelezione": "w", "PulsanteOpzio
 AREA_PAGINA = (4, 26)      # una pagina di Schede è più piccola delle Schede: 4 pixel in larghezza e 26 in altezza (linguette)
 # --- dati: una tabella di un database collegata ai componenti
 TIPI["FonteDati"] = dict(classe_tk="", modulo="tk", larghezza=130, altezza=24, icona="🗄", visivo=Falso,
-                         proprieta={"dialetto": ("scelta:sqlite,mysql", "sqlite", "Tipo di database"),
+                         proprieta={"dialetto": ("scelta:sqlite,mysql,postgres", "sqlite", "Tipo di database"),
                                     "database": ("database", "", "Database"),
-                                    "server": ("testo", "localhost", "Server MySQL"),
-                                    "porta": ("numero", 3306, "Porta MySQL"),
-                                    "utente": ("testo", "root", "Utente MySQL"),
+                                    "server": ("testo", "localhost", "Server (MySQL o PostgreSQL)"),
+                                    "porta": ("numero", 3306, "Porta (MySQL 3306, PostgreSQL 5432)"),
+                                    "utente": ("testo", "root", "Utente (MySQL root, PostgreSQL postgres)"),
                                     "tabella": ("tabella", "", "Tabella"),
                                     "filtro": ("testo", "", "Filtro SQL (es. citta = 'Roma')"),
                                     "ordina_per": ("campo_fonte", "", "Ordina per"),
@@ -657,6 +657,11 @@ definisci _codice_dati(form):
         opzioni = [f"radice", "se_stesso.cartella", _lit(v.get("dialetto") o "sqlite"), _lit(v.get("database") o ""), _lit(v.get("tabella") o "")]
         se v.get("dialetto") == "mysql":
             opzioni += [f"server={_lit(v.get('server') o 'localhost')}", f"porta={int(v.get('porta') o 3306)}", f"utente={_lit(v.get('utente') o 'root')}"]
+        altrimenti_se v.get("dialetto") == "postgres":
+            porta_ = int(v.get("porta") o 5432)
+            se porta_ == 3306:
+                porta_ = 5432                # la porta predefinita di MySQL lasciata per distrazione: per PostgreSQL è la 5432
+            opzioni += [f"server={_lit(v.get('server') o 'localhost')}", f"porta={porta_}", f"utente={_lit(v.get('utente') o 'postgres')}"]
         se (v.get("filtro") o "").strip():
             opzioni.append(f"filtro={_lit(v['filtro'].strip())}")
         se v.get("ordina_per"):

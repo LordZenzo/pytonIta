@@ -32,9 +32,9 @@ definisci disegna_form(nome_form, titolo, tabella, nomi_colonne, dialetto="sqlit
     f.larghezza = LARGHEZZA
     f.altezza = y_campi + righe_campi * 34 + 24
     valori = {"database": database, "tabella": tabella}
-    se dialetto == "mysql" e parametri:
+    se dialetto in ("mysql", "postgres") e parametri:
         server, porta, utente, nome_db = parametri
-        valori.update({"dialetto": "mysql", "server": server, "porta": int(porta), "utente": utente, "database": nome_db})
+        valori.update({"dialetto": dialetto, "server": server, "porta": int(porta), "utente": utente, "database": nome_db})
     f.aggiungi("FonteDati", LARGHEZZA - 150, 4, nome="fonte", **valori)
     f.aggiungi("BarraNavigazione", 16, 12, nome="barra", larghezza=LARGHEZZA - 32, altezza=34, fonte="fonte", cerca=Vero, ancoraggio="sad")
     visibili = nomi_colonne[:8]

@@ -31,7 +31,7 @@ da rad.navigazione_ui importa FinestraRisultati
 da rad.crea_exe importa DialogoEseguibile
 da rad importa database_modello
 da rad importa maschera_dati
-da rad.database_ui importa VisoreDatabase, DialogoMysql
+da rad.database_ui importa VisoreDatabase, DialogoMysql, DialogoPostgres
 da rad.debug importa SessioneDebug
 da rad.librerie importa PannelloLibrerie
 da rad.pannello_test importa PannelloTest
@@ -354,10 +354,12 @@ classe Applicazione:
         database.add_command(label="Nuovo database SQLite…", command=lambda: se_stesso.nuovo_database_sqlite())
         database.add_command(label="Apri un database SQLite…", command=lambda: se_stesso.apri_database_sqlite())
         database.add_command(label="Collegati a MySQL…", command=lambda: se_stesso.collega_mysql())
+        database.add_command(label="Collegati a PostgreSQL…", command=lambda: se_stesso.collega_postgres())
         database.add_separator()
         database.add_command(label="Crea una maschera dalla tabella…", command=lambda: se_stesso.maschera_dalla_scheda())
         database.add_separator()
         database.add_command(label="Installa il driver MySQL (pymysql)", command=lambda: se_stesso.installa_driver_mysql())
+        database.add_command(label="Installa il driver PostgreSQL (psycopg2)", command=lambda: se_stesso.installa_driver_postgres())
         barra.add_cascade(label="Database", menu=database)
 
         esegui = tk.Menu(barra, tearoff=0)
@@ -1631,6 +1633,35 @@ classe Applicazione:
         altrimenti:
             se_stesso.info("Installazione del driver non riuscita")
             messagebox.showerror("Database", "Non sono riuscito a installare pymysql:\n" + uscita, parent=se_stesso.radice)
+
+    definisci collega_postgres(se_stesso):
+        """Si collega a un server PostgreSQL e apre il database in una scheda."""
+        conn = DialogoPostgres(se_stesso.radice, se_stesso.colori, se_stesso.config_, se_stesso.config_.interprete()).mostra()
+        se conn è Nessuno:
+            ritorna Nessuno
+        chiave = "postgres://" + conn.nome_visibile
+        se chiave in se_stesso.schede:
+            se_stesso.schede_nb.select(se_stesso.schede[chiave])
+            conn.chiudi()
+            ritorna se_stesso.schede[chiave]
+        w = VisoreDatabase(se_stesso.schede_nb, chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
+        tema.applica(w, se_stesso.colori)
+        w.applica_colori(se_stesso.colori)
+        se_stesso._aggiungi_scheda(chiave, w)
+        ritorna w
+
+    definisci installa_driver_postgres(se_stesso):
+        se_stesso.info("Installo il driver PostgreSQL (psycopg2)…")
+        se_stesso.radice.update_idletasks()
+        riuscito, uscita = database_modello.installa_driver_postgres(se_stesso.config_.interprete())
+        se riuscito:
+            importa importlib
+            importlib.invalidate_caches()
+            se_stesso.info("Driver PostgreSQL installato.")
+            messagebox.showinfo("Database", "Driver PostgreSQL (psycopg2) installato.", parent=se_stesso.radice)
+        altrimenti:
+            se_stesso.info("Installazione del driver non riuscita")
+            messagebox.showerror("Database", "Non sono riuscito a installare psycopg2:\n" + uscita, parent=se_stesso.radice)
 
     definisci crea_eseguibile(se_stesso):
         """Apre la finestra che costruisce un .exe del progetto (conversione in Python + PyInstaller)."""

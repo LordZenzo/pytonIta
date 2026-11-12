@@ -1,0 +1,182 @@
+"""PostgreSQL: collegamento, struttura, SQL generato, ripristino dopo un errore e fonte dati del programma (con un falso psycopg2: nessun server vero)."""
+importa sys, os, types
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa database_modello come dbm
+da rad importa form_modello, schema_dati
+da rad.form_modello importa Form
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+classe CursoreFinto:
+    definisci __inizializza__(se_stesso, conn):
+        se_stesso.conn = conn
+        se_stesso.description = Nessuno
+        se_stesso.rowcount = -1
+        se_stesso.lastrowid = Nessuno
+        se_stesso._righe = []
+
+    definisci execute(se_stesso, sql, parametri=()):
+        se_stesso.conn.eseguite.append((sql, tuple(parametri)))
+        se "ERRORE_PROVA" in sql:
+            solleva Exception("errore di prova: transazione interrotta")
+        se_stesso.description = Nessuno
+        se_stesso._righe = []
+        per frammento, (nomi, righe) in se_stesso.conn.risposte.items():
+            se frammento in sql:
+                se_stesso.description = [(n,) per n in nomi]
+                se_stesso._righe = tipo_lista(righe)
+                interrompi
+        se_stesso.rowcount = lunghezza_di(se_stesso._righe)
+
+    definisci fetchmany(se_stesso, n):
+        ritorna se_stesso._righe[:n]
+
+    definisci fetchall(se_stesso):
+        ritorna tipo_lista(se_stesso._righe)
+
+    definisci fetchone(se_stesso):
+        ritorna se_stesso._righe[0] se se_stesso._righe altrimenti Nessuno
+
+
+classe ConnessioneFinta:
+    definisci __inizializza__(se_stesso, **parametri):
+        se_stesso.parametri = parametri
+        se_stesso.eseguite = []
+        se_stesso.commit_fatti = 0
+        se_stesso.rollback_fatti = 0
+        se_stesso.risposte = {
+            "FROM information_schema.tables": (["table_name", "table_type"], [("clienti", "BASE TABLE"), ("v_clienti", "VIEW")]),
+            "SELECT column_name, data_type, is_nullable": (["column_name", "data_type", "is_nullable", "column_default", "is_identity"], [
+                ("id", "integer", "NO", "nextval('clienti_id_seq'::regclass)", "NO"),
+                ("nome", "character varying", "NO", Nessuno, "NO"),
+                ("email", "text", "YES", Nessuno, "NO"),
+                ("attivo", "boolean", "NO", "true", "NO")]),
+            "FROM information_schema.columns": (["column_name", "data_type", "character_maximum_length", "is_nullable", "column_default", "is_identity"], [
+                ("id", "integer", Nessuno, "NO", "nextval('clienti_id_seq'::regclass)", "NO"),
+                ("nome", "character varying", 80, "NO", Nessuno, "NO"),
+                ("email", "text", Nessuno, "YES", Nessuno, "NO"),
+                ("attivo", "boolean", Nessuno, "NO", "true", "NO")]),
+            "constraint_type IN ('PRIMARY KEY', 'UNIQUE')": (["column_name", "constraint_type"], [("id", "PRIMARY KEY"), ("email", "UNIQUE")]),
+            "tc.constraint_type = 'PRIMARY KEY'": (["column_name"], [("id",)]),
+            "RETURNING": (["id"], [(41,)]),
+        }
+
+    definisci cursor(se_stesso):
+        ritorna CursoreFinto(se_stesso)
+
+    definisci commit(se_stesso):
+        se_stesso.commit_fatti += 1
+
+    definisci rollback(se_stesso):
+        se_stesso.rollback_fatti += 1
+
+    definisci close(se_stesso):
+        passa
+
+
+ultima = []
+
+
+definisci connect(**parametri):
+    c = ConnessioneFinta(**parametri)
+    ultima.append(c)
+    ritorna c
+
+
+finto = types.ModuleType("psycopg2")
+finto.connect = connect
+sys.modules["psycopg2"] = finto
+
+# ---------------------------------------------------------------- collegamento
+c = dbm.apri_postgres("db.esempio.it", "5433", "ugo", "segreta", "negozio")
+verifica(c.dialetto == "postgres" e c.nome_visibile == "ugo@db.esempio.it/negozio" e c.segnaposto == "%s", "collegato: " + c.nome_visibile)
+verifica(ultima[-1].parametri["host"] == "db.esempio.it" e ultima[-1].parametri["port"] == 5433 e ultima[-1].parametri["dbname"] == "negozio", "parametri del collegamento")
+verifica(c.parametri == ("db.esempio.it", 5433, "ugo", "negozio") e "segreta" non in tipo_testo(c.parametri), "i parametri salvati non contengono la password")
+verifica(dbm.apri_postgres("h", 5432, "u", "p").nome_visibile == "u@h/postgres", "senza database: «postgres»")
+
+# ---------------------------------------------------------------- struttura
+verifica(c.tabelle() == [("clienti", "tabella"), ("v_clienti", "vista")], "tabelle e viste: " + tipo_testo(c.tabelle()))
+col = {k.nome: k per k in c.colonne("clienti")}
+verifica(col["id"].chiave e col["id"].autoincremento e col["id"].non_nullo, "id: chiave, serial, non nullo")
+verifica(col["nome"].tipo == "VARCHAR(80)" e col["nome"].non_nullo e col["nome"].predefinito == "", "nome: VARCHAR(80), non nullo")
+verifica(col["email"].unica e non col["email"].non_nullo e col["email"].tipo == "TEXT", "email: unica, può mancare")
+verifica(col["attivo"].predefinito == "true" e col["attivo"].tipo == "BOOLEAN", "attivo: predefinito true")
+verifica(any("%s" in q e p == ("public", "clienti") per q, p in c.conn.eseguite), "le domande usano segnaposto %s con schema e tabella")
+
+# ---------------------------------------------------------------- SQL generato
+verifica(c.citato('a"b') == '"a""b"', "i nomi si citano con le virgolette doppie")
+sql = c.sql_crea_tabella("ordini", [dbm.Colonna("id", "INTEGER", Vero, "", Vero, Falso, Vero), dbm.Colonna("totale", "NUMERIC(10,2)", Falso, "0"),
+                                    dbm.Colonna("codice", "VARCHAR(20)", Vero, "", Falso, Vero)])
+verifica('"id" SERIAL NOT NULL' in sql e 'PRIMARY KEY ("id")' in sql e '"codice" VARCHAR(20) NOT NULL UNIQUE' in sql e "DEFAULT 0" in sql e "ENGINE" non in sql, "CREATE TABLE con SERIAL: " + sql)
+vecchia = dbm.Colonna("nome", "VARCHAR(80)", Vero, "")
+nuova = dbm.Colonna("cognome", "TEXT", Falso, "n.d.")
+mod = c.sql_modifica_colonna("clienti", vecchia, nuova)
+verifica('RENAME COLUMN "nome" TO "cognome"' in mod e 'ALTER COLUMN "cognome" TYPE TEXT USING "cognome"::TEXT' in mod e 'DROP NOT NULL' in mod e "SET DEFAULT 'n.d.'" in mod, "modifica colonna: " + mod)
+verifica(lunghezza_di(dbm.dividi_istruzioni(mod)) == 4, "sono quattro istruzioni")
+c.inserisci_riga("clienti", {})
+verifica(c.conn.eseguite[-1][0] == 'INSERT INTO "clienti" DEFAULT VALUES', "riga con i valori predefiniti: " + c.conn.eseguite[-1][0])
+
+# ---------------------------------------------------------------- dopo un errore si annulla la transazione
+prima = c.conn.rollback_fatti
+prova:
+    c.esegui_una("SELECT ERRORE_PROVA")
+    verifica(Falso, "doveva dare errore")
+eccetto dbm.ErroreDatabase:
+    passa
+verifica(c.conn.rollback_fatti == prima + 1, "rollback dopo l'errore")
+c.esegui_una("UPDATE clienti SET nome = 'x'")
+verifica(c.conn.commit_fatti >= 1, "una modifica riuscita fa commit")
+
+# ---------------------------------------------------------------- driver mancante
+sys.modules["psycopg2"] = Nessuno
+sys.modules["psycopg"] = Nessuno
+prova:
+    dbm.apri_postgres("h", 5432, "u", "p")
+    verifica(Falso, "doveva mancare il driver")
+eccetto dbm.DriverMancante come errore:
+    verifica("psycopg2-binary" in tipo_testo(errore), "messaggio con l'istruzione di installazione")
+sys.modules["psycopg2"] = finto
+
+# ---------------------------------------------------------------- progettista e programma
+verifica("postgres" in form_modello.proprieta_di("FonteDati")["dialetto"][0], "il dialetto PostgreSQL si può scegliere")
+f = Form("Anagrafica", "Anagrafica")
+d = f.aggiungi("FonteDati", 10, 10, nome="fonte", dialetto="postgres", server="db.esempio.it", utente="ugo", database="negozio", tabella="clienti")
+ui = form_modello.genera_ui_completa(f)
+verifica("'postgres'" in ui e "porta=5432" in ui e "utente='ugo'" in ui e "server='db.esempio.it'" in ui, "codice generato: porta 5432 al posto della 3306 lasciata di serie")
+d.valori.update(porta=5544)
+verifica("porta=5544" in form_modello.genera_ui_completa(f), "una porta scelta resta quella")
+verifica(schema_dati._chiave_e_firma({"dialetto": "postgres", "server": "h", "porta": 5432, "utente": "u", "database": "d"}, "")[0][0] == "postgres", "la chiave della cache distingue PostgreSQL")
+
+# la fonte dati del programma generato
+importa importlib
+sys.path.insert(0, form_modello.CARTELLA_MODELLI)
+sys.modules.pop("fonte_dati", Nessuno)
+importa fonte_dati
+ultima.clear()
+fd = fonte_dati.FonteDati.con_postgres("h", 5432, "u", "p", "d", "clienti")
+verifica(fd.dialetto == "postgres" e fd.cita == '"' e fd.segnaposto == "%s" e fd.chiave == ["id"], "FonteDati PostgreSQL: " + tipo_testo((fd.dialetto, fd.cita, fd.chiave)))
+verifica(fd.automatiche == ["id"] e "nome" in fd.obbligatorie e "attivo" non in fd.obbligatorie e "email" non in fd.obbligatorie, "colonne automatiche e obbligatorie: " + tipo_testo((fd.automatiche, fd.obbligatorie)))
+nuovo = fd.salva({"nome": "Anna", "email": "a@x.it", "attivo": "true"})
+sql_ins = fd.conn.eseguite[-1][0]
+verifica(sql_ins.endswith('RETURNING "id"') e "%s" in sql_ins, "l'INSERT si fa restituire la chiave: " + sql_ins)
+verifica(nuovo == (41,), "e il record nuovo ha la chiave restituita: " + tipo_testo(nuovo))
+fd.record(ricerca="ann")
+verifica("AS TEXT) LIKE %s" in fd.conn.eseguite[-1][0] e "LIMIT" in fd.conn.eseguite[-1][0], "la ricerca usa CAST ... AS TEXT")
+prima = fd.conn.rollback_fatti
+prova:
+    fd._esegui("SELECT ERRORE_PROVA")
+eccetto fonte_dati.ErroreDati:
+    passa
+verifica(fd.conn.rollback_fatti == prima + 1, "anche la fonte dati annulla dopo un errore")
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_postgres: ok")

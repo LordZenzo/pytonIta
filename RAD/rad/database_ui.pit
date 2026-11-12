@@ -296,17 +296,22 @@ classe DialogoRiga(DialogoBase):
 
 
 classe DialogoMysql(DialogoBase):
-    """Collegamento a un server MySQL/MariaDB. La password non viene salvata."""
+    """Collegamento a un server MySQL/MariaDB (o, nella sottoclasse, PostgreSQL). La password non viene salvata."""
+    NOME = "MySQL"
+    SIGLA = "mysql"
+    PORTA = 3306
+    UTENTE = "root"
+    NOTA = "Il database può restare vuoto: lo scegli dopo con USE. La password non viene salvata."
 
     definisci __inizializza__(se_stesso, genitore, colori, config, interprete=Nessuno):
-        DialogoBase.__init__(se_stesso, genitore, "Collegati a MySQL", colori, 480, 330)
+        DialogoBase.__init__(se_stesso, genitore, "Collegati a " + se_stesso.NOME, colori, 480, 330)
         se_stesso.config_ = config
         se_stesso.interprete = interprete
-        se_stesso.var_server = tk.StringVar(value=config.ottieni("database.mysql.server", "localhost"))
-        se_stesso.var_porta = tk.StringVar(value=tipo_testo(config.ottieni("database.mysql.porta", 3306)))
-        se_stesso.var_utente = tk.StringVar(value=config.ottieni("database.mysql.utente", "root"))
+        se_stesso.var_server = tk.StringVar(value=config.ottieni("database." + se_stesso.SIGLA + ".server", "localhost"))
+        se_stesso.var_porta = tk.StringVar(value=tipo_testo(config.ottieni("database." + se_stesso.SIGLA + ".porta", se_stesso.PORTA)))
+        se_stesso.var_utente = tk.StringVar(value=config.ottieni("database." + se_stesso.SIGLA + ".utente", se_stesso.UTENTE))
         se_stesso.var_password = tk.StringVar()
-        se_stesso.var_database = tk.StringVar(value=config.ottieni("database.mysql.database", ""))
+        se_stesso.var_database = tk.StringVar(value=config.ottieni("database." + se_stesso.SIGLA + ".database", ""))
         se_stesso.grid_columnconfigure(1, weight=1)
         se_stesso.riga("Server:", se_stesso.campo(se_stesso.var_server, 28), 0)
         se_stesso.riga("Porta:", se_stesso.campo(se_stesso.var_porta, 8), 1)
@@ -314,7 +319,7 @@ classe DialogoMysql(DialogoBase):
         p = se_stesso.riga("Password:", se_stesso.campo(se_stesso.var_password, 28), 3)
         p.configure(show="•")
         se_stesso.riga("Database:", se_stesso.campo(se_stesso.var_database, 28), 4)
-        tk.Label(se_stesso, text="Il database può restare vuoto: lo scegli dopo con USE. La password non viene salvata.", background=colori["pannello"],
+        tk.Label(se_stesso, text=se_stesso.NOTA, background=colori["pannello"],
                  foreground=colori["tenue"], anchor="w", wraplength=440, justify="left").grid(row=5, column=0, columnspan=2, sticky="we", padx=14)
         se_stesso.pulsanti(6, "Collega", se_stesso._conferma)
         p.focus_set()
@@ -322,13 +327,13 @@ classe DialogoMysql(DialogoBase):
 
     definisci _conferma(se_stesso):
         prova:
-            conn = dbm.apri_mysql(se_stesso.var_server.get().strip(), se_stesso.var_porta.get().strip() o 3306, se_stesso.var_utente.get().strip(),
+            conn = se_stesso.apri(se_stesso.var_server.get().strip(), se_stesso.var_porta.get().strip() o se_stesso.PORTA, se_stesso.var_utente.get().strip(),
                                   se_stesso.var_password.get(), se_stesso.var_database.get().strip())
         eccetto dbm.DriverMancante come errore:
-            se messagebox.askyesno("Driver MySQL mancante", tipo_testo(errore) + "\n\nLo installo adesso?", parent=se_stesso):
+            se messagebox.askyesno("Driver " + se_stesso.NOME + " mancante", tipo_testo(errore) + "\n\nLo installo adesso?", parent=se_stesso):
                 se_stesso.configure(cursor="watch")
                 se_stesso.update_idletasks()
-                riuscito, uscita = dbm.installa_driver_mysql(se_stesso.interprete)
+                riuscito, uscita = se_stesso.installa(se_stesso.interprete)
                 se_stesso.configure(cursor="")
                 se riuscito:
                     importa importlib
@@ -338,16 +343,29 @@ classe DialogoMysql(DialogoBase):
                     messagebox.showerror("Installazione non riuscita", uscita, parent=se_stesso)
             ritorna
         eccetto dbm.ErroreDatabase come errore:
-            messagebox.showerror("MySQL", tipo_testo(errore), parent=se_stesso)
+            messagebox.showerror(se_stesso.NOME, tipo_testo(errore), parent=se_stesso)
             ritorna
-        se_stesso.config_.imposta("database.mysql.server", se_stesso.var_server.get().strip(), notifica=Falso)
-        se_stesso.config_.imposta("database.mysql.porta", int(se_stesso.var_porta.get().strip() o 3306), notifica=Falso)
-        se_stesso.config_.imposta("database.mysql.utente", se_stesso.var_utente.get().strip(), notifica=Falso)
-        se_stesso.config_.imposta("database.mysql.database", se_stesso.var_database.get().strip(), notifica=Falso)
+        se_stesso.config_.imposta("database." + se_stesso.SIGLA + ".server", se_stesso.var_server.get().strip(), notifica=Falso)
+        se_stesso.config_.imposta("database." + se_stesso.SIGLA + ".porta", int(se_stesso.var_porta.get().strip() o se_stesso.PORTA), notifica=Falso)
+        se_stesso.config_.imposta("database." + se_stesso.SIGLA + ".utente", se_stesso.var_utente.get().strip(), notifica=Falso)
+        se_stesso.config_.imposta("database." + se_stesso.SIGLA + ".database", se_stesso.var_database.get().strip(), notifica=Falso)
         se_stesso.config_.salva()
         se_stesso.risultato = conn
         se_stesso.destroy()
 
+    apri = staticmethod(lambda *a, **k: dbm.apri_mysql(*a, **k))
+    installa = staticmethod(lambda *a, **k: dbm.installa_driver_mysql(*a, **k))
+
+
+classe DialogoPostgres(DialogoMysql):
+    """Collegamento a un server PostgreSQL. La password non viene salvata."""
+    NOME = "PostgreSQL"
+    SIGLA = "postgres"
+    PORTA = 5432
+    UTENTE = "postgres"
+    NOTA = "Il database può restare vuoto: ci si collega a «postgres». La password non viene salvata."
+    apri = staticmethod(lambda *a, **k: dbm.apri_postgres(*a, **k))
+    installa = staticmethod(lambda *a, **k: dbm.installa_driver_postgres(*a, **k))
 
 # ======================================================================= il visore
 classe VisoreDatabase(VisoreBase):

@@ -16,8 +16,8 @@ definisci _percorso(proprieta, cartella):
 
 
 definisci _chiave_e_firma(proprieta, cartella):
-    se proprieta.get("dialetto") == "mysql":
-        ritorna ("mysql", proprieta.get("server"), proprieta.get("porta"), proprieta.get("utente"), proprieta.get("database")), int(time.time() // DURATA_MYSQL)
+    se proprieta.get("dialetto") in ("mysql", "postgres"):
+        ritorna (proprieta.get("dialetto"), proprieta.get("server"), proprieta.get("porta"), proprieta.get("utente"), proprieta.get("database")), int(time.time() // DURATA_MYSQL)
     percorso = _percorso(proprieta, cartella)
     prova:
         data = os.path.getmtime(percorso)
@@ -28,16 +28,19 @@ definisci _chiave_e_firma(proprieta, cartella):
 
 definisci _apri(proprieta, cartella, chiedi_password=Nessuno):
     """La connessione (database_modello) al database della fonte dati, oppure ErroreDatabase."""
-    se proprieta.get("dialetto") == "mysql":
-        k = (proprieta.get("server"), proprieta.get("porta"), proprieta.get("utente"))
+    se proprieta.get("dialetto") in ("mysql", "postgres"):
+        postgres = proprieta.get("dialetto") == "postgres"
+        k = (proprieta.get("server"), proprieta.get("porta"), proprieta.get("utente"), postgres)
         se k non in _password:
             se chiedi_password è Nessuno:
-                solleva database_modello.ErroreDatabase("Serve la password di MySQL.")
+                solleva database_modello.ErroreDatabase("Serve la password di " + ("PostgreSQL." se postgres altrimenti "MySQL."))
             risposta = chiedi_password(f"Password di {k[2]}@{k[0]}:")
             se risposta è Nessuno:
                 solleva database_modello.ErroreDatabase("Collegamento annullato.")
             _password[k] = risposta
         prova:
+            se postgres:
+                ritorna database_modello.apri_postgres(k[0], k[1] o 5432, k[2], _password[k], proprieta.get("database") o "")
             ritorna database_modello.apri_mysql(k[0], k[1] o 3306, k[2], _password[k], proprieta.get("database") o "")
         eccetto database_modello.ErroreDatabase:
             _password.pop(k, Nessuno)          # forse la password era sbagliata: la chiederà di nuovo

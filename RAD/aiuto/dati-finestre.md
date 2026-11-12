@@ -1,6 +1,6 @@
 # Dati nelle finestre
 
-Nel progettista puoi **collegare i componenti a una tabella** di un database (SQLite o MySQL) senza scrivere codice: i campi mostrano il record corrente, gli elenchi mostrano tutti i record e una **barra di navigazione** scorre, aggiunge, salva ed elimina.
+Nel progettista puoi **collegare i componenti a una tabella** di un database (SQLite, MySQL o PostgreSQL) senza scrivere codice: i campi mostrano il record corrente, gli elenchi mostrano tutti i record e una **barra di navigazione** scorre, aggiunge, salva ed elimina.
 
 ![Una finestra con i dati: barra di navigazione, albero, campi legati alla tabella](immagini/dati_finestra.png)
 
@@ -12,9 +12,9 @@ Scegli **FonteDati** dalla palette: compare come una piccola etichetta gialla (n
 
 | Proprietà | Cosa fa |
 |---|---|
-| **Tipo di database** | `sqlite` (un file) o `mysql` (un server) |
+| **Tipo di database** | `sqlite` (un file), `mysql` o `postgres` (un server) |
 | **Database** | il file SQLite (il pulsante **…** lo cerca; se sta nella cartella del progetto il percorso resta relativo) oppure il nome del database MySQL |
-| **Server / Porta / Utente MySQL** | compaiono solo per MySQL. La **password viene chiesta all'avvio** e non è mai scritta nei file |
+| **Server / Porta / Utente** | compaiono solo per MySQL e PostgreSQL (porte 3306 e 5432). La **password viene chiesta all'avvio** e non è mai scritta nei file |
 | **Tabella** | un elenco con le tabelle vere del database: si aprono quando clicchi la freccia |
 | **Filtro SQL** | una condizione fissa, per esempio `citta = 'Roma'` |
 | **Ordina per** / **Ordine decrescente** | scegli la colonna con cui ordinare i record |

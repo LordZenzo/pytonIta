@@ -1828,7 +1828,7 @@ classe Progettista(tk.Frame):
         per chiave, (tipo_, predefinito, descrizione) in proprieta_di(c.tipo).items():
             se tipo_ == "nascosta":
                 continua
-            se c.tipo == "FonteDati" e chiave in ("server", "porta", "utente") e c.valori.get("dialetto") != "mysql":
+            se c.tipo == "FonteDati" e chiave in ("server", "porta", "utente") e c.valori.get("dialetto") non in ("mysql", "postgres"):
                 continua
             se e_contenitore(c.tipo) e chiave in form_modello.PROPRIETA_LAYOUT_DIPENDENTI e c.valori.get("layout") != "griglia":
                 continua
@@ -2266,7 +2266,7 @@ classe Progettista(tk.Frame):
         cornice = tk.Frame(genitore, background=c_["pannello"])
         elemento = se_stesso._entry(cornice, c.valori.get(chiave) o "", lambda v: se_stesso._modifica(c, chiave, v.strip()), larghezza=6)
         elemento.pack(side="left", fill="x", expand=Vero)
-        se c.valori.get("dialetto") == "mysql":
+        se c.valori.get("dialetto") in ("mysql", "postgres"):
             ritorna cornice
 
         definisci scegli():

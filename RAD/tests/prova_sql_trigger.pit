@@ -1,0 +1,51 @@
+"""Il pannello SQL con trigger e testi tra dollari: le istruzioni non si spezzano sui «;» interni."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.database_modello importa apri_sqlite, dividi_istruzioni
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ---------------------------------------------------------------- la divisione
+t1 = ("CREATE TABLE a(x); CREATE TRIGGER t AFTER INSERT ON a BEGIN UPDATE a SET x = x + 1; "
+      "INSERT INTO b VALUES (CASE WHEN 1 THEN 2 ELSE 3 END); END; SELECT 1;")
+d = dividi_istruzioni(t1)
+verifica(lunghezza_di(d) == 3 e d[1].startswith("CREATE TRIGGER") e d[1].endswith("END") e d[1].count(";") == 2, "un trigger resta una sola istruzione: " + tipo_testo(d))
+verifica(d[2] == "SELECT 1", "e quella dopo è a parte")
+verifica(dividi_istruzioni("BEGIN; INSERT INTO a VALUES (1); COMMIT;") == ["BEGIN", "INSERT INTO a VALUES (1)", "COMMIT"], "BEGIN di una transazione non è un trigger")
+verifica(lunghezza_di(dividi_istruzioni("create temp trigger x after delete on a begin delete from b; end; select 2")) == 2, "minuscole e TEMP")
+verifica(lunghezza_di(dividi_istruzioni("CREATE TRIGGER x AFTER INSERT ON a FOR EACH ROW EXECUTE FUNCTION f(); SELECT 1")) == 2, "un trigger senza BEGIN (PostgreSQL) si divide come prima")
+p = dividi_istruzioni("CREATE FUNCTION f() RETURNS int AS $$ BEGIN RETURN 1; END; $$ LANGUAGE plpgsql; SELECT f();")
+verifica(p == ["CREATE FUNCTION f() RETURNS int AS $$ BEGIN RETURN 1; END; $$ LANGUAGE plpgsql", "SELECT f()"], "testo tra $$: " + tipo_testo(p))
+p = dividi_istruzioni("DO $corpo$ BEGIN PERFORM 1; END $corpo$; SELECT 2")
+verifica(lunghezza_di(p) == 2 e p[0].endswith("$corpo$"), "testo tra $nome$")
+verifica(dividi_istruzioni("SELECT $1; SELECT $2") == ["SELECT $1", "SELECT $2"], "$1 è un parametro, non un testo tra dollari")
+verifica(dividi_istruzioni("SELECT 'a;b' AS c; -- fine; commento\nSELECT 2") == ["SELECT 'a;b' AS c", "-- fine; commento\nSELECT 2"], "apici e commenti come prima")
+verifica(dividi_istruzioni("SELECT BEGINNER, ENDING, CASEY FROM t; SELECT 1") == ["SELECT BEGINNER, ENDING, CASEY FROM t", "SELECT 1"], "BEGIN/END dentro un nome non contano")
+
+# ---------------------------------------------------------------- un trigger vero in SQLite
+cartella = tempfile.mkdtemp()
+c = apri_sqlite(os.path.join(cartella, "t.db"))
+r = c.esegui("""CREATE TABLE ordini (id INTEGER PRIMARY KEY, totale REAL);
+CREATE TABLE registro (id INTEGER PRIMARY KEY, testo TEXT);
+CREATE TRIGGER dopo_ordine AFTER INSERT ON ordini
+BEGIN
+    INSERT INTO registro (testo) VALUES ('nuovo ordine ' || NEW.id);
+    INSERT INTO registro (testo) VALUES (CASE WHEN NEW.totale > 100 THEN 'grande' ELSE 'piccolo' END);
+END;
+INSERT INTO ordini (totale) VALUES (150);
+INSERT INTO ordini (totale) VALUES (20);
+SELECT testo FROM registro ORDER BY id""")
+verifica([x[0] per x in r.righe] == ["nuovo ordine 1", "grande", "nuovo ordine 2", "piccolo"], "il trigger si crea e scatta: " + tipo_testo(r.righe))
+verifica("dopo_ordine" in [x[0] per x in c.esegui("SELECT name FROM sqlite_master WHERE type = 'trigger'").righe], "e compare in sqlite_master")
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_sql_trigger: ok")

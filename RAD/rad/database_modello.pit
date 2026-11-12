@@ -6,12 +6,14 @@
   conn.crea_tabella("clienti", [Colonna("id", "INTEGER", chiave=Vero, autoincremento=Vero), Colonna("nome", "TEXT", non_nullo=Vero)])
 """
 importa csv
+importa importlib
 importa os
 importa sqlite3
 importa time
 
 TIPI_SQLITE = ["INTEGER", "TEXT", "REAL", "NUMERIC", "BLOB"]
 TIPI_MYSQL = ["INT", "BIGINT", "VARCHAR(255)", "TEXT", "DOUBLE", "DECIMAL(10,2)", "DATE", "DATETIME", "TIMESTAMP", "BOOLEAN", "BLOB"]
+TIPI_POSTGRES = ["INTEGER", "BIGINT", "SMALLINT", "VARCHAR(255)", "TEXT", "DOUBLE PRECISION", "NUMERIC(10,2)", "DATE", "TIMESTAMP", "BOOLEAN", "BYTEA", "UUID", "JSONB"]
 PAROLE_SQL = ["SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "LIMIT", "INSERT INTO", "VALUES", "UPDATE", "SET", "DELETE FROM",
               "CREATE TABLE", "DROP TABLE", "ALTER TABLE", "JOIN", "LEFT JOIN", "ON", "AS", "AND", "OR", "NOT", "NULL", "IS NULL",
               "LIKE", "IN", "BETWEEN", "COUNT(*)", "SUM(", "AVG(", "MIN(", "MAX(", "DISTINCT", "HAVING", "PRIMARY KEY", "CREATE INDEX"]
@@ -70,8 +72,41 @@ definisci dividi_istruzioni(sql):
     i = 0
     n = lunghezza_di(sql)
     apice = Nessuno
+    testa = []              # le prime parole dell'istruzione (per riconoscere CREATE TRIGGER)
+    in_trigger = Falso
+    profondita = 0          # BEGIN / CASE aperti dentro il corpo di un trigger: i «;» lì dentro non chiudono l'istruzione
     mentre i < n:
         c = sql[i]
+        se non apice e (c.isalpha() o c == "_") e (i == 0 o non (sql[i - 1].isalnum() o sql[i - 1] in "_$")):
+            j = i
+            mentre j < n e (sql[j].isalnum() o sql[j] == "_"):
+                j += 1
+            parola = sql[i:j].upper()
+            corrente.append(sql[i:j])
+            se lunghezza_di(testa) < 8:
+                testa.append(parola)
+                se parola == "TRIGGER" e testa[0] == "CREATE":
+                    in_trigger = Vero
+            se in_trigger:
+                se parola in ("BEGIN", "CASE"):
+                    se parola == "BEGIN" o profondita > 0:
+                        profondita += 1
+                altrimenti_se parola == "END" e profondita > 0:
+                    profondita -= 1
+            i = j
+            continua
+        se c == "$" e non apice:
+            # testo tra «dollari» di PostgreSQL: $$ ... $$ oppure $nome$ ... $nome$ (può contenere dei «;»)
+            j = i + 1
+            mentre j < n e (sql[j].isalpha() o sql[j] == "_"):
+                j += 1
+            se j < n e sql[j] == "$":
+                etichetta = sql[i:j + 1]
+                fine = sql.find(etichetta, j + 1)
+                fine = n se fine < 0 altrimenti fine + lunghezza_di(etichetta)
+                corrente.append(sql[i:fine])
+                i = fine
+                continua
         se apice:
             corrente.append(c)
             se c == apice:
@@ -93,11 +128,16 @@ definisci dividi_istruzioni(sql):
             fine = n se fine < 0 altrimenti fine + 2
             corrente.append(sql[i:fine])
             i = fine - 1
+        altrimenti_se c == ";" e profondita > 0:
+            corrente.append(c)                  # un «;» dentro il corpo di un trigger
         altrimenti_se c == ";":
             testo_ = "".join(corrente).strip()
             se testo_:
                 istruzioni.append(testo_)
             corrente = []
+            testa = []
+            in_trigger = Falso
+            profondita = 0
         altrimenti:
             corrente.append(c)
         i += 1
@@ -308,7 +348,7 @@ classe Connessione:
             segn = ", ".join([se_stesso.segnaposto] * lunghezza_di(valori))
             se_stesso.esegui_una(f"INSERT INTO {q} ({nomi}) VALUES ({segn})", tipo_lista(valori.values()))
         altrimenti:
-            se_stesso.esegui_una(f"INSERT INTO {q} DEFAULT VALUES" se se_stesso.dialetto == "sqlite" altrimenti f"INSERT INTO {q} () VALUES ()")
+            se_stesso.esegui_una(f"INSERT INTO {q} DEFAULT VALUES" se se_stesso.dialetto in ("sqlite", "postgres") altrimenti f"INSERT INTO {q} () VALUES ()")
 
     definisci crea_tabella(se_stesso, nome, colonne):
         se_stesso.esegui(se_stesso.sql_crea_tabella(nome, colonne))
@@ -641,6 +681,115 @@ classe ConnessioneMysql(Connessione):
         ritorna f"CREATE TABLE {se_stesso.citato(nome)} (\n" + ",\n".join(righe) + "\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
 
 
+# ---------------------------------------------------------------- PostgreSQL
+classe ConnessionePostgres(Connessione):
+    """Un server PostgreSQL (serve psycopg2 o psycopg). Le tabelle sono quelle dello schema «public»."""
+    dialetto = "postgres"
+    segnaposto = "%s"
+    SCHEMA = "public"
+
+    definisci __inizializza__(se_stesso, conn, descrizione):
+        Connessione.__init__(se_stesso, conn)
+        se_stesso.nome_visibile = descrizione
+        se_stesso.parametri = ("", 5432, "", "")
+
+    definisci citato(se_stesso, nome):
+        ritorna '"' + nome.replace('"', '""') + '"'
+
+    definisci tipi(se_stesso):
+        ritorna TIPI_POSTGRES
+
+    definisci _eseguibile(se_stesso, sql, parametri=()):
+        # dopo un errore PostgreSQL rifiuta tutto finché non si annulla la transazione
+        prova:
+            ritorna Connessione._eseguibile(se_stesso, sql, parametri)
+        eccetto ErroreDatabase:
+            prova:
+                se_stesso.conn.rollback()
+            eccetto Exception:
+                passa
+            solleva
+
+    definisci tabelle(se_stesso):
+        r = se_stesso.esegui_una("SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = %s ORDER BY table_name", [se_stesso.SCHEMA])
+        ritorna [(riga[0], "vista" se riga[1] == "VIEW" altrimenti "tabella") per riga in r.righe]
+
+    definisci colonne(se_stesso, tabella):
+        r = se_stesso.esegui_una("SELECT column_name, data_type, character_maximum_length, is_nullable, column_default, is_identity "
+                                 "FROM information_schema.columns WHERE table_schema = %s AND table_name = %s ORDER BY ordinal_position",
+                                 [se_stesso.SCHEMA, tabella])
+        chiavi = set()
+        uniche = set()
+        k = se_stesso.esegui_una("SELECT kcu.column_name, tc.constraint_type FROM information_schema.table_constraints tc "
+                                 "JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema "
+                                 "WHERE tc.table_schema = %s AND tc.table_name = %s AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')", [se_stesso.SCHEMA, tabella])
+        per nome_col, tipo_vincolo in k.righe:
+            (chiavi se tipo_vincolo == "PRIMARY KEY" altrimenti uniche).add(nome_col)
+        risultato = []
+        per nome_col, tipo_dato, lunghezza, nullo, pred, identita in r.righe:
+            tipo_ = tipo_testo(tipo_dato).upper()
+            tipo_ = {"CHARACTER VARYING": "VARCHAR", "CHARACTER": "CHAR", "TIMESTAMP WITHOUT TIME ZONE": "TIMESTAMP"}.get(tipo_, tipo_)
+            se lunghezza e tipo_ in ("VARCHAR", "CHAR"):
+                tipo_ += f"({lunghezza})"
+            auto = tipo_testo(identita) == "YES" o (pred è non Nessuno e tipo_testo(pred).startswith("nextval("))
+            risultato.append(Colonna(nome_col, tipo_, nullo == "NO", "" se (pred è Nessuno o auto) altrimenti tipo_testo(pred), nome_col in chiavi,
+                                     nome_col in uniche e nome_col non in chiavi, auto))
+        ritorna risultato
+
+    definisci chiavi_esterne(se_stesso, tabella):
+        prova:
+            r = se_stesso.esegui_una("SELECT kcu.column_name, ccu.table_name, ccu.column_name FROM information_schema.table_constraints tc "
+                                     "JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema "
+                                     "JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema "
+                                     "WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = %s AND tc.table_name = %s", [se_stesso.SCHEMA, tabella])
+            ritorna [tuple(riga) per riga in r.righe]
+        eccetto ErroreDatabase:
+            ritorna []
+
+    definisci _definizione_colonna(se_stesso, c, in_tabella=Vero):
+        tipo_ = c.tipo
+        se c.autoincremento:
+            tipo_ = {"INTEGER": "SERIAL", "BIGINT": "BIGSERIAL", "SMALLINT": "SMALLSERIAL"}.get(c.tipo.strip().upper(), c.tipo)
+        parti = [se_stesso.citato(c.nome), tipo_]
+        se c.non_nullo o c.chiave:
+            parti.append("NOT NULL")
+        pred = valore_sql(c.predefinito)
+        se pred e non c.autoincremento:
+            parti.append("DEFAULT " + pred)
+        se c.unica e non c.chiave:
+            parti.append("UNIQUE")
+        ritorna " ".join(p per p in parti se p)
+
+    definisci sql_modifica_colonna(se_stesso, tabella, vecchia, nuova):
+        se_stesso._controlla_modifica(tabella, vecchia, nuova)
+        t = se_stesso.citato(tabella)
+        istruzioni = []
+        nome_attuale = vecchia.nome
+        se nuova.nome != vecchia.nome:
+            istruzioni.append(f"ALTER TABLE {t} RENAME COLUMN {se_stesso.citato(vecchia.nome)} TO {se_stesso.citato(nuova.nome)}")
+            nome_attuale = nuova.nome
+        c = se_stesso.citato(nome_attuale)
+        se nuova.tipo.strip().upper() != vecchia.tipo.strip().upper():
+            istruzioni.append(f"ALTER TABLE {t} ALTER COLUMN {c} TYPE {nuova.tipo} USING {c}::{nuova.tipo}")
+        se bool(nuova.non_nullo) != bool(vecchia.non_nullo):
+            istruzioni.append(f"ALTER TABLE {t} ALTER COLUMN {c} " + ("SET NOT NULL" se nuova.non_nullo altrimenti "DROP NOT NULL"))
+        se predefinito_utente(nuova.predefinito) != predefinito_utente(vecchia.predefinito):
+            pred = valore_sql(predefinito_utente(nuova.predefinito))
+            istruzioni.append(f"ALTER TABLE {t} ALTER COLUMN {c} " + (f"SET DEFAULT {pred}" se pred altrimenti "DROP DEFAULT"))
+        ritorna ";\n".join(istruzioni)
+
+    definisci sql_crea_tabella(se_stesso, nome, colonne):
+        se non nome.strip():
+            solleva ErroreDatabase("Dai un nome alla tabella.")
+        se non colonne:
+            solleva ErroreDatabase("Servono almeno una colonna.")
+        righe = ["  " + se_stesso._definizione_colonna(c) per c in colonne]
+        chiavi = [c per c in colonne se c.chiave]
+        se chiavi:
+            righe.append("  PRIMARY KEY (" + ", ".join(se_stesso.citato(c.nome) per c in chiavi) + ")")
+        ritorna f"CREATE TABLE {se_stesso.citato(nome)} (\n" + ",\n".join(righe) + "\n)"
+
+
 definisci apri_sqlite(percorso, crea=Vero):
     """Apre (o crea, se crea=Vero) un database SQLite."""
     se percorso != ":memory:" e non crea e non os.path.exists(percorso):
@@ -682,6 +831,42 @@ definisci installa_driver_mysql(interprete=Nessuno):
     importa subprocess
     importa sys
     comando = [interprete o sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "pymysql"]
+    prova:
+        r = subprocess.run(comando, capture_output=Vero, text=Vero, encoding="utf-8", errors="replace", timeout=300)
+    eccetto Exception come errore:
+        ritorna Falso, tipo_testo(errore)
+    ritorna r.returncode == 0, (r.stdout + "\n" + r.stderr).strip()[-1500:]
+
+
+definisci driver_postgres():
+    """Il modulo psycopg2 (o psycopg 3), oppure DriverMancante con le istruzioni."""
+    per nome in ("psycopg2", "psycopg"):
+        prova:
+            ritorna importlib.import_module(nome)
+        eccetto ImportError:
+            continua
+    solleva DriverMancante("Per PostgreSQL serve il pacchetto «psycopg2».\nInstallalo dal menu Database › Installa il driver PostgreSQL, "
+                           "oppure con:  pip install psycopg2-binary")
+
+
+definisci apri_postgres(server, porta, utente, password, database="", carattere="UTF8"):
+    """Si collega a un server PostgreSQL (serve psycopg2). La password non viene salvata da nessuna parte."""
+    pg = driver_postgres()
+    prova:
+        conn = pg.connect(host=server, port=int(porta), user=utente, password=password, dbname=database o "postgres", connect_timeout=8,
+                          client_encoding=carattere)
+    eccetto Exception come errore:
+        solleva ErroreDatabase(f"Collegamento a PostgreSQL non riuscito: {errore}") da errore
+    c = ConnessionePostgres(conn, f"{utente}@{server}/{database o 'postgres'}")
+    c.parametri = (server, int(porta), utente, database)          # senza la password
+    ritorna c
+
+
+definisci installa_driver_postgres(interprete=Nessuno):
+    """Installa psycopg2-binary con pip nell'interprete in uso. Ritorna (riuscito, testo dell'uscita)."""
+    importa subprocess
+    importa sys
+    comando = [interprete o sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "psycopg2-binary"]
     prova:
         r = subprocess.run(comando, capture_output=Vero, text=Vero, encoding="utf-8", errors="replace", timeout=300)
     eccetto Exception come errore:

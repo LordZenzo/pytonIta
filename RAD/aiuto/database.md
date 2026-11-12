@@ -1,4 +1,4 @@
-# I database: SQLite e MySQL
+# I database: SQLite, MySQL e PostgreSQL
 
 PitStudio ha un **gestore di database** integrato: vedi le tabelle, correggi i dati, crei tabelle senza scrivere SQL e provi i comandi SQL.
 
@@ -6,6 +6,7 @@ PitStudio ha un **gestore di database** integrato: vedi le tabelle, correggi i d
 
 - **SQLite** è il predefinito: un database è un solo file (`.db`, `.sqlite`, `.sqlite3`) dentro il progetto. Non serve installare nulla.
 - **MySQL** (e MariaDB) si usa collegandosi a un server. Serve il driver `pymysql`: PitStudio lo installa per te la prima volta.
+- **PostgreSQL** si usa allo stesso modo (*Database → Collegati a PostgreSQL…*, porta 5432). Serve il driver `psycopg2` (menu *Database → Installa il driver PostgreSQL*). Si vedono le tabelle e le viste dello schema `public`; le colonne «auto» sono i `SERIAL`; nel pannello SQL funzionano anche i trigger (`CREATE TRIGGER … BEGIN … END`) e i testi tra dollari (`$$ … $$`).
 
 ## Aprire un database
 

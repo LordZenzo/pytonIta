@@ -7,6 +7,7 @@
 Questo file è stato creato da PitStudio (Database > Crea una maschera dalla tabella) e si può usare anche con finestre disegnate a mano.
 """
 importa datetime
+importa importlib
 importa json
 importa os
 importa shutil
@@ -106,12 +107,13 @@ classe ErroreObbligatorio(ErroreDati):
 classe FonteDati:
     """Una tabella: ne conosce le colonne e legge, aggiunge, modifica ed elimina i record."""
 
-    definisci __inizializza__(se_stesso, conn, tabella, è_mysql=Falso):
+    definisci __inizializza__(se_stesso, conn, tabella, è_mysql=Falso, dialetto=Nessuno):
         se_stesso.conn = conn
         se_stesso.tabella = tabella
-        se_stesso.è_mysql = è_mysql
-        se_stesso.segnaposto = "%s" se è_mysql altrimenti "?"
-        se_stesso.cita = "`" se è_mysql altrimenti '"'
+        se_stesso.dialetto = dialetto o ("mysql" se è_mysql altrimenti "sqlite")
+        se_stesso.è_mysql = se_stesso.dialetto != "sqlite"       # «server» (MySQL o PostgreSQL): i record si individuano con la chiave primaria
+        se_stesso.segnaposto = "%s" se se_stesso.è_mysql altrimenti "?"
+        se_stesso.cita = "`" se se_stesso.dialetto == "mysql" altrimenti '"'
         se_stesso.colonne = []          # nomi
         se_stesso.tipi = {}             # nome -> tipo in maiuscolo
         se_stesso.chiave = []           # colonne della chiave primaria
@@ -144,6 +146,23 @@ classe FonteDati:
             solleva ErroreDati(f"Collegamento a MySQL non riuscito: {eccezione}")
         ritorna FonteDati(conn, tabella, è_mysql=Vero)
 
+    @staticmethod
+    definisci con_postgres(server, porta, utente, password, database, tabella):
+        driver = Nessuno
+        per nome_driver in ("psycopg2", "psycopg"):
+            prova:
+                driver = importlib.import_module(nome_driver)
+                interrompi
+            eccetto ImportError:
+                continua
+        se driver è Nessuno:
+            solleva ErroreDati("Per PostgreSQL serve il pacchetto psycopg2 (pip install psycopg2-binary).")
+        prova:
+            conn = driver.connect(host=server, port=int(porta), user=utente, password=password, dbname=database o "postgres", connect_timeout=8)
+        eccetto Exception come eccezione:
+            solleva ErroreDati(f"Collegamento a PostgreSQL non riuscito: {eccezione}")
+        ritorna FonteDati(conn, tabella, dialetto="postgres")
+
     definisci _n(se_stesso, nome):
         ritorna se_stesso.cita + nome.replace(se_stesso.cita, se_stesso.cita * 2) + se_stesso.cita
 
@@ -155,11 +174,34 @@ classe FonteDati:
             altrimenti:
                 cur.execute(sql)
         eccetto Exception come eccezione:
+            se se_stesso.dialetto == "postgres":
+                prova:
+                    se_stesso.conn.rollback()           # dopo un errore PostgreSQL rifiuta tutto finché la transazione non si annulla
+                eccetto Exception:
+                    passa
+                se_stesso.in_sospeso = 0
             solleva ErroreDati(tipo_testo(eccezione))
         ritorna cur
 
     definisci _leggi_struttura(se_stesso):
-        se se_stesso.è_mysql:
+        se se_stesso.dialetto == "postgres":
+            righe = se_stesso._esegui("SELECT column_name, data_type, is_nullable, column_default, is_identity FROM information_schema.columns "
+                                      "WHERE table_schema = 'public' AND table_name = %s ORDER BY ordinal_position", [se_stesso.tabella]).fetchall()
+            chiavi = {r[0] per r in se_stesso._esegui(
+                "SELECT kcu.column_name FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu "
+                "ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema "
+                "WHERE tc.table_schema = 'public' AND tc.table_name = %s AND tc.constraint_type = 'PRIMARY KEY'", [se_stesso.tabella]).fetchall()}
+            per r in righe:
+                se_stesso.colonne.append(r[0])
+                se_stesso.tipi[r[0]] = tipo_testo(r[1]).upper()
+                se r[0] in chiavi:
+                    se_stesso.chiave.append(r[0])
+                automatica = tipo_testo(r[4]) == "YES" o (r[3] è non Nessuno e tipo_testo(r[3]).startswith("nextval("))
+                se automatica:
+                    se_stesso.automatiche.append(r[0])
+                se r[2] == "NO" e r[3] è Nessuno e non automatica:
+                    se_stesso.obbligatorie.append(r[0])
+        altrimenti_se se_stesso.è_mysql:
             righe = se_stesso._esegui(f"SHOW COLUMNS FROM {se_stesso._n(se_stesso.tabella)}").fetchall()
             per r in righe:
                 se_stesso.colonne.append(r[0])
@@ -193,8 +235,8 @@ classe FonteDati:
         se filtro.strip():
             condizioni.append("(" + filtro.strip() + ")")
         se ricerca:
-            tipo_testo = "CHAR" se se_stesso.è_mysql altrimenti "TEXT"
-            condizioni.append("(" + " OR ".join(f"CAST({se_stesso._n(c)} AS {tipo_testo}) LIKE {se_stesso.segnaposto}" per c in se_stesso.colonne) + ")")
+            tipo_sql = "CHAR" se se_stesso.dialetto == "mysql" altrimenti "TEXT"
+            condizioni.append("(" + " OR ".join(f"CAST({se_stesso._n(c)} AS {tipo_sql}) LIKE {se_stesso.segnaposto}" per c in se_stesso.colonne) + ")")
             par = ["%" + ricerca + "%"] * lunghezza_di(se_stesso.colonne)
         dove = (" WHERE " + " AND ".join(condizioni)) se condizioni altrimenti ""
         ordine = ""
@@ -244,14 +286,25 @@ classe FonteDati:
         se id_ è Nessuno:
             nomi = [c per c in se_stesso.colonne se (c in valori_testo o c in se_stesso.obbligatorie) e non (c in se_stesso.automatiche e valori_testo.get(c, "") == "")]
             valori = [se_stesso._converti(c, valori_testo.get(c, "")) per c in nomi]
+            ritorno = ""
+            se se_stesso.dialetto == "postgres" e se_stesso.chiave:
+                ritorno = " RETURNING " + ", ".join(se_stesso._n(c) per c in se_stesso.chiave)       # PostgreSQL non ha «ultimo id»: la chiave si fa restituire
             se nomi:
                 elenco_nomi = ", ".join(se_stesso._n(c) per c in nomi)
                 segnaposti = ", ".join([se_stesso.segnaposto] * lunghezza_di(nomi))
-                cur = se_stesso._esegui(f"INSERT INTO {t} ({elenco_nomi}) VALUES ({segnaposti})", valori)
+                cur = se_stesso._esegui(f"INSERT INTO {t} ({elenco_nomi}) VALUES ({segnaposti}){ritorno}", valori)
             altrimenti:
-                cur = se_stesso._esegui(f"INSERT INTO {t} DEFAULT VALUES" se non se_stesso.è_mysql altrimenti f"INSERT INTO {t} () VALUES ()")
+                cur = se_stesso._esegui(f"INSERT INTO {t} DEFAULT VALUES{ritorno}" se se_stesso.dialetto != "mysql" altrimenti f"INSERT INTO {t} () VALUES ()")
             nuovo = cur.lastrowid
+            chiave_restituita = Nessuno
+            se ritorno:
+                prova:
+                    chiave_restituita = tuple(cur.fetchone())
+                eccetto Exception:
+                    chiave_restituita = Nessuno
             se_stesso._fatto()
+            se chiave_restituita:
+                ritorna chiave_restituita
             se se_stesso.è_mysql:
                 ritorna tuple((valori_testo.get(c) se valori_testo.get(c) != "" altrimenti Nessuno) o nuovo per c in se_stesso.chiave) se se_stesso.chiave altrimenti Nessuno
             ritorna nuovo
@@ -649,7 +702,7 @@ classe Collegamento:
     @staticmethod
     definisci crea(radice, cartella, dialetto, database, tabella, server="localhost", porta=3306, utente="root", password=Nessuno, filtro="", ordina_per="", decrescente=Falso, al_cambio=Nessuno, salva_da_solo=Vero, transazione=Falso):
         """Apre la tabella. Se non ci riesce mostra l'errore e ritorna un Collegamento spento (la finestra si apre lo stesso).
-        Per MySQL la password, se manca, viene chiesta all'utente (non viene mai scritta nel programma)."""
+        Per MySQL e PostgreSQL la password, se manca, viene chiesta all'utente (non viene mai scritta nel programma)."""
         errore = ""
         fonte = Nessuno
         prova:
@@ -659,6 +712,10 @@ classe Collegamento:
                 se password è Nessuno:
                     password = simpledialog.askstring("MySQL", f"Password di {utente}@{server}:", show="*", parent=radice) o ""
                 fonte = FonteDati.con_mysql(server, porta, utente, password, database, tabella)
+            altrimenti_se dialetto == "postgres":
+                se password è Nessuno:
+                    password = simpledialog.askstring("PostgreSQL", f"Password di {utente}@{server}:", show="*", parent=radice) o ""
+                fonte = FonteDati.con_postgres(server, porta, utente, password, database, tabella)
             altrimenti:
                 se non database:
                     solleva ErroreDati("Nessun database scelto: scegli «Database» nelle proprietà della fonte dati.")
