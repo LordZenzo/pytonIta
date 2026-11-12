@@ -1028,7 +1028,7 @@ classe Strumenti:
         testo_ = aggiorna_1x.testo_rapporto(rapporto)
         se non applica:
             ritorna "RAPPORTO (nulla è stato modificato; per farlo richiama lo strumento con applica: true):\n" + testo_
-        se non (rapporto["moduli"] o rapporto["finestre"] o rapporto["file"]):
+        se non (rapporto["moduli"] o rapporto["finestre"] o rapporto["programmi"] o rapporto["file"]):
             ritorna testo_
         se se_stesso.config_.ottieni("ai.conferma_scrittura", Vero):
             se non se_stesso.ponte.esegui(lambda: se_stesso.ambiente.chiedi_conferma("Aggiorna dalla 1.x", "L'assistente vuole aggiornare il progetto dalla versione 1.x:\n\n" + testo_ + "\n\nSi può annullare con «Annulla»."), 600):

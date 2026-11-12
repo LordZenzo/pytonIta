@@ -755,7 +755,7 @@ classe Applicazione:
             ritorna Falso
         rapporto = aggiorna_1x.aggiorna_progetto(se_stesso.progetto.cartella)
         testo_ = aggiorna_1x.testo_rapporto(rapporto)
-        se non (rapporto["moduli"] o rapporto["finestre"] o rapporto["file"]):
+        se non (rapporto["moduli"] o rapporto["finestre"] o rapporto["programmi"] o rapporto["file"]):
             se non offerto:
                 messagebox.showinfo("Aggiorna dalla 1.x", testo_, parent=se_stesso.radice)
             ritorna Falso
