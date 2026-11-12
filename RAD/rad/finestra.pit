@@ -886,17 +886,21 @@ classe Applicazione:
         ritorna se_stesso.schede_nb
 
     definisci _focus_cambiato(se_stesso, evento):
-        """Quando il focus entra nella scheda di un gruppo, quel gruppo diventa quello attivo."""
-        se non se_stesso._gruppo2_visibile():
-            ritorna
-        nome = str(evento.widget)
-        per gruppo in se_stesso.gruppi:
-            scelta = gruppo.select()
-            se scelta e (nome == scelta o nome.startswith(scelta + ".")):
-                se gruppo è non se_stesso._gruppo_ultimo:
-                    se_stesso._gruppo_ultimo = gruppo
-                    se_stesso._segna_gruppi()
+        """Quando il focus entra nella scheda di un gruppo, quel gruppo diventa quello attivo. (Legato a tutta l'applicazione: scatta anche per
+        i widget di altre finestre o di finestre già chiuse, che si ignorano.)"""
+        prova:
+            se evento.widget.winfo_toplevel() è non se_stesso.radice o non se_stesso._gruppo2_visibile():
                 ritorna
+            nome = str(evento.widget)
+            per gruppo in se_stesso.gruppi:
+                scelta = gruppo.select()
+                se scelta e (nome == scelta o nome.startswith(scelta + ".")):
+                    se gruppo è non se_stesso._gruppo_ultimo:
+                        se_stesso._gruppo_ultimo = gruppo
+                        se_stesso._segna_gruppi()
+                    ritorna
+        eccetto (tk.TclError, KeyError, AttributeError):
+            passa
 
     definisci _gruppo_attivato(se_stesso, gruppo):
         se_stesso._gruppo_ultimo = gruppo
