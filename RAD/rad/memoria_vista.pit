@@ -83,6 +83,11 @@ classe VistaMemoria(tk.Canvas):
         se_stesso.applica_colori(se_stesso.colori)
 
     definisci applica_colori(se_stesso, colori):
+        completi = dict(COLORI_PREDEFINITI)
+        completi.update({k: v per k, v in colori.items() se k in COLORI_PREDEFINITI})
+        se "editor" non in colori e "sfondo" in colori:
+            completi["editor"] = colori["sfondo"]
+        colori = completi
         se_stesso.colori = colori
         se_stesso.configure(background=colori["editor"])
         se se_stesso.memoria è non Nessuno:
