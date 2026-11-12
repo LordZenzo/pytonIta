@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.15
+
+- **Migrazione 1.x: nomi vecchi dentro le mattonelle.** Anche il codice scritto a mano nelle mattonelle (espressioni, mattonelle «codice», ingressi di valore, codice iniziale) viene aggiornato (`lunghezza(` → `lunghezza_di(`, ecc.), poi il `.pit` si rigenera. Non si toccano i nomi che il programma usa come variabili proprie e le frasi degli ingressi di testo.
+
 ## Novità della 2.14
 
 - **Le versioni nei progetti.** L'interprete ora dichiara la sua *generazione* (`sys.pitonit_generazione`: 1 = nomi vecchi come `lunghezza`, `testo`, `leggi`; 2 = nomi attuali). Il `progetto.rad.json` registra `"pitstudio"` e `"interprete": {"generazione", "python"}` (nei progetti nuovi, dopo un aggiornamento dalla 1.x, o appena PitStudio vede che un progetto è già a posto). I file generati (finestre e mattonelle) portano nell'intestazione solo la generazione dell'interprete (es. «interprete 2.x»), non la versione di PitStudio, così non risultano modificati a ogni release. All'apertura un progetto che dichiara già la generazione giusta non viene più scansionato; gli altri sì. L'assistente vede le versioni in `stato_ide`. **Serve ricompilare l'interprete** (il programma d'installazione lo fa da solo); `pitonit/patch/INTERPRETE` e il numero in `Python/sysmodule.c` vanno alzati insieme.

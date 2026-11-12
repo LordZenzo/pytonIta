@@ -7,11 +7,13 @@ Il lavoro è meccanico e sicuro: si guarda il programma come albero (non come te
 funzione, i metodi e gli attributi non si toccano. Le finestre disegnate (.form.json) si rigenerano con il generatore nuovo.
 Qui non si salva nessuna copia: chi chiama (PitStudio) fotografa il progetto prima, così si può annullare."""
 importa ast
+importa json
 importa os
 importa re
 importa sys
 
 da rad importa versioni
+da rad.mattonelle_modello importa Programma
 
 CARTELLE_ESCLUSE = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules", "venv", ".venv", "env", "build", "dist"}
 LIMITE_FILE = 2 * 1024 * 1024
@@ -65,8 +67,9 @@ definisci _applica(dati, modifiche):
 
 
 # ---------------------------------------------------------------- 1. le funzioni predefinite con il nome vecchio
-definisci rinomina_predefiniti(dati, percorso="<sorgente>"):
-    """lunghezza(x) -> lunghezza_di(x), ecc., solo dove il nome è davvero la funzione predefinita (non una variabile, non un attributo)."""
+definisci rinomina_predefiniti(dati, percorso="<sorgente>", salta=()):
+    """lunghezza(x) -> lunghezza_di(x), ecc., solo dove il nome è davvero la funzione predefinita (non una variabile, non un attributo).
+    `salta`: nomi che non si toccano (nelle mattonelle: quelli che il programma usa come variabili o funzioni proprie)."""
     albero = _albero(dati, percorso)
     se albero è Nessuno:
         ritorna dati, 0
@@ -75,7 +78,7 @@ definisci rinomina_predefiniti(dati, percorso="<sorgente>"):
     analisi.visit(albero)
     modifiche = set()
     per ambito, nome, nodo, chiamata in analisi.usi:
-        se nome in VECCHIO_NUOVO e controllo._risolvi(ambito, nome) è Nessuno:
+        se nome in VECCHIO_NUOVO e nome non in salta e controllo._risolvi(ambito, nome) è Nessuno:
             modifiche.add((nodo.lineno, nodo.col_offset, nome, VECCHIO_NUOVO[nome]))
     ritorna _applica(dati, modifiche)
 
@@ -220,6 +223,81 @@ definisci _finestre(cartella):
     ritorna risultato
 
 
+# ---------------------------------------------------------------- 3. i nomi vecchi scritti dentro le mattonelle
+CHIAVI_DI_NOMI = ("var", "nome", "parametri", "dest", "attributo", "classe", "alias", "metodo")
+
+
+definisci _nomi_del_programma(dati):
+    """I nomi che il programma definisce o usa come propri (variabili, parametri, funzioni, classi): una vecchia funzione con questo nome non si tocca."""
+    nomi = set()
+
+    definisci cerca(nodo):
+        se isinstance(nodo, dict):
+            se isinstance(nodo.get("t"), str) e nodo["t"] non in ("commento", "codice", "espressione"):
+                per chiave in CHIAVI_DI_NOMI:
+                    valore = (nodo.get("c") o {}).get(chiave)
+                    se isinstance(valore, str):
+                        nomi.update(re.findall(r"[^\W\d]\w*", valore))
+            per v in nodo.values():
+                cerca(v)
+        altrimenti_se isinstance(nodo, list):
+            per v in nodo:
+                cerca(v)
+    cerca(dati)
+    nomi.update(re.findall(r"[^\W\d]\w*", dati.get("codice_iniziale") o ""))
+    ritorna nomi
+
+
+definisci _tipi_degli_ingressi(tipo_):
+    """{nome dell'ingresso: tipo} per una mattonella del catalogo; per le altre (le funzioni dell'utente) nulla."""
+    da rad.mattonelle_modello importa TIPI
+    d = TIPI.get(tipo_)
+    risultato = {}
+    per voce in (d["seg"] se d altrimenti []):
+        se isinstance(voce, tuple) e lunghezza_di(voce) >= 3 e voce[0] == "i":
+            risultato[voce[1]] = voce[2]
+    ritorna risultato
+
+
+definisci rinomina_nelle_mattonelle(dati):
+    """Rinomina le vecchie funzioni predefinite dentro il codice scritto a mano nelle mattonelle: le mattonelle «codice» e «espressione»,
+    gli ingressi di tipo valore/numero scritti a mano, il codice iniziale. Modifica `dati` (il dizionario letto dal .mattonelle.json).
+    Ritorna quanti nomi ha cambiato."""
+    salta = _nomi_del_programma(dati)
+    totale = [0]
+
+    definisci frammento(testo_):
+        se non isinstance(testo_, str) o non testo_.strip():
+            ritorna testo_
+        nuovo, fatte = rinomina_predefiniti(testo_.encode("utf-8"), "<mattonella>", salta)
+        se fatte:
+            totale[0] += fatte
+            ritorna nuovo.decode("utf-8")
+        ritorna testo_
+
+    definisci visita(nodo):
+        se isinstance(nodo, dict):
+            tipo_ = nodo.get("t")
+            se isinstance(tipo_, str):
+                se tipo_ in ("codice", "espressione") e isinstance(nodo.get("c"), dict) e "testo" in nodo["c"]:
+                    nodo["c"]["testo"] = frammento(nodo["c"]["testo"])
+                letterali = nodo.get("l")
+                se isinstance(letterali, dict):
+                    tipi = _tipi_degli_ingressi(tipo_)
+                    per slot in tipo_lista(letterali):
+                        se tipi.get(slot, "valore") != "testo":                # un ingresso di testo è una frase, non codice
+                            letterali[slot] = frammento(letterali[slot])
+            per v in nodo.values():
+                visita(v)
+        altrimenti_se isinstance(nodo, list):
+            per v in nodo:
+                visita(v)
+    visita(dati)
+    se isinstance(dati.get("codice_iniziale"), str):
+        dati["codice_iniziale"] = frammento(dati["codice_iniziale"])
+    ritorna totale[0]
+
+
 definisci _programmi_mattonelle(cartella):
     """[(percorso del .mattonelle.json, percorso del .pit generato, programma)] dei programmi a mattonelle."""
     da rad.mattonelle_modello importa carica_programma, percorsi_programma, SUFFISSO
@@ -279,8 +357,21 @@ definisci aggiorna_progetto(cartella, applica=Falso):
     # i programmi a mattonelle: il .pit è generato, si rigenera dalle mattonelle (correggerlo a mano non serve, verrebbe riscritto)
     da rad.mattonelle_modello importa genera_codice
     rapporto["programmi"] = []
+    rapporto["mattonelle"] = {}
     per json_, codice_pit, programma in _programmi_mattonelle(cartella):
         ui_generati.add(os.path.abspath(codice_pit))
+        # i nomi vecchi scritti a mano dentro le mattonelle (espressioni, codice): si correggono nel disegno, poi il .pit si rigenera
+        prova:
+            dati_json = json.loads(open(json_, encoding="utf-8").read())
+            cambiati = rinomina_nelle_mattonelle(dati_json)
+            se cambiati:
+                programma = Programma.da_dizionario(dati_json)
+                rapporto["mattonelle"][os.path.relpath(json_, cartella)] = cambiati
+                se applica:
+                    con open(json_, "w", encoding="utf-8") come f:
+                        f.write(programma.a_json())
+        eccetto Eccezione:
+            passa
         prova:
             attuale = open(codice_pit, encoding="utf-8", newline="").read().replace("\r\n", "\n") se os.path.exists(codice_pit) altrimenti ""
             nuovo, _avvisi = genera_codice(programma)
@@ -317,7 +408,12 @@ definisci aggiorna_progetto(cartella, applica=Falso):
 definisci serve_aggiornamento(cartella):
     """True se il progetto ha qualcosa da aggiornare (nomi vecchi, finestre generate col generatore vecchio) o errori gravi."""
     r = aggiorna_progetto(cartella, applica=Falso)
-    ritorna bool(r["moduli"] o r["finestre"] o r["programmi"] o r["file"] o r["residui"])
+    ritorna ha_modifiche(r) o bool(r["residui"])
+
+
+definisci ha_modifiche(rapporto):
+    """True se l'aggiornamento ha qualcosa da cambiare (non conta gli errori che restano da sistemare a mano). Unico posto che elenca le voci del rapporto."""
+    ritorna bool(rapporto["moduli"] o rapporto["finestre"] o rapporto["programmi"] o rapporto["mattonelle"] o rapporto["file"])
 
 
 definisci testo_rapporto(rapporto, applicato=Falso):
@@ -327,6 +423,8 @@ definisci testo_rapporto(rapporto, applicato=Falso):
         righe.append(("Moduli di PitStudio rinnovati" se applicato altrimenti "Moduli di PitStudio da rinnovare") + ": " + ", ".join(rapporto["moduli"]))
     se rapporto["finestre"]:
         righe.append(("Finestre rigenerate" se applicato altrimenti "Finestre da rigenerare") + " con il generatore nuovo: " + ", ".join(rapporto["finestre"]))
+    per relativo, quanti in rapporto["mattonelle"].items():
+        righe.append(f"  {relativo}: {quanti} nomi di funzioni predefinite dentro le mattonelle ({'corretti' se applicato altrimenti 'da correggere'})")
     se rapporto["programmi"]:
         righe.append(("Programmi a mattonelle rigenerati" se applicato altrimenti "Programmi a mattonelle da rigenerare") + " con il generatore nuovo: " + ", ".join(rapporto["programmi"]))
     per relativo, (funzioni, lettere) in rapporto["file"].items():

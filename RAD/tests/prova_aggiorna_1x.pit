@@ -1,7 +1,8 @@
 """Aggiornamento di un progetto 1.x: nomi predefiniti vecchi, lettere ambigue, finestre disegnate e moduli copiati, senza toccare ciò che è già giusto."""
 importa sys, os, tempfile, shutil
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-da rad importa aggiorna_1x, form_modello
+da rad importa aggiorna_1x, form_modello, mattonelle_modello
+importa json
 da rad.form_modello importa Form
 
 errori = []
@@ -167,6 +168,26 @@ se hasattr(sys, "pitonit_generazione") e os.path.exists(_file_generazione):
     verifica(int(open(_file_generazione).read().strip()) == sys.pitonit_generazione, "patch/INTERPRETE e sys.pitonit_generazione dicono lo stesso numero")
 verifica(versioni.generazione_del_progetto(app.progetto.manifesto) == 2 e app.progetto.manifesto["pitstudio"] == versioni.VERSIONE_BASE, "dopo l'aggiornamento il manifesto dichiara le versioni: " + tipo_testo(app.progetto.manifesto))
 verifica("versioni" in strumenti.s_stato_ide() e "generazione" in strumenti.s_stato_ide(), "stato_ide riporta le versioni")
+# nomi vecchi scritti a mano DENTRO le mattonelle (espressione, codice, ingressi), senza toccare i nomi del programma
+cartella6 = tempfile.mkdtemp()
+dati6 = mattonelle_modello.programma_di_esempio("principale").a_dizionario()
+pila6 = dati6["principale"]["radici"][0]["pila"]
+pila6.append({"t": "imposta", "c": {"var": "somma"}, "l": {"valore": "7"}})
+pila6.append({"t": "stampa", "i": {"valore": {"t": "espressione", "c": {"testo": "lunghezza([1, 2]) + somma"}}}})
+pila6.append({"t": "codice", "c": {"testo": "n = intero('5')\nstampa(n, testo(3))"}})
+pila6.append({"t": "stampa", "l": {"valore": "somma([1, 2])"}})
+pila6.append({"t": "stampa", "l": {"valore": "Ciao a tutti"}})
+open(os.path.join(cartella6, "principale.mattonelle.json"), "w", encoding="utf-8").write(json.dumps(dati6, ensure_ascii=Falso, indent=1))
+r6 = aggiorna_1x.aggiorna_progetto(cartella6)
+verifica(r6["mattonelle"] == {"principale.mattonelle.json": 3} e aggiorna_1x.ha_modifiche(r6), "le mattonelle con nomi vecchi vengono trovate (lunghezza, intero, testo; somma resta: è anche una variabile del programma): " + tipo_testo(r6["mattonelle"]))
+verifica("lunghezza(" in open(os.path.join(cartella6, "principale.mattonelle.json"), encoding="utf-8").read(), "la prova non scrive")
+aggiorna_1x.aggiorna_progetto(cartella6, applica=Vero)
+testo6 = open(os.path.join(cartella6, "principale.mattonelle.json"), encoding="utf-8").read()
+pit6 = open(os.path.join(cartella6, "principale.pit"), encoding="utf-8").read()
+verifica("lunghezza_di([1, 2])" in testo6 e "tipo_intero('5')" in testo6 e "tipo_testo(3)" in testo6, "nel disegno i nomi sono nuovi: " + testo6[-700:])
+verifica("somma([1, 2])" in testo6 e "Ciao a tutti" in testo6, "somma (variabile del programma) e le frasi non si toccano")
+verifica("lunghezza_di([1, 2])" in pit6 e aggiorna_1x.errori_gravi(pit6.encode("utf-8"), "principale.pit") == [], "il .pit rigenerato non ha nomi vecchi: " + pit6)
+verifica(non aggiorna_1x.serve_aggiornamento(cartella6) o aggiorna_1x.aggiorna_progetto(cartella6)["mattonelle"] == {}, "rifatto non cambia più nulla")
 # una sola intestazione diversa non basta per dire «da aggiornare»
 open(pit4, "w", encoding="utf-8", newline="\n").write(giusto4.replace("interprete 2.x", "interprete 1.x"))
 verifica(non aggiorna_1x.serve_aggiornamento(cartella4), "cambia solo l'intestazione: niente da fare")
