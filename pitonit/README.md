@@ -23,6 +23,7 @@ I file `.py` eseguiti con pitonit restano Python normale (inglese).
 | `Parser/pegen.c` (nomi) | Le parole riservate come `classe`, `con`, `da`, `prova`, `elimina` si leggono come nomi dove una parola chiave non può comparire (vedi `NOMI.md`); `e`/`o` a fine riga continuano la condizione. |
 | `Python/bltinmodule.c` (`_imposta_nel_tipo`), `Lib/_italiano.py` | Opzioni con nome in italiano (`chiave=`, `inverso=`, `codifica=`…) e altri messaggi d'errore tradotti. |
 | `Include/cpython/compile.h` | `PyCF_ITALIANO` (0x10000), salvato in `co_flags`: `esegui`/`valuta`/`compila` lo ereditano. |
+| `Python/sysmodule.c`, `patch/INTERPRETE` | `sys.pitonit_generazione`: la generazione del vocabolario (1 = nomi vecchi, 2 = attuali). Il numero in `sysmodule.c` e il file `patch/INTERPRETE` (letto dall'installatore Linux) vanno alzati insieme quando i nomi cambiano in modo incompatibile. |
 | `Modules/main.c` | File `.pit`, `-c`, stdin e console sono italiani; banner e `--version` «Pitonit». |
 | `Python/bltinmodule.c` | `esegui`/`valuta` usano i builtin italiani; `_aggiungi_alias` per i metodi. |
 | `Lib/importlib/_bootstrap_external.py` | `import` trova e compila i moduli `.pit` (italiani) e li fa controllare da `_controlla`. |

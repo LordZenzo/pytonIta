@@ -1,4 +1,4 @@
-"""Finestra MascheraContatti - generato da PitStudio. NON modificare: i cambi vanno nel progettista."""
+"""Finestra MascheraContatti - generato da PitStudio (interprete 2.x). NON modificare: i cambi vanno nel progettista."""
 importa interfaccia come tk
 da interfaccia importa tema
 importa os

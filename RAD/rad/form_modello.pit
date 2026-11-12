@@ -6,6 +6,8 @@ importa re
 importa shutil
 importa sys
 
+da rad importa versioni
+
 # il motore della disposizione a griglia sta con i modelli di codice (ne esiste una copia nei progetti che lo usano): qui serve per calcolare le posizioni
 _CARTELLA_MODELLI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice")
 se _CARTELLA_MODELLI non in sys.path:
@@ -786,7 +788,7 @@ definisci genera_ui(form):
     """Codice della classe che costruisce la finestra. Si rigenera: non modificarlo a mano."""
     cl = _nome_classe(form.nome)
     r = []
-    r.append(f'"""Finestra {form.nome} - generato da PitStudio. NON modificare: i cambi vanno nel progettista."""')
+    r.append(f'"""Finestra {form.nome} - generato da PitStudio ({versioni.testo_intestazione()}). NON modificare: i cambi vanno nel progettista."""')
     r.append("importa interfaccia come tk")
     r.append("da interfaccia importa tema")
     r.append("importa os")

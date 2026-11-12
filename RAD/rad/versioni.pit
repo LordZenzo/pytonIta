@@ -1,0 +1,61 @@
+"""Le versioni che contano per un progetto: quella di PitStudio e quella dell'interprete.
+Per il codice conta l'interprete: la «generazione» del suo vocabolario (1 = nomi vecchi come lunghezza, testo, leggi; 2 = nomi attuali
+come lunghezza_di, tipo_testo, leggi_tastiera). Si scrive nel manifesto del progetto (progetto.rad.json) e, solo la generazione,
+nell'intestazione dei file generati: così i file generati non cambiano a ogni versione di PitStudio."""
+importa json
+importa os
+importa sys
+importa importlib.util
+
+da rad importa VERSIONE_BASE
+
+NOME_MANIFESTO = "progetto.rad.json"
+
+
+definisci generazione_interprete():
+    """La generazione di questo interprete: la dichiara lui (sys.pitonit_generazione); se non lo dice è precedente, e si deduce
+    dal modulo _controlla, che c'è dalla 2.0."""
+    dichiarata = getattr(sys, "pitonit_generazione", Nessuno)
+    se dichiarata è non Nessuno:
+        ritorna int(dichiarata)
+    ritorna 2 se importlib.util.find_spec("_controlla") è non Nessuno altrimenti 1
+
+
+definisci versione_python():
+    ritorna ".".join(tipo_testo(x) per x in sys.version_info[:3])
+
+
+definisci testo_intestazione():
+    """Il pezzo che si scrive nella prima riga dei file generati."""
+    ritorna f"interprete {generazione_interprete()}.x"
+
+
+definisci versioni_attuali():
+    ritorna {"pitstudio": VERSIONE_BASE, "interprete": {"generazione": generazione_interprete(), "python": versione_python()}}
+
+
+definisci generazione_del_progetto(manifesto):
+    """La generazione dell'interprete con cui il progetto è stato scritto o aggiornato; None se il manifesto non lo dice (progetto della 1.x)."""
+    interprete = manifesto.get("interprete") se isinstance(manifesto, dict) altrimenti Nessuno
+    se isinstance(interprete, dict) e isinstance(interprete.get("generazione"), int):
+        ritorna interprete["generazione"]
+    ritorna Nessuno
+
+
+definisci segna_versioni(cartella):
+    """Scrive nel manifesto le versioni attuali. Ritorna Vero se ha scritto (cioè se il progetto ha un manifesto e le versioni erano diverse)."""
+    percorso = os.path.join(cartella, NOME_MANIFESTO)
+    prova:
+        con open(percorso, encoding="utf-8") come f:
+            manifesto = json.load(f)
+    eccetto (OSError, ValueError):
+        ritorna Falso
+    se non isinstance(manifesto, dict):
+        ritorna Falso
+    nuove = versioni_attuali()
+    se manifesto.get("pitstudio") == nuove["pitstudio"] e manifesto.get("interprete") == nuove["interprete"]:
+        ritorna Falso
+    manifesto.update(nuove)
+    con open(percorso, "w", encoding="utf-8") come f:
+        json.dump(manifesto, f, indent=2, ensure_ascii=Falso)
+    ritorna Vero

@@ -824,8 +824,15 @@ classe Strumenti:
         stato = se_stesso.ponte.esegui(se_stesso.ambiente.stato_ide)
         # un progetto della 1.x non va corretto a mano: lo si dice subito, in testa, perché anche i modelli piccoli non lo perdano
         prova:
-            da rad importa aggiorna_1x
-            se isinstance(stato, dict) e se_stesso.ambiente.progetto e aggiorna_1x.serve_aggiornamento(se_stesso.progetto.cartella):
+            da rad importa aggiorna_1x, versioni
+            se isinstance(stato, dict) e se_stesso.ambiente.progetto:
+                manifesto = se_stesso.progetto.manifesto
+                del_progetto, in_uso = versioni.generazione_del_progetto(manifesto), versioni.generazione_interprete()
+                stato["versioni"] = {"progetto": {"pitstudio": manifesto.get("pitstudio", "non dichiarata"), "interprete": manifesto.get("interprete", "non dichiarato (progetto della 1.x o precedente)")},
+                                     "in_uso": versioni.versioni_attuali()}
+                se del_progetto è non Nessuno e del_progetto > in_uso:
+                    stato = {"ATTENZIONE": f"Il progetto è scritto per un interprete di generazione {del_progetto}, ma quello in uso è {in_uso}: va aggiornato l'interprete (reinstalla pytonIta), non il progetto.", **stato}
+            se isinstance(stato, dict) e se_stesso.ambiente.progetto e del_progetto != in_uso e aggiorna_1x.serve_aggiornamento(se_stesso.progetto.cartella):
                 stato = {"ATTENZIONE": "Questo progetto è della versione 1.x o ha file generati vecchi (finestre, programmi a mattonelle, nomi come leggi, lunghezza, testo, e, o). "
                                        "NON correggerli a mano e NON rifare mattonelle o finestre: chiama subito lo strumento aggiorna_da_1x (senza argomenti per vedere il rapporto, poi con applica=true).", **stato}
         eccetto Eccezione:
@@ -1035,6 +1042,7 @@ classe Strumenti:
                 solleva ErroreDiValore("l'utente ha rifiutato l'aggiornamento")
         se_stesso.ponte.esegui(lambda: se_stesso.ambiente.salva_tutto())
         rapporto = aggiorna_1x.aggiorna_progetto(cartella, applica=Vero)
+        se_stesso.progetto.carica_manifesto()
         se_stesso.ponte.esegui(lambda: se_stesso.ambiente.ricarica_file_cambiati())
         ritorna "AGGIORNATO:\n" + aggiorna_1x.testo_rapporto(rapporto, Vero)
 

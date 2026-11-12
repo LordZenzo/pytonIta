@@ -742,6 +742,9 @@ classe Applicazione:
         se non se_stesso.progetto o getattr(se_stesso, "_offerta_1x", Nessuno) == se_stesso.progetto.cartella:
             ritorna
         se_stesso._offerta_1x = se_stesso.progetto.cartella
+        da rad importa versioni
+        se versioni.generazione_del_progetto(se_stesso.progetto.manifesto) == versioni.generazione_interprete():
+            ritorna                                   # il progetto dichiara già l'interprete giusto: niente da controllare
         prova:
             se_stesso.aggiorna_da_1x(offerto=Vero)
         eccetto Eccezione come errore:
@@ -758,6 +761,10 @@ classe Applicazione:
         se non (rapporto["moduli"] o rapporto["finestre"] o rapporto["programmi"] o rapporto["file"]):
             se non offerto:
                 messagebox.showinfo("Aggiorna dalla 1.x", testo_, parent=se_stesso.radice)
+            se non rapporto["residui"]:
+                da rad importa versioni
+                versioni.segna_versioni(se_stesso.progetto.cartella)         # è già a posto: lo si dichiara, la prossima apertura non controlla più
+                se_stesso.progetto.carica_manifesto()
             ritorna Falso
         se non messagebox.askyesno("Aggiorna dalla 1.x", "Questo progetto usa nomi della versione 1.x che la 2.x non accetta.\nEcco cosa cambierebbe:\n\n" + testo_
                                    + "\n\nSi può annullare con «Annulla» nella chat. Procedo?", parent=se_stesso.radice):
@@ -766,6 +773,7 @@ classe Applicazione:
         se_stesso.storia.prima_di_modificare("aggiorna_1x", "Aggiornamento dalla versione 1.x")
         rapporto = aggiorna_1x.aggiorna_progetto(se_stesso.progetto.cartella, applica=Vero)
         se_stesso.storia.concludi()
+        se_stesso.progetto.carica_manifesto()
         se_stesso.ricarica_file_cambiati()
         se_stesso.chat.aggiorna_annulla()
         se_stesso.console.pulisci()

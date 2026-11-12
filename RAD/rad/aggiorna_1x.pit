@@ -11,6 +11,8 @@ importa os
 importa re
 importa sys
 
+da rad importa versioni
+
 CARTELLE_ESCLUSE = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules", "venv", ".venv", "env", "build", "dist"}
 LIMITE_FILE = 2 * 1024 * 1024
 
@@ -235,6 +237,11 @@ definisci _programmi_mattonelle(cartella):
     ritorna risultato
 
 
+definisci _senza_intestazione(testo_):
+    """Il codice generato senza la prima riga (l'intestazione porta la versione): un cambio di sola intestazione non è un file da rigenerare."""
+    ritorna testo_.replace("\r\n", "\n").split("\n", 1)[1:]
+
+
 definisci aggiorna_progetto(cartella, applica=Falso):
     """Esamina (e con applica=True aggiorna) il progetto. Ritorna
     {"finestre": [percorsi relativi dei _ui.pit rigenerati], "file": {percorso relativo: (funzioni, lettere)}, "residui": {percorso relativo: [(riga, messaggio)]}}."""
@@ -264,7 +271,7 @@ definisci aggiorna_progetto(cartella, applica=Falso):
             nuovo = genera_ui_completa(form)
         eccetto Eccezione:
             continua
-        se attuale != nuovo.replace("\r\n", "\n"):
+        se _senza_intestazione(attuale) != _senza_intestazione(nuovo):
             rapporto["finestre"].append(os.path.relpath(ui, cartella))
             da_rifare.add(os.path.abspath(ui))
             se applica:
@@ -279,7 +286,7 @@ definisci aggiorna_progetto(cartella, applica=Falso):
             nuovo, _avvisi = genera_codice(programma)
         eccetto Eccezione:
             continua
-        se attuale != nuovo.replace("\r\n", "\n"):
+        se _senza_intestazione(attuale) != _senza_intestazione(nuovo):
             rapporto["programmi"].append(os.path.relpath(codice_pit, cartella))
             da_rifare.add(os.path.abspath(codice_pit))
             se applica:
@@ -302,6 +309,8 @@ definisci aggiorna_progetto(cartella, applica=Falso):
         residui = errori_gravi(dati, percorso) se (applica o os.path.abspath(percorso) non in da_rifare) altrimenti []
         se residui:
             rapporto["residui"][relativo] = residui
+    se applica:
+        versioni.segna_versioni(cartella)           # il progetto ora dichiara per quale interprete è scritto
     ritorna rapporto
 
 

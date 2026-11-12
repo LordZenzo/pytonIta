@@ -158,6 +158,24 @@ Progetto(cartella4).salva_manifesto()
 app.progetto = Progetto(cartella4)
 risultato4 = strumenti.s_aggiorna_da_1x(applica=Vero)
 verifica("AGGIORNATO" in risultato4 e open(pit4, encoding="utf-8").read() == giusto4, "solo mattonelle: lo strumento rigenera il .pit: " + risultato4[:150])
+# le versioni: intestazione dei file generati e manifesto del progetto
+da rad importa versioni
+verifica(giusto4.split("\n")[0].count("interprete " + tipo_testo(versioni.generazione_interprete()) + ".x") == 1, "l'intestazione dei file generati porta la generazione dell'interprete: " + giusto4.split("\n")[0])
+verifica(versioni.generazione_interprete() == 2, "l'interprete è di generazione 2")
+_file_generazione = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "pitonit", "patch", "INTERPRETE")
+se hasattr(sys, "pitonit_generazione") e os.path.exists(_file_generazione):
+    verifica(int(open(_file_generazione).read().strip()) == sys.pitonit_generazione, "patch/INTERPRETE e sys.pitonit_generazione dicono lo stesso numero")
+verifica(versioni.generazione_del_progetto(app.progetto.manifesto) == 2 e app.progetto.manifesto["pitstudio"] == versioni.VERSIONE_BASE, "dopo l'aggiornamento il manifesto dichiara le versioni: " + tipo_testo(app.progetto.manifesto))
+verifica("versioni" in strumenti.s_stato_ide() e "generazione" in strumenti.s_stato_ide(), "stato_ide riporta le versioni")
+# una sola intestazione diversa non basta per dire «da aggiornare»
+open(pit4, "w", encoding="utf-8", newline="\n").write(giusto4.replace("interprete 2.x", "interprete 1.x"))
+verifica(non aggiorna_1x.serve_aggiornamento(cartella4), "cambia solo l'intestazione: niente da fare")
+# progetto senza versioni dichiarate (1.x): segna_versioni le scrive; poi non lo fa più
+cartella5 = tempfile.mkdtemp()
+Progetto(cartella5).salva_manifesto()
+verifica(versioni.generazione_del_progetto(Progetto(cartella5).manifesto) è Nessuno, "un progetto 1.x non dichiara la generazione")
+verifica(versioni.segna_versioni(cartella5) e versioni.generazione_del_progetto(Progetto(cartella5).manifesto) == 2 e non versioni.segna_versioni(cartella5), "segna_versioni scrive una volta")
+verifica(Progetto.nuovo(os.path.join(cartella5, "nuovo"), "Nuovo", "console").manifesto["interprete"]["generazione"] == 2, "i progetti nuovi nascono con le versioni")
 radice.destroy()
 
 se errori:

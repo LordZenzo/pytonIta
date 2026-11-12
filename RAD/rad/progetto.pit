@@ -9,7 +9,7 @@ importa time
 importa tkinter come tk
 da tkinter importa ttk, messagebox, simpledialog, filedialog
 
-da rad importa form_modello, piattaforma, stile
+da rad importa form_modello, piattaforma, stile, versioni
 
 NOME_MANIFESTO = "progetto.rad.json"
 IGNORA = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules"}
@@ -246,7 +246,7 @@ classe Progetto:
             solleva FileEsistente("esiste già un progetto in questa cartella")
         p = Progetto(cartella)
         p.manifesto = {"nome": nome, "principale": "", "descrizione": "", "argomenti": "",
-                       "creato": time.strftime("%Y-%m-%d %H:%M"), "modello": modello}
+                       "creato": time.strftime("%Y-%m-%d %H:%M"), "modello": modello, **versioni.versioni_attuali()}
         se modello == "console":
             p.crea_file("principale.pit", PROGRAMMA_CONSOLE.format(nome=nome))
             p.manifesto["principale"] = "principale.pit"

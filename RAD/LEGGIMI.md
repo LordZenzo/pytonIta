@@ -18,6 +18,8 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Novità della 2.14
 
+- **Le versioni nei progetti.** L'interprete ora dichiara la sua *generazione* (`sys.pitonit_generazione`: 1 = nomi vecchi come `lunghezza`, `testo`, `leggi`; 2 = nomi attuali). Il `progetto.rad.json` registra `"pitstudio"` e `"interprete": {"generazione", "python"}` (nei progetti nuovi, dopo un aggiornamento dalla 1.x, o appena PitStudio vede che un progetto è già a posto). I file generati (finestre e mattonelle) portano nell'intestazione solo la generazione dell'interprete (es. «interprete 2.x»), non la versione di PitStudio, così non risultano modificati a ogni release. All'apertura un progetto che dichiara già la generazione giusta non viene più scansionato; gli altri sì. L'assistente vede le versioni in `stato_ide`. **Serve ricompilare l'interprete** (il programma d'installazione lo fa da solo); `pitonit/patch/INTERPRETE` e il numero in `Python/sysmodule.c` vanno alzati insieme.
+
 - **Progetti 1.x a mattonelle:** «Aggiorna dalla versione 1.x» (e lo strumento dell'assistente) ora rigenera anche il `.pit` dei programmi a mattonelle col generatore nuovo, invece di lasciare nomi vecchi come `leggi(`. Inoltre `stato_ide` (la prima cosa che l'assistente legge) ora avvisa in testa, con «ATTENZIONE», quando il progetto è da aggiornare e dice di usare `aggiorna_da_1x`: così anche i modelli economici non provano a correggere a mano o a rifare le mattonelle.
 
 ## Novità della 2.13

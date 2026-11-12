@@ -9,6 +9,8 @@ importa json
 importa os
 importa re
 
+da rad importa versioni
+
 # --------------------------------------------------------------------------- forme e categorie
 # forma: cappello (inizio di una pila) | istruzione | blocco (contiene altre mattonelle) |
 #        fine (non ha mattonelle dopo) | valore (si inserisce in un ingresso) | booleano (idem, esagonale)
@@ -1137,7 +1139,7 @@ classe Generatore:
         se_stesso._area = "programma principale"
         principale = se_stesso.dichiarazioni_globali(p.principale, []) + se_stesso.istruzioni(p.principale.cappello.lista[1:], 1)
         se_stesso.avvisi_pile_sciolte(p.principale, "programma principale")
-        righe = ['"""' + p.nome + " — generato da PitStudio (mattonelle). Modifica il disegno, non questo file.\"\"\""]
+        righe = ['"""' + p.nome + " — generato da PitStudio (mattonelle, " + versioni.testo_intestazione() + "). Modifica il disegno, non questo file.\"\"\""]
         per riga_import in p.importazioni:
             se riga_import.strip():
                 righe.append(riga_import.strip())
