@@ -6,6 +6,8 @@ da tkinter importa ttk, colorchooser, messagebox
 
 da rad.tema importa TEMI
 da rad.dialoghi importa DialogoBase
+da rad.modelli_ui importa DialogoModelli
+da rad importa ai
 da rad.piattaforma importa lega_rotella
 
 # dove si ottiene la chiave API (o si scarica il programma, per Ollama): accanto al campo compare un collegamento
@@ -18,6 +20,10 @@ LINK_FORNITORI = {
     "ai.url_ollama": ("Scarica Ollama (gratis, senza chiave)", "https://ollama.com/download"),
     "ai.modello_ollama": ("Modelli disponibili", "https://ollama.com/library"),
 }
+
+# il campo del modello di ogni fornitore: accanto compare «Cerca i modelli disponibili»
+RICERCA_MODELLI = {"ai.modello": "claude", "ai.modello_gemini": "gemini", "ai.modello_deepseek": "deepseek", "ai.modello_openai": "openai",
+                   "ai.modello_openrouter": "openrouter", "ai.modello_ollama": "ollama"}
 
 SCHEDE = [
     ("Editor", [
@@ -115,6 +121,7 @@ classe Impostazioni(DialogoBase):
         se_stesso.config_ = config
         se_stesso.var = {}
         se_stesso.link = {}
+        se_stesso.cerca = {}
         se_stesso.var_colori = {}
         se_stesso._tele = {}              # pagina -> tela che la fa scorrere
         c = colori
@@ -209,14 +216,37 @@ classe Impostazioni(DialogoBase):
                              show="•" se tipo_ == "segreto" altrimenti "")
             w.grid(row=riga, column=1, sticky="we" se non (tipo_ in ("si_no", "numero") o tipo_.startswith("scelta:")) altrimenti "w", padx=12, pady=5)
             se_stesso.var[percorso] = (var, w, tipo_, valore)
-            se percorso in LINK_FORNITORI:
-                testo_link, indirizzo = LINK_FORNITORI[percorso]
-                link = tk.Label(pagina, text="🔗 " + testo_link, cursor="hand2", anchor="w", background=c["pannello"],
-                                foreground=c["accento"], font=("Segoe UI", 9, "underline"))
-                link.grid(row=riga, column=2, sticky="w", padx=(0, 12))
-                link.bind("<Button-1>", lambda evento, u=indirizzo: webbrowser.open(u))
-                link.indirizzo = indirizzo
-                se_stesso.link[percorso] = link
+            se percorso in LINK_FORNITORI o percorso in RICERCA_MODELLI:
+                lato = tk.Frame(pagina, background=c["pannello"])
+                lato.grid(row=riga, column=2, sticky="w", padx=(0, 12))
+                se percorso in LINK_FORNITORI:
+                    testo_link, indirizzo = LINK_FORNITORI[percorso]
+                    link = tk.Label(lato, text="🔗 " + testo_link, cursor="hand2", anchor="w", background=c["pannello"],
+                                    foreground=c["accento"], font=("Segoe UI", 9, "underline"))
+                    link.pack(side="left")
+                    link.bind("<Button-1>", lambda evento, u=indirizzo: webbrowser.open(u))
+                    link.indirizzo = indirizzo
+                    se_stesso.link[percorso] = link
+                se percorso in RICERCA_MODELLI:
+                    cerca = tk.Button(lato, text="🔍 Cerca i modelli disponibili", relief="flat", background=c["pulsante"], foreground=c["primo_piano"],
+                                      command=lambda f=RICERCA_MODELLI[percorso]: se_stesso.cerca_modelli(f))
+                    cerca.pack(side="left")
+                    se_stesso.cerca[RICERCA_MODELLI[percorso]] = cerca
+
+    definisci cerca_modelli(se_stesso, fornitore):
+        """Apre l'elenco dei modelli che il fornitore offre adesso, con la chiave scritta nel campo (anche se non ancora salvata)."""
+        cliente = ai.CLIENTI[fornitore]
+
+        definisci chiave():
+            campo = se_stesso.var.get(cliente.chiave_config)
+            ritorna campo[0].get().strip() se campo altrimenti Nessuno
+
+        definisci scelta(quale, modello):
+            percorso = cliente.chiave_modello se quale == "modello" altrimenti cliente.chiave_economico
+            se percorso in se_stesso.var:
+                se_stesso.var[percorso][0].set(modello)
+        se_stesso.dialogo_modelli = DialogoModelli(se_stesso, se_stesso.colori, se_stesso.config_, fornitore, chiave, scelta)
+        ritorna se_stesso.dialogo_modelli
 
     definisci _scheda_tema(se_stesso, blocco):
         pagina = se_stesso._pagina(blocco, "Tema")

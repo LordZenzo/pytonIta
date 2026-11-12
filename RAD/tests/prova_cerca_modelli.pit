@@ -1,0 +1,140 @@
+"""Ricerca dei modelli davvero disponibili: ogni fornitore con un server finto (elenco, prezzi di OpenRouter, chiave rifiutata) e la finestra di scelta."""
+importa sys, os, tempfile, json, threading, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da http.server importa BaseHTTPRequestHandler, HTTPServer
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad importa ai
+da rad.impostazioni importa Impostazioni
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+richieste = []
+RISPOSTE = {
+    "/claude/v1/models": {"data": [{"id": "claude-sonnet-5-5", "display_name": "Claude Sonnet 5.5"}, {"id": "claude-haiku-5-5", "display_name": "Claude Haiku 5.5"}]},
+    "/gemini/v1beta/models": {"models": [{"name": "models/gemini-3.6-flash", "displayName": "Gemini 3.6 Flash", "supportedGenerationMethods": ["generateContent"]},
+                                         {"name": "models/text-embedding-9", "displayName": "Embedding", "supportedGenerationMethods": ["embedContent"]}]},
+    "/deepseek/models": {"data": [{"id": "deepseek-chat"}, {"id": "deepseek-reasoner"}]},
+    "/openai/v1/models": {"data": [{"id": "gpt-4.1"}, {"id": "text-embedding-3-small"}, {"id": "whisper-1"}, {"id": "o4-mini"}, {"id": "gpt-image-1"}]},
+    "/openrouter/api/v1/models": {"data": [
+        {"id": "anthropic/claude-sonnet-4.5", "name": "Claude Sonnet", "pricing": {"prompt": "0.000003", "completion": "0.000015"}, "supported_parameters": ["tools", "max_tokens"]},
+        {"id": "meta/solo-testo", "name": "Solo testo", "pricing": {"prompt": "0", "completion": "0"}, "supported_parameters": ["max_tokens"]},
+        {"id": "x/gratis", "name": "Gratis", "pricing": {"prompt": "0", "completion": "0"}, "supported_parameters": ["tools"]}]},
+    "/ollama/api/tags": {"models": [{"name": "llama3.1:8b"}, {"name": "qwen2.5-coder:7b"}]},
+}
+
+
+classe Finto(BaseHTTPRequestHandler):
+    definisci log_message(se_stesso, *a):
+        passa
+
+    definisci do_GET(se_stesso):
+        percorso = se_stesso.path.split("?")[0]
+        richieste.append((percorso, {k.lower(): v per k, v in se_stesso.headers.items()}))
+        se se_stesso.headers.get("x-api-key") == "sbagliata" o se_stesso.headers.get("authorization") == "Bearer sbagliata":
+            dati = b"{}"
+            se_stesso.send_response(401)
+        altrimenti_se percorso in RISPOSTE:
+            dati = json.dumps(RISPOSTE[percorso]).encode("utf-8")
+            se_stesso.send_response(200)
+        altrimenti:
+            dati = b"{}"
+            se_stesso.send_response(404)
+        se_stesso.send_header("content-type", "application/json")
+        se_stesso.send_header("content-length", tipo_testo(lunghezza_di(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+
+server = HTTPServer(("127.0.0.1", 0), Finto)
+threading.Thread(target=server.serve_forever, daemon=Vero).start()
+base = f"http://127.0.0.1:{server.server_port}"
+per v in ("ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY"):
+    os.environ.pop(v, Nessuno)
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+per k, v in (("ai.url", base + "/claude/v1/messages"), ("ai.url_gemini", base + "/gemini/v1beta"), ("ai.url_deepseek", base + "/deepseek"),
+             ("ai.url_openai", base + "/openai/v1"), ("ai.url_openrouter", base + "/openrouter/api/v1"), ("ai.url_ollama", base + "/ollama/v1")):
+    cfg.imposta(k, v, notifica=Falso)
+
+# ---------------------------------------------------------------- un fornitore alla volta
+prova:
+    ai.cerca_modelli(cfg, "claude")
+    verifica(Falso, "senza chiave doveva dare errore")
+eccetto ai.ErroreAI come errore:
+    verifica("Anthropic" in tipo_testo(errore) o "Claude" in tipo_testo(errore), "senza chiave: errore chiaro")
+r = ai.cerca_modelli(cfg, "claude", "chiave-buona")
+verifica([m["id"] per m in r] == ["claude-haiku-5-5", "claude-sonnet-5-5"] e r[0]["nome"] == "Claude Haiku 5.5", "Claude: modelli e nomi: " + tipo_testo(r))
+verifica(richieste[-1][1].get("x-api-key") == "chiave-buona" e "anthropic-version" in richieste[-1][1], "Claude: la chiave scritta nel campo vale anche se non è salvata")
+verifica(r[0]["ingresso"] è Nessuno e ai.testo_prezzo(r[0]) == "non indicato", "Claude: l'API non dà i prezzi, e lo diciamo")
+r = ai.cerca_modelli(cfg, "gemini", "g")
+verifica([m["id"] per m in r] == ["gemini-3.6-flash"], "Gemini: solo i modelli che conversano: " + tipo_testo([m["id"] per m in r]))
+verifica(richieste[-1][1].get("x-goog-api-key") == "g", "Gemini: chiave nell'intestazione")
+verifica([m["id"] per m in ai.cerca_modelli(cfg, "deepseek", "d")] == ["deepseek-chat", "deepseek-reasoner"], "DeepSeek")
+verifica([m["id"] per m in ai.cerca_modelli(cfg, "openai", "o")] == ["gpt-4.1", "o4-mini"], "OpenAI: niente embedding, audio o immagini: " + tipo_testo([m["id"] per m in ai.cerca_modelli(cfg, "openai", "o")]))
+r = ai.cerca_modelli(cfg, "openrouter")
+verifica([m["id"] per m in r] == ["anthropic/claude-sonnet-4.5", "x/gratis"], "OpenRouter: solo i modelli con strumenti, e senza chiave: " + tipo_testo([m["id"] per m in r]))
+verifica(ai.testo_prezzo(r[0]) == "$3 / $15" e ai.testo_prezzo(r[1]) == "gratis", "OpenRouter: i prezzi per milione di token: " + ai.testo_prezzo(r[0]))
+r = ai.cerca_modelli(cfg, "ollama")
+verifica([m["id"] per m in r] == ["llama3.1:8b", "qwen2.5-coder:7b"] e ai.testo_prezzo(r[0]) == "gratis", "Ollama: i modelli scaricati, gratis")
+prova:
+    ai.cerca_modelli(cfg, "deepseek", "sbagliata")
+    verifica(Falso, "chiave sbagliata doveva dare errore")
+eccetto ai.ErroreAI come errore:
+    verifica("non è accettata" in tipo_testo(errore), "chiave rifiutata: messaggio chiaro: " + tipo_testo(errore))
+cfg2 = Configurazione(os.path.join(tempfile.mkdtemp(), "c2.json"))
+cfg2.imposta("ai.url_ollama", "http://127.0.0.1:1/v1", notifica=Falso)
+prova:
+    ai.cerca_modelli(cfg2, "ollama")
+    verifica(Falso, "Ollama spento doveva dare errore")
+eccetto ai.ErroreAI come errore:
+    verifica("Ollama" in tipo_testo(errore), "Ollama spento: messaggio chiaro")
+
+# ---------------------------------------------------------------- la finestra
+r_ = tk.Tk()
+r_.geometry("900x700+20+20")
+imp = Impostazioni(r_, cfg, colori(cfg))
+r_.update()
+verifica(tutti_veri(f in imp.cerca per f in ("claude", "gemini", "deepseek", "openai", "openrouter", "ollama")), "un pulsante di ricerca per ogni fornitore")
+imp.var["ai.chiave_openrouter"][0].set("")
+d = imp.cerca_modelli("openrouter")
+t0 = time.time()
+mentre non d.elenco e time.time() - t0 < 10:
+    r_.update()
+    time.sleep(0.05)
+verifica(lunghezza_di(d.tabella.get_children()) == 2, "la tabella mostra i modelli trovati: " + tipo_testo(d.tabella.get_children()))
+verifica("$3 / $15" in d.tabella.item("anthropic/claude-sonnet-4.5", "values")[1], "e il prezzo")
+verifica(cfg.ottieni("ai.modelli_openrouter") == ["anthropic/claude-sonnet-4.5", "x/gratis"], "l'elenco trovato diventa quello della casella della chat")
+d.filtro.set("gratis")
+r_.update()
+verifica(d.tabella.get_children() == ("x/gratis",), "il filtro restringe l'elenco")
+verifica(d.usa("modello") == Falso, "senza selezione non fa nulla")
+d.tabella.selection_set("x/gratis")
+d.usa("modello")
+d.usa("economico")
+verifica(imp.var["ai.modello_openrouter"][0].get() == "x/gratis" e imp.var["ai.modello_economico_openrouter"][0].get() == "x/gratis", "«Usa come…» riempie i campi delle impostazioni")
+d.destroy()
+# errore di chiave: la finestra lo dice senza rompersi
+imp.var["ai.chiave_deepseek"][0].set("sbagliata")
+d = imp.cerca_modelli("deepseek")
+t0 = time.time()
+mentre "non sono riuscito" non in d.stato.cget("text").lower() e time.time() - t0 < 10:
+    r_.update()
+    time.sleep(0.05)
+verifica("non è accettata" in d.stato.cget("text"), "chiave sbagliata: la finestra spiega: " + d.stato.cget("text")[:80])
+d.destroy()
+imp.destroy()
+r_.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_cerca_modelli: ok")

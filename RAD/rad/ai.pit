@@ -667,6 +667,100 @@ definisci modelli_di(config):
     ritorna elenco
 
 
+# ---------------------------------------------------------------- ricerca dei modelli davvero disponibili (con la chiave dell'utente)
+# Dove l'API lo dice (OpenRouter) c'è anche il prezzo; per gli altri fornitori solo la pagina dei prezzi: nessuna tabella scritta a mano che invecchia.
+PAGINE_PREZZI = {"claude": "https://docs.anthropic.com/en/docs/about-claude/pricing", "gemini": "https://ai.google.dev/gemini-api/docs/pricing",
+                 "deepseek": "https://api-docs.deepseek.com/quick_start/pricing", "openai": "https://platform.openai.com/docs/pricing",
+                 "openrouter": "https://openrouter.ai/models", "ollama": ""}
+_NON_CHAT_OPENAI = ("embedding", "whisper", "tts", "dall-e", "image", "audio", "realtime", "moderation", "transcribe", "search", "davinci", "babbage", "instruct", "sora", "computer-use")
+
+
+definisci _leggi_json(url, intestazioni, tempo=15):
+    """GET con risposta JSON; gli errori diventano ErroreAI con un messaggio comprensibile."""
+    richiesta = urllib.request.Request(url, headers=dict(intestazioni, **{"user-agent": "PitStudio"}))
+    prova:
+        con urllib.request.urlopen(richiesta, timeout=tempo) come r:
+            ritorna json.loads(r.read().decode("utf-8"))
+    eccetto urllib.error.HTTPError come eccezione:
+        se eccezione.code in (401, 403):
+            solleva ErroreAI("La chiave API non è accettata dal fornitore (controllala nelle Impostazioni).")
+        solleva ErroreAI(f"Errore {eccezione.code} dal fornitore: {eccezione.reason}")
+    eccetto urllib.error.URLError come eccezione:
+        solleva ErroreAI(f"Connessione non riuscita: {eccezione.reason}")
+    eccetto (ErroreDiTimeout, ErroreDiSistema, ErroreDiValore) come eccezione:
+        solleva ErroreAI(f"Errore di rete: {eccezione}")
+
+
+definisci _prezzo_milione(valore):
+    """Prezzo per token (testo, come lo dà OpenRouter) -> dollari per milione di token; None se manca o non è un numero."""
+    prova:
+        ritorna round(float(valore) * 1000000, 4)
+    eccetto (ErroreDiTipo, ErroreDiValore):
+        ritorna Nessuno
+
+
+definisci cerca_modelli(config, fornitore=Nessuno, chiave=Nessuno):
+    """I modelli che il fornitore offre adesso: [{"id", "nome", "ingresso", "uscita"}] (prezzi in $ per milione di token, None = non indicato dall'API).
+    `chiave` (se data) vale al posto di quella salvata. Solleva ErroreAI se la chiave manca o il fornitore non risponde."""
+    fornitore = fornitore o fornitore_di(config)
+    cliente = CLIENTI[fornitore](config)
+    se chiave è non Nessuno e fornitore != "ollama":
+        cliente.chiave = lambda: chiave.strip()
+    k = cliente.chiave() se fornitore in ("ollama", "openrouter") altrimenti cliente._chiave_o_errore()          # Ollama non vuole chiave; l'elenco di OpenRouter è pubblico
+    elenco = []
+    se fornitore == "claude":
+        base = config.ottieni("ai.url", "https://api.anthropic.com/v1/messages")
+        base = (base[:-len("/messages")] se base.endswith("/messages") altrimenti base.rstrip("/")) + "/models?limit=100"
+        dati = _leggi_json(base, {"x-api-key": k, "anthropic-version": config.ottieni("ai.versione_api", "2023-06-01")})
+        elenco = [{"id": m["id"], "nome": m.get("display_name", ""), "ingresso": Nessuno, "uscita": Nessuno} per m in dati.get("data", [])]
+    altrimenti_se fornitore == "gemini":
+        base = config.ottieni("ai.url_gemini", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+        dati = _leggi_json(base + "/models?pageSize=200", {"x-goog-api-key": k})
+        per m in dati.get("models", []):
+            se "generateContent" in m.get("supportedGenerationMethods", ["generateContent"]):
+                elenco.append({"id": m["name"].split("/", 1)[-1], "nome": m.get("displayName", ""), "ingresso": Nessuno, "uscita": Nessuno})
+    altrimenti_se fornitore == "deepseek":
+        base = config.ottieni("ai.url_deepseek", "https://api.deepseek.com").rstrip("/")
+        dati = _leggi_json(base + "/models", {"authorization": "Bearer " + k})
+        elenco = [{"id": m["id"], "nome": "", "ingresso": Nessuno, "uscita": Nessuno} per m in dati.get("data", [])]
+    altrimenti_se fornitore == "openai":
+        base = config.ottieni("ai.url_openai", ClienteOpenAI.url_predefinito).rstrip("/")
+        dati = _leggi_json(base + "/models", {"authorization": "Bearer " + k})
+        per m in dati.get("data", []):
+            nome_m = m["id"]
+            se (nome_m.startswith(("gpt-", "chatgpt", "o1", "o3", "o4", "o5")) o nome_m.startswith("o")) e non almeno_uno_vero(x in nome_m per x in _NON_CHAT_OPENAI):
+                elenco.append({"id": nome_m, "nome": "", "ingresso": Nessuno, "uscita": Nessuno})
+    altrimenti_se fornitore == "openrouter":
+        base = config.ottieni("ai.url_openrouter", ClienteOpenRouter.url_predefinito).rstrip("/")
+        dati = _leggi_json(base + "/models", {})          # l'elenco di OpenRouter è pubblico, con i prezzi
+        per m in dati.get("data", []):
+            se "tools" in (m.get("supported_parameters") o ["tools"]):          # l'assistente ha bisogno degli strumenti
+                p = m.get("pricing") o {}
+                elenco.append({"id": m["id"], "nome": m.get("name", ""), "ingresso": _prezzo_milione(p.get("prompt")), "uscita": _prezzo_milione(p.get("completion"))})
+    altrimenti:
+        elenco = [{"id": n, "nome": "", "ingresso": 0.0, "uscita": 0.0} per n in modelli_installati_ollama(config, tempo=5)]
+        se non elenco:
+            solleva ErroreAI("Non trovo Ollama su questo computer, o non ha nessun modello scaricato. Avvialo e scarica un modello con  ollama pull <nome>.")
+    ritorna sorted(elenco, key=lambda m: m["id"])
+
+
+definisci salva_modelli_trovati(config, fornitore, elenco):
+    """Mette gli identificatori trovati nell'elenco della casella dei modelli del fornitore (ai.modelli…)."""
+    chiave = {"claude": "ai.modelli", "gemini": "ai.modelli_gemini", "deepseek": "ai.modelli_deepseek", "openai": "ai.modelli_openai",
+              "openrouter": "ai.modelli_openrouter", "ollama": "ai.modelli_ollama"}[fornitore]
+    config.imposta(chiave, [m["id"] per m in elenco], notifica=Falso)
+
+
+definisci testo_prezzo(modello):
+    """«$3 / $15 al milione di token» (ingresso / uscita), «gratis» o «prezzo non indicato»."""
+    i, u = modello.get("ingresso"), modello.get("uscita")
+    se i è Nessuno o u è Nessuno:
+        ritorna "non indicato"
+    se i == 0 e u == 0:
+        ritorna "gratis"
+    ritorna f"${i:g} / ${u:g}"
+
+
 definisci _tronca(testo_, limite=LIMITE_RISULTATO):
     se lunghezza_di(testo_) <= limite:
         ritorna testo_

@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.11
+
+- **Cerca i modelli disponibili**: accanto al campo del modello, nelle impostazioni dell'assistente, il pulsante «🔍 Cerca i modelli disponibili» chiede al fornitore (con la chiave appena scritta, anche non ancora salvata) quali modelli offre *adesso*, così non si sceglie un modello vecchio o chiuso. Con OpenRouter si vedono anche i prezzi per milione di token; gli altri fornitori non li danno nell'API, e c'è il pulsante verso la loro pagina dei prezzi. Si sceglie con doppio clic o «Usa come modello / economico», e l'elenco trovato diventa quello della casella dei modelli nella chat.
+
 ## Novità della 2.10
 
 - **Dove prendere la chiave API**: nelle impostazioni dell'assistente, accanto a ogni chiave (Claude, Gemini, DeepSeek, OpenAI, OpenRouter) c'è il collegamento alla pagina della piattaforma dove crearla; per Ollama il collegamento al download e ai modelli.

@@ -1,0 +1,112 @@
+"""Finestra «Cerca modelli»: chiede al fornitore quali modelli offre adesso (con la chiave dell'utente) e li mostra con il prezzo, dove l'API lo dice.
+Serve a non presumere un modello vecchio o già chiuso: si sceglie da ciò che esiste davvero."""
+importa threading
+importa webbrowser
+importa tkinter come tk
+da tkinter importa ttk
+
+da rad importa ai
+da rad.dialoghi importa DialogoBase
+
+
+classe DialogoModelli(DialogoBase):
+    """Elenco dei modelli del fornitore. `chiave_fn()` dà la chiave scritta adesso nelle impostazioni; `su_scelta(campo, modello)` con campo
+    «modello» o «economico» riporta la scelta nelle impostazioni."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, config, fornitore, chiave_fn=Nessuno, su_scelta=Nessuno):
+        DialogoBase.__init__(se_stesso, genitore, f"Modelli disponibili — {ai.CLIENTI[fornitore].nome}", colori, 760, 480)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.config_ = config
+        se_stesso.fornitore = fornitore
+        se_stesso.chiave_fn = chiave_fn
+        se_stesso.su_scelta = su_scelta
+        se_stesso.elenco = []
+        se_stesso._esito = Nessuno
+        se_stesso.grid_columnconfigure(0, weight=1)
+        se_stesso.grid_rowconfigure(2, weight=1)
+        c = colori
+        se_stesso.stato = tk.Label(se_stesso, anchor="w", justify="left", wraplength=720, background=c["pannello"], foreground=c["tenue"], text="Cerco i modelli…")
+        se_stesso.stato.grid(row=0, column=0, sticky="we", padx=14, pady=(12, 4))
+        se_stesso.filtro = tk.StringVar()
+        campo = tk.Entry(se_stesso, textvariable=se_stesso.filtro, background=c["campo"], foreground=c["primo_piano"], insertbackground=c["cursore"],
+                         relief="flat", highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"])
+        campo.grid(row=1, column=0, sticky="we", padx=14, pady=(0, 6))
+        se_stesso.filtro.trace_add("write", lambda *a: se_stesso.mostra_elenco())
+        cornice = tk.Frame(se_stesso, background=c["pannello"])
+        cornice.grid(row=2, column=0, sticky="nsew", padx=14)
+        cornice.grid_columnconfigure(0, weight=1)
+        cornice.grid_rowconfigure(0, weight=1)
+        se_stesso.tabella = ttk.Treeview(cornice, columns=("nome", "prezzo"), show="tree headings", selectmode="browse")
+        se_stesso.tabella.heading("#0", text="Modello")
+        se_stesso.tabella.heading("nome", text="Nome")
+        se_stesso.tabella.heading("prezzo", text="Prezzo per milione di token (ingresso / uscita)")
+        se_stesso.tabella.column("#0", width=260)
+        se_stesso.tabella.column("nome", width=200)
+        se_stesso.tabella.column("prezzo", width=240)
+        barra = ttk.Scrollbar(cornice, orient="vertical", command=se_stesso.tabella.yview)
+        se_stesso.tabella.configure(yscrollcommand=barra.set)
+        se_stesso.tabella.grid(row=0, column=0, sticky="nsew")
+        barra.grid(row=0, column=1, sticky="ns")
+        se_stesso.tabella.bind("<Double-1>", lambda evento: se_stesso.usa("modello"))
+        pulsanti = tk.Frame(se_stesso, background=c["pannello"])
+        pulsanti.grid(row=3, column=0, sticky="we", padx=14, pady=10)
+        tk.Button(pulsanti, text="Chiudi", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        se_stesso.pulsante_economico = tk.Button(pulsanti, text="Usa come economico", command=lambda: se_stesso.usa("economico"), background=c["pulsante"],
+                                                 foreground=c["primo_piano"], relief="flat", padx=12)
+        se_stesso.pulsante_economico.pack(side="right", padx=4)
+        se_stesso.pulsante_modello = tk.Button(pulsanti, text="Usa come modello", command=lambda: se_stesso.usa("modello"), background=c["accento"],
+                                               foreground="#ffffff", relief="flat", padx=12)
+        se_stesso.pulsante_modello.pack(side="right", padx=4)
+        pagina = ai.PAGINE_PREZZI.get(fornitore, "")
+        se pagina:
+            tk.Button(pulsanti, text="🔗 Pagina dei prezzi", command=lambda: webbrowser.open(pagina), background=c["pulsante"], foreground=c["primo_piano"],
+                      relief="flat", padx=12).pack(side="left", padx=4)
+        se_stesso.avvia()
+
+    definisci avvia(se_stesso):
+        """Interroga il fornitore senza bloccare la finestra."""
+        se_stesso._esito = Nessuno
+        chiave = se_stesso.chiave_fn() se se_stesso.chiave_fn altrimenti Nessuno
+
+        definisci lavoro():
+            prova:
+                se_stesso._esito = (ai.cerca_modelli(se_stesso.config_, se_stesso.fornitore, chiave), Nessuno)
+            eccetto Eccezione come errore:
+                se_stesso._esito = ([], tipo_testo(errore))
+        threading.Thread(target=lavoro, daemon=Vero).start()
+        se_stesso.after(100, se_stesso._controlla)
+
+    definisci _controlla(se_stesso):
+        se se_stesso._esito è Nessuno:
+            se_stesso.after(100, se_stesso._controlla)
+            ritorna
+        elenco, errore = se_stesso._esito
+        se_stesso.risultato_ricerca(elenco, errore)
+
+    definisci risultato_ricerca(se_stesso, elenco, errore=Nessuno):
+        se_stesso.elenco = elenco
+        se errore:
+            se_stesso.stato.configure(text="Non sono riuscito a leggere l'elenco: " + errore, foreground="#e0a030")
+        altrimenti:
+            ai.salva_modelli_trovati(se_stesso.config_, se_stesso.fornitore, elenco)          # la casella dei modelli della chat usa questo elenco
+            nota = "" se almeno_uno_vero(m.get("ingresso") è non Nessuno per m in elenco) altrimenti "  Questo fornitore non indica i prezzi nell'elenco: guarda la pagina dei prezzi."
+            se_stesso.stato.configure(text=f"{lunghezza_di(elenco)} modelli disponibili adesso." + nota, foreground=se_stesso.colori["tenue"])
+        se_stesso.mostra_elenco()
+
+    definisci mostra_elenco(se_stesso):
+        se_stesso.tabella.delete(*se_stesso.tabella.get_children())
+        filtro = se_stesso.filtro.get().strip().lower()
+        per m in se_stesso.elenco:
+            se filtro e filtro non in (m["id"] + " " + m.get("nome", "")).lower():
+                continua
+            se_stesso.tabella.insert("", "end", iid=m["id"], text=m["id"], values=(m.get("nome", ""), ai.testo_prezzo(m)))
+
+    definisci usa(se_stesso, campo):
+        scelta = se_stesso.tabella.selection()
+        se non scelta:
+            ritorna Falso
+        se se_stesso.su_scelta:
+            se_stesso.su_scelta(campo, scelta[0])
+        se_stesso.stato.configure(text=f"«{scelta[0]}» scelto come modello" + (" economico" se campo == "economico" altrimenti "") + ". Premi OK nelle impostazioni per salvare.",
+                                  foreground=se_stesso.colori["tenue"])
+        ritorna Vero
