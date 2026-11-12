@@ -40,7 +40,7 @@ Tutto ciò che serve in una pagina. Per i dettagli: [il linguaggio](#linguaggio)
 | appartenenza | `x in lista` · `x non in lista` |
 | identità | `x è Nessuno` · `x è non Nessuno` |
 | liste, tuple, insiemi, dizionari | `[1, 2]` · `(1, 2)` · `{1, 2}` · `{"a": 1}` |
-| fette | `l[0]` · `l[-1]` · `l[1:3]` · `l[::-1]` |
+| fette | `voti[0]` · `voti[-1]` · `voti[1:3]` · `voti[::-1]` |
 
 ## Funzioni predefinite più usate
 

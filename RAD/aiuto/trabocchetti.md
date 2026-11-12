@@ -29,7 +29,12 @@ I **metodi** di una classe (`definisci elimina(se_stesso):`) e gli **attributi**
 | `definisci clic(e):` | `definisci clic(evento):` |
 | `per e in elenco:` | `per elemento in elenco:` |
 
-## 4. Una funzione predefinita nascosta da una variabile
+## 4. Nomi di una sola lettera
+
+- **`l` e `I` sono vietati** come nomi: si confondono con il numero 1 e tra loro (errore grave). Al loro posto `riga`, `lunghezza`, `etichetta`, `indice`…
+- Le altre lettere singole sono lecite, ma l'editor le sottolinea in arancione (e `pitonit -m _controlla` le elenca tra gli avvisi) perché un nome intero spiega meglio cosa contiene la variabile. Non c'è avviso per le lettere di uso comune: **`i`, `j`, `k`, `n`, `x`, `y`, `z`** (contatori, numeri, coordinate).
+
+## 5. Una funzione predefinita nascosta da una variabile
 
 Se una variabile ha lo stesso nome di una funzione del linguaggio e poi la richiami come funzione, il programma non può funzionare. Per questo i nomi italiani delle funzioni predefinite hanno un trattino basso: sono difficili da usare per caso.
 

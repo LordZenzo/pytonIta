@@ -147,8 +147,8 @@ Campania
 
 ```pit
 lettere = {}
-per l in "banana":
-    lettere[l] = lettere.ottieni(l, 0) + 1
+per lettera in "banana":
+    lettere[lettera] = lettere.ottieni(lettera, 0) + 1
 stampa(lettere)
 ```
 

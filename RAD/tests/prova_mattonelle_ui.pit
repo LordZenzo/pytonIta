@@ -37,8 +37,8 @@ v = ed.viste["principale"]
 d = v.disegnatore
 a = ed.programma.principale
 definisci centro(m, dy=0):
-    l = d.lay[m.id]
-    ritorna l.x + 14, l.y + l.sopra + l.testa_h // 2 + dy
+    disposizione = d.lay[m.id]
+    ritorna disposizione.x + 14, disposizione.y + disposizione.sopra + disposizione.testa_h // 2 + dy
 definisci ev_tela(cx, cy, **k):
     # coordinate della tela -> coordinate dello schermo
     ritorna Ev(int(cx - v.tela.canvasx(0)), int(cy - v.tela.canvasy(0)), v.tela.winfo_rootx() + int(cx - v.tela.canvasx(0)), v.tela.winfo_rooty() + int(cy - v.tela.canvasy(0)), **k)

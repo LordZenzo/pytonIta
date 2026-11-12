@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.1
+
+- **Nomi di una lettera**: `l` e `I` non si possono usare come nomi (si confondono con il numero 1: errore grave). Le altre lettere sole ricevono un avviso arancione nell'editor, tranne `i`, `j`, `k`, `n`, `x`, `y`, `z`.
+
 ## Novità della 2.0 (controllo prima dell'esecuzione e nuovi nomi)
 
 > **Attenzione: la 2.0 non è compatibile con i programmi scritti con la 1.x.** Cambiano i nomi delle funzioni predefinite (`testo`→`tipo_testo`, `lunghezza`→`lunghezza_di`, `leggi`→`leggi_tastiera`, `genitore`→`classe_base`…), `e` e `o` non sono più ammessi come nomi di variabile e il controllo blocca i programmi con errori gravi. L'elenco completo dei nomi è in `pitonit/NOMI.md`.

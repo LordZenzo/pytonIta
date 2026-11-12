@@ -33,6 +33,6 @@ stampa("mime:", m.ottieni_tipo_contenuto())
 # nomi automatici dal glossario
 da collezioni importa contatore
 stampa("auto:", contatore("aab").più_comuni(1))
-l = [3, 1, 2]
-l.ordina()
-stampa(l)
+riga_testo = [3, 1, 2]
+riga_testo.ordina()
+stampa(riga_testo)

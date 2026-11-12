@@ -234,10 +234,10 @@ classe Disegnatore:
         w = h = 0
         per r in area.radici:
             per m in r.mattonelle_di_testa():
-                l = se_stesso.lay.get(m.id)
-                se l:
-                    w = max(w, l.x + l.w)
-                    h = max(h, l.y + l.h)
+                disposizione = se_stesso.lay.get(m.id)
+                se disposizione:
+                    w = max(w, disposizione.x + disposizione.w)
+                    h = max(h, disposizione.y + disposizione.h)
         ritorna w, h
 
     # ------------------------------------------------------------ forme

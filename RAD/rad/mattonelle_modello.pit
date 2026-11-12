@@ -914,20 +914,20 @@ classe Generatore:
             ritorna codice
         letterale = (m.letterali.get(slot) o "")
         se tipo_slot == "numero":
-            l = letterale.strip()
-            se re.fullmatch(r"-?\d+(\.\d+)?", l):
-                ritorna l
-            se l:
-                ritorna l           # espressione scritta a mano
+            riga_testo = letterale.strip()
+            se re.fullmatch(r"-?\d+(\.\d+)?", riga_testo):
+                ritorna riga_testo
+            se riga_testo:
+                ritorna riga_testo           # espressione scritta a mano
             se_stesso.avvisi.append(f"{se_stesso._area}: numero mancante in «{m.tipo}»")
             ritorna "0"
         se tipo_slot == "testo":
             ritorna repr(letterale)
         # valore / booleano: testo libero
         se letterale.strip():
-            l = letterale.strip()
-            se re.fullmatch(r"-?\d+(\.\d+)?|Vero|Falso|Nessuno|[^\W\d]\w*(\.\w+)*(\(.*\))?|\[.*\]|\{.*\}|\".*\"|'.*'", l):
-                ritorna l
+            riga_testo = letterale.strip()
+            se re.fullmatch(r"-?\d+(\.\d+)?|Vero|Falso|Nessuno|[^\W\d]\w*(\.\w+)*(\(.*\))?|\[.*\]|\{.*\}|\".*\"|'.*'", riga_testo):
+                ritorna riga_testo
             ritorna repr(letterale)         # frase libera: diventa testo
         se m.def_(se_stesso.programma)["forma"] != "fine" o slot != "valore":
             se_stesso.avvisi.append(f"{se_stesso._area}: ingresso «{slot}» vuoto in «{m.tipo}»")

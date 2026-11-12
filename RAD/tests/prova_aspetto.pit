@@ -21,14 +21,14 @@ per nome in aspetto.NOMI_TEMI:
     c = aspetto.applica_aspetto(r, nome)
     b = tk.Button(r, text="Ok")
     elemento = tk.Entry(r)
-    l = tk.Label(r, text="x")
+    etichetta = tk.Label(r, text="x")
     lb = tk.Listbox(r)
     t = tk.Text(r)
     cb = tk.Checkbutton(r, text="c")
     rosso = tk.Button(r, text="rosso", background="#ff0000")
     r.update()
     ok = (b.cget("background") == c["accento"], b.cget("relief") == "flat", elemento.cget("highlightcolor") == c["accento"], elemento.cget("background") == c["scheda"],
-          l.cget("background") == c["sfondo"], lb.cget("selectbackground") == c["selezione"], t.cget("background") == c["scheda"], cb.cget("selectcolor") == c["scheda"],
+          etichetta.cget("background") == c["sfondo"], lb.cget("selectbackground") == c["selezione"], t.cget("background") == c["scheda"], cb.cget("selectcolor") == c["scheda"],
           rosso.cget("background") == "#ff0000", r.cget("background") == c["sfondo"])
     st = ttk.Style(r)
     ok_ttk = (st.lookup("TButton", "background") == c["accento"], st.lookup("Treeview", "fieldbackground") == c["scheda"], st.lookup("TProgressbar", "background") == c["accento"])

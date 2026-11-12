@@ -32,10 +32,10 @@ classe DialogoTesto(tk.Toplevel):
         se_stesso.risultato = Nessuno
         se_stesso.configure(background=colori["pannello"])
         se_stesso._chiave = "codice" se e_codice altrimenti "testo"
-        l, a = DialogoTesto.ultima_misura.get(se_stesso._chiave, (620, 340) se e_codice altrimenti (520, 260))
-        x = genitore.winfo_rootx() + max(0, (genitore.winfo_width() - l) // 2)
+        riga_testo, a = DialogoTesto.ultima_misura.get(se_stesso._chiave, (620, 340) se e_codice altrimenti (520, 260))
+        x = genitore.winfo_rootx() + max(0, (genitore.winfo_width() - riga_testo) // 2)
         y = genitore.winfo_rooty() + max(0, (genitore.winfo_height() - a) // 3)
-        se_stesso.geometry(f"{l}x{a}+{x}+{y}")
+        se_stesso.geometry(f"{riga_testo}x{a}+{x}+{y}")
         se_stesso.minsize(320, 180)
         se_stesso.resizable(Vero, Vero)
         se_stesso.rowconfigure(0, weight=1)
@@ -593,8 +593,8 @@ classe AreaMattonelle(tk.Frame):
             r.y = y
             tot = 0
             per m in r.mattonelle_di_testa():
-                l = se_stesso.disegnatore.lay.get(m.id)
-                tot += l.h se l altrimenti 40
+                disposizione = se_stesso.disegnatore.lay.get(m.id)
+                tot += disposizione.h se disposizione altrimenti 40
             y += tot + 40
         se_stesso._finito()
 

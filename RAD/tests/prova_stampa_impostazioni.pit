@@ -29,7 +29,7 @@ i.imposta(copie=500, scala=5, carta="a3", orientamento="Orizzontale", colore="BI
 verifica(i.copie == 99 e i.scala == 25 e i.carta == "A3" e i.orientamento == "orizzontale" e i.colore == "bianco e nero" e i.qualita == "normale", "limiti e scelte: " + str(i.a_dizionario()))
 verifica(i.margine_alto == 0 e i.margine_destro == 60 e i.fronte_retro == "lato lungo", "margini dentro 0-60 mm")
 i.imposta(margine=20)
-verifica(all(getattr(i, "margine_" + l) == 20 per l in ("alto", "basso", "sinistro", "destro")), "margine su tutti i lati")
+verifica(all(getattr(i, "margine_" + voce) == 20 per voce in ("alto", "basso", "sinistro", "destro")), "margine su tutti i lati")
 i.imposta(copie="3", scala="150", pagine=" 1-2 ")
 verifica(i.copie == 3 e i.scala == 150 e i.pagine == "1-2", "numeri scritti come testo")
 errore = Falso

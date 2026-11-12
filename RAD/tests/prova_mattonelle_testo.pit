@@ -129,6 +129,6 @@ stampa("in mattonella: una riga:", chr(10) non in vis, "|", vis)
 stampa("in mattonella: accorciato:", lunghezza_di(dis.in_riga("a" * 200)) <= dis.MAX_CARATTERI_RIGA)
 m.campi["testo"] = lungo
 ed.notifica(); radice.update()
-l = dis.lay[m.id]
-stampa("altezza mattonella invariata (una riga):", l.testa_h <= dis.s(dis.RIGA) * 2)
+riga_testo = dis.lay[m.id]
+stampa("altezza mattonella invariata (una riga):", riga_testo.testa_h <= dis.s(dis.RIGA) * 2)
 radice.destroy()

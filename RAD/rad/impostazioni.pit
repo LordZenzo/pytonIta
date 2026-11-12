@@ -213,7 +213,7 @@ classe Impostazioni(DialogoBase):
             campione = tk.Label(griglia, text="   ", width=3, relief="solid", borderwidth=1)
             campione.grid(row=riga, column=col + 2, padx=(0, 14))
             campione.bind("<Button-1>", lambda ev, v=var, k=chiave: se_stesso._scegli_colore(v, k))
-            var.trace_add("write", lambda *a, v=var, l=campione: se_stesso._aggiorna_campione(v, l))
+            var.trace_add("write", lambda *a, v=var, larghezza=campione: se_stesso._aggiorna_campione(v, larghezza))
             se_stesso.var_colori[chiave] = (var, campione)
         tk.Button(pagina, text="Ripristina i colori del tema", command=se_stesso._azzera_colori,
                   relief="flat", background=c["pulsante"], foreground=c["primo_piano"]).grid(

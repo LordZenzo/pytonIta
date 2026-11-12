@@ -66,11 +66,11 @@ radice.mainloop()
 stampa("senza colori del tema:", elemento._suggerimento._finestra è non Nessuno)
 
 # più monitor: il fumetto sta vicino al puntatore e dentro il monitor in cui il puntatore si trova
-l, a, r, b = stile.area_monitor(radice, radice.winfo_pointerx(), radice.winfo_pointery())
-stampa("area del monitor valida:", r > l e b > a, (l, a, r, b))
+riga_testo, a, r, b = stile.area_monitor(radice, radice.winfo_pointerx(), radice.winfo_pointery())
+stampa("area del monitor valida:", r > riga_testo e b > a, (riga_testo, a, r, b))
 px, py = radice.winfo_pointerx(), radice.winfo_pointery()
 x, y = stile.posizione_fumetto(radice, 200, 40)
-stampa("fumetto accanto al mouse e nel monitor:", l <= x e x + 200 <= r e a <= y e y + 40 <= b, "| distanza:", abs(x - px), abs(y - py))
+stampa("fumetto accanto al mouse e nel monitor:", riga_testo <= x e x + 200 <= r e a <= y e y + 40 <= b, "| distanza:", abs(x - px), abs(y - py))
 # anche con il puntatore in un angolo in basso a destra del monitor
 radice.winfo_pointerx = lambda: r - 5
 radice.winfo_pointery = lambda: b - 5

@@ -79,6 +79,23 @@ verifica(r.returncode == 0 e r.stdout.split() == ["5"], "«# controlla: ignora-f
 r = esegui("bypass.pit", ["classe = 7", "stampa(classe)"], ambiente={"PITONIT_SENZA_CONTROLLO": "1"})
 verifica(r.returncode == 0 e r.stdout.split() == ["7"], "PITONIT_SENZA_CONTROLLO=1 salta il controllo")
 
+# ---------------------------------------------------------------- lettere che si confondono e nomi di una lettera
+r = esegui("lettera_l.pit", ["l = [1, 2]", "stampa(l)"])
+verifica(r.returncode != 0 e "«l» si confonde" in r.stderr, "«l» come nome è un errore grave (si confonde con 1)")
+
+r = esegui("lettera_I.pit", ["definisci f(I):", "    ritorna I", "stampa(f(2))"])
+verifica(r.returncode != 0 e "«I» si confonde" in r.stderr, "«I» come parametro è un errore grave")
+
+r = esegui("lettere_ammesse.pit", ["per i in intervallo_di(2):", "    x = i * 2", "    stampa(x)", "q = 5", "stampa(q)"])
+verifica(r.returncode == 0 e r.stdout.split() == ["0", "2", "5"], "i nomi di una lettera diversi da e, o, l, I non bloccano nemmeno se non sono tra quelli ammessi")
+
+p = os.path.join(cartella, "una_lettera.pit")
+con open(p, "w", encoding="utf-8") come f:
+    f.write("for_ = 0\nq = 5\ni = 1\nx = 2\n")
+r = subprocess.run([sys.executable, "-m", "_controlla", p], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella)
+verifica("«q» è un nome di una sola lettera" in r.stdout, "il nome «q» riceve un avviso")
+verifica("«i» è un nome" non in r.stdout e "«x» è un nome" non in r.stdout, "le lettere i, j, k, n, x, y, z non ricevono avvisi")
+
 # ---------------------------------------------------------------- i moduli importati
 con open(os.path.join(cartella, "modulo_cattivo.pit"), "w", encoding="utf-8") come f:
     f.write('tipo_testo = "x"\ndefinisci f():\n    ritorna tipo_testo(1)\n')

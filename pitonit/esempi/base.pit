@@ -11,9 +11,9 @@ classe Animale:
         ritorna f"{se_stesso.nome} fa miao"
 
 stampa(fattoriale(5), Vero e non Falso, Nessuno è Nessuno)
-l = tipo_lista(intervallo_di(4))
-l.aggiungi(9)
-stampa(l, lunghezza_di(l), ", ".unisci(["a", "b"]).maiuscolo())
+riga_testo = tipo_lista(intervallo_di(4))
+riga_testo.aggiungi(9)
+stampa(riga_testo, lunghezza_di(riga_testo), ", ".unisci(["a", "b"]).maiuscolo())
 stampa(Animale("Micio").parla())
 prova:
     1 / 0

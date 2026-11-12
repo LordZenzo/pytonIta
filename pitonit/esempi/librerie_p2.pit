@@ -13,7 +13,7 @@ risultati = []
 classe Lavoro(thread.Filo):
     definisci esegui(se_stesso):
         risultati.aggiungi("lavoro")
-l = Lavoro(); l.avvia(); l.unisci()
+riga_testo = Lavoro(); riga_testo.avvia(); riga_testo.unisci()
 stampa("thread:", risultati)
 
 # unittest con prepara / asserisci_*

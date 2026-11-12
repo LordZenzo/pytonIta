@@ -476,11 +476,11 @@ classe FinestraAiuto(tk.Toplevel):
                 cella = riga[j] se j < lunghezza_di(riga) altrimenti ""
                 testo_ = markdown_mini.testo_semplice(cella)
                 intestazione = i == 0
-                l = tk.Label(cornice, text=testo_, anchor="w", justify="left", padx=8, pady=4, wraplength=300,
+                etichetta = tk.Label(cornice, text=testo_, anchor="w", justify="left", padx=8, pady=4, wraplength=300,
                              background=c["pulsante"] se intestazione altrimenti (c["editor"] se i % 2 altrimenti c["campo"]),
                              foreground=c["primo_piano"] se intestazione altrimenti c["editor_testo"],
                              font=semi(10) se intestazione altrimenti ((FONT_MONO, 9) se "`" in cella altrimenti (FONT_UI, 10)))
-                l.grid(row=i, column=j, sticky="nsew", padx=(0, 1), pady=(0, 1))
+                etichetta.grid(row=i, column=j, sticky="nsew", padx=(0, 1), pady=(0, 1))
         per j in intervallo_di(colonne):
             cornice.grid_columnconfigure(j, weight=1 se j == colonne - 1 altrimenti 0)
         t.insert("end", "\n", ("p",))
@@ -492,8 +492,8 @@ classe FinestraAiuto(tk.Toplevel):
         larghezza = max(300, se_stesso.t.winfo_width() - 80)
         per cornice, colonne in getattr(se_stesso, "_tabelle", []):
             prova:
-                per l in cornice.winfo_children():
-                    l.configure(wraplength=max(120, larghezza // max(1, colonne) + 60))
+                per etichetta in cornice.winfo_children():
+                    etichetta.configure(wraplength=max(120, larghezza // max(1, colonne) + 60))
             eccetto tk.TclError:
                 passa
 

@@ -13,8 +13,8 @@ definisci luminanza(esa):
 
 
 per nome, tema in TEMI.items():
-    l = luminanza(tema["casella"])
-    se l < 0.7:
+    riga_testo = luminanza(tema["casella"])
+    se riga_testo < 0.7:
         errori.append(nome)
         stampa("ERRORE: nel tema", nome, "il colore «casella» è troppo scuro (", tema["casella"], "): la spunta nera non si vedrebbe")
 

@@ -88,9 +88,9 @@ classe VisoreImmagine(VisoreBase):
             da PIL importa Image
             se_stesso._originale = Image.open(se_stesso.percorso)
             se_stesso._originale.load()
-            l, a = se_stesso._originale.size
+            riga_testo, a = se_stesso._originale.size
             dimensione = os.path.getsize(se_stesso.percorso)
-            se_stesso.info.configure(text=f"{os.path.basename(se_stesso.percorso)}   {l} × {a} px   "
+            se_stesso.info.configure(text=f"{os.path.basename(se_stesso.percorso)}   {riga_testo} × {a} px   "
                                           f"{se_stesso._originale.mode}   {dimensione / 1024:.1f} KB")
             se_stesso.after(50, se_stesso.adatta)
         eccetto Eccezione come errore:
@@ -99,19 +99,19 @@ classe VisoreImmagine(VisoreBase):
     definisci adatta(se_stesso):
         se non se_stesso._originale:
             ritorna
-        l, a = se_stesso._originale.size
+        riga_testo, a = se_stesso._originale.size
         W = max(50, se_stesso.tela.winfo_width() - 20)
         H = max(50, se_stesso.tela.winfo_height() - 20)
-        se_stesso.imposta_zoom(min(1.0, W / l, H / a))
+        se_stesso.imposta_zoom(min(1.0, W / riga_testo, H / a))
 
     definisci imposta_zoom(se_stesso, z):
         se non se_stesso._originale:
             ritorna
         se_stesso.zoom = max(0.05, min(z, 16.0))
         da PIL importa Image, ImageTk
-        l, a = se_stesso._originale.size
+        riga_testo, a = se_stesso._originale.size
         immagine = se_stesso._originale.convert("RGBA").resize(
-            (max(1, int(l * se_stesso.zoom)), max(1, int(a * se_stesso.zoom))),
+            (max(1, int(riga_testo * se_stesso.zoom)), max(1, int(a * se_stesso.zoom))),
             Image.NEAREST se se_stesso.zoom > 2 altrimenti Image.LANCZOS)
         se_stesso._foto = ImageTk.PhotoImage(immagine)
         se_stesso._ricentra()
@@ -122,12 +122,12 @@ classe VisoreImmagine(VisoreBase):
         se_stesso.tela.delete("all")
         W = se_stesso.tela.winfo_width()
         H = se_stesso.tela.winfo_height()
-        l, a = se_stesso._foto.width(), se_stesso._foto.height()
-        x = max(10, (W - l) // 2)
+        riga_testo, a = se_stesso._foto.width(), se_stesso._foto.height()
+        x = max(10, (W - riga_testo) // 2)
         y = max(10, (H - a) // 2)
-        se_stesso.tela.create_rectangle(x - 1, y - 1, x + l, y + a, outline=se_stesso.colori["bordo"])
+        se_stesso.tela.create_rectangle(x - 1, y - 1, x + riga_testo, y + a, outline=se_stesso.colori["bordo"])
         se_stesso.tela.create_image(x, y, anchor="nw", image=se_stesso._foto)
-        se_stesso.tela.configure(scrollregion=(0, 0, max(W, l + 20), max(H, a + 20)))
+        se_stesso.tela.configure(scrollregion=(0, 0, max(W, riga_testo + 20), max(H, a + 20)))
 
     definisci _rotella(se_stesso, evento):
         se_stesso.imposta_zoom(se_stesso.zoom * (1.15 se evento.delta > 0 altrimenti 1 / 1.15))

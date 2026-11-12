@@ -585,7 +585,7 @@ classe Progettista(tk.Frame):
         se_stesso._tracce = {}
         se_stesso._evid = Nessuno
         per etichetta_, lato_, cursore_ in (("mf_e", "e", cursore("size_we")), ("mf_s", "s", cursore("size_ns")), ("mf_se", "se", cursore("size_nw_se"))):
-            se_stesso.area.tag_bind(etichetta_, "<ButtonPress-1>", lambda evento, l=lato_: se_stesso._inizia_finestra(evento, l))
+            se_stesso.area.tag_bind(etichetta_, "<ButtonPress-1>", lambda evento, larghezza_=lato_: se_stesso._inizia_finestra(evento, larghezza_))
             se_stesso.area.tag_bind(etichetta_, "<Enter>", lambda evento, k=cursore_: se_stesso.area.configure(cursor=k))
             se_stesso.area.tag_bind(etichetta_, "<Leave>", lambda evento: se_stesso.area.configure(cursor=""))
         se_stesso.area.bind("<B1-Motion>", se_stesso._muovi_finestra, add="+")
@@ -769,8 +769,8 @@ classe Progettista(tk.Frame):
             c = se_stesso.form.trova(nome)
             w = se_stesso.widget.get(nome)
             se c e w:
-                x, y, l, a = se_stesso._geom(c)
-                w.place_configure(x=x, y=y, width=l, height=a)
+                x, y, riga_testo, a = se_stesso._geom(c)
+                w.place_configure(x=x, y=y, width=riga_testo, height=a)
         se_stesso._riposiziona_maniglie()
         se_stesso._aggiorna_stato()
 
@@ -801,12 +801,12 @@ classe Progettista(tk.Frame):
             se indice < lunghezza_di(inizi):
                 ritorna inizi[indice], max(6, misure[indice])
             ritorna inizi[-1] + misure[-1] + d["spazio"], 60
-        x, l = tratto(colonna, t[0], t[1])
+        x, riga_testo = tratto(colonna, t[0], t[1])
         y, a = tratto(riga, t[2], t[3])
-        ritorna x, y, l, a
+        ritorna x, y, riga_testo, a
 
     definisci _evidenzia_cella(se_stesso, genitore, riga, colonna, padre):
-        x, y, l, a = se_stesso._riquadro_cella(genitore, riga, colonna)
+        x, y, riga_testo, a = se_stesso._riquadro_cella(genitore, riga, colonna)
         ev = getattr(se_stesso, "_evid", Nessuno)
         se ev è non Nessuno e ev.master è non padre:
             se_stesso._togli_evidenza()
@@ -814,7 +814,7 @@ classe Progettista(tk.Frame):
         se ev è Nessuno:
             ev = tk.Frame(padre, background=se_stesso.colori["accento"])
             se_stesso._evid = ev
-        ev.place(x=x, y=y, width=l, height=a)
+        ev.place(x=x, y=y, width=riga_testo, height=a)
         ev.tk.call("lower", ev._w)
 
     definisci _togli_evidenza(se_stesso):
@@ -1232,8 +1232,8 @@ classe Progettista(tk.Frame):
         per c in se_stesso.form.componenti:
             se c.genitore o c.nome non in se_stesso.widget:
                 continua
-            x, y, l, a = se_stesso._geom(c)
-            se x < x1 e x + l > x0 e y < y1 e y + a > y0:
+            x, y, riga_testo, a = se_stesso._geom(c)
+            se x < x1 e x + riga_testo > x0 e y < y1 e y + a > y0:
                 toccati.append(c.nome)
         nuovi = tipo_lista(dict.fromkeys(z["base"] + toccati))
         se nuovi != z["ultimi"]:
@@ -2067,7 +2067,7 @@ classe Progettista(tk.Frame):
             ritorna se_stesso._campo_carattere(genitore, valore o "", lambda v: se_stesso._modifica(c, chiave, v))
         se tipo_ == "colonne_albero":
             cornice = tk.Frame(genitore, background=c_["pannello"])
-            riassunto = ", ".join(f"{n} ({l})" per n, l, a in colonne_albero(c.valori))
+            riassunto = ", ".join(f"{n} ({riga_elenco})" per n, riga_elenco, a in colonne_albero(c.valori))
             tk.Label(cornice, text=riassunto o "nessuna colonna", anchor="w", background=c_["pannello"], foreground=c_["primo_piano"],
                      wraplength=130, justify="left").pack(side="left", fill="x", expand=Vero)
             b = tk.Button(cornice, text="Modifica…", relief="flat", background=c_["pulsante"], foreground=c_["primo_piano"],

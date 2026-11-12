@@ -75,7 +75,7 @@ t = p.albero
 
 definisci riga(iid):
     radice.update()
-    x, y, l, h = t.bbox(iid)
+    x, y, riga_testo, h = t.bbox(iid)
     ritorna Ev(x + 20, y + h // 2)
 
 

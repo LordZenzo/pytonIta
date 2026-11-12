@@ -116,12 +116,12 @@ definisci calcola(larghezza, altezza, voci, colonne=(), righe=(), margine=10, sp
 definisci disponi(contenitore, voci, colonne=(), righe=(), margine=10, spazio=6, larghezza=Nessuno, altezza=Nessuno):
     """Mette i componenti nelle loro celle e li ridispone quando il contenitore cambia misura.
     voci: [(widget, riga, colonna, righe, colonne, sticky, w, h)]; larghezza e altezza sono la misura di partenza (quella disegnata)."""
-    definisci ridisponi(l, a):
+    definisci ridisponi(larghezza_, a):
         prova:
             bordo = int(str(contenitore.cget("borderwidth")))
         eccetto Exception:
             bordo = 0
-        rettangoli = calcola(l - 2 * bordo, a - 2 * bordo, [v[1:] per v in voci], colonne, righe, margine, spazio)
+        rettangoli = calcola(larghezza_ - 2 * bordo, a - 2 * bordo, [v[1:] per v in voci], colonne, righe, margine, spazio)
         per v, (x, y, w, h) in zip(voci, rettangoli):
             v[0].place(x=x, y=y, width=w, height=h)
 
