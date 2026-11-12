@@ -856,12 +856,34 @@ classe Progettista(tk.Frame):
         se_stesso._rilayout()
         se_stesso._registra()
 
+    definisci _casella(se_stesso, genitore, valore, alla_modifica):
+        c_ = se_stesso.colori
+        var = tk.BooleanVar(value=bool(valore))
+        ritorna tk.Checkbutton(genitore, variable=var, background=c_["pannello"], selectcolor=c_["casella"], activebackground=c_["pannello"],
+                               command=lambda: alla_modifica(var.get()))
+
+    definisci _posizione_sequenza(se_stesso, c, indice):
+        form_modello.sposta_in_sequenza(se_stesso.form, c, indice)
+        se_stesso._rilayout()
+        se_stesso._registra()
+
+    definisci _espandi(se_stesso, c, valore):
+        c.valori["espandi"] = bool(valore)
+        se_stesso._rilayout()
+        se_stesso._registra()
+
     definisci _campi_cella(se_stesso, aggiungi_riga, c):
         """Le righe dell'ispettore per un componente che sta in una griglia: cella, quante celle occupa, allineamento."""
         k = form_modello.cella_di(c)
-        per etichetta, chiave in (("Riga", "riga"), ("Colonna", "colonna"), ("Righe occupate", "righe"), ("Colonne occupate", "colonne")):
-            aggiungi_riga(etichetta, lambda p, ch=chiave: se_stesso._spin(
-                p, k[ch], lambda v, ch=ch: se_stesso._imposta_cella(c, ch, v), 0 se ch in ("riga", "colonna") altrimenti 1, 99))
+        layout = form_modello.layout_di(se_stesso.form, c.genitore)
+        se layout in form_modello.LAYOUT_SEQUENZA:
+            aggiungi_riga("Posizione nella " + layout, lambda p: se_stesso._spin(p, form_modello.posizione_in_sequenza(se_stesso.form, c) + 1,
+                                                                                    lambda v: se_stesso._posizione_sequenza(c, int(v) - 1), 1, 99))
+            aggiungi_riga("Si allarga", lambda p: se_stesso._casella(p, bool(c.valori.get("espandi")), lambda v: se_stesso._espandi(c, v)))
+        altrimenti:
+            per etichetta, chiave in (("Riga", "riga"), ("Colonna", "colonna"), ("Righe occupate", "righe"), ("Colonne occupate", "colonne")):
+                aggiungi_riga(etichetta, lambda p, ch=chiave: se_stesso._spin(
+                    p, k[ch], lambda v, ch=ch: se_stesso._imposta_cella(c, ch, v), 0 se ch in ("riga", "colonna") altrimenti 1, 99))
         nomi = [n per n, _ in form_modello.ALLINEAMENTI_CELLA]
         corrente = k["allinea"]
         per n, s in form_modello.ALLINEAMENTI_CELLA:
@@ -1466,7 +1488,13 @@ classe Progettista(tk.Frame):
                 se_stesso._riempi_ispettore()
                 ritorna "break"
             se d.get("cella") e nome in getattr(se_stesso, "_rett", {}):
-                form_modello.imposta_cella(se_stesso.form.trova(nome), riga=d["cella"][0], colonna=d["cella"][1])
+                spostato = se_stesso.form.trova(nome)
+                se form_modello.layout_di(se_stesso.form, spostato.genitore) in form_modello.LAYOUT_SEQUENZA:
+                    layout_ = form_modello.layout_di(se_stesso.form, spostato.genitore)
+                    destinazione = d["cella"][1] se layout_ == "riga" altrimenti d["cella"][0]
+                    form_modello.sposta_in_sequenza(se_stesso.form, spostato, destinazione)
+                altrimenti:
+                    form_modello.imposta_cella(spostato, riga=d["cella"][0], colonna=d["cella"][1])
                 se_stesso._rilayout()
             se_stesso._registra()
             se_stesso._riempi_ispettore()
@@ -1540,6 +1568,11 @@ classe Progettista(tk.Frame):
             c = se_stesso.form.trova(n)
             se n in getattr(se_stesso, "_rett", {}):
                 k = form_modello.cella_di(c)
+                layout_ = form_modello.layout_di(se_stesso.form, c.genitore)
+                se layout_ in form_modello.LAYOUT_SEQUENZA:
+                    passo = (dx se layout_ == "riga" altrimenti dy)
+                    form_modello.sposta_in_sequenza(se_stesso.form, c, form_modello.posizione_in_sequenza(se_stesso.form, c) + (passo > 0) - (passo < 0))
+                    continua
                 form_modello.imposta_cella(c, riga=k["riga"] + (dy > 0) - (dy < 0), colonna=k["colonna"] + (dx > 0) - (dx < 0))
                 continua
             c.x = max(0, c.x + dx)
@@ -1796,10 +1829,11 @@ classe Progettista(tk.Frame):
             se_stesso._campo_form(aggiungi_riga, "Sfondo", "sfondo", "colore")
             se_stesso._campo_form(aggiungi_riga, "Ridimensionabile", "ridimensionabile", "si_no")
             se_stesso._campo_form(aggiungi_riga, "Aspetto", "aspetto", "scelta:classico,chiaro,scuro,verde,viola")
-            se_stesso._campo_form(aggiungi_riga, "Disposizione", "layout", "scelta:libero,griglia")
-            se se_stesso.form.layout == "griglia":
-                se_stesso._campo_form(aggiungi_riga, "Colonne (pesi)", "colonne", "testo")
-                se_stesso._campo_form(aggiungi_riga, "Righe (pesi)", "righe", "testo")
+            se_stesso._campo_form(aggiungi_riga, "Disposizione", "layout", "scelta:libero,griglia,riga,colonna")
+            se form_modello.e_griglia(se_stesso.form.layout):
+                se se_stesso.form.layout == "griglia":
+                    se_stesso._campo_form(aggiungi_riga, "Colonne (pesi)", "colonne", "testo")
+                    se_stesso._campo_form(aggiungi_riga, "Righe (pesi)", "righe", "testo")
                 se_stesso._campo_form(aggiungi_riga, "Margine", "margine", "numero")
                 se_stesso._campo_form(aggiungi_riga, "Spazio tra le celle", "spazio", "numero")
             problemi = se_stesso.form.problemi()
@@ -1830,7 +1864,7 @@ classe Progettista(tk.Frame):
                 continua
             se c.tipo == "FonteDati" e chiave in ("server", "porta", "utente") e c.valori.get("dialetto") non in ("mysql", "postgres"):
                 continua
-            se e_contenitore(c.tipo) e chiave in form_modello.PROPRIETA_LAYOUT_DIPENDENTI e c.valori.get("layout") != "griglia":
+            se e_contenitore(c.tipo) e chiave in form_modello.PROPRIETA_LAYOUT_DIPENDENTI e (c.valori.get("layout") non in ("griglia", "riga", "colonna") o (chiave in ("colonne", "righe") e c.valori.get("layout") != "griglia")):
                 continua
             aggiungi_riga(descrizione, lambda p, k=chiave, t=tipo_: se_stesso._editor_valore(p, c, k, t))
 
@@ -1922,10 +1956,11 @@ classe Progettista(tk.Frame):
             se tipo_ == "numero":
                 nuovo = max(minimo_, min(massimo_, nuovo))
             se getattr(f, attributo) != nuovo:
-                se attributo == "layout" e nuovo != "griglia":
+                vecchio_layout = getattr(f, attributo)
+                se attributo == "layout" e non form_modello.e_griglia(nuovo) e form_modello.e_griglia(f.layout):
                     form_modello.congela_celle(f, "")          # i componenti tengono la posizione che avevano nelle celle
                 setattr(f, attributo, nuovo)
-                se attributo == "layout" e nuovo == "griglia":
+                se attributo == "layout" e form_modello.e_griglia(nuovo) e non form_modello.e_griglia(vecchio_layout):
                     form_modello.assegna_celle(f, "")          # ognuno nella cella che corrisponde alla sua posizione
                 se_stesso._disegna_griglia()
                 se_stesso._registra()
@@ -2355,11 +2390,12 @@ classe Progettista(tk.Frame):
             se_stesso._registra()
             ritorna
         se chiave == "layout" e e_contenitore(c.tipo):
-            se c.valori.get("layout") == "griglia" e valore != "griglia":
+            vecchio_layout = c.valori.get("layout")
+            se form_modello.e_griglia(vecchio_layout) e non form_modello.e_griglia(valore):
                 per k in form_modello.pagine_di(c):
                     form_modello.congela_celle(se_stesso.form, k)
             c.valori[chiave] = valore
-            se valore == "griglia":
+            se form_modello.e_griglia(valore) e non form_modello.e_griglia(vecchio_layout):
                 per k in form_modello.pagine_di(c):
                     form_modello.assegna_celle(se_stesso.form, k)
             se_stesso._aggiorna_widget(c)

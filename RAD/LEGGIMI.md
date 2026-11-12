@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.4
+
+- **Disposizione in riga e in colonna** (finestra, Riquadro, pagina di Schede): i componenti uno dopo l'altro, con «Si allarga» per chi deve prendere lo spazio che avanza. Si riordinano trascinando, con le frecce o dall'ispettore. Il programma usa lo stesso calcolo della griglia, quindi quello che vedi è quello che ottieni.
+
 ## Novità della 2.3
 
 - **PostgreSQL**: *Database → Collegati a PostgreSQL…* (driver `psycopg2`, installabile dal menu), tabelle e viste dello schema `public`, creazione e modifica di tabelle e colonne, e il tipo di database `postgres` nelle fonti dati dei programmi (la password si chiede all'avvio e non si salva). Provato con un driver finto: non c'è stato modo di provarlo con un server vero.

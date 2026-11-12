@@ -121,7 +121,7 @@ TIPI["Grafico"] = dict(classe_tk="Grafico", modulo="grafico", larghezza=360, alt
                                   "colonna_etichette": ("campo", "", "Colonna delle etichette"),
                                   "colonna_valori": ("campo", "", "Colonna dei valori")})
 # disposizione dei componenti dentro finestra, riquadri e pagine di schede: «libero» (posizioni disegnate) o «griglia» (celle)
-PROPRIETA_LAYOUT = {"layout": ("scelta:libero,griglia", "libero", "Disposizione dei componenti"),
+PROPRIETA_LAYOUT = {"layout": ("scelta:libero,griglia,riga,colonna", "libero", "Disposizione dei componenti: libera, a griglia, in una riga o in una colonna"),
                     "colonne": ("testo", "", "Colonne: pesi (0 = misura naturale, 1 o più = si allarga), es. 0,1"),
                     "righe": ("testo", "", "Righe: pesi, es. 0,0,1"),
                     "margine": ("numero", 10, "Margine interno"),
@@ -363,8 +363,8 @@ classe Form:
         d = {"versione": 1, "nome": se_stesso.nome, "titolo": se_stesso.titolo,
              "larghezza": se_stesso.larghezza, "altezza": se_stesso.altezza,
              "sfondo": se_stesso.sfondo, "ridimensionabile": se_stesso.ridimensionabile, "aspetto": se_stesso.aspetto}
-        se se_stesso.layout == "griglia":                  # i file delle finestre libere restano com'erano
-            d.update(layout="griglia", colonne=se_stesso.colonne, righe=se_stesso.righe, margine=se_stesso.margine, spazio=se_stesso.spazio)
+        se e_griglia(se_stesso.layout):                  # i file delle finestre libere restano com'erano
+            d.update(layout=se_stesso.layout, colonne=se_stesso.colonne, righe=se_stesso.righe, margine=se_stesso.margine, spazio=se_stesso.spazio)
         d["componenti"] = [c.a_dizionario() per c in se_stesso.componenti]
         ritorna d
 
@@ -376,7 +376,7 @@ classe Form:
         f.sfondo = d.get("sfondo", "")
         f.ridimensionabile = d.get("ridimensionabile", Vero)
         f.aspetto = d.get("aspetto", "classico")
-        f.layout = d.get("layout", "libero") se d.get("layout") in ("libero", "griglia") altrimenti "libero"
+        f.layout = d.get("layout", "libero") se d.get("layout") in ("libero", "griglia", "riga", "colonna") altrimenti "libero"
         f.colonne = d.get("colonne", "")
         f.righe = d.get("righe", "")
         f.margine = d.get("margine", 10)
@@ -426,7 +426,7 @@ classe Form:
                     p.append(f"{c.nome}.{k}: nome di funzione non valido")
             se c.tipo == "FonteDati" e non (c.valori.get("tabella") o "").strip():
                 p.append(f"{c.nome}: scegli la tabella")
-            se c.tipo == "Riquadro" e c.valori.get("scorrevole") e c.valori.get("layout") == "griglia":
+            se c.tipo == "Riquadro" e c.valori.get("scorrevole") e e_griglia(c.valori.get("layout")):
                 p.append(f"{c.nome}: un riquadro scorrevole vuole la disposizione libera (non la griglia)")
             se c.tipo == "Stampa":
                 sorgente_ = (c.valori.get("sorgente") o "").strip()
@@ -491,16 +491,93 @@ definisci definizione_griglia(form, genitore):
     """Come è fatta la griglia del contenitore `genitore` ('' = la finestra, 'nome' = un riquadro, 'nome#2' = una pagina di schede),
     oppure Nessuno se il contenitore è libero: {colonne, righe (pesi), margine, spazio}."""
     se non genitore:
-        se form.layout != "griglia":
+        se non e_griglia(form.layout):
             ritorna Nessuno
         leggi = lambda k, p: getattr(form, k, p)
     altrimenti:
         c = form.trova(genitore.split("#")[0])
-        se c è Nessuno o non e_contenitore(c.tipo) o c.valori.get("layout") != "griglia":
+        se c è Nessuno o non e_contenitore(c.tipo) o non e_griglia(c.valori.get("layout")):
             ritorna Nessuno
         leggi = lambda k, p: c.valori.get(k, p)
     ritorna {"colonne": griglia.pesi_da_testo(leggi("colonne", "")), "righe": griglia.pesi_da_testo(leggi("righe", "")),
              "margine": int(leggi("margine", 10) o 0), "spazio": int(leggi("spazio", 6) o 0)}
+
+
+LAYOUT_SEQUENZA = ("riga", "colonna")
+
+
+definisci e_griglia(layout):
+    """True per le disposizioni che usano le celle: «griglia» e anche «riga» e «colonna» (una griglia di una sola riga o colonna, ordinata da sola)."""
+    ritorna layout in ("griglia", "riga", "colonna")
+
+
+definisci layout_di(form, genitore):
+    """La disposizione di un contenitore: '' = la finestra, 'nome' = un riquadro, 'nome#2' = una pagina di schede."""
+    se non genitore:
+        ritorna form.layout
+    c = form.trova(genitore.split("#")[0])
+    ritorna (c.valori.get("layout") se c è non Nessuno altrimenti "libero") o "libero"
+
+
+definisci sequenza_ordinata(form, genitore):
+    """I componenti di un contenitore «riga» o «colonna» nell'ordine in cui compaiono (prima per la loro cella, poi come sono nell'elenco)."""
+    figli = figli_in_griglia(form, genitore)
+    layout = layout_di(form, genitore)
+    chiave = (lambda ic: (cella_di(ic[1])["colonna"], cella_di(ic[1])["riga"], ic[0])) se layout == "riga" altrimenti (lambda ic: (cella_di(ic[1])["riga"], cella_di(ic[1])["colonna"], ic[0]))
+    ritorna [c per _, c in sorted(enumera(figli), key=chiave)]
+
+
+definisci posizione_in_sequenza(form, c):
+    """Il numero d'ordine di un componente nella riga o colonna che lo contiene."""
+    ordine = sequenza_ordinata(form, c.genitore)
+    ritorna ordine.index(c) se c in ordine altrimenti 0
+
+
+definisci sposta_in_sequenza(form, c, indice):
+    """Mette un componente alla posizione `indice` (da 0) della riga o colonna che lo contiene; gli altri scorrono."""
+    layout = layout_di(form, c.genitore)
+    ordine = [x per x in sequenza_ordinata(form, c.genitore) se x è non c]
+    indice = max(0, min(lunghezza_di(ordine), indice))
+    ordine.insert(indice, c)
+    per i, x in enumera(ordine):
+        se layout == "riga":
+            imposta_cella(x, riga=0, colonna=i)
+        altrimenti:
+            imposta_cella(x, riga=i, colonna=0)
+
+
+definisci normalizza_sequenze(form):
+    """Per i contenitori «riga» e «colonna»: assegna le celle in ordine e calcola i pesi (chi «si allarga» prende lo spazio che avanza).
+    Va chiamata prima di calcolare i rettangoli o generare il codice."""
+    contenitori = [""]
+    per c in form.componenti:
+        se e_contenitore(c.tipo):
+            contenitori.extend(pagine_di(c))
+    per genitore in contenitori:
+        layout = layout_di(form, genitore)
+        se layout non in LAYOUT_SEQUENZA:
+            continua
+        figli = sequenza_ordinata(form, genitore)
+        pesi = []
+        riempie_traverso = Falso
+        per i, c in enumera(figli):
+            allinea = cella_di(c)["allinea"]
+            espandi = bool(c.valori.get("espandi"))
+            asse = "ew" se layout == "riga" altrimenti "ns"
+            traverso = "ns" se layout == "riga" altrimenti "ew"
+            se espandi e non (asse[0] in allinea e asse[1] in allinea):
+                allinea = "".join(sorted(set(allinea) | set(asse)))
+            se traverso[0] in allinea e traverso[1] in allinea:
+                riempie_traverso = Vero
+            imposta_cella(c, riga=0 se layout == "riga" altrimenti i, colonna=i se layout == "riga" altrimenti 0, righe=1, colonne=1, allinea=allinea)
+            pesi.append("1" se espandi altrimenti "0")
+        principale = ",".join(pesi) se pesi altrimenti "0"
+        traverso_pesi = "1" se riempie_traverso altrimenti "0"
+        se non genitore:
+            form.colonne, form.righe = (principale, traverso_pesi) se layout == "riga" altrimenti (traverso_pesi, principale)
+        altrimenti:
+            contenitore = form.trova(genitore.split("#")[0])
+            contenitore.valori["colonne"], contenitore.valori["righe"] = (principale, traverso_pesi) se layout == "riga" altrimenti (traverso_pesi, principale)
 
 
 definisci cella_di(c):
@@ -541,6 +618,7 @@ definisci rettangoli(form, tracce=Nessuno):
     Si calcola dall'alto verso il basso: la misura di un riquadro in una griglia dipende dalla sua cella.
     Se passi un dizionario in `tracce` ci scrive, per ogni contenitore a griglia, (inizi x, larghezze, inizi y, altezze) delle sue colonne e righe."""
     rett = {}
+    normalizza_sequenze(form)
 
     definisci disponi(genitore, larghezza, altezza):
         d = definizione_griglia(form, genitore)
@@ -571,7 +649,7 @@ definisci rettangoli(form, tracce=Nessuno):
 
 
 definisci usa_griglia(form):
-    ritorna form.layout == "griglia" o any(c.valori.get("layout") == "griglia" per c in form.componenti se e_contenitore(c.tipo))
+    ritorna e_griglia(form.layout) o any(e_griglia(c.valori.get("layout")) per c in form.componenti se e_contenitore(c.tipo))
 
 
 definisci congela_celle(form, genitore):

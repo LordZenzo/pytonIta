@@ -1,0 +1,179 @@
+"""Disposizione in riga e in colonna: ordine, componenti che si allargano, cambio di posto, codice generato e finestra vera."""
+importa sys, os, tempfile, importlib, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad importa form_modello
+da rad.form_modello importa Form
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ---------------------------------------------------------------- una riga nella finestra
+f = Form("Barra", "Barra")
+f.larghezza, f.altezza = 400, 100
+f.layout = "riga"
+f.margine, f.spazio = 10, 6
+a = f.aggiungi("Etichetta", 0, 0, nome="etichetta", testo="Cerca", larghezza=60, altezza=24)
+b = f.aggiungi("CampoTesto", 0, 0, nome="campo", larghezza=100, altezza=26)
+c = f.aggiungi("Pulsante", 0, 0, nome="pulsante", testo="Vai", larghezza=80, altezza=30)
+b.valori["espandi"] = Vero
+rett = form_modello.rettangoli(f)
+verifica([form_modello.posizione_in_sequenza(f, x) per x in (a, b, c)] == [0, 1, 2], "ordine di inserimento")
+verifica(f.colonne == "0,1,0" e f.righe == "0", "pesi calcolati: " + f.colonne + " | " + f.righe)
+verifica(rett["etichetta"][0] == 10 e rett["etichetta"][2] == 60, "l'etichetta parte dal margine: " + tipo_testo(rett["etichetta"]))
+verifica(rett["campo"][0] == 10 + 60 + 6 e rett["campo"][2] == 400 - 20 - 60 - 80 - 12, "il campo prende lo spazio che avanza: " + tipo_testo(rett["campo"]))
+verifica(rett["pulsante"][0] + rett["pulsante"][2] == 400 - 10 e rett["pulsante"][2] == 80, "il pulsante sta a destra con la sua misura: " + tipo_testo(rett["pulsante"]))
+verifica(rett["campo"][3] == 26, "il campo non si allunga in altezza")
+verifica(form_modello.definizione_griglia(f, "") è non Nessuno, "per il motore una riga è una griglia")
+verifica(form_modello.e_griglia("riga") e form_modello.e_griglia("colonna") e form_modello.e_griglia("griglia") e non form_modello.e_griglia("libero"), "e_griglia")
+
+# cambio di posto: il pulsante va in prima posizione
+form_modello.sposta_in_sequenza(f, c, 0)
+verifica([x.nome per x in form_modello.sequenza_ordinata(f, "")] == ["pulsante", "etichetta", "campo"], "il pulsante in testa: " + tipo_testo([x.nome per x in form_modello.sequenza_ordinata(f, "")]))
+rett = form_modello.rettangoli(f)
+verifica(f.colonne == "0,0,1" e rett["pulsante"][0] == 10 e rett["campo"][0] + rett["campo"][2] == 400 - 10, "e i pesi seguono: " + f.colonne)
+form_modello.sposta_in_sequenza(f, c, 99)
+verifica([x.nome per x in form_modello.sequenza_ordinata(f, "")] == ["etichetta", "campo", "pulsante"], "oltre la fine = in coda")
+form_modello.sposta_in_sequenza(f, a, 1)
+verifica([x.nome per x in form_modello.sequenza_ordinata(f, "")] == ["campo", "etichetta", "pulsante"], "in mezzo")
+
+# si salva e si rilegge
+r2 = Form.da_json(f.a_json())
+verifica(r2.layout == "riga" e form_modello.rettangoli(r2) == form_modello.rettangoli(f), "il form si rilegge con la stessa disposizione")
+
+# ---------------------------------------------------------------- una colonna dentro un riquadro
+g = Form("Elenco", "Elenco")
+g.larghezza, g.altezza = 300, 300
+q = g.aggiungi("Riquadro", 10, 10, nome="quadro", larghezza=280, altezza=240, bordo=0)
+q.valori.update(layout="colonna", margine=8, spazio=4)
+e1 = g.aggiungi("Etichetta", 0, 0, nome="titolo", testo="Titolo", larghezza=100, altezza=20, genitore="quadro")
+e2 = g.aggiungi("AreaTesto", 0, 0, nome="testo", larghezza=100, altezza=50, genitore="quadro")
+e3 = g.aggiungi("Pulsante", 0, 0, nome="ok", testo="OK", larghezza=60, altezza=28, genitore="quadro")
+e2.valori["espandi"] = Vero
+rg = form_modello.rettangoli(g)
+verifica(q.valori["righe"] == "0,1,0" e q.valori["colonne"] == "1", "una colonna: pesi " + tipo_testo((q.valori["colonne"], q.valori["righe"])))
+verifica(rg["titolo"][1] == 8 e rg["testo"][1] == 8 + 20 + 4 e rg["testo"][3] == 240 - 16 - 20 - 28 - 8, "l'area si allunga: " + tipo_testo(rg["testo"]))
+verifica(rg["ok"][1] + rg["ok"][3] == 240 - 8, "il pulsante è in fondo: " + tipo_testo(rg["ok"]))
+verifica(rg["testo"][2] == 280 - 16, "l'area di testo riempie la larghezza (allineamento di serie nsew): " + tipo_testo(rg["testo"]))
+form_modello.sposta_in_sequenza(g, e3, 0)
+verifica([x.nome per x in form_modello.sequenza_ordinata(g, "quadro")] == ["ok", "titolo", "testo"], "ordine in colonna")
+
+# da libero a riga: ognuno va dove sta, in ordine di posizione
+h = Form("Libero", "Libero")
+h.larghezza, h.altezza = 400, 100
+x1 = h.aggiungi("Etichetta", 200, 10, nome="b", larghezza=50, altezza=20)
+x2 = h.aggiungi("Etichetta", 10, 10, nome="a", larghezza=50, altezza=20)
+x3 = h.aggiungi("Etichetta", 300, 10, nome="c", larghezza=50, altezza=20)
+form_modello.assegna_celle(h, "")
+h.layout = "riga"
+form_modello.rettangoli(h)
+verifica([x.nome per x in form_modello.sequenza_ordinata(h, "")] == ["a", "b", "c"], "da libero a riga: l'ordine segue le posizioni: " + tipo_testo([x.nome per x in form_modello.sequenza_ordinata(h, "")]))
+
+# ---------------------------------------------------------------- codice generato
+ui = form_modello.genera_ui_completa(f)
+verifica("griglia.disponi(radice, [" in ui e "importa griglia" in ui, "il codice usa il motore a griglia")
+verifica("[1.0, 0.0, 0.0], [0.0], 10, 6)" in ui, "con i pesi calcolati (il campo che si allarga è ora il primo)")
+verifica("(se_stesso.campo, 0, 0, 1, 1" in ui, "il campo (ora in prima posizione) è nella cella 0,0")
+
+# ---------------------------------------------------------------- finestra vera
+cartella = tempfile.mkdtemp()
+form_modello.salva_form(f, cartella)
+sys.path.insert(0, cartella)
+sys.modules.pop("griglia", Nessuno)
+importlib.invalidate_caches()
+m = importlib.import_module("barra")
+radice = tk.Tk()
+radice.geometry("+20+20")
+w = m.Barra(radice)
+radice.update()
+radice.update()
+rett = form_modello.rettangoli(f)
+
+
+definisci geometrie(finestra, nomi):
+    ritorna {n: (getattr(finestra, n).winfo_x(), getattr(finestra, n).winfo_y(), getattr(finestra, n).winfo_width(), getattr(finestra, n).winfo_height()) per n in nomi}
+
+
+nomi = ["campo", "etichetta", "pulsante"]
+verifica(geometrie(w, nomi) == {n: rett[n] per n in nomi}, "la finestra vera ha le posizioni calcolate: " + tipo_testo(geometrie(w, nomi)) + " contro " + tipo_testo({n: rett[n] per n in nomi}))
+radice.geometry("700x100")
+radice.update()
+radice.update()
+f.larghezza = 700
+rett2 = form_modello.rettangoli(f)
+verifica(geometrie(w, nomi) == {n: rett2[n] per n in nomi}, "allargata: il campo si allarga, il resto no")
+verifica(geometrie(w, nomi)["campo"][2] > rett["campo"][2] e geometrie(w, nomi)["pulsante"][2] == 80, "(campo più largo, pulsante uguale)")
+radice.destroy()
+
+# ---------------------------------------------------------------- nel progettista
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad.progettista importa Progettista
+
+
+classe Az:
+    definisci scheda_modificata(se_stesso, s): passa
+    definisci info(se_stesso, m): passa
+    definisci file_scritti(se_stesso, p): passa
+    definisci apri_file(se_stesso, p): passa
+    definisci apri_file_a_funzione(se_stesso, p, f): passa
+    definisci esegui_file(se_stesso, p): passa
+    definisci cartella_progetto(se_stesso): ritorna Nessuno
+
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "rad_prova_config.json"))
+cl = colori(cfg)
+radice = tk.Tk()
+radice.geometry("1100x650")
+configura_stile(radice, cl)
+fd = Form("Demo", "Demo")
+pr = Progettista(radice, os.path.join(tempfile.mkdtemp(), "demo.form.json"), fd, cl, cfg, Az())
+pr.pack(fill="both", expand=Vero)
+applica(radice, cl)
+radice.update()
+pr.aggiungi_componente("Etichetta", 20, 20)
+pr.aggiungi_componente("CampoTesto", 140, 20)
+pr.aggiungi_componente("Pulsante", 300, 20)
+radice.update()
+fd.layout = "libero"
+pr._modifica_form("layout", "riga") se hasattr(pr, "_modifica_form") altrimenti Nessuno
+fd.layout = "riga"
+form_modello.assegna_celle(fd, "")
+pr._disegna_griglia()
+radice.update()
+ordine = [x.nome per x in form_modello.sequenza_ordinata(fd, "")]
+verifica(ordine == ["etichetta1", "campoTesto1", "pulsante1"], "nel progettista: ordine per posizione " + tipo_testo(ordine))
+verifica(pr._rett.get("etichetta1") è non Nessuno e pr._rett["campoTesto1"][0] > pr._rett["etichetta1"][0], "i rettangoli sono calcolati e in fila: " + tipo_testo(pr._rett))
+pr.seleziona(["campoTesto1"])
+radice.update()
+testi = [w.cget("text") per w in pr.righe_ispettore.winfo_children() se w.winfo_class() == "Label"]
+verifica("Posizione nella riga" in testi e "Si allarga" in testi e "Riga" non in testi, "ispettore: posizione e «si allarga» al posto delle celle: " + tipo_testo(testi[:10]))
+pr._espandi(fd.trova("campoTesto1"), Vero)
+radice.update()
+verifica(fd.colonne == "0,1,0" e pr._rett["campoTesto1"][2] > 100, "«si allarga» cambia i pesi e la larghezza: " + fd.colonne + " " + tipo_testo(pr._rett["campoTesto1"]))
+pr._posizione_sequenza(fd.trova("pulsante1"), 0)
+radice.update()
+verifica([x.nome per x in form_modello.sequenza_ordinata(fd, "")][0] == "pulsante1" e pr._rett["pulsante1"][0] < pr._rett["etichetta1"][0], "cambio di posto dall'ispettore")
+pr.seleziona(["pulsante1"])
+pr.sposta_selezione(1, 0)
+radice.update()
+verifica(form_modello.posizione_in_sequenza(fd, fd.trova("pulsante1")) == 1, "freccia destra: il pulsante scorre di un posto")
+pr.sposta_selezione(-1, 0)
+verifica(form_modello.posizione_in_sequenza(fd, fd.trova("pulsante1")) == 0, "freccia sinistra: torna in testa")
+radice.destroy()
+
+# ---------------------------------------------------------------- un file vecchio e le impostazioni
+verifica("riga" in form_modello.proprieta_di("Riquadro")["layout"][0] e "colonna" in form_modello.proprieta_di("Schede")["layout"][0], "riga e colonna tra le scelte")
+j = json.loads(Form("Libera", "x").a_json())
+verifica("layout" non in j, "una finestra libera non cambia nel file")
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_riga_colonna: ok")

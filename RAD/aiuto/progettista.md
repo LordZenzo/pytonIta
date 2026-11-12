@@ -124,6 +124,10 @@ Di solito i componenti stanno dove li metti (**libero**). Con la **griglia** inv
 
 **Nel programma.** Il codice generato usa il file `griglia.pit` (che PitStudio mette nel progetto) e dispone i componenti con lo stesso calcolo del progettista: quello che vedi è quello che ottieni, anche ridimensionando la finestra. Le finestre già disegnate restano libere finché non scegli la griglia. Nell'esportazione in Python e nell'eseguibile la griglia funziona allo stesso modo.
 
+## Disposizione in riga o in colonna
+
+Oltre a «libero» e «griglia», la **Disposizione** di una finestra, di un Riquadro o di una pagina di Schede può essere **riga** (i componenti uno dopo l'altro, da sinistra a destra) o **colonna** (dall'alto in basso). Non si disegnano le celle: i componenti si mettono nell'ordine in cui compaiono, con il **Margine** e lo **Spazio** scelti. Per ogni componente l'ispettore mostra la **Posizione nella riga** (o colonna), **Si allarga** (prende lo spazio che avanza quando la finestra cambia misura) e l'**Allineamento**. Si cambia l'ordine trascinando il componente su un altro posto, con le frecce o con il numero della posizione. Passando da libero a riga/colonna i componenti si mettono in ordine secondo dove si trovano; passando a libero tengono la posizione che avevano.
+
 ## Area scorrevole
 
 Un **Riquadro** può essere scorrevole: nell'ispettore metti **Scorrevole** a sì. Disegna il riquadro grande quanto tutto il contenuto (per esempio 300 × 600) e con **Larghezza visibile** e **Altezza visibile** scegli quanto se ne vede nel programma (per esempio 300 × 200; 0 = tutto). Nel progettista vedi e muovi tutti i componenti; nel programma si vede solo la parte visibile e il resto si raggiunge con le barre di scorrimento (compaiono solo se servono) o con la rotella del mouse (Maiusc + rotella per andare di lato). La disposizione dev'essere **libera**, non la griglia.
