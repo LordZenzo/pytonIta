@@ -18,6 +18,7 @@ SCHEDE = [
         ("editor.chiudi_parentesi", "Chiudi automaticamente parentesi e virgolette", "si_no", Nessuno),
         ("editor.suggerimenti", "Suggerimenti automatici mentre scrivi", "si_no", Nessuno),
         ("editor.omonimi", "Evidenzia le variabili omonime (stesso nome per cose diverse)", "si_no", Nessuno),
+        ("editor.guida_colonna", "Guida verticale alla colonna (0 = nessuna)", "numero", (0, 300)),
         ("editor.controllo", "Sottolinea gli errori gravi mentre scrivi (il programma non partirebbe)", "si_no", Nessuno),
         ("editor.ritardo_suggerimenti_ms", "Ritardo suggerimenti (ms)", "numero", (0, 2000)),
         ("editor.salvataggio_automatico", "Salvataggio automatico dopo (secondi, 0 = no)", "numero", (0, 3600)),

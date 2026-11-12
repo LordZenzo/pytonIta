@@ -1,0 +1,74 @@
+"""La guida verticale dell'editor: colonna scelta nelle Impostazioni, posizione giusta, sparisce se 0 o se fuori vista."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cartella = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+codice = os.path.join(cartella, "prova.pit")
+open(codice, "w", encoding="utf-8").write("\n".join("riga numero " + tipo_testo(n) + " " + "x" * 150 per n in intervallo_di(60)) + "\n")
+w = app.apri_file(codice)
+radice.update()
+
+verifica(cfg.ottieni("editor.guida_colonna") == 0, "di serie la guida è spenta")
+w._aggiorna_guida()
+verifica(non w._guida.winfo_ismapped(), "spenta: non si vede")
+
+cfg.imposta("editor.guida_colonna", 40, notifica=Falso)
+w._aggiorna_guida()
+radice.update()
+verifica(w._guida.winfo_ismapped(), "con 40 la guida si vede")
+larghezza = w._larghezza_carattere()
+x = int(w._guida.place_info()["x"])
+atteso = w.t.bbox("1.0")[0] + 40 * larghezza
+verifica(abs(x - atteso) <= 1, f"posizione: {x} invece di {atteso}")
+verifica(int(w._guida.place_info()["width"]) == 1, "sottile, un pixel")
+
+# scorrendo di lato la guida segue il testo
+w.t.xview_moveto(0.3)
+radice.update()
+w._aggiorna_guida()
+radice.update()
+indice = w.t.index("@0,0")
+colonna0 = int(indice.split(".")[1])
+atteso = w.t.bbox(indice)[0] + (40 - colonna0) * larghezza
+se w._guida.winfo_ismapped():
+    verifica(abs(int(w._guida.place_info()["x"]) - atteso) <= 1, "scorrendo di lato la guida segue la colonna")
+altrimenti:
+    verifica(atteso < 0 o atteso > w.t.winfo_width(), "se non si vede è perché la colonna è fuori dalla finestra")
+
+# colonna molto a destra: fuori vista
+w.t.xview_moveto(0)
+cfg.imposta("editor.guida_colonna", 400, notifica=Falso)
+w._aggiorna_guida()
+radice.update()
+verifica(non w._guida.winfo_ismapped(), "una colonna oltre la finestra non si vede")
+
+# valori strani non rompono nulla
+cfg.imposta("editor.guida_colonna", "abc", notifica=Falso)
+w._aggiorna_guida()
+verifica(non w._guida.winfo_ismapped(), "un valore non numerico spegne la guida")
+cfg.imposta("editor.guida_colonna", 0, notifica=Falso)
+w._aggiorna_guida()
+verifica(non w._guida.winfo_ismapped(), "di nuovo spenta")
+
+radice.destroy()
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_editor_guida: ok")

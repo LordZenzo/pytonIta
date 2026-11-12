@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.2
+
+- **Area scorrevole**: un Riquadro con «Scorrevole» a sì mostra nel programma solo la parte «visibile» e si scorre con le barre o la rotella. Nel progettista si disegna grande quanto tutto il contenuto. Pagina «Area scorrevole» nella guida del progettista; `scorrevole.pit` viene copiato nel progetto.
+- **Guida verticale nell'editor**: Impostazioni → Editor → «Guida verticale alla colonna» (0 = nessuna).
+
 ## Novità della 2.1
 
 - **Nomi di una lettera**: `l` e `I` non si possono usare come nomi (si confondono con il numero 1: errore grave). Le altre lettere sole ricevono un avviso arancione nell'editor, tranne `i`, `j`, `k`, `n`, `x`, `y`, `z`.

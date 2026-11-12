@@ -124,6 +124,12 @@ Di solito i componenti stanno dove li metti (**libero**). Con la **griglia** inv
 
 **Nel programma.** Il codice generato usa il file `griglia.pit` (che PitStudio mette nel progetto) e dispone i componenti con lo stesso calcolo del progettista: quello che vedi è quello che ottieni, anche ridimensionando la finestra. Le finestre già disegnate restano libere finché non scegli la griglia. Nell'esportazione in Python e nell'eseguibile la griglia funziona allo stesso modo.
 
+## Area scorrevole
+
+Un **Riquadro** può essere scorrevole: nell'ispettore metti **Scorrevole** a sì. Disegna il riquadro grande quanto tutto il contenuto (per esempio 300 × 600) e con **Larghezza visibile** e **Altezza visibile** scegli quanto se ne vede nel programma (per esempio 300 × 200; 0 = tutto). Nel progettista vedi e muovi tutti i componenti; nel programma si vede solo la parte visibile e il resto si raggiunge con le barre di scorrimento (compaiono solo se servono) o con la rotella del mouse (Maiusc + rotella per andare di lato). La disposizione dev'essere **libera**, non la griglia.
+
+Da codice: `se_stesso.riquadro1.scorrimento.mostra(se_stesso.campo5)` porta un componente in vista, `.vai_a(x, y)` scorre a un punto, `.scorri_di(colonne, righe)` di qualche passo. PitStudio copia nel progetto `scorrevole.pit`.
+
 ## Stampa e PDF
 
 Il componente **Stampa** (senza aspetto, come il Timer) stampa o salva in **PDF** il contenuto di un altro componente della finestra, senza librerie esterne: la tabella di un **Albero** (anche gerarchico), gli elementi di un **Elenco**, il testo di un'**AreaTesto** o di un'**Etichetta**, un **Grafico**, il disegno di una **Tela** (linee, rettangoli, ovali, poligoni, fette e testi, ridotto per entrare nella pagina) o un'**Immagine**. Nell'ispettore scegli:

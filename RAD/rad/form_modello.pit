@@ -71,7 +71,10 @@ TIPI = {
                  proprieta={"sfondo": ("colore", "#ffffff", "Sfondo")}),
     "Riquadro": dict(classe_tk="Riquadro", modulo="tk", larghezza=200, altezza=120, icona="□",
                      proprieta={"rilievo": ("scelta:piatto,rialzato,incavato,solido", "solido", "Rilievo"),
-                                "bordo": ("numero", 1, "Spessore bordo")}),
+                                "bordo": ("numero", 1, "Spessore bordo"),
+                                "scorrevole": ("si_no", Falso, "Scorrevole: nel programma si vede solo la parte «visibile» e il resto si raggiunge con le barre o la rotella (disposizione libera)"),
+                                "visibile_larghezza": ("numero", 0, "Scorrevole: larghezza visibile nel programma (0 = tutta)"),
+                                "visibile_altezza": ("numero", 0, "Scorrevole: altezza visibile nel programma (0 = tutta)")}),
     "Immagine": dict(classe_tk="Etichetta", modulo="tk", larghezza=120, altezza=90, icona="🖼",
                      proprieta={"file": ("file", "", "File immagine (relativo al progetto)")}),
     "Separatore": dict(classe_tk="Separatore", modulo="tema", larghezza=200, altezza=4, icona="─",
@@ -423,6 +426,8 @@ classe Form:
                     p.append(f"{c.nome}.{k}: nome di funzione non valido")
             se c.tipo == "FonteDati" e non (c.valori.get("tabella") o "").strip():
                 p.append(f"{c.nome}: scegli la tabella")
+            se c.tipo == "Riquadro" e c.valori.get("scorrevole") e c.valori.get("layout") == "griglia":
+                p.append(f"{c.nome}: un riquadro scorrevole vuole la disposizione libera (non la griglia)")
             se c.tipo == "Stampa":
                 sorgente_ = (c.valori.get("sorgente") o "").strip()
                 se non sorgente_:
@@ -628,6 +633,11 @@ definisci usa_stampa(form):
     ritorna any(c.tipo == "Stampa" per c in form.componenti)
 
 
+definisci usa_scorrevole(form):
+    """True se la finestra ha un riquadro scorrevole (serve scorrevole.pit nel progetto)."""
+    ritorna any(c.tipo == "Riquadro" e c.valori.get("scorrevole") per c in form.componenti)
+
+
 definisci usa_grafico(form):
     """True se la finestra ha un Grafico (serve grafico.pit nel progetto)."""
     ritorna any(c.tipo == "Grafico" per c in form.componenti)
@@ -705,6 +715,8 @@ definisci genera_ui(form):
         r.append("importa griglia")
     se usa_grafico(form):
         r.append("importa grafico")
+    se usa_scorrevole(form):
+        r.append("importa scorrevole")
     se usa_stampa(form):
         r.append("importa stampante")
     r.append("")
@@ -741,6 +753,7 @@ definisci genera_ui(form):
     per c in ordine_creazione(form):
         r.extend(_codice_componente(c, form))
     r.extend(_codice_griglie(form))
+    r.extend(_codice_scorrevoli(form))
     r.extend(_codice_dati(form))
     r.append("        ritorna radice")
     r.append("")
@@ -916,25 +929,44 @@ definisci _codice_griglie(form):
     ritorna r
 
 
+definisci _codice_scorrevoli(form):
+    """Rende scorrevoli i riquadri che lo chiedono: va dopo la creazione dei loro componenti."""
+    r = []
+    per c in form.componenti:
+        se c.tipo == "Riquadro" e c.valori.get("scorrevole"):
+            r.append(f"        scorrevole.rendi_scorrevole(se_stesso.{c.nome}, {c.larghezza}, {c.altezza})")
+    ritorna r
+
+
+definisci misure_programma(c):
+    """Larghezza e altezza di un componente nel programma: uguali a quelle disegnate, tranne per un riquadro scorrevole (si vede solo la parte «visibile»)."""
+    se c.tipo == "Riquadro" e c.valori.get("scorrevole"):
+        larg = int(c.valori.get("visibile_larghezza") o 0) o c.larghezza
+        alt = int(c.valori.get("visibile_altezza") o 0) o c.altezza
+        ritorna min(larg, c.larghezza), min(alt, c.altezza)
+    ritorna c.larghezza, c.altezza
+
+
 definisci _geometria(c, form):
     """Argomenti di posiziona(): posizione fissa oppure legata ai bordi della finestra (ancoraggio: s=sinistra, a=alto, d=destra, b=basso)."""
+    larg, alt = misure_programma(c)
     anc = (c.valori.get("ancoraggio") o "sa")
     se form è Nessuno o anc == "sa" o c.genitore:
-        ritorna f"x={c.x}, y={c.y}, width={c.larghezza}, height={c.altezza}"
+        ritorna f"x={c.x}, y={c.y}, width={larg}, height={alt}"
     L, H = form.larghezza, form.altezza
     parti = []
     se "s" in anc e "d" in anc:
-        parti += [f"x={c.x}", "relwidth=1", f"width={-(L - c.x - c.larghezza)}"]
+        parti += [f"x={c.x}", "relwidth=1", f"width={-(L - c.x - larg)}"]
     altrimenti_se "d" in anc:
-        parti += ["relx=1", f"x={-(L - c.x)}", f"width={c.larghezza}"]
+        parti += ["relx=1", f"x={-(L - c.x)}", f"width={larg}"]
     altrimenti:
-        parti += [f"x={c.x}", f"width={c.larghezza}"]
+        parti += [f"x={c.x}", f"width={larg}"]
     se "a" in anc e "b" in anc:
-        parti += [f"y={c.y}", "relheight=1", f"height={-(H - c.y - c.altezza)}"]
+        parti += [f"y={c.y}", "relheight=1", f"height={-(H - c.y - alt)}"]
     altrimenti_se "b" in anc:
-        parti += ["rely=1", f"y={-(H - c.y)}", f"height={c.altezza}"]
+        parti += ["rely=1", f"y={-(H - c.y)}", f"height={alt}"]
     altrimenti:
-        parti += [f"y={c.y}", f"height={c.altezza}"]
+        parti += [f"y={c.y}", f"height={alt}"]
     ritorna ", ".join(parti)
 
 
@@ -1212,6 +1244,28 @@ definisci copia_aspetto(cartella, scritti=Nessuno):
             scritti.append(destinazione)
 
 
+MODELLO_SCORREVOLE = os.path.join(CARTELLA_MODELLI, "scorrevole.pit")
+
+
+definisci copia_scorrevole(cartella, scritti=Nessuno):
+    """Mette nel progetto scorrevole.pit (i riquadri scorrevoli); se la copia è diversa da quella di PitStudio la rinnova (la vecchia resta come .bak)."""
+    destinazione = os.path.join(cartella, "scorrevole.pit")
+    se non os.path.exists(MODELLO_SCORREVOLE):
+        ritorna
+    con open(MODELLO_SCORREVOLE, encoding="utf-8", newline="") come f:
+        nuova = f.read().replace("\r\n", chr(10))
+    se os.path.exists(destinazione):
+        con open(destinazione, encoding="utf-8", newline="") come f:
+            vecchia = f.read().replace("\r\n", chr(10))
+        se vecchia == nuova:
+            ritorna
+        shutil.copyfile(destinazione, destinazione + ".bak")
+    con open(destinazione, "w", encoding="utf-8", newline="\n") come f:
+        f.write(nuova)
+    se scritti è non Nessuno:
+        scritti.append(destinazione)
+
+
 MODELLO_GRAFICO = os.path.join(CARTELLA_MODELLI, "grafico.pit")
 
 
@@ -1319,6 +1373,8 @@ definisci salva_form(form, cartella):
         copia_griglia(cartella, scritti)
     se usa_grafico(form):
         copia_grafico(cartella, scritti)
+    se usa_scorrevole(form):
+        copia_scorrevole(cartella, scritti)
     se usa_stampa(form):
         copia_stampante(cartella, scritti)
     se os.path.exists(p["logica"]):

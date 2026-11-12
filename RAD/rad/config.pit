@@ -18,6 +18,7 @@ PREDEFINITI = {
         "a_capo": Falso,
         "salvataggio_automatico": 0,
         "omonimi": Vero,                 # evidenzia con uno sfondo colorato le variabili omonime (stesso nome per cose diverse)
+        "guida_colonna": 0,              # colonna della guida verticale nell'editor (0 = nessuna; per esempio 100)
         "controllo": Vero,               # sottolinea gli errori gravi che bloccherebbero il programma (parole chiave come nomi, funzioni predefinite nascoste)
         "suggerimenti": Vero,
         "ritardo_suggerimenti_ms": 200,

@@ -95,8 +95,10 @@ classe Editor(tk.Frame):
         se_stesso.t._tema_proprio = Vero
         se_stesso.barra_y = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso._scorri_y)
         se_stesso.barra_x = ttk.Scrollbar(se_stesso, orient="horizontal", command=se_stesso.t.xview)
+        se_stesso._guida = tk.Frame(se_stesso.t, width=1, borderwidth=0)
+        se_stesso._guida._tema_proprio = Vero
         se_stesso.t.configure(yscrollcommand=se_stesso._sul_scorrimento_y,
-                              xscrollcommand=se_stesso.barra_x.set)
+                              xscrollcommand=se_stesso._sul_scorrimento_x)
         se_stesso.barra_y.pack(side="right", fill="y")
         se_stesso.barra_x.pack(side="bottom", fill="x")
         se_stesso.t.pack(side="left", fill="both", expand=Vero)
@@ -132,7 +134,7 @@ classe Editor(tk.Frame):
         t.bind("<KeyRelease>", se_stesso._al_rilascio, add="+")
         t.bind("<ButtonRelease-1>", se_stesso._al_cursore, add="+")
         t.bind("<Button-1>", lambda evento_tk: se_stesso.chiudi_suggerimenti(), add="+")
-        t.bind("<Configure>", lambda evento_tk: se_stesso._ridisegna_numeri())
+        t.bind("<Configure>", lambda evento_tk: (se_stesso._ridisegna_numeri(), se_stesso._aggiorna_guida()))
         t.bind("<MouseWheel>", lambda evento_tk: se_stesso.after_idle(se_stesso._ridisegna_numeri), add="+")
         t.bind("<FocusOut>", lambda evento_tk: se_stesso.after(150, se_stesso._chiudi_se_perso), add="+")
         t.bind("<Control-a>", se_stesso._seleziona_tutto)
@@ -155,6 +157,7 @@ classe Editor(tk.Frame):
         larghezza_tab = cfg.ottieni("editor.tabulazione", 4)
         se_stesso.t.configure(tabs=(se_stesso._larghezza_carattere() * larghezza_tab,))
         se_stesso._ridisegna_numeri()
+        se_stesso._aggiorna_guida()
         se_stesso._programma_evidenziazione()
 
     definisci _larghezza_carattere(se_stesso):
@@ -168,6 +171,7 @@ classe Editor(tk.Frame):
                               insertbackground=c["cursore"], selectbackground=c["selezione"],
                               selectforeground=c["editor_testo"], inactiveselectbackground=c["selezione"])
         se_stesso.num.configure(background=c["numeri_sfondo"])
+        se_stesso._guida.configure(background=c["commento"])
         se_stesso.barra_cerca.configure(background=c["pannello"])
         per w in se_stesso.barra_cerca.winfo_children():
             prova:
@@ -397,6 +401,39 @@ classe Editor(tk.Frame):
     definisci _sul_scorrimento_y(se_stesso, a, b):
         se_stesso.barra_y.set(a, b)
         se_stesso._ridisegna_numeri()
+        se_stesso._aggiorna_guida()
+
+    definisci _sul_scorrimento_x(se_stesso, a, b):
+        se_stesso.barra_x.set(a, b)
+        se_stesso._aggiorna_guida()
+
+    definisci _aggiorna_guida(se_stesso, evento_tk=Nessuno):
+        """Guida verticale alla colonna scelta nelle Impostazioni (editor.guida_colonna): una riga sottile che segna fin dove conviene scrivere."""
+        colonna = se_stesso.config_.ottieni("editor.guida_colonna", 0)
+        prova:
+            colonna = int(colonna o 0)
+        eccetto (TypeError, ValueError):
+            colonna = 0
+        guida = se_stesso._guida
+        se colonna <= 0:
+            guida.place_forget()
+            ritorna
+        prova:
+            indice = se_stesso.t.index("@0,0")
+            riga0, colonna0 = [int(x) per x in indice.split(".")]
+            riquadro = se_stesso.t.bbox(indice)
+        eccetto tk.TclError:
+            guida.place_forget()
+            ritorna
+        se riquadro è Nessuno:
+            guida.place_forget()
+            ritorna
+        x = riquadro[0] + (colonna - colonna0) * se_stesso._larghezza_carattere()
+        se x < 0 o x > se_stesso.t.winfo_width():
+            guida.place_forget()
+            ritorna
+        guida.place(x=x, y=0, width=1, relheight=1)
+        guida.lift()
 
     definisci _ridisegna_numeri(se_stesso):
         c = se_stesso.colori

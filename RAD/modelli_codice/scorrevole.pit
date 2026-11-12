@@ -1,0 +1,152 @@
+"""Area scorrevole: un riquadro più piccolo del suo contenuto, con le barre di scorrimento e la rotella del mouse.
+
+Nel progettista il riquadro si disegna grande quanto il contenuto; nel programma si vede solo la parte «visibile»
+e il resto si raggiunge scorrendo. I componenti restano dove li hai messi (disposizione libera).
+"""
+importa tkinter come tk
+da tkinter importa ttk
+
+
+classe Scorrimento:
+    """Aggiunge lo scorrimento a un riquadro i cui componenti sono già stati creati e posizionati con place()."""
+
+    definisci __inizializza__(se_stesso, riquadro, larghezza_contenuto, altezza_contenuto):
+        se_stesso.riquadro = riquadro
+        se_stesso.larghezza_contenuto = max(1, int(larghezza_contenuto))
+        se_stesso.altezza_contenuto = max(1, int(altezza_contenuto))
+        se_stesso.x = 0
+        se_stesso.y = 0
+        se_stesso.barra_y = ttk.Scrollbar(riquadro, orient="vertical", command=se_stesso._scorri_y)
+        se_stesso.barra_x = ttk.Scrollbar(riquadro, orient="horizontal", command=se_stesso._scorri_x)
+        se_stesso.voci = []                     # (componente, x, y, larghezza, altezza) come disegnati
+        per figlio in riquadro.winfo_children():
+            se figlio in (se_stesso.barra_x, se_stesso.barra_y):
+                continua
+            se figlio.winfo_manager() != "place":
+                continua
+            info = figlio.place_info()
+            prova:
+                se_stesso.voci.append((figlio, int(float(info.get("x", 0))), int(float(info.get("y", 0))),
+                                       int(float(info["width"])) se info.get("width") altrimenti Nessuno,
+                                       int(float(info["height"])) se info.get("height") altrimenti Nessuno))
+            eccetto (TypeError, ValueError):
+                continua
+        riquadro.bind("<Configure>", se_stesso._alla_misura, add="+")
+        se_stesso._lega_rotella(riquadro)
+        se_stesso.aggiorna()
+
+    # ---- rotella del mouse
+    definisci _lega_rotella(se_stesso, widget):
+        widget.bind("<MouseWheel>", se_stesso._rotella, add="+")
+        widget.bind("<Shift-MouseWheel>", se_stesso._rotella_x, add="+")
+        per figlio in widget.winfo_children():
+            se figlio non in (se_stesso.barra_x, se_stesso.barra_y):
+                se_stesso._lega_rotella(figlio)
+
+    definisci _rotella(se_stesso, evento):
+        se_stesso.scorri_di(0, -1 se evento.delta > 0 altrimenti 1)
+
+    definisci _rotella_x(se_stesso, evento):
+        se_stesso.scorri_di(-1 se evento.delta > 0 altrimenti 1, 0)
+
+    # ---- misure
+    definisci _visibile(se_stesso):
+        ritorna max(1, se_stesso.riquadro.winfo_width()), max(1, se_stesso.riquadro.winfo_height())
+
+    definisci _massimo(se_stesso):
+        larghezza, altezza = se_stesso._visibile()
+        ritorna max(0, se_stesso.larghezza_contenuto - larghezza), max(0, se_stesso.altezza_contenuto - altezza)
+
+    definisci _alla_misura(se_stesso, evento=Nessuno):
+        se_stesso.aggiorna()
+
+    # ---- scorrimento
+    definisci _scorri_y(se_stesso, *argomenti):
+        se_stesso._scorri(argomenti, "y")
+
+    definisci _scorri_x(se_stesso, *argomenti):
+        se_stesso._scorri(argomenti, "x")
+
+    definisci _scorri(se_stesso, argomenti, asse):
+        massimo_x, massimo_y = se_stesso._massimo()
+        massimo = massimo_y se asse == "y" altrimenti massimo_x
+        contenuto = se_stesso.altezza_contenuto se asse == "y" altrimenti se_stesso.larghezza_contenuto
+        se non massimo:
+            ritorna
+        se argomenti[0] == "moveto":
+            nuovo = int(float(argomenti[1]) * contenuto)
+        altrimenti_se argomenti[0] == "scroll":
+            passo = 20 se argomenti[2] == "units" altrimenti (se_stesso._visibile()[1 se asse == "y" altrimenti 0] - 20)
+            nuovo = (se_stesso.y se asse == "y" altrimenti se_stesso.x) + int(argomenti[1]) * passo
+        altrimenti:
+            ritorna
+        nuovo = max(0, min(massimo, nuovo))
+        se asse == "y":
+            se_stesso.y = nuovo
+        altrimenti:
+            se_stesso.x = nuovo
+        se_stesso.aggiorna()
+
+    definisci scorri_di(se_stesso, colonne, righe):
+        """Scorre di un po' (in passi da 20 pixel)."""
+        massimo_x, massimo_y = se_stesso._massimo()
+        se_stesso.x = max(0, min(massimo_x, se_stesso.x + colonne * 20))
+        se_stesso.y = max(0, min(massimo_y, se_stesso.y + righe * 20))
+        se_stesso.aggiorna()
+
+    definisci vai_a(se_stesso, x=0, y=0):
+        """Porta in vista il punto (x, y) del contenuto, in alto a sinistra."""
+        massimo_x, massimo_y = se_stesso._massimo()
+        se_stesso.x = max(0, min(massimo_x, int(x)))
+        se_stesso.y = max(0, min(massimo_y, int(y)))
+        se_stesso.aggiorna()
+
+    definisci mostra(se_stesso, componente):
+        """Scorre fino a rendere visibile un componente."""
+        per figlio, x, y, larghezza, altezza in se_stesso.voci:
+            se figlio è componente:
+                larghezza_v, altezza_v = se_stesso._visibile()
+                se y < se_stesso.y:
+                    se_stesso.y = y
+                altrimenti_se altezza e y + altezza > se_stesso.y + altezza_v:
+                    se_stesso.y = y + altezza - altezza_v
+                se x < se_stesso.x:
+                    se_stesso.x = x
+                altrimenti_se larghezza e x + larghezza > se_stesso.x + larghezza_v:
+                    se_stesso.x = x + larghezza - larghezza_v
+                se_stesso.vai_a(se_stesso.x, se_stesso.y)
+                ritorna
+
+    # ---- disegno
+    definisci aggiorna(se_stesso):
+        larghezza, altezza = se_stesso._visibile()
+        massimo_x, massimo_y = se_stesso._massimo()
+        se_stesso.x = max(0, min(massimo_x, se_stesso.x))
+        se_stesso.y = max(0, min(massimo_y, se_stesso.y))
+        per figlio, x, y, larghezza_f, altezza_f in se_stesso.voci:
+            opzioni = {"x": x - se_stesso.x, "y": y - se_stesso.y}
+            se larghezza_f è non Nessuno:
+                opzioni["width"] = larghezza_f
+            se altezza_f è non Nessuno:
+                opzioni["height"] = altezza_f
+            figlio.place_configure(**opzioni)
+        # le barre compaiono solo se il contenuto non entra
+        se massimo_y:
+            se_stesso.barra_y.place(relx=1, rely=0, anchor="ne", relheight=1, height=-(15 se massimo_x altrimenti 0))
+            se_stesso.barra_y.set(se_stesso.y / se_stesso.altezza_contenuto, (se_stesso.y + altezza) / se_stesso.altezza_contenuto)
+            se_stesso.barra_y.lift()
+        altrimenti:
+            se_stesso.barra_y.place_forget()
+        se massimo_x:
+            se_stesso.barra_x.place(relx=0, rely=1, anchor="sw", relwidth=1, width=-(15 se massimo_y altrimenti 0))
+            se_stesso.barra_x.set(se_stesso.x / se_stesso.larghezza_contenuto, (se_stesso.x + larghezza) / se_stesso.larghezza_contenuto)
+            se_stesso.barra_x.lift()
+        altrimenti:
+            se_stesso.barra_x.place_forget()
+
+
+definisci rendi_scorrevole(riquadro, larghezza_contenuto, altezza_contenuto):
+    """Rende scorrevole un riquadro: chiamala dopo aver creato i suoi componenti. Restituisce l'oggetto Scorrimento
+    (anche in riquadro.scorrimento): vai_a(x, y), mostra(componente), scorri_di(colonne, righe)."""
+    riquadro.scorrimento = Scorrimento(riquadro, larghezza_contenuto, altezza_contenuto)
+    ritorna riquadro.scorrimento

@@ -1,0 +1,123 @@
+"""Riquadro scorrevole: il modulo scorrevole.pit, le proprietà nel progettista, il codice generato e una finestra vera."""
+importa sys, os, tempfile, importlib
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad importa form_modello
+da rad.form_modello importa Form
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+sys.path.insert(0, form_modello.CARTELLA_MODELLI)
+importa scorrevole
+
+# ----------------------------------------------------------------- il modulo, su un riquadro vero
+radice = tk.Tk()
+radice.geometry("400x300+20+20")
+quadro = tk.Frame(radice, width=200, height=100)
+quadro.place(x=10, y=10, width=200, height=100)
+voci = []
+per k in intervallo_di(8):
+    e1 = tk.Label(quadro, text="riga " + tipo_testo(k))
+    e1.place(x=5, y=k * 50, width=100, height=30)
+    voci.append(e1)
+radice.update()
+s = scorrevole.rendi_scorrevole(quadro, 200, 400)
+radice.update()
+verifica(quadro.scorrimento è s, "l'oggetto Scorrimento è sul riquadro")
+verifica(s.barra_y.winfo_ismapped() e non s.barra_x.winfo_ismapped(), "barra verticale sì, orizzontale no (il contenuto è largo quanto il riquadro)")
+verifica(voci[2].winfo_y() == 100 e voci[0].winfo_y() == 0, "all'inizio i componenti sono dove sono stati disegnati")
+
+s.scorri_di(0, 2)
+radice.update()
+verifica(voci[2].winfo_y() == 100 - 40 e voci[0].winfo_y() == -40, "scorrendo di 2 passi (40 px) tutto sale di 40")
+s.vai_a(0, 10000)
+radice.update()
+verifica(s.y == 400 - 100, "non si scorre oltre la fine: " + tipo_testo(s.y))
+s.vai_a(0, -50)
+verifica(s.y == 0, "né prima dell'inizio")
+s.mostra(voci[7])
+radice.update()
+verifica(voci[7].winfo_y() >= 0 e voci[7].winfo_y() + 30 <= 100 + 1, "mostra() porta il componente in vista: y = " + tipo_testo(voci[7].winfo_y()))
+
+# barra: posizione e dimensione del cursore
+s.vai_a(0, 0)
+primo, ultimo = s.barra_y.get()
+verifica(abs(ultimo - 0.25) < 0.01 e primo == 0, "il cursore copre un quarto: " + tipo_testo((primo, ultimo)))
+s._scorri(("moveto", "0.5"), "y")
+verifica(s.y == 200, "trascinando la barra a metà: " + tipo_testo(s.y))
+s._scorri(("scroll", "1", "units"), "y")
+verifica(s.y == 220, "freccia della barra: un passo da 20")
+
+# rotella del mouse
+s.vai_a(0, 0)
+classe Evento:
+    delta = -120
+s._rotella(Evento())
+verifica(s.y == 20, "rotella in giù: scorre di un passo")
+Evento.delta = 120
+s._rotella(Evento())
+verifica(s.y == 0, "rotella in su")
+
+radice.destroy()
+
+# ----------------------------------------------------------------- progettista e modello
+p = form_modello.proprieta_di("Riquadro")
+verifica("scorrevole" in p e "visibile_larghezza" in p e "visibile_altezza" in p, "le proprietà ci sono")
+f = Form("Scorre", "Scorre")
+f.larghezza, f.altezza = 400, 300
+q = f.aggiungi("Riquadro", 10, 10, nome="area", larghezza=300, altezza=600)
+verifica(form_modello.misure_programma(q) == (300, 600), "non scorrevole: misure uguali")
+q.valori.update(scorrevole=Vero, visibile_larghezza=300, visibile_altezza=200)
+verifica(form_modello.misure_programma(q) == (300, 200), "scorrevole: nel programma si vede la parte visibile")
+q.valori.update(visibile_altezza=0)
+verifica(form_modello.misure_programma(q) == (300, 600), "visibile 0 = tutto")
+q.valori.update(visibile_altezza=900)
+verifica(form_modello.misure_programma(q) == (300, 600), "mai più grande del riquadro disegnato")
+q.valori.update(visibile_altezza=200)
+f.aggiungi("Etichetta", 5, 5, nome="in_alto", testo="in alto", genitore="area")
+f.aggiungi("Etichetta", 5, 550, nome="in_basso", testo="in basso", genitore="area")
+verifica(form_modello.usa_scorrevole(f), "usa_scorrevole")
+verifica(non form_modello.usa_scorrevole(Form("Altro", "x")), "e una finestra senza riquadro scorrevole no")
+ui = form_modello.genera_ui_completa(f)
+verifica("importa scorrevole" in ui, "il codice importa il modulo")
+verifica("se_stesso.area.posiziona(x=10, y=10, width=300, height=200)" in ui, "il riquadro ha la misura visibile: " + [r per r in ui.split(chr(10)) se "area.posiziona" in r][0])
+verifica("scorrevole.rendi_scorrevole(se_stesso.area, 300, 600)" in ui, "dopo i componenti, la chiamata")
+verifica(ui.index("in_basso = ") < ui.index("rendi_scorrevole"), "e viene dopo la creazione dei componenti")
+verifica("importa scorrevole" non in form_modello.genera_ui_completa(Form("Altro", "x")), "senza riquadro scorrevole niente import")
+q.valori.update(layout="griglia")
+verifica(any("scorrevole" in x per x in f.problemi()), "un riquadro scorrevole a griglia è segnalato: " + tipo_testo(f.problemi()))
+q.valori.update(layout="libero")
+verifica(non any("scorrevole" in x per x in f.problemi()), "libero: nessun problema")
+
+# ----------------------------------------------------------------- finestra vera
+cartella = tempfile.mkdtemp()
+form_modello.salva_form(f, cartella)
+verifica(os.path.exists(os.path.join(cartella, "scorrevole.pit")), "il modulo viene copiato nel progetto")
+sys.path.insert(0, cartella)
+sys.modules.pop("scorrevole", Nessuno)
+importlib.invalidate_caches()
+m = importlib.import_module("scorre")
+radice = tk.Tk()
+radice.geometry("+30+30")
+w = m.Scorre(radice)
+radice.update()
+radice.update()
+verifica(w.area.winfo_width() == 300 e w.area.winfo_height() == 200, "il riquadro è alto 200: " + tipo_testo((w.area.winfo_width(), w.area.winfo_height())))
+verifica(w.in_alto.place_info()["y"] == "5" e w.in_basso.place_info()["y"] == "550", "i componenti sono dove disegnati (550 è fuori vista)")
+verifica(w.area.scorrimento.barra_y.winfo_ismapped(), "la barra verticale si vede")
+w.area.scorrimento.mostra(w.in_basso)
+radice.update()
+verifica(0 <= w.in_basso.winfo_y() <= 200, "mostra(in_basso): ora si vede, y = " + tipo_testo(w.in_basso.winfo_y()))
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_scorrevole: ok")
