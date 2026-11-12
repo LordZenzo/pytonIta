@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.13
+
+- **Linux e macOS: l'aggiornamento non rompe più PitStudio**. Passando dalla 1.x alla 2.x l'aggiornamento senza ricompilare lasciava PitStudio nuovo sopra l'interprete vecchio, e non partiva più. Ora `installa.sh --solo-pitstudio` controlla la generazione dell'interprete (file `pitonit/patch/INTERPRETE`): se è troppo vecchio non cambia nulla e dice di rilanciare `sh installatore/linux/installa.sh` per intero. PitStudio stesso, avviato con un interprete 1.x, mostra lo stesso messaggio invece di un errore incomprensibile.
+
 ## Novità della 2.12
 
 - **Aggiorna dalla versione 1.x**: i progetti scritti con la 1.x non partono più (funzioni predefinite con il nome vecchio, `e`/`o`/`l`/`I` usate come nomi, finestre generate col generatore vecchio). Aprendo un progetto così PitStudio lo propone da solo; c'è anche il comando Progetto → «Aggiorna questo progetto dalla versione 1.x…». Rinomina i nomi in tutto il progetto senza toccare le tue variabili, rigenera le finestre disegnate, rinnova i moduli copiati da PitStudio ed elenca ciò che resta da sistemare a mano. Si può annullare con «Annulla».

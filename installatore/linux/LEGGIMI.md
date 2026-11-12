@@ -39,7 +39,7 @@ Su Linux viene creata anche la voce «PitStudio» nel menu delle applicazioni.
 
 ## Aggiornamenti
 
-*Aiuto → Controlla aggiornamenti* funziona anche qui: scarica i sorgenti della nuova Release, lancia `installa.sh --solo-pitstudio` sull'installazione in uso e propone di riavviare. L'interprete non viene ricompilato: se una versione futura cambia l'interprete, le note della Release lo diranno e basterà rilanciare `installa.sh` per intero.
+*Aiuto → Controlla aggiornamenti* funziona anche qui: scarica i sorgenti della nuova Release, lancia `installa.sh --solo-pitstudio` sull'installazione in uso e propone di riavviare. L'interprete non viene ricompilato. Se la nuova versione ne richiede uno più nuovo (come passando dalla 1.x alla 2.x, che ha cambiato i nomi delle funzioni), lo script se ne accorge, **non cambia nulla** e ti dice di rilanciare `installa.sh` per intero (compila anche l'interprete). Se hai già aggiornato con una versione che non faceva questo controllo e PitStudio non parte più, la soluzione è la stessa: `sh installatore/linux/installa.sh` dalla cartella del repository. Le tue impostazioni (`~/.rad`) e i tuoi progetti non si toccano.
 
 ## Differenze rispetto a Windows
 

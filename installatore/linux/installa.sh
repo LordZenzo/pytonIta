@@ -161,15 +161,42 @@ costruisci_pitonit() {
     dica "Installo"
     ( cd "$lavoro/src" && make install > "$lavoro/install.log" 2>&1 ) || { tail -20 "$lavoro/install.log"; errore "make install non è riuscito."; }
     ln -sf python3.13 "$PREFISSO/bin/pitonit"
+    cp "$RADICE/pitonit/patch/INTERPRETE" "$PREFISSO/INTERPRETE"          # quale generazione dell'interprete è installata (vedi controlla_interprete)
 
     py="$(trova_python)"
     "$py" -c "import tkinter" 2>/dev/null || echo "ATTENZIONE: tkinter non è stato compilato (mancano le librerie di sviluppo di Tk): PitStudio non si aprirà."
 }
 
 # --------------------------------------------------------------------------- PitStudio e librerie
+# L'aggiornamento senza ricompilare vale solo se l'interprete installato è della stessa generazione di quello richiesto da questa versione:
+# altrimenti PitStudio nuovo e librerie nuove girerebbero su un interprete vecchio e non partirebbero più. In quel caso non si tocca niente.
+controlla_interprete() {
+    py="$1"
+    serve="$(cat "$RADICE/pitonit/patch/INTERPRETE" 2>/dev/null || echo 1)"
+    if [ -f "$PREFISSO/INTERPRETE" ]; then
+        ce="$(cat "$PREFISSO/INTERPRETE")"
+    elif "$py" -c "import _controlla" >/dev/null 2>&1; then
+        ce=2                                        # installato prima che esistesse il file, ma già della generazione 2
+    else
+        ce=1
+    fi
+    if [ "$ce" -lt "$serve" ] 2>/dev/null; then
+        printf '
+Questa versione richiede un interprete pitonit più nuovo di quello installato (generazione %s, installata %s).
+' "$serve" "$ce" >&2
+        printf 'Non ho cambiato nulla: PitStudio e librerie attuali restano com'"'"'erano.
+' >&2
+        printf 'Per aggiornare ricompila anche l'"'"'interprete (5-15 minuti), dalla cartella del repository:
+  sh installatore/linux/installa.sh --prefisso=%s
+' "$PREFISSO" >&2
+        exit 3
+    fi
+}
+
 installa_pitstudio() {
     py="$(trova_python)"
     [ -x "$py" ] || errore "non trovo l'interprete in $py: installa prima senza --solo-pitstudio."
+    [ "$SOLO_PITSTUDIO" = "1" ] && controlla_interprete "$py"
     lib="$("$py" -c "import os; print(os.path.dirname(os.__file__))")"
 
     dica "Librerie italiane (108) in $lib"

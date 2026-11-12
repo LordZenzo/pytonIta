@@ -78,6 +78,7 @@ altrimenti:
         ag.installa_da_sorgenti(guasto, prefisso)
     eccetto ag.ErroreAggiornamenti come errore:
         sollevato = "compilazione fallita" in tipo_testo(errore)
+        verifica(non tipo_testo(errore).startswith("L'installazione non è riuscita"), "uscita 3 = interprete troppo vecchio: si mostra solo il messaggio dello script")
     verifica(sollevato, "lo script fallito doveva dare un errore con il suo testo")
 
     # archivio non valido

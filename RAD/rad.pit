@@ -6,6 +6,23 @@ importa tkinter come tk
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# PitStudio 2.x vuole l'interprete 2.x (nomi nuovi come lunghezza_di): con un interprete 1.x non può nemmeno partire. Lo si dice chiaro,
+# usando solo ciò che esiste in entrambe le versioni. Il modulo _controlla c'è solo dalla 2.0.
+importa importlib.util
+se importlib.util.find_spec("_controlla") è Nessuno:
+    MESSAGGIO_INTERPRETE = ("PitStudio 2.x richiede l'interprete pitonit 2.x, ma questo è una versione 1.x.\n\n"
+                            "Reinstalla tutto, ricompilando l'interprete: dalla cartella del repository\n  sh installatore/linux/installa.sh\n"
+                            "(senza --solo-pitstudio). Su Windows basta rilanciare Installa_pytonIta.exe.")
+    sys.stderr.write(MESSAGGIO_INTERPRETE + "\n")
+    prova:
+        importa tkinter.messagebox
+        radice_errore = tkinter.Tk()
+        radice_errore.withdraw()
+        tkinter.messagebox.showerror("PitStudio", MESSAGGIO_INTERPRETE)
+    eccetto Exception:
+        passa
+    sys.exit(3)
+
 da rad importa NOME
 da rad.config importa Configurazione, CARTELLA
 da rad.finestra importa Applicazione

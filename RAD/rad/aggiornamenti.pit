@@ -184,6 +184,8 @@ definisci _installa_da_cartella(archivio, cartella, prefisso, tempo_massimo):
                            encoding="utf-8", errors="replace", timeout=tempo_massimo)
     eccetto (OSError, subprocess.TimeoutExpired) come errore:
         solleva ErroreAggiornamenti(f"Non riesco a eseguire l'installazione: {errore}") da errore
+    se r.returncode == 3:                  # l'interprete installato è troppo vecchio per questa versione: lo script non ha toccato nulla e lo spiega
+        solleva ErroreAggiornamenti(r.stderr.strip() o "Serve ricompilare l'interprete: rilancia installa.sh senza --solo-pitstudio.")
     se r.returncode != 0:
         solleva ErroreAggiornamenti("L'installazione non è riuscita:\n" + (r.stdout + r.stderr)[-1500:])
     ritorna r.stdout
