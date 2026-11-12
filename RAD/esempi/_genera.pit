@@ -448,16 +448,16 @@ classe Disegno(DisegnoUI):
         se_stesso.tela1.bind("<B1-Motion>", se_stesso.disegna)
         se_stesso.tela1.bind("<ButtonRelease-1>", se_stesso.finisci)
 
-    definisci inizia(se_stesso, e):
-        se_stesso.ultimo = (e.x, e.y)
-        se_stesso._segno(e.x, e.y, e.x, e.y)
+    definisci inizia(se_stesso, evento_tk):
+        se_stesso.ultimo = (evento_tk.x, evento_tk.y)
+        se_stesso._segno(evento_tk.x, evento_tk.y, evento_tk.x, evento_tk.y)
 
-    definisci disegna(se_stesso, e):
+    definisci disegna(se_stesso, evento_tk):
         se se_stesso.ultimo:
-            se_stesso._segno(se_stesso.ultimo[0], se_stesso.ultimo[1], e.x, e.y)
-            se_stesso.ultimo = (e.x, e.y)
+            se_stesso._segno(se_stesso.ultimo[0], se_stesso.ultimo[1], evento_tk.x, evento_tk.y)
+            se_stesso.ultimo = (evento_tk.x, evento_tk.y)
 
-    definisci finisci(se_stesso, e):
+    definisci finisci(se_stesso, evento_tk):
         se_stesso.ultimo = Nessuno
 
     definisci _segno(se_stesso, x1, y1, x2, y2):

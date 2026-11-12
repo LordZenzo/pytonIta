@@ -1,0 +1,305 @@
+"""Aggiorna un progetto scritto con la versione 1.x di pytonIta alla 2.x.
+
+Cosa è cambiato con la 2.0 (vedi pitonit/NOMI.md):
+  - le funzioni predefinite hanno nomi con il trattino basso (lunghezza -> lunghezza_di, testo -> tipo_testo, ...);
+  - le parole chiave e le lettere ambigue (e, o, l, I) non si possono più usare come nomi di variabili o di parametri.
+Il lavoro è meccanico e sicuro: si guarda il programma come albero (non come testo), quindi le variabili che si chiamano come una vecchia
+funzione, i metodi e gli attributi non si toccano. Le finestre disegnate (.form.json) si rigenerano con il generatore nuovo.
+Qui non si salva nessuna copia: chi chiama (PitStudio) fotografa il progetto prima, così si può annullare."""
+importa ast
+importa os
+importa re
+importa sys
+
+CARTELLE_ESCLUSE = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules", "venv", ".venv", "env", "build", "dist"}
+LIMITE_FILE = 2 * 1024 * 1024
+
+# vecchio nome italiano -> nuovo
+VECCHIO_NUOVO = {
+    "testo": "tipo_testo", "lista": "tipo_lista", "intero": "tipo_intero", "decimale": "tipo_decimale", "dizionario": "tipo_dizionario",
+    "insieme": "tipo_insieme", "tupla": "tipo_tupla", "byte": "tipo_byte", "oggetto": "oggetto_base", "fetta": "crea_fetta", "tipo": "tipo_di",
+    "somma": "somma_di", "massimo": "massimo_di", "minimo": "minimo_di", "intervallo": "intervallo_di", "mappa": "mappa_funzione",
+    "genitore": "classe_base", "variabili": "variabili_di", "locali": "nomi_locali", "globali": "nomi_globali", "proprietà": "attributo_calcolato",
+    "impronta": "impronta_di", "identità": "identità_di", "carattere": "carattere_da_codice", "valuta": "valuta_espressione", "aiuto": "mostra_aiuto",
+    "leggi": "leggi_tastiera", "inverso": "inverso_di", "ordinato": "ordinato_di", "assoluto": "valore_assoluto", "potenza": "potenza_di",
+    "tutti": "tutti_veri", "qualsiasi": "almeno_uno_vero", "prossimo": "prossimo_elemento", "iteratore": "iteratore_di", "binario": "in_binario",
+    "ottale": "in_ottale", "esadecimale": "in_esadecimale", "lunghezza": "lunghezza_di", "licenza": "mostra_licenza",
+    "riconoscimenti": "mostra_riconoscimenti", "diritti_d_autore": "mostra_diritti_d_autore",
+}
+LETTERE = ("e", "o", "l", "I")
+ATTRIBUTI_EVENTO = {"x", "y", "x_root", "y_root", "char", "keysym", "widget", "delta", "num", "state", "keycode", "type"}
+
+
+definisci _controllo():
+    """Il modulo _controlla di pitonit (c'è sempre, nell'installazione)."""
+    importa _controlla
+    ritorna _controlla
+
+
+definisci _albero(dati, percorso):
+    prova:
+        ritorna compile(dati, percorso, "exec", _controllo().FLAG_ITALIANO | ast.PyCF_ONLY_AST, dont_inherit=Vero)
+    eccetto (ErroreDiSintassi, ErroreDiValore):
+        ritorna Nessuno
+
+
+definisci _normale(dati):
+    """Byte senza i ritorni a capo di Windows, per confrontare due file."""
+    ritorna dati.replace(bytes([13, 10]), bytes([10]))
+
+
+definisci _applica(dati, modifiche):
+    """modifiche: insieme di (riga, colonna in byte, vecchio, nuovo). Ritorna i dati nuovi e quante modifiche sono andate a buon fine."""
+    linee = dati.split(b"\n")
+    fatte = 0
+    per riga, colonna, vecchio, nuovo in sorted(modifiche, key=lambda m: (m[0], -m[1])):
+        base = linee[riga - 1]
+        grezzo = vecchio.encode("utf-8")
+        se base[colonna:colonna + lunghezza_di(grezzo)] != grezzo:
+            continua
+        linee[riga - 1] = base[:colonna] + nuovo.encode("utf-8") + base[colonna + lunghezza_di(grezzo):]
+        fatte += 1
+    ritorna b"\n".join(linee), fatte
+
+
+# ---------------------------------------------------------------- 1. le funzioni predefinite con il nome vecchio
+definisci rinomina_predefiniti(dati, percorso="<sorgente>"):
+    """lunghezza(x) -> lunghezza_di(x), ecc., solo dove il nome è davvero la funzione predefinita (non una variabile, non un attributo)."""
+    albero = _albero(dati, percorso)
+    se albero è Nessuno:
+        ritorna dati, 0
+    controllo = _controllo()
+    analisi = controllo.Analizzatore()
+    analisi.visit(albero)
+    modifiche = set()
+    per ambito, nome, nodo, chiamata in analisi.usi:
+        se nome in VECCHIO_NUOVO e controllo._risolvi(ambito, nome) è Nessuno:
+            modifiche.add((nodo.lineno, nodo.col_offset, nome, VECCHIO_NUOVO[nome]))
+    ritorna _applica(dati, modifiche)
+
+
+# ---------------------------------------------------------------- 2. le lettere ambigue usate come nomi
+definisci _nome_nuovo(nome, generi, attributi, chiamata):
+    """Un nome intero scelto da come la lettera viene usata."""
+    se nome == "e":
+        se "except" in generi:
+            ritorna "errore"
+        se attributi & ATTRIBUTI_EVENTO o ("param" in generi e non attributi):
+            ritorna "evento"
+        ritorna "elemento"
+    se nome in ("l", "I"):
+        se attributi & {"grid", "pack", "configure", "config", "place", "cget"}:
+            ritorna "etichetta"
+        se attributi & {"x", "y", "w", "h"}:
+            ritorna "disposizione"
+        se "param" in generi:
+            ritorna "larghezza"
+        ritorna "elemento" se "for" in generi altrimenti "riga_testo"
+    se chiamata:                                       # «o»
+        ritorna "funzione_scelta"
+    se attributi & {"append", "extend"} o "augassign" in generi:
+        ritorna "opzioni"
+    ritorna "elemento" se "for" in generi altrimenti "valore"
+
+
+definisci rinomina_lettere(dati, percorso="<sorgente>"):
+    """e, o, l, I come nomi di variabile o di parametro -> nomi interi, ambito per ambito (due ambiti diversi possono avere nomi diversi)."""
+    albero = _albero(dati, percorso)
+    se albero è Nessuno:
+        ritorna dati, 0
+    controllo = _controllo()
+    analisi = controllo.Analizzatore()
+    analisi.visit(albero)
+    attributi_di = {}
+    per nodo in ast.walk(albero):
+        se isinstance(nodo, ast.Attribute) e isinstance(nodo.value, ast.Name):
+            attributi_di.setdefault(id(nodo.value), set()).add(nodo.attr)
+    usati = set()
+    per nodo in ast.walk(albero):
+        per campo in ("id", "arg", "name", "asname"):
+            valore = getattr(nodo, campo, Nessuno)
+            se isinstance(valore, str):
+                usati.add(valore)
+    gruppi = {}
+
+    definisci gruppo(ambito, nome):
+        ritorna gruppi.setdefault((id(ambito), nome), {"generi": set(), "attributi": set(), "chiamata": Falso, "nodi": [], "speciali": []})
+    per ambito, nome, nodo, genere in analisi.tutti:
+        se nome non in LETTERE:
+            continua
+        voce = gruppo(ambito, nome)
+        voce["generi"].add(genere)
+        se isinstance(nodo, (ast.Name, ast.arg)):
+            voce["nodi"].append(nodo)
+            voce["attributi"] |= attributi_di.get(id(nodo), set())
+        altrimenti:
+            voce["speciali"].append(nodo)
+    per ambito, nome, nodo, chiamata in analisi.usi:
+        se nome non in LETTERE:
+            continua
+        legato = controllo._risolvi(ambito, nome)
+        se legato è Nessuno:
+            continua
+        voce = gruppo(legato, nome)
+        voce["nodi"].append(nodo)
+        voce["attributi"] |= attributi_di.get(id(nodo), set())
+        voce["chiamata"] = voce["chiamata"] o chiamata
+    per nodo in ast.walk(albero):
+        se isinstance(nodo, ast.AugAssign) e isinstance(nodo.target, ast.Name) e nodo.target.id in LETTERE:
+            per (_, nome), voce in gruppi.items():
+                se nome == nodo.target.id e almeno_uno_vero(altro è nodo.target per altro in voce["nodi"]):
+                    voce["generi"].add("augassign")
+    linee = dati.split(b"\n")
+    modifiche = set()
+    per (_, nome), voce in gruppi.items():
+        nuovo = _nome_nuovo(nome, voce["generi"], voce["attributi"], voce["chiamata"])
+        mentre nuovo in usati:                         # niente scontri con nomi già presenti nel file
+            nuovo += "_"
+        usati.add(nuovo)
+        per nodo in voce["nodi"]:
+            modifiche.add((nodo.lineno, nodo.col_offset, nome, nuovo))
+        per nodo in voce["speciali"]:                  # except ... come e / definisci e( / classe e( / import ... come e
+            riga = linee[nodo.lineno - 1].decode("utf-8")
+            se isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                trovato = re.search(r"\bdefinisci\s+(%s)\b" % nome, riga)
+            altrimenti_se isinstance(nodo, ast.ClassDef):
+                trovato = re.search(r"\bclasse\s+(%s)\b" % nome, riga)
+            altrimenti:
+                trovato = re.search(r"\bcome\s+(%s)\b" % nome, riga)
+            se trovato:
+                modifiche.add((nodo.lineno, lunghezza_di(riga[:trovato.start(1)].encode("utf-8")), nome, nuovo))
+    ritorna _applica(dati, modifiche)
+
+
+definisci aggiorna_sorgente(dati, percorso="<sorgente>"):
+    """(dati nuovi, quante funzioni rinominate, quante lettere rinominate). `dati` sono byte."""
+    dati, funzioni = rinomina_predefiniti(dati, percorso)
+    dati, lettere = rinomina_lettere(dati, percorso)
+    ritorna dati, funzioni, lettere
+
+
+definisci errori_gravi(dati, percorso="<sorgente>"):
+    """[(riga, messaggio)] di ciò che impedirebbe la partenza del programma (parole chiave usate come nomi, funzioni nascoste...)."""
+    prova:
+        errori, _avvisi, _righe = _controllo().analizza(dati, percorso)
+    eccetto Eccezione:
+        ritorna []
+    ritorna [(riga, messaggio) per riga, _colonna, messaggio in errori]
+
+
+# ---------------------------------------------------------------- il progetto
+definisci _file_pit(cartella):
+    per radice, cartelle, nomi in os.walk(cartella):
+        cartelle[:] = sorted(d per d in cartelle se d non in CARTELLE_ESCLUSE)
+        per nome in sorted(nomi):
+            se nome.lower().endswith(".pit"):
+                percorso = os.path.join(radice, nome)
+                prova:
+                    se os.path.getsize(percorso) <= LIMITE_FILE:
+                        produci percorso
+                eccetto OSError:
+                    continua
+
+
+definisci _finestre(cartella):
+    """[(percorso del .form.json, percorso del _ui.pit)] delle finestre disegnate."""
+    da rad.form_modello importa carica_form, percorsi_form
+    risultato = []
+    per radice, cartelle, nomi in os.walk(cartella):
+        cartelle[:] = sorted(d per d in cartelle se d non in CARTELLE_ESCLUSE)
+        per nome in sorted(nomi):
+            se nome.lower().endswith(".form.json"):
+                json_ = os.path.join(radice, nome)
+                prova:
+                    form = carica_form(json_)
+                eccetto Eccezione:
+                    continua
+                risultato.append((json_, percorsi_form(radice, form.nome)["ui"], form))
+    ritorna risultato
+
+
+definisci aggiorna_progetto(cartella, applica=Falso):
+    """Esamina (e con applica=True aggiorna) il progetto. Ritorna
+    {"finestre": [percorsi relativi dei _ui.pit rigenerati], "file": {percorso relativo: (funzioni, lettere)}, "residui": {percorso relativo: [(riga, messaggio)]}}."""
+    da rad.form_modello importa genera_ui_completa, salva_form, CARTELLA_MODELLI
+    rapporto = {"moduli": [], "finestre": [], "file": {}, "residui": {}}
+    ui_generati = set()
+    da_rifare = set()                      # file che l'aggiornamento sostituisce: i loro errori di adesso spariranno
+    # i moduli che PitStudio copia nel progetto (aspetto, fonte_dati, griglia…) si sostituiscono con quelli nuovi invece di correggerli
+    modelli = {}
+    per nome in os.listdir(CARTELLA_MODELLI):
+        se nome.lower().endswith(".pit"):
+            modelli[nome.lower()] = os.path.join(CARTELLA_MODELLI, nome)
+    per nome in sorted(os.listdir(cartella)):
+        se nome.lower() in modelli e os.path.isfile(os.path.join(cartella, nome)):
+            nuovo_modulo = open(modelli[nome.lower()], "rb").read()
+            se _normale(open(os.path.join(cartella, nome), "rb").read()) != _normale(nuovo_modulo):
+                rapporto["moduli"].append(nome)
+                da_rifare.add(os.path.abspath(os.path.join(cartella, nome)))
+                se applica:
+                    con open(os.path.join(cartella, nome), "wb") come f:
+                        f.write(nuovo_modulo)
+    da_saltare = {os.path.abspath(os.path.join(cartella, nome)) per nome in os.listdir(cartella) se nome.lower() in modelli}
+    per json_, ui, form in _finestre(cartella):
+        ui_generati.add(os.path.abspath(ui))
+        prova:
+            attuale = open(ui, encoding="utf-8", newline="").read().replace("\r\n", "\n") se os.path.exists(ui) altrimenti ""
+            nuovo = genera_ui_completa(form)
+        eccetto Eccezione:
+            continua
+        se attuale != nuovo.replace("\r\n", "\n"):
+            rapporto["finestre"].append(os.path.relpath(ui, cartella))
+            da_rifare.add(os.path.abspath(ui))
+            se applica:
+                salva_form(form, os.path.dirname(json_))
+    per percorso in _file_pit(cartella):
+        relativo = os.path.relpath(percorso, cartella)
+        dati = open(percorso, "rb").read()
+        se os.path.abspath(percorso) non in ui_generati e os.path.abspath(percorso) non in da_saltare:
+            nuovi, funzioni, lettere = aggiorna_sorgente(dati, percorso)
+            se funzioni o lettere:
+                rapporto["file"][relativo] = (funzioni, lettere)
+                se applica:
+                    con open(percorso, "wb") come f:
+                        f.write(nuovi)
+                dati = nuovi
+        residui = errori_gravi(dati, percorso) se (applica o os.path.abspath(percorso) non in da_rifare) altrimenti []
+        se residui:
+            rapporto["residui"][relativo] = residui
+    ritorna rapporto
+
+
+definisci serve_aggiornamento(cartella):
+    """True se il progetto ha qualcosa da aggiornare (nomi vecchi, finestre generate col generatore vecchio) o errori gravi."""
+    r = aggiorna_progetto(cartella, applica=Falso)
+    ritorna bool(r["moduli"] o r["finestre"] o r["file"] o r["residui"])
+
+
+definisci testo_rapporto(rapporto, applicato=Falso):
+    """Il riassunto in italiano, per l'utente o per l'assistente."""
+    righe = []
+    se rapporto["moduli"]:
+        righe.append(("Moduli di PitStudio rinnovati" se applicato altrimenti "Moduli di PitStudio da rinnovare") + ": " + ", ".join(rapporto["moduli"]))
+    se rapporto["finestre"]:
+        righe.append(("Finestre rigenerate" se applicato altrimenti "Finestre da rigenerare") + " con il generatore nuovo: " + ", ".join(rapporto["finestre"]))
+    per relativo, (funzioni, lettere) in rapporto["file"].items():
+        dettagli = []
+        se funzioni:
+            dettagli.append(f"{funzioni} nomi di funzioni predefinite")
+        se lettere:
+            dettagli.append(f"{lettere} nomi di una lettera (e, o, l, I)")
+        righe.append(f"  {relativo}: " + " e ".join(dettagli))
+    se non righe:
+        righe.append("Niente da aggiornare automaticamente.")
+    se rapporto["residui"]:
+        righe.append("")
+        righe.append("Restano da sistemare a mano (il programma non partirebbe):")
+        per relativo, elenco in rapporto["residui"].items():
+            per riga, messaggio in elenco[:5]:
+                righe.append(f"  {relativo}, riga {riga}: {messaggio}")
+            se lunghezza_di(elenco) > 5:
+                righe.append(f"  {relativo}: … e altri {lunghezza_di(elenco) - 5}")
+    altrimenti_se applicato:
+        righe.append("")
+        righe.append("Il controllo non trova più errori gravi.")
+    ritorna "\n".join(righe)

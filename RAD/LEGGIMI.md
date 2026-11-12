@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.12
+
+- **Aggiorna dalla versione 1.x**: i progetti scritti con la 1.x non partono più (funzioni predefinite con il nome vecchio, `e`/`o`/`l`/`I` usate come nomi, finestre generate col generatore vecchio). Aprendo un progetto così PitStudio lo propone da solo; c'è anche il comando Progetto → «Aggiorna questo progetto dalla versione 1.x…». Rinomina i nomi in tutto il progetto senza toccare le tue variabili, rigenera le finestre disegnate, rinnova i moduli copiati da PitStudio ed elenca ciò che resta da sistemare a mano. Si può annullare con «Annulla».
+- **L'assistente lo conosce**: ha lo strumento `aggiorna_da_1x` e sa che, quando gli errori sono di questo tipo, deve guardare il file indicato dalla console e proporre l'aggiornamento invece di correggere a mano.
+
 ## Novità della 2.11
 
 - **Cerca i modelli disponibili**: accanto al campo del modello, nelle impostazioni dell'assistente, il pulsante «🔍 Cerca i modelli disponibili» chiede al fornitore (con la chiave appena scritta, anche non ancora salvata) quali modelli offre *adesso*, così non si sceglie un modello vecchio o chiuso. Con OpenRouter si vedono anche i prezzi per milione di token; gli altri fornitori non li danno nell'API, e c'è il pulsante verso la loro pagina dei prezzi. Si sceglie con doppio clic o «Usa come modello / economico», e l'elenco trovato diventa quello della casella dei modelli nella chat.

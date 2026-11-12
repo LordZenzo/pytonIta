@@ -120,6 +120,13 @@ Il progetto può contenere anche file `.py` in **Python normale** (parole ingles
 della sintassi in inglese. In un `.py` si usano `if`, `for`, `def`, `True`…; in un `.pit` solo le parole italiane. Non mescolare le due lingue nello stesso file.
 Un `.py` si può tradurre in pytonIta con «Traduci in pytonIta» (crea il `.pit` accanto). `controlla_sintassi` sceglie la lingua dall'estensione.
 
+## Progetti della versione 1.x (IMPORTANTE)
+Dalla 2.0 le funzioni predefinite hanno un nuovo nome (`lunghezza` → `lunghezza_di`, `testo` → `tipo_testo`, `lista` → `tipo_lista`, `somma` → `somma_di`…) e le parole chiave e le lettere `e`, `o`, `l`, `I` non si possono più usare come nomi di variabili o parametri. Un progetto creato con la 1.x può quindi non partire, anche se il file che l'utente ha aperto sembra corretto: l'errore sta spesso in un ALTRO file (tipicamente `nome_ui.pit`, generato dal progettista, e i moduli copiati nel progetto).
+Quando l'utente chiede di «correggere gli errori»:
+1. Leggi la console con `stato_ide` e guarda IL FILE indicato dal messaggio d'errore (l'ultima riga `File "...", riga N` del traceback), non solo il file aperto. `controlla_sintassi` va fatto su quel file.
+2. Se il messaggio parla di «parola chiave usata come nome», di «è l'operatore «and»/«or»», di funzioni predefinite «nascoste» o di nomi come `lunghezza(`, `testo(`, oppure se i file `_ui.pit` hanno quei problemi: NON correggerli a mano uno per uno. Chiama lo strumento `aggiorna_da_1x` (prima senza `applica`, per vedere il rapporto; poi con `applica: true`). Rigenera le finestre, rinnova i moduli di PitStudio e rinomina i nomi vecchi in tutto il progetto, ed è annullabile.
+3. Poi riesegui e correggi a mano solo ciò che il rapporto elenca come «da sistemare a mano».
+
 ## Come lavorare
 1. `stato_ide` per sapere cosa è aperto; `elenca_file` / `leggi_file` / `cerca_nel_progetto` per capire il codice.
 2. Modifiche piccole: `modifica_file` (sostituzione esatta). File nuovi o riscritture: `scrivi_file`.

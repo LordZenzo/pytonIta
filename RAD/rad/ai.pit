@@ -77,6 +77,12 @@ DEFINIZIONI = [
      "description": "Crea o sostituisce una finestra nel progettista a partire da un oggetto form (vedi manuale). "
                     "Genera/aggiorna nome.form.json, nome_ui.pit e aggiunge a nome.pit i gestori mancanti.",
      "input_schema": {"type": "object", "properties": {"form": {"type": "object"}}, "required": ["form"]}},
+    {"name": "aggiorna_da_1x",
+     "description": "Aggiorna un progetto scritto con la versione 1.x di pytonIta alla 2.x: rinomina le funzioni predefinite (lunghezza -> lunghezza_di, testo -> tipo_testo…), "
+                    "le lettere e/o/l/I usate come nomi, rigenera le finestre disegnate (_ui.pit) e rinnova i moduli copiati da PitStudio. "
+                    "Senza applica mostra solo il rapporto di cosa cambierebbe; con applica: true lo fa (annullabile con «Annulla»). "
+                    "Usalo quando gli errori sono parole chiave usate come nomi, «e»/«o» come variabili o nomi predefiniti vecchi.",
+     "input_schema": {"type": "object", "properties": {"applica": {"type": "boolean"}}}},
     {"name": "converti_in_mattonelle",
      "description": "Converte un file .pit esistente in un programma a mattonelle (nome_mattonelle.mattonelle.json + codice generato) e lo apre. "
                     "Le parti senza mattonella equivalente restano come mattonelle di testo. L'originale non viene modificato.",
@@ -107,7 +113,7 @@ DEFINIZIONI_PROFESSORE = [d per d in DEFINIZIONI se d["name"] in NOMI_PROFESSORE
 
 # strumenti che possono cambiare i file del progetto: prima del primo di questi si fotografa lo stato (annullabile)
 STRUMENTI_CHE_MODIFICANO = {"scrivi_file", "modifica_file", "elimina_file", "imposta_form", "imposta_mattonelle",
-                            "converti_in_mattonelle", "esegui_programma"}
+                            "converti_in_mattonelle", "esegui_programma", "aggiorna_da_1x"}
 
 
 classe ErroreAI(Eccezione):
@@ -1005,6 +1011,23 @@ classe Strumenti:
         se non nome:
             ritorna "\n".join(p.forms()) o "(nessuna finestra disegnata)"
         ritorna se_stesso.ponte.esegui(lambda: se_stesso.ambiente.json_form(nome))
+
+    definisci s_aggiorna_da_1x(se_stesso, applica=Falso):
+        da rad importa aggiorna_1x
+        cartella = se_stesso.progetto.cartella
+        rapporto = aggiorna_1x.aggiorna_progetto(cartella)
+        testo_ = aggiorna_1x.testo_rapporto(rapporto)
+        se non applica:
+            ritorna "RAPPORTO (nulla è stato modificato; per farlo richiama lo strumento con applica: true):\n" + testo_
+        se non (rapporto["moduli"] o rapporto["finestre"] o rapporto["file"]):
+            ritorna testo_
+        se se_stesso.config_.ottieni("ai.conferma_scrittura", Vero):
+            se non se_stesso.ponte.esegui(lambda: se_stesso.ambiente.chiedi_conferma("Aggiorna dalla 1.x", "L'assistente vuole aggiornare il progetto dalla versione 1.x:\n\n" + testo_ + "\n\nSi può annullare con «Annulla»."), 600):
+                solleva ErroreDiValore("l'utente ha rifiutato l'aggiornamento")
+        se_stesso.ponte.esegui(lambda: se_stesso.ambiente.salva_tutto())
+        rapporto = aggiorna_1x.aggiorna_progetto(cartella, applica=Vero)
+        se_stesso.ponte.esegui(lambda: se_stesso.ambiente.ricarica_file_cambiati())
+        ritorna "AGGIORNATO:\n" + aggiorna_1x.testo_rapporto(rapporto, Vero)
 
     definisci s_converti_in_mattonelle(se_stesso, file, nome=Nessuno):
         assoluto = se_stesso.progetto.assoluto(file)

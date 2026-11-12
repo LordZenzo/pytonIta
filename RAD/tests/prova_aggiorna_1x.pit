@@ -1,0 +1,138 @@
+"""Aggiornamento di un progetto 1.x: nomi predefiniti vecchi, lettere ambigue, finestre disegnate e moduli copiati, senza toccare ciò che è già giusto."""
+importa sys, os, tempfile, shutil
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa aggiorna_1x, form_modello
+da rad.form_modello importa Form
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+VECCHIO = '''importa tkinter come tk
+
+
+definisci somma_lista(valori):
+    totale = somma(valori)
+    ritorna lunghezza(valori) + totale
+
+
+definisci tratta(e, titolo="x"):
+    se e.widget è Nessuno:
+        ritorna testo(e.x)
+    ritorna ordinato(lista(intervallo(3)))
+
+
+prova:
+    numeri = lista(mappa(intero, ["1", "2"]))
+eccetto Exception come e:
+    stampa(e)
+
+massimo = 5
+stampa(massimo)
+oggetto = Nessuno
+class_ = tipo(oggetto)
+'''
+nuovo, funzioni, lettere = aggiorna_1x.aggiorna_sorgente(VECCHIO.encode("utf-8"), "prova.pit")
+nuovo = nuovo.decode("utf-8")
+verifica("somma_di(valori)" in nuovo e "lunghezza_di(valori)" in nuovo e "tipo_testo(" in nuovo e "ordinato_di(tipo_lista(intervallo_di(3)))" in nuovo, "le funzioni predefinite prendono il nome nuovo: " + nuovo)
+verifica("mappa_funzione(tipo_intero" in nuovo e "tipo_di(oggetto)" in nuovo, "anche mappa e tipo")
+verifica("massimo = 5" in nuovo e "stampa(massimo)" in nuovo, "una variabile che si chiama come una vecchia funzione non si tocca")
+verifica("definisci tratta(evento," in nuovo e "evento.widget" in nuovo e "tipo_testo(evento.x)" in nuovo, "e -> evento nei gestori: " + nuovo)
+verifica("come errore:" in nuovo e "stampa(errore)" in nuovo, "e -> errore in except")
+verifica(funzioni >= 9 e lettere >= 5, f"conteggi: {funzioni} {lettere}")
+verifica(aggiorna_1x.errori_gravi(nuovo.encode("utf-8"), "prova.pit") == [], "dopo l'aggiornamento non ci sono errori gravi")
+verifica(aggiorna_1x.aggiorna_sorgente(nuovo.encode("utf-8"), "prova.pit")[1:] == (0, 0), "rifarlo non cambia più nulla")
+verifica(aggiorna_1x.aggiorna_sorgente(b"definisci f(:\n", "rotto.pit") == (b"definisci f(:\n", 0, 0), "un file con sintassi sbagliata resta com'è")
+
+# ---------------------------------------------------------------- un progetto
+cartella = tempfile.mkdtemp()
+form = Form("Principale", "Principale")
+form.aggiungi("Etichetta", 10, 10, nome="titolo", testo="Ciao", larghezza=80, altezza=24)
+form_modello.salva_form(form, cartella)
+ui = os.path.join(cartella, "principale_ui.pit")
+vecchia_ui = open(ui, encoding="utf-8").read().replace("evento", "e").replace("_ricorda(e,", "_ricorda(e,")
+open(ui, "w", encoding="utf-8").write(vecchia_ui)
+verifica(aggiorna_1x.errori_gravi(vecchia_ui.encode("utf-8"), ui) != [], "la finestra vecchia ha errori gravi (prova di partenza)")
+open(os.path.join(cartella, "logica.pit"), "w", encoding="utf-8").write(VECCHIO)
+open(os.path.join(cartella, "aspetto.pit"), "w", encoding="utf-8").write("# versione vecchia del modulo\n")
+r = aggiorna_1x.aggiorna_progetto(cartella)
+verifica(r["finestre"] == ["principale_ui.pit"] e "logica.pit" in r["file"] e r["moduli"] == ["aspetto.pit"], "la prova non scrive nulla ma dice cosa farebbe: " + tipo_testo(r))
+verifica(open(os.path.join(cartella, "logica.pit"), encoding="utf-8").read() == VECCHIO, "e infatti il file è intatto")
+verifica(aggiorna_1x.serve_aggiornamento(cartella), "serve_aggiornamento: sì")
+r = aggiorna_1x.aggiorna_progetto(cartella, applica=Vero)
+verifica(r["residui"] == {}, "applicato: niente errori gravi rimasti: " + tipo_testo(r["residui"]))
+verifica("lunghezza_di(valori)" in open(os.path.join(cartella, "logica.pit"), encoding="utf-8").read(), "il file di logica è aggiornato")
+verifica(aggiorna_1x.errori_gravi(open(ui, "rb").read(), ui) == [] e "def _ricorda" in open(ui, encoding="utf-8").read().replace("definisci", "def"), "la finestra è rigenerata")
+verifica(non aggiorna_1x.serve_aggiornamento(cartella), "dopo: niente più da fare")
+verifica("Niente da aggiornare" in aggiorna_1x.testo_rapporto(aggiorna_1x.aggiorna_progetto(cartella), Vero) o "non trova più errori" in aggiorna_1x.testo_rapporto(aggiorna_1x.aggiorna_progetto(cartella), Vero), "rapporto a parole")
+# errori che non si risolvono da soli: il rapporto li elenca
+open(os.path.join(cartella, "duro.pit"), "w", encoding="utf-8").write("classe = 3\nstampa(classe)\n")
+r = aggiorna_1x.aggiorna_progetto(cartella, applica=Vero)
+verifica("duro.pit" in r["residui"] e "duro.pit, riga 1" in aggiorna_1x.testo_rapporto(r, Vero), "una parola chiave come nome resta da sistemare a mano e viene detta")
+
+# ---------------------------------------------------------------- dentro PitStudio: il comando e lo strumento dell'assistente
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa ai
+
+
+definisci progetto_vecchio():
+    nuova = tempfile.mkdtemp()
+    f = Form("Principale", "Principale")
+    f.aggiungi("Etichetta", 10, 10, nome="titolo", testo="Ciao", larghezza=80, altezza=24)
+    form_modello.salva_form(f, nuova)
+    vecchia = os.path.join(nuova, "principale_ui.pit")
+    open(vecchia, "w", encoding="utf-8").write(open(vecchia, encoding="utf-8").read().replace("evento", "e"))
+    open(os.path.join(nuova, "logica.pit"), "w", encoding="utf-8").write("totale = somma([1, 2])\nstampa(lunghezza([1]))\n")
+    Progetto(nuova).salva_manifesto()
+    ritorna nuova
+
+
+radice = tk.Tk()
+radice.geometry("1100x700+20+20")
+app = Applicazione(radice, Configurazione(os.path.join(tempfile.mkdtemp(), "c.json")))
+radice.update()
+domande = []
+messagebox.askyesno = lambda titolo, testo_, **k: (domande.append(testo_), Vero)[1]
+messagebox.showinfo = lambda titolo, testo_, **k: domande.append(testo_)
+cartella1 = progetto_vecchio()
+app.apri_progetto(cartella1)
+radice.update()
+radice.after(1500, radice.quit)
+radice.mainloop()                                   # l'offerta automatica arriva da sola, 400 ms dopo l'apertura
+verifica(domande e "versione 1.x" in domande[0] e "principale_ui.pit" in domande[0], "all'apertura di un progetto vecchio PitStudio propone l'aggiornamento: " + tipo_testo(domande)[:120])
+verifica(non aggiorna_1x.serve_aggiornamento(cartella1) e "lunghezza_di(" in open(os.path.join(cartella1, "logica.pit"), encoding="utf-8").read(), "e dopo il sì il progetto è aggiornato")
+verifica(app.storia.ultimo_annullabile() è non Nessuno, "ed è annullabile con «Annulla»")
+# lo strumento dell'assistente
+cartella2 = progetto_vecchio()
+app.apri_progetto(cartella2)
+domande.clear()
+radice.after(1500, radice.quit)
+radice.mainloop()
+domande.clear()
+cartella3 = progetto_vecchio()
+app.progetto = Progetto(cartella3)
+messagebox.askyesno = lambda titolo, testo_, **k: Vero
+classe PonteDiretto:
+    definisci esegui(se_stesso, funzione, tempo=Nessuno):
+        ritorna funzione()
+strumenti = ai.Strumenti(app, app.config_, PonteDiretto())
+rapporto = strumenti.s_aggiorna_da_1x()
+verifica("RAPPORTO" in rapporto e "principale_ui.pit" in rapporto e "lunghezza(" in open(os.path.join(cartella3, "logica.pit"), encoding="utf-8").read(), "lo strumento senza applica fa solo il rapporto")
+risultato = strumenti.s_aggiorna_da_1x(applica=Vero)
+verifica("AGGIORNATO" in risultato e non aggiorna_1x.serve_aggiornamento(cartella3), "con applica aggiorna: " + risultato[:120])
+verifica(any(d["name"] == "aggiorna_da_1x" per d in ai.DEFINIZIONI) e "aggiorna_da_1x" in ai.STRUMENTI_CHE_MODIFICANO e tutti_veri(d["name"] != "aggiorna_da_1x" per d in ai.DEFINIZIONI_PROFESSORE), "lo strumento è offerto all'assistente (non al professore) e conta come modifica")
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_aggiorna_1x: ok")

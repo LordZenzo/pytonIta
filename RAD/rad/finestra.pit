@@ -344,6 +344,7 @@ classe Applicazione:
         prog.add_command(label="Aggiungi risorse (immagini, JSON…)…", command=lambda: se_stesso.pannello_progetto.aggiungi_risorse())
         prog.add_command(label="Imposta il file corrente come principale", command=se_stesso.imposta_corrente_principale)
         prog.add_command(label="Proprietà del progetto…", command=se_stesso.proprieta_progetto)
+        prog.add_command(label="Aggiorna questo progetto dalla versione 1.x…", command=lambda: se_stesso.aggiorna_da_1x())
         prog.add_command(label="Converti questo progetto Python in pytonIta…", command=lambda: se_stesso.converti_progetto_py(se_stesso.progetto.cartella se se_stesso.progetto altrimenti ""))
         prog.add_command(label="Esporta il progetto come Python…", command=lambda: se_stesso.esporta_progetto_python())
         prog.add_command(label="Crea l'eseguibile (.exe)…", command=lambda: se_stesso.crea_eseguibile())
@@ -734,6 +735,42 @@ classe Applicazione:
         se non se_stesso.schede e se_stesso.progetto.percorso_principale():
             se_stesso.apri_file(se_stesso.progetto.percorso_principale())
         se_stesso.info(f"Progetto aperto: {cartella}")
+        se_stesso.radice.after(400, se_stesso._proponi_aggiornamento_1x)
+
+    definisci _proponi_aggiornamento_1x(se_stesso):
+        """Un progetto scritto con la 1.x (nomi vecchi, finestre generate col generatore vecchio) non parte: lo si propone subito all'apertura."""
+        se non se_stesso.progetto o getattr(se_stesso, "_offerta_1x", Nessuno) == se_stesso.progetto.cartella:
+            ritorna
+        se_stesso._offerta_1x = se_stesso.progetto.cartella
+        prova:
+            se_stesso.aggiorna_da_1x(offerto=Vero)
+        eccetto Eccezione come errore:
+            se_stesso.info(f"Controllo del progetto non riuscito: {errore}")
+
+    definisci aggiorna_da_1x(se_stesso, offerto=Falso):
+        """Aggiorna il progetto aperto dalla 1.x (nomi predefiniti, lettere ambigue, finestre, moduli). Si può annullare con «Annulla»."""
+        da rad importa aggiorna_1x
+        se non se_stesso.progetto:
+            messagebox.showinfo("Aggiorna dalla 1.x", "Apri prima un progetto.", parent=se_stesso.radice)
+            ritorna Falso
+        rapporto = aggiorna_1x.aggiorna_progetto(se_stesso.progetto.cartella)
+        testo_ = aggiorna_1x.testo_rapporto(rapporto)
+        se non (rapporto["moduli"] o rapporto["finestre"] o rapporto["file"]):
+            se non offerto:
+                messagebox.showinfo("Aggiorna dalla 1.x", testo_, parent=se_stesso.radice)
+            ritorna Falso
+        se non messagebox.askyesno("Aggiorna dalla 1.x", "Questo progetto usa nomi della versione 1.x che la 2.x non accetta.\nEcco cosa cambierebbe:\n\n" + testo_
+                                   + "\n\nSi può annullare con «Annulla» nella chat. Procedo?", parent=se_stesso.radice):
+            ritorna Falso
+        se_stesso.salva_tutto()
+        se_stesso.storia.prima_di_modificare("aggiorna_1x", "Aggiornamento dalla versione 1.x")
+        rapporto = aggiorna_1x.aggiorna_progetto(se_stesso.progetto.cartella, applica=Vero)
+        se_stesso.storia.concludi()
+        se_stesso.ricarica_file_cambiati()
+        se_stesso.chat.aggiorna_annulla()
+        se_stesso.console.pulisci()
+        se_stesso.console.scrivi("Aggiornamento dalla versione 1.x\n" + aggiorna_1x.testo_rapporto(rapporto, Vero) + "\n")
+        ritorna Vero
 
     definisci proprieta_progetto(se_stesso):
         se non se_stesso.progetto:
