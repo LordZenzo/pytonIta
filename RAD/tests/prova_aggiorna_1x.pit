@@ -141,11 +141,13 @@ classe PonteDiretto:
     definisci esegui(se_stesso, funzione, tempo=Nessuno):
         ritorna funzione()
 strumenti = ai.Strumenti(app, app.config_, PonteDiretto())
+verifica("ATTENZIONE" in strumenti.s_stato_ide() e "aggiorna_da_1x" in strumenti.s_stato_ide(), "stato_ide avvisa subito che il progetto è da aggiornare")
 rapporto = strumenti.s_aggiorna_da_1x()
 verifica("RAPPORTO" in rapporto e "principale_ui.pit" in rapporto e "lunghezza(" in open(os.path.join(cartella3, "logica.pit"), encoding="utf-8").read(), "lo strumento senza applica fa solo il rapporto")
 risultato = strumenti.s_aggiorna_da_1x(applica=Vero)
 verifica("AGGIORNATO" in risultato e non aggiorna_1x.serve_aggiornamento(cartella3), "con applica aggiorna: " + risultato[:120])
 verifica(any(d["name"] == "aggiorna_da_1x" per d in ai.DEFINIZIONI) e "aggiorna_da_1x" in ai.STRUMENTI_CHE_MODIFICANO e tutti_veri(d["name"] != "aggiorna_da_1x" per d in ai.DEFINIZIONI_PROFESSORE), "lo strumento è offerto all'assistente (non al professore) e conta come modifica")
+verifica("ATTENZIONE" non in strumenti.s_stato_ide(), "aggiornato: l'avviso sparisce")
 radice.destroy()
 
 se errori:

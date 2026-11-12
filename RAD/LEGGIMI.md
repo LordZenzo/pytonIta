@@ -18,7 +18,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Novità della 2.14
 
-- **Progetti 1.x a mattonelle:** «Aggiorna dalla versione 1.x» (e lo strumento dell'assistente) ora rigenera anche il `.pit` dei programmi a mattonelle col generatore nuovo, invece di lasciare nomi vecchi come `leggi(`. L'assistente è istruito a usare lo strumento invece di rifare le mattonelle.
+- **Progetti 1.x a mattonelle:** «Aggiorna dalla versione 1.x» (e lo strumento dell'assistente) ora rigenera anche il `.pit` dei programmi a mattonelle col generatore nuovo, invece di lasciare nomi vecchi come `leggi(`. Inoltre `stato_ide` (la prima cosa che l'assistente legge) ora avvisa in testa, con «ATTENZIONE», quando il progetto è da aggiornare e dice di usare `aggiorna_da_1x`: così anche i modelli economici non provano a correggere a mano o a rifare le mattonelle.
 
 ## Novità della 2.13
 

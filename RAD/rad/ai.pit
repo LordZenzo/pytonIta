@@ -821,7 +821,16 @@ classe Strumenti:
 
     # --- lettura
     definisci s_stato_ide(se_stesso):
-        ritorna json.dumps(se_stesso.ponte.esegui(se_stesso.ambiente.stato_ide), indent=1, ensure_ascii=Falso)
+        stato = se_stesso.ponte.esegui(se_stesso.ambiente.stato_ide)
+        # un progetto della 1.x non va corretto a mano: lo si dice subito, in testa, perché anche i modelli piccoli non lo perdano
+        prova:
+            da rad importa aggiorna_1x
+            se isinstance(stato, dict) e se_stesso.ambiente.progetto e aggiorna_1x.serve_aggiornamento(se_stesso.progetto.cartella):
+                stato = {"ATTENZIONE": "Questo progetto è della versione 1.x o ha file generati vecchi (finestre, programmi a mattonelle, nomi come leggi, lunghezza, testo, e, o). "
+                                       "NON correggerli a mano e NON rifare mattonelle o finestre: chiama subito lo strumento aggiorna_da_1x (senza argomenti per vedere il rapporto, poi con applica=true).", **stato}
+        eccetto Eccezione:
+            passa
+        ritorna json.dumps(stato, indent=1, ensure_ascii=Falso)
 
     definisci s_elenca_file(se_stesso, cartella="", estensioni=Nessuno):
         p = se_stesso.progetto
