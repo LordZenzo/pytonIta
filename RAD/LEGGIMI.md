@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.22
+
+- **Barra di stato con Ollama:** non dice più «manca la chiave» (il modello locale non ne vuole).
+- **Modelli locali senza strumenti:** il prompt di sistema è compatto (regole del linguaggio e librerie, circa un terzo del manuale), per lasciare spazio ai file allegati. Se il modello sembra non vedere la fine dei file, Ollama usa di norma una finestra di contesto di soli 4.096 token: alzala (per esempio variabile d'ambiente `OLLAMA_CONTEXT_LENGTH=16384`, poi riavvia Ollama) oppure riduci «caratteri di file da allegare» nelle Impostazioni.
+
 ## Novità della 2.21
 
 - **Correzione nelle Impostazioni → Assistente AI:** i campi (chiave, modello, scelta del fornitore) risultavano schiacciati a pochi pixel. Il collegamento «Ottieni la chiave» e il pulsante «Cerca i modelli disponibili» ora stanno sotto il campo, nella stessa cella, invece che in una colonna a destra che allargava troppo la tabella.

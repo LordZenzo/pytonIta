@@ -1217,14 +1217,19 @@ classe Agente:
         se_stesso.su_evento("info", f"Raggiunto il limite di {massimo} passi per richiesta.")
 
 
-definisci prompt_di_sistema(config, progetto):
-    """Manuale + informazioni sul progetto + istruzioni aggiuntive dell'utente."""
+definisci prompt_di_sistema(config, progetto, compatto=Falso):
+    """Manuale + informazioni sul progetto + istruzioni aggiuntive dell'utente. `compatto`: solo le regole del linguaggio e le librerie
+    (circa un terzo): per i modelli locali senza strumenti, che hanno poco spazio e non usano il resto del manuale."""
     percorso = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manuale.md")
     prova:
         con open(percorso, encoding="utf-8") come f:
             manuale = f.read()
     eccetto OSError:
         manuale = "Sei l'assistente di PitStudio, ambiente di sviluppo per pytonIta."
+    se compatto:
+        fine = manuale.find("## Progetti e finestre disegnate")
+        se fine > 0:
+            manuale = manuale[:fine]
     info = "\n\n## Progetto corrente\n"
     se progetto:
         info += f"Nome: {progetto.nome}\nFile principale: {progetto.principale o '(non impostato)'}\n"

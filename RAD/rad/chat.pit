@@ -236,7 +236,8 @@ classe PannelloChat(tk.Frame):
             se_stesso._scrivi(f"\nPer iniziare inserisci la chiave API di {ai.crea_cliente(se_stesso.config_).nome} in Impostazioni → Assistente AI.\n", "info")
 
     definisci cliente_pronto(se_stesso):
-        ritorna bool(ai.crea_cliente(se_stesso.config_).chiave())
+        cliente = ai.crea_cliente(se_stesso.config_)
+        ritorna bool(cliente.chiave()) o non getattr(cliente, "richiede_chiave", Vero)          # Ollama (locale) non vuole nessuna chiave
 
     # ------------------------------------------------------------ invio e agente
     definisci _cambia_modello(se_stesso, evento=Nessuno):
@@ -309,7 +310,7 @@ classe PannelloChat(tk.Frame):
             se_stesso.agente.definizioni = ai.DEFINIZIONI_PROFESSORE
             strumenti.nomi_ammessi = ai.NOMI_PROFESSORE
         altrimenti:
-            sistema = se_stesso.ponte.esegui(lambda: ai.prompt_di_sistema(se_stesso.config_, se_stesso.ambiente.progetto))
+            sistema = se_stesso.ponte.esegui(lambda: ai.prompt_di_sistema(se_stesso.config_, se_stesso.ambiente.progetto, compatto=cliente.senza_strumenti()))
         se cliente.senza_strumenti():
             sistema += ai.ISTRUZIONI_SENZA_STRUMENTI
         se_stesso.lavoro = threading.Thread(target=se_stesso._lavora, args=(sistema,), daemon=Vero)
