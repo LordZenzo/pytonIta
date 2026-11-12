@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.17
+
+- **Gemini e DeepSeek vedono le immagini.** Lo strumento `vedi_anteprima` (l'assistente guarda la finestra che stai disegnando) ora funziona anche con Gemini e con i modelli «flash» di DeepSeek (non con `deepseek-chat`, che non legge immagini). Con Gemini, se l'API rifiuta la richiesta con l'immagine, PitStudio riprova da solo senza e non le manda più finché resta aperto. Provato solo con server finti: la forma delle immagini non è confermata dalle API vere.
+
 ## Novità della 2.16
 
 - **Modelli locali piccoli (Ollama) senza strumenti.** Molti modelli che girano sul PC non sanno chiamare strumenti. In Impostazioni → Assistente AI spegni «Il modello locale sa usare gli strumenti»: l'assistente non offre più strumenti, allega a ogni domanda il testo del file attivo, delle schede aperte e dei file che nomini (fino a un tetto di caratteri, anche se non salvati), e il modello risponde con codice da copiare. I file di una domanda non restano nelle successive. Il modello non può modificare file da solo. Nuova opzione anche per i modelli che leggono le immagini.

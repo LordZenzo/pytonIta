@@ -29,7 +29,11 @@ verifica(con_img[4]["content"][1]["image_url"]["url"] == "data:image/png;base64,
 senza = ai.messaggi_a_openai(interna, "S", immagini=Falso)
 verifica([m["role"] per m in senza] == ["system", "user", "assistant", "tool"] e B64 non in json.dumps(senza), "senza immagini: niente, solo testo")
 g = ai.messaggi_a_gemini(interna)
-verifica(B64 non in json.dumps(g) e "ecco" in json.dumps(g, ensure_ascii=Falso), "Gemini riceve solo il testo")
+verifica(B64 non in json.dumps(g) e "ecco" in json.dumps(g, ensure_ascii=Falso), "Gemini senza immagini riceve solo il testo")
+gi = ai.messaggi_a_gemini(interna, immagini=Vero)
+parti_i = gi[-1]["parts"]
+verifica(parti_i[0].get("functionResponse") e parti_i[-1] == {"inlineData": {"mimeType": "image/png", "data": B64}}, "Gemini con immagini: la risposta dello strumento, poi l'immagine nello stesso turno: " + tipo_testo(parti_i)[:200])
+verifica(gi[-1]["role"] == "user" e lunghezza_di(gi) == 3, "e il turno resta uno")
 
 # ---------------------------------------------------------------- stima e compattazione
 sola = [{"role": "user", "content": [{"type": "tool_result", "tool_use_id": "x", "content": [{"type": "text", "text": "a"}, {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "A" * 400000}}]}]}]
@@ -72,12 +76,57 @@ verifica(errore e "progettista" in testo_, "nessun progettista aperto: errore ch
 verifica("vedi_anteprima" in ai.NOMI_PROFESSORE e tutti_veri(d["name"] != "vedi_anteprima" o "form" in d["input_schema"]["properties"] per d in ai.DEFINIZIONI), "anche il professore può usarlo; ha il parametro form")
 
 # ---------------------------------------------------------------- chi riceve le immagini
-per fornitore, atteso in (("claude", Vero), ("gemini", Falso), ("deepseek", Falso), ("openai", Vero), ("openrouter", Vero), ("ollama", Falso)):
+per fornitore, atteso in (("claude", Vero), ("gemini", Vero), ("deepseek", Falso), ("openai", Vero), ("openrouter", Vero), ("ollama", Falso)):
     cfg.imposta("ai.fornitore", fornitore, notifica=Falso)
     verifica(ai.crea_cliente(cfg).supporta_immagini() == atteso, "supporta_immagini " + fornitore)
 cfg.imposta("ai.immagini_ollama", Vero, notifica=Falso)
 cfg.imposta("ai.fornitore", "ollama", notifica=Falso)
 verifica(ai.crea_cliente(cfg).supporta_immagini(), "Ollama con un modello «vision» se l'utente lo dice")
+cfg.imposta("ai.fornitore", "deepseek", notifica=Falso)
+cfg.imposta("ai.modello_deepseek", "deepseek-flash", notifica=Falso)
+verifica(ai.crea_cliente(cfg).supporta_immagini(), "DeepSeek legge le immagini col modello flash")
+cfg.imposta("ai.modello_deepseek", "deepseek-chat", notifica=Falso)
+verifica(non ai.crea_cliente(cfg).supporta_immagini(), "ma non con deepseek-chat")
+
+# ---------------------------------------------------------------- Gemini rifiuta le immagini: si riprova senza
+da http.server importa BaseHTTPRequestHandler, HTTPServer
+importa threading
+corpi_gemini = []
+
+
+classe FintoGemini(BaseHTTPRequestHandler):
+    definisci log_message(se_stesso, *a):
+        passa
+
+    definisci do_POST(se_stesso):
+        corpo = se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])).decode("utf-8")
+        corpi_gemini.append(corpo)
+        se "inlineData" in corpo:
+            dati = json.dumps({"error": {"code": 400, "message": "Invalid argument", "status": "INVALID_ARGUMENT"}}).encode("utf-8")
+            se_stesso.send_response(400)
+        altrimenti:
+            dati = json.dumps({"candidates": [{"content": {"parts": [{"text": "ok"}]}, "finishReason": "STOP"}], "usageMetadata": {}}).encode("utf-8")
+            se_stesso.send_response(200)
+        se_stesso.send_header("content-type", "application/json")
+        se_stesso.send_header("content-length", tipo_testo(lunghezza_di(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+
+server = HTTPServer(("127.0.0.1", 0), FintoGemini)
+threading.Thread(target=server.serve_forever, daemon=Vero).start()
+cfg.imposta("ai.fornitore", "gemini", notifica=Falso)
+cfg.imposta("ai.url_gemini", f"http://127.0.0.1:{server.server_port}/v1beta", notifica=Falso)
+cfg.imposta("ai.chiave_gemini", "k", notifica=Falso)
+ai.ClienteGemini.immagini_rifiutate = Falso
+risposta_g = ai.crea_cliente(cfg).chiama(interna, "S", [])
+verifica(risposta_g["content"][0]["text"] == "ok" e lunghezza_di(corpi_gemini) == 2 e "inlineData" in corpi_gemini[0] e "inlineData" non in corpi_gemini[1], "rifiutate le immagini, riprova senza: " + tipo_testo(lunghezza_di(corpi_gemini)))
+verifica(ai.ClienteGemini.immagini_rifiutate e non ai.crea_cliente(cfg).supporta_immagini(), "da allora Gemini non riceve più immagini")
+ai.crea_cliente(cfg).chiama(interna, "S", [])
+verifica(lunghezza_di(corpi_gemini) == 3 e "inlineData" non in corpi_gemini[2], "e la richiesta dopo parte subito senza")
+ai.ClienteGemini.immagini_rifiutate = Falso
+server.shutdown()
+cfg.imposta("ai.fornitore", "ollama", notifica=Falso)
 
 
 # ---------------------------------------------------------------- il ciclo dell'agente allega l'immagine

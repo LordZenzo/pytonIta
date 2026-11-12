@@ -394,12 +394,16 @@ classe ClienteDeepSeek(ClienteBase):
     modello_predefinito = "deepseek-chat"
     economico_predefinito = "deepseek-chat"
 
+    definisci supporta_immagini(se_stesso):
+        """Solo i modelli «flash» di DeepSeek leggono le immagini (nei messaggi dell'utente); deepseek-chat no."""
+        ritorna "flash" in se_stesso.modello().lower() o "vision" in se_stesso.modello().lower()
+
     definisci chiama(se_stesso, messaggi, sistema, strumenti):
         chiave = se_stesso._chiave_o_errore()
         massimo = int(se_stesso.config_.ottieni("ai.max_token", 4096))
         se "reasoner" non in se_stesso.modello():
             massimo = min(massimo, 8192)          # tetto di deepseek-chat
-        corpo = {"model": se_stesso.modello(), "max_tokens": massimo, "messages": messaggi_a_openai(messaggi, sistema),
+        corpo = {"model": se_stesso.modello(), "max_tokens": massimo, "messages": messaggi_a_openai(messaggi, sistema, immagini=se_stesso.supporta_immagini()),
                  "tools": [{"type": "function", "function": {"name": s["name"], "description": s.get("description", ""), "parameters": s["input_schema"]}}
                            per s in strumenti]}
         base = se_stesso.config_.ottieni("ai.url_deepseek", "https://api.deepseek.com").rstrip("/")
@@ -532,7 +536,7 @@ definisci strumenti_a_gemini(strumenti):
     ritorna dichiarazioni, da_json
 
 
-definisci messaggi_a_gemini(messaggi):
+definisci messaggi_a_gemini(messaggi, immagini=Falso):
     """La conversazione interna nel formato di Gemini (contents con parts). Le firme del ragionamento (thoughtSignature) tornano indietro."""
     nomi = {}
     contenuti = []
@@ -541,6 +545,7 @@ definisci messaggi_a_gemini(messaggi):
         se isinstance(c, tipo_testo):
             c = [{"type": "text", "text": c}]
         parti = []
+        immagini_turno = []
         per b in c:
             t = b.get("type")
             se t == "text":
@@ -557,11 +562,17 @@ definisci messaggi_a_gemini(messaggi):
             altrimenti_se t == "tool_result":
                 esito = b.get("content")
                 se isinstance(esito, tipo_lista):
+                    se immagini:
+                        immagini_turno += [{"inlineData": {"mimeType": x["source"]["media_type"], "data": x["source"]["data"]}}
+                                           per x in esito se isinstance(x, dict) e x.get("type") == "image"]
                     esito = "\n".join(x.get("text", "") per x in esito se isinstance(x, dict) e x.get("type") == "text")
                 se non isinstance(esito, tipo_testo):
                     esito = json.dumps(esito, ensure_ascii=Falso)
                 parti.append({"functionResponse": {"name": nomi.get(b["tool_use_id"], "strumento"),
                                                    "response": {("error" se b.get("is_error") altrimenti "result"): esito}}})
+        se immagini_turno:
+            # le immagini seguono tutte le risposte degli strumenti, nello stesso turno dell'utente
+            parti += [{"text": "Immagine del risultato dello strumento:"}] + immagini_turno
         se non parti:
             continua
         ruolo = "model" se m.get("role") == "assistant" altrimenti "user"
@@ -638,14 +649,29 @@ classe ClienteGemini(ClienteBase):
         m = ClienteBase.modello_economico(se_stesso)
         ritorna MODELLI_GEMINI_RITIRATI.get(m, m)
 
+    immagini_rifiutate = Falso
+
+    definisci supporta_immagini(se_stesso):
+        ritorna non se_stesso.immagini_rifiutate
+
     definisci chiama(se_stesso, messaggi, sistema, strumenti):
         chiave = se_stesso._chiave_o_errore()
         dichiarazioni, da_json = strumenti_a_gemini(strumenti)
-        corpo = {"systemInstruction": {"parts": [{"text": sistema}]}, "contents": messaggi_a_gemini(messaggi),
-                 "tools": [{"functionDeclarations": dichiarazioni}],
-                 "generationConfig": {"maxOutputTokens": int(se_stesso.config_.ottieni("ai.max_token", 4096))}}
         base = se_stesso.config_.ottieni("ai.url_gemini", "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
-        ritorna risposta_da_gemini(se_stesso._invia(f"{base}/models/{se_stesso.modello()}:generateContent", corpo, {"x-goog-api-key": chiave}), da_json)
+        indirizzo = f"{base}/models/{se_stesso.modello()}:generateContent"
+        definisci corpo_con(immagini):
+            ritorna {"systemInstruction": {"parts": [{"text": sistema}]}, "contents": messaggi_a_gemini(messaggi, immagini=immagini),
+                     "tools": [{"functionDeclarations": dichiarazioni}],
+                     "generationConfig": {"maxOutputTokens": int(se_stesso.config_.ottieni("ai.max_token", 4096))}}
+        prova:
+            ritorna risposta_da_gemini(se_stesso._invia(indirizzo, corpo_con(se_stesso.supporta_immagini()), {"x-goog-api-key": chiave}), da_json)
+        eccetto ErroreAI come errore:
+            # se Gemini rifiuta la richiesta con le immagini (la forma accettata dipende dal modello), si riprova senza e non se ne mandano più
+            se se_stesso.supporta_immagini() e "400" in tipo_testo(errore) e "inlineData" in json.dumps(corpo_con(Vero)):
+                risposta = risposta_da_gemini(se_stesso._invia(indirizzo, corpo_con(Falso), {"x-goog-api-key": chiave}), da_json)
+                ClienteGemini.immagini_rifiutate = Vero          # il ripiego ha funzionato: era colpa delle immagini (vale finché PitStudio resta aperto)
+                ritorna risposta
+            solleva
 
 
 CLIENTI = {"claude": ClienteClaude, "gemini": ClienteGemini, "deepseek": ClienteDeepSeek, "openai": ClienteOpenAI, "openrouter": ClienteOpenRouter, "ollama": ClienteOllama}
