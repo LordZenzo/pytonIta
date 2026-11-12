@@ -27,6 +27,11 @@ tela = d._tele[tipo_testo(d.blocco.nametowidget(d.blocco.select()))]
 regione = [int(x) per x in tela.cget("scrollregion").split()]
 verifica(regione[3] > tela.winfo_height(), f"la pagina è più alta dello spazio visibile: {regione} contro {tela.winfo_height()}")
 verifica(tela.yview()[0] == 0.0 e tela.yview()[1] < 1.0, "all'inizio si vede solo la parte alta")
+# i campi non si schiacciano: la chiave, il modello e la scelta del fornitore restano leggibili (con il link in una colonna a parte venivano larghi 30 pixel)
+verifica(d.var["ai.chiave_api"][1].winfo_width() >= 200, "campo della chiave largo abbastanza: " + tipo_testo(d.var["ai.chiave_api"][1].winfo_width()))
+verifica(d.var["ai.modello"][1].winfo_width() >= 200, "campo del modello largo abbastanza: " + tipo_testo(d.var["ai.modello"][1].winfo_width()))
+verifica(d.var["ai.fornitore"][1].winfo_width() >= 100, "scelta del fornitore larga abbastanza: " + tipo_testo(d.var["ai.fornitore"][1].winfo_width()))
+verifica(d.cerca["claude"].winfo_y() > d.var["ai.modello"][1].winfo_y() - 1 e d.cerca["claude"].winfo_ismapped(), "il pulsante «Cerca i modelli» sta sotto il campo, visibile")
 
 
 classe Rotella:

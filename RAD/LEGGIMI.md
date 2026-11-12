@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.21
+
+- **Correzione nelle Impostazioni → Assistente AI:** i campi (chiave, modello, scelta del fornitore) risultavano schiacciati a pochi pixel. Il collegamento «Ottieni la chiave» e il pulsante «Cerca i modelli disponibili» ora stanno sotto il campo, nella stessa cella, invece che in una colonna a destra che allargava troppo la tabella.
+
 ## Novità della 2.20
 
 - **Correzione:** dopo «Aggiorna dalla versione 1.x» (e dopo ogni cambio dei file sul disco: Git, assistente) le schede aperte dei programmi a mattonelle, delle finestre disegnate e dei visori si rileggono, non solo gli editor di testo. Prima la scheda delle mattonelle restava con il nome vecchio, e salvandola il `.pit` tornava sbagliato.
