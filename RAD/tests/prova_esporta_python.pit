@@ -49,8 +49,8 @@ per i, x in enumera(cifre, inizio=1):
     stampa(i, x)
 prova:
     c.aggiungi(-1)
-eccetto ErroreDiValore come e:
-    stampa("errore:", e)
+eccetto ErroreDiValore come errore:
+    stampa("errore:", errore)
 ''')
 dest = os.path.join(base, "Conti_python")
 r = esporta_python.esporta(origine, dest)
