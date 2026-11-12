@@ -1,0 +1,98 @@
+"""Modalità insegnante: pacchetti di esercizi (.pitesercizi) e progressi con i quiz delle lezioni nel report della classe."""
+importa sys, os, tempfile, json, zipfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.config importa Configurazione
+da rad importa esercizi, quiz
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cartella = tempfile.mkdtemp()
+tutti_gli_esercizi = esercizi.carica_esercizi()
+
+# ---------------------------------------------------------------- progressi: esercizi e lezioni
+cfg_anna = Configurazione(os.path.join(cartella, "anna_cfg.json"))
+esercizi.registra_tentativo(cfg_anna, tutti_gli_esercizi[0]["id"], Vero)
+quiz.registra(cfg_anna, 1, 5, 5)           # superata
+quiz.registra(cfg_anna, 2, 2, 5)           # da ripassare
+quiz.registra(cfg_anna, 3, 4, 5)           # superata (80%)
+cfg_luca = Configurazione(os.path.join(cartella, "luca_cfg.json"))
+esercizi.registra_tentativo(cfg_luca, tutti_gli_esercizi[0]["id"], Falso)
+f_anna = os.path.join(cartella, "anna.json")
+f_luca = os.path.join(cartella, "luca.json")
+d = esercizi.esporta_progressi(cfg_anna, f_anna, "Anna Rossi", tutti_gli_esercizi)
+esercizi.esporta_progressi(cfg_luca, f_luca, "Luca Bianchi", tutti_gli_esercizi)
+verifica(d["lezioni"]["1"]["completata"] e non d["lezioni"]["2"]["completata"] e d["lezioni"]["3"]["migliore"] == 4, "il file di Anna ha anche le lezioni: " + tipo_testo(d["lezioni"]))
+rap = esercizi.report_classe([f_anna, f_luca])
+anna = [a per a in rap["allievi"] se a["allievo"] == "Anna Rossi"][0]
+luca = [a per a in rap["allievi"] se a["allievo"] == "Luca Bianchi"][0]
+verifica(anna["lezioni"] == 2 e anna["lezioni_fatte"] == 3 e luca["lezioni"] == 0 e luca["lezioni_fatte"] == 0, "report: lezioni superate e tentate: " + tipo_testo((anna["lezioni"], anna["lezioni_fatte"])))
+testo_ = esercizi.testo_report(rap)
+verifica("Lezioni superate" in testo_ e "2 su 3" in testo_, "il report in testo ha la colonna delle lezioni: " + testo_.splitlines()[2])
+# un file di progressi vecchio (senza lezioni) si legge ancora
+vecchio = os.path.join(cartella, "vecchio.json")
+json.dump({"allievo": "Vecchio", "totale": 2, "esercizi": {"a": {"titolo": "A", "completato": "x", "tentativi": 1}, "b": {"titolo": "B", "completato": "", "tentativi": 0}}}, open(vecchio, "w"))
+r2 = esercizi.report_classe([vecchio])
+verifica(r2["allievi"][0]["fatti"] == 1 e r2["allievi"][0]["lezioni"] == 0, "un file senza lezioni va bene lo stesso")
+
+# ---------------------------------------------------------------- pacchetti
+mie = os.path.join(cartella, "classe_5A")
+os.makedirs(mie)
+per k in (1, 2, 3):
+    json.dump({"id": f"mio_{k}", "titolo": f"Esercizio {k}", "consegna": "Stampa ok", "prove": [{"ingresso": "", "uscita": "ok"}], "ordine": 5000 + k},
+              open(os.path.join(mie, f"e{k}.json"), "w", encoding="utf-8"))
+propri = [x per x in esercizi.carica_esercizi([mie]) se x["origine"] == mie]
+verifica(lunghezza_di(propri) == 3, "tre esercizi dell'insegnante")
+pacchetto = os.path.join(cartella, "5A" + esercizi.ESTENSIONE_PACCHETTO)
+verifica(esercizi.crea_pacchetto(pacchetto, propri, "Prima verifica", "Prof. Verdi") == 3, "pacchetto creato con tre esercizi")
+con zipfile.ZipFile(pacchetto) come z:
+    nomi = z.namelist()
+    verifica("pacchetto.json" in nomi e lunghezza_di([n per n in nomi se n.endswith(".json")]) == 4, "contenuto: " + tipo_testo(nomi))
+    verifica("origine" non in z.read(nomi[0]).decode("utf-8"), "il percorso dell'insegnante non finisce nel pacchetto")
+    verifica(json.loads(z.read("pacchetto.json").decode("utf-8"))["titolo"] == "Prima verifica", "titolo nel pacchetto")
+
+allievo = os.path.join(cartella, "allievo", "pacchetti", "5A")
+n, titolo = esercizi.importa_pacchetto(pacchetto, allievo)
+verifica(n == 3 e titolo == "Prima verifica", "importati: " + tipo_testo((n, titolo)))
+dall_allievo = esercizi.carica_esercizi([allievo])
+verifica(lunghezza_di(dall_allievo) == lunghezza_di(tutti_gli_esercizi) + 3 e {"mio_1", "mio_2", "mio_3"} <= {x["id"] per x in dall_allievo}, "e compaiono nell'elenco degli esercizi")
+
+# pacchetti cattivi o rotti
+cattivo = os.path.join(cartella, "cattivo" + esercizi.ESTENSIONE_PACCHETTO)
+con zipfile.ZipFile(cattivo, "w") come z:
+    z.writestr("../fuori.json", json.dumps({"id": "x", "titolo": "x", "consegna": "x", "prove": [{"ingresso": "", "uscita": "x"}]}))
+    z.writestr("sotto/cartella.json", json.dumps({"id": "y", "titolo": "y", "consegna": "y", "prove": [{"ingresso": "", "uscita": "y"}]}))
+    z.writestr("programma.exe", "MZ")
+    z.writestr("rotto.json", "non è json")
+    z.writestr("incompleto.json", json.dumps({"id": "z"}))
+    z.writestr("buono.json", json.dumps({"id": "ok_1", "titolo": "Buono", "consegna": "c", "prove": [{"ingresso": "", "uscita": "ok"}]}))
+dest = os.path.join(cartella, "cattivo_dest")
+n, titolo = esercizi.importa_pacchetto(cattivo, dest)
+verifica(n == 1 e sorted(os.listdir(dest)) == ["buono.json"], "percorsi strani, file non json o incompleti ignorati: " + tipo_testo(os.listdir(dest)))
+verifica(non os.path.exists(os.path.join(cartella, "fuori.json")), "niente scritto fuori dalla cartella")
+vuoto = os.path.join(cartella, "vuoto" + esercizi.ESTENSIONE_PACCHETTO)
+con zipfile.ZipFile(vuoto, "w") come z:
+    z.writestr("leggimi.txt", "niente")
+prova:
+    esercizi.importa_pacchetto(vuoto, os.path.join(cartella, "v"))
+    verifica(Falso, "un pacchetto senza esercizi doveva dare errore")
+eccetto ErroreDiValore come errore:
+    verifica("non contiene esercizi" in tipo_testo(errore), "pacchetto vuoto: " + tipo_testo(errore))
+finto = os.path.join(cartella, "finto" + esercizi.ESTENSIONE_PACCHETTO)
+open(finto, "w").write("non è uno zip")
+prova:
+    esercizi.importa_pacchetto(finto, os.path.join(cartella, "f"))
+    verifica(Falso, "un file che non è uno zip doveva dare errore")
+eccetto ErroreDiValore come errore:
+    verifica("Non è un pacchetto" in tipo_testo(errore), "file non zip: " + tipo_testo(errore)[:60])
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_classe: ok")

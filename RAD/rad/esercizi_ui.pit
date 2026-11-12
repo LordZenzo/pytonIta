@@ -67,6 +67,8 @@ classe FinestraEsercizi(tk.Toplevel):
         m.add_command(label="Report della classe… (insegnanti)", command=se_stesso.azioni.report_classe_esercizi)
         m.add_separator()
         m.add_command(label="Aggiungi una cartella di esercizi…", command=se_stesso._aggiungi_cartella)
+        m.add_command(label="Importa un pacchetto di esercizi…", command=lambda: se_stesso.azioni.importa_pacchetto_esercizi())
+        m.add_command(label="Crea un pacchetto con i miei esercizi… (insegnanti)", command=lambda: se_stesso.azioni.crea_pacchetto_esercizi())
         se_stesso.menu_classe.configure(menu=m)
         se_stesso.menu_classe.pack(side="right")
         suggerisci(se_stesso.menu_classe, "Per la classe: consegna i progressi all'insegnante o guarda quelli degli allievi", c)

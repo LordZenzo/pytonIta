@@ -4,6 +4,7 @@ importa datetime
 importa json
 importa os
 importa subprocess
+importa zipfile
 
 CARTELLA_ESERCIZI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "esercizi")
 MASSIMO_RIGHE_ERRORE = 6
@@ -143,12 +144,18 @@ definisci esporta_progressi(config, percorso, nome_allievo, esercizi):
     """Scrive un file .json con i progressi dell'allievo (da mandare all'insegnante)."""
     p = progressi(config)
     dati = {"allievo": nome_allievo.strip() o "senza nome", "data": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "totale": lunghezza_di(esercizi),
+            "totale": lunghezza_di(esercizi), "lezioni": lezioni_superate(config),
             "esercizi": {elemento["id"]: {"titolo": elemento["titolo"], "completato": p.get(elemento["id"], {}).get("completato", ""), "tentativi": p.get(elemento["id"], {}).get("tentativi", 0)}
                          per elemento in esercizi}}
     con open(percorso, "w", encoding="utf-8") come f:
         json.dump(dati, f, ensure_ascii=Falso, indent=2)
     ritorna dati
+
+
+definisci lezioni_superate(config):
+    """{numero della lezione: {"migliore", "su", "tentativi", "completata"}} dai quiz delle lezioni (vuoto se mai fatti)."""
+    ritorna {k: {"migliore": v.get("migliore", 0), "su": v.get("su", 0), "tentativi": v.get("tentativi", 0), "completata": bool(v.get("completata"))}
+             per k, v in dict(config.ottieni("lezioni.progressi", {}) o {}).items() se isinstance(v, dict)}
 
 
 definisci report_classe(percorsi):
@@ -163,7 +170,9 @@ definisci report_classe(percorsi):
         eccetto (OSError, ValueError, KeyError, TypeError):
             continua
         fatti = [k per k, v in voci.items() se v.get("completato")]
+        lezioni_ = d.get("lezioni") se isinstance(d.get("lezioni"), dict) altrimenti {}
         allievi.append({"allievo": d.get("allievo", os.path.basename(p)), "data": d.get("data", ""), "fatti": lunghezza_di(fatti), "totale": d.get("totale", lunghezza_di(voci)),
+                        "lezioni": sum(1 per v in lezioni_.values() se isinstance(v, dict) e v.get("completata")), "lezioni_fatte": lunghezza_di(lezioni_),
                         "tentativi": sum(v.get("tentativi", 0) per v in voci.values()), "mancanti": [v.get("titolo", k) per k, v in voci.items() se k non in fatti]})
         per k, v in voci.items():
             r = per_esercizio.setdefault(k, [v.get("titolo", k), 0])
@@ -179,11 +188,61 @@ definisci testo_report(rapporto):
     se non rapporto["allievi"]:
         ritorna "Nessun file di progressi valido."
     larghezza = max(lunghezza_di(a["allievo"]) per a in rapporto["allievi"])
-    righe.append(f"{'Allievo':<{larghezza}}  Fatti  Tentativi  Aggiornato")
+    righe.append(f"{'Allievo':<{larghezza}}  Esercizi  Tentativi  Lezioni superate  Aggiornato")
     per a in rapporto["allievi"]:
-        righe.append(f"{a['allievo']:<{larghezza}}  {a['fatti']:>2}/{a['totale']:<2}  {a['tentativi']:>9}  {a['data']}")
+        righe.append(f"{a['allievo']:<{larghezza}}  {a['fatti']:>3}/{a['totale']:<3}  {a['tentativi']:>9}  {a.get('lezioni', 0):>9} su {a.get('lezioni_fatte', 0):<3}  {a['data']}")
     righe += ["", "Esercizi dal più difficile (meno completati) al più facile:"]
     n = lunghezza_di(rapporto["allievi"])
     per titolo, quanti in rapporto["esercizi"]:
         righe.append(f"  {quanti}/{n}  {titolo}")
     ritorna "\n".join(righe)
+
+
+# ---------------------------------------------------------------- pacchetti di esercizi (un solo file da dare agli allievi)
+ESTENSIONE_PACCHETTO = ".pitesercizi"
+
+
+definisci crea_pacchetto(percorso, esercizi_scelti, titolo="", autore=""):
+    """Mette gli esercizi scelti (elenco di dizionari, come da carica_esercizi) in un file .pitesercizi (uno zip). Ritorna quanti ne ha messi."""
+    n = 0
+    con zipfile.ZipFile(percorso, "w", zipfile.ZIP_DEFLATED) come z:
+        per voce in esercizi_scelti:
+            dati = {k: v per k, v in voce.items() se k != "origine"}
+            z.writestr(f"{n + 1:03d}_{_nome_file(voce['id'])}.json", json.dumps(dati, ensure_ascii=Falso, indent=2))
+            n += 1
+        z.writestr("pacchetto.json", json.dumps({"titolo": titolo, "autore": autore, "esercizi": n, "data": datetime.datetime.now().strftime("%Y-%m-%d")}, ensure_ascii=Falso, indent=2))
+    ritorna n
+
+
+definisci _nome_file(testo_):
+    ritorna "".join(c se (c.isalnum() o c in "-_") altrimenti "_" per c in testo_)[:60] o "esercizio"
+
+
+definisci importa_pacchetto(percorso, cartella_destinazione):
+    """Apre un file .pitesercizi nella cartella indicata (solo file .json piatti e validi: niente percorsi, niente altro). Ritorna (quanti, titolo)."""
+    os.makedirs(cartella_destinazione, exist_ok=Vero)
+    n = 0
+    titolo = ""
+    prova:
+        z = zipfile.ZipFile(percorso)
+    eccetto (zipfile.BadZipFile, OSError) come errore:
+        solleva ErroreDiValore(f"Non è un pacchetto di esercizi valido: {errore}") da errore
+    con z:
+        per nome in z.namelist():
+            se "/" in nome o "\\" in nome o nome.startswith(".") o non nome.lower().endswith(".json"):
+                continua                    # niente cartelle, percorsi strani o file diversi
+            prova:
+                dati = json.loads(z.read(nome).decode("utf-8"))
+            eccetto (ValueError, UnicodeDecodeError):
+                continua
+            se nome == "pacchetto.json":
+                titolo = tipo_testo(dati.get("titolo", "")) se isinstance(dati, dict) altrimenti ""
+                continua
+            se non isinstance(dati, dict) o not_valido(dati):
+                continua
+            con open(os.path.join(cartella_destinazione, nome), "w", encoding="utf-8") come f:
+                json.dump(dati, f, ensure_ascii=Falso, indent=2)
+            n += 1
+    se n == 0:
+        solleva ErroreDiValore("Il pacchetto non contiene esercizi validi.")
+    ritorna n, titolo

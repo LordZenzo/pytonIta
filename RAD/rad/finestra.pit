@@ -1550,6 +1550,44 @@ classe Applicazione:
             se_stesso.config_.salva()
             ritorna se_stesso.apri_esercizi()
 
+    definisci importa_pacchetto_esercizi(se_stesso):
+        """Apre un file .pitesercizi dell'insegnante: gli esercizi finiscono in una cartella di PitStudio e compaiono nell'elenco."""
+        percorso = filedialog.askopenfilename(parent=se_stesso.radice, title="Pacchetto di esercizi",
+                                              filetypes=[("Pacchetto di esercizi", "*" + esercizi.ESTENSIONE_PACCHETTO), ("Tutti", "*.*")])
+        se non percorso:
+            ritorna Nessuno
+        nome = os.path.splitext(os.path.basename(percorso))[0]
+        destinazione = os.path.join(os.path.dirname(se_stesso.config_.file), "pacchetti_esercizi", nome)
+        prova:
+            quanti, titolo = esercizi.importa_pacchetto(percorso, destinazione)
+        eccetto ErroreDiValore come errore:
+            messagebox.showerror("Pacchetto di esercizi", tipo_testo(errore), parent=se_stesso.radice)
+            ritorna Nessuno
+        elenco = tipo_lista(se_stesso.config_.ottieni("esercizi.cartelle", []))
+        se destinazione non in elenco:
+            elenco.append(destinazione)
+        se_stesso.config_.imposta("esercizi.cartelle", elenco, notifica=Falso)
+        se_stesso.config_.salva()
+        messagebox.showinfo("Pacchetto di esercizi", f"Aggiunti {quanti} esercizi" + (f" del pacchetto «{titolo}»" se titolo altrimenti "") + ".", parent=se_stesso.radice)
+        ritorna se_stesso.apri_esercizi()
+
+    definisci crea_pacchetto_esercizi(se_stesso):
+        """Per gli insegnanti: mette in un solo file gli esercizi delle proprie cartelle, da dare agli allievi."""
+        propri = [voce per voce in esercizi.carica_esercizi(se_stesso.config_.ottieni("esercizi.cartelle", [])) se voce["origine"] != esercizi.CARTELLA_ESERCIZI]
+        se non propri:
+            messagebox.showinfo("Pacchetto di esercizi", "Non hai ancora esercizi tuoi: aggiungi prima una cartella di esercizi (file .json).", parent=se_stesso.radice)
+            ritorna Nessuno
+        titolo = simpledialog.askstring("Pacchetto di esercizi", "Titolo del pacchetto:", parent=se_stesso.radice)
+        se non titolo:
+            ritorna Nessuno
+        percorso = filedialog.asksaveasfilename(parent=se_stesso.radice, title="Salva il pacchetto", defaultextension=esercizi.ESTENSIONE_PACCHETTO,
+                                                initialfile=titolo.strip().replace(" ", "_") + esercizi.ESTENSIONE_PACCHETTO, filetypes=[("Pacchetto di esercizi", "*" + esercizi.ESTENSIONE_PACCHETTO)])
+        se non percorso:
+            ritorna Nessuno
+        n = esercizi.crea_pacchetto(percorso, propri, titolo.strip())
+        messagebox.showinfo("Pacchetto di esercizi", f"Creato il pacchetto con {n} esercizi:" + chr(10) + percorso + chr(10) + chr(10) + "Dallo agli allievi: lo aprono da Esercizi → Classe → Importa un pacchetto.", parent=se_stesso.radice)
+        ritorna n
+
     definisci esporta_progressi_esercizi(se_stesso):
         """Salva i progressi dell'allievo in un file da consegnare all'insegnante."""
         nome = simpledialog.askstring("I miei progressi", "Il tuo nome:", parent=se_stesso.radice)

@@ -24,6 +24,9 @@ Il pulsante **Classe ▾** serve a insegnanti e allievi:
 
 - **Esporta i miei progressi…** (allievo): salva in un file `.json` chi sei e quali esercizi hai completato, con il numero di tentativi. Il file si consegna all'insegnante.
 - **Report della classe…** (insegnante): scegli i file dei progressi degli allievi e vedi una tabella con quanti esercizi ha fatto ognuno e quali sono i più difficili (i meno completati). Si può copiare negli appunti.
+- **Crea un pacchetto con i miei esercizi…** (insegnante): mette in **un solo file** (`.pitesercizi`) tutti gli esercizi delle tue cartelle, con un titolo. Lo mandi agli allievi e basta.
+- **Importa un pacchetto di esercizi…** (allievo): apre un file `.pitesercizi` dell'insegnante; gli esercizi compaiono nell'elenco. Il pacchetto contiene solo esercizi (file `.json`), mai programmi.
+- Il file dei progressi comprende anche i **quiz delle lezioni** (quali sono superate e con che punteggio), e il report della classe mostra la colonna «Lezioni superate».
 - **Aggiungi una cartella di esercizi…** (insegnante): puoi scrivere **esercizi tuoi** come file `.json` in una cartella e dare la cartella agli allievi. Ogni file contiene:
 
 ```

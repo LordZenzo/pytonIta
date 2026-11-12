@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.8
+
+- **Modalità insegnante**: *Esercizi → Classe →* **Crea un pacchetto con i miei esercizi…** (un file `.pitesercizi` da dare agli allievi) e **Importa un pacchetto di esercizi…**; i file dei progressi comprendono anche i quiz delle lezioni e il report della classe mostra le lezioni superate da ogni allievo.
+
 ## Novità della 2.7
 
 - **Server MCP**: gli strumenti di PitStudio (leggere e scrivere file con il controllo di sintassi e degli errori gravi, ottenere e impostare le finestre, cercare, esplorare i moduli) per altri agenti — Claude Code, Cursor… — senza che PitStudio sia aperto. *Strumenti → Collega altri agenti (MCP)…* mostra i comandi da copiare. Non cancella file e non esegue programmi (salvo `--consenti-esecuzione`). Provato con un cliente finto e con il processo vero su stdin/stdout, non con Claude Code o Cursor.
