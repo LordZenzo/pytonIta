@@ -1,0 +1,125 @@
+"""Server MCP: il protocollo (initialize, tools/list, tools/call), gli strumenti sul progetto senza interfaccia e il processo vero su stdin/stdout."""
+importa sys, os, tempfile, json, subprocess
+QUI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, QUI)
+da rad importa mcp_server, form_modello
+da rad.form_modello importa Form
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cartella = tempfile.mkdtemp()
+open(os.path.join(cartella, "principale.pit"), "w", encoding="utf-8").write('stampa("ciao")\n')
+s = mcp_server.ServerMcp(cartella)
+
+
+definisci richiesta(metodo, parametri=Nessuno, id_=1):
+    ritorna s.gestisci({"jsonrpc": "2.0", "id": id_, "method": metodo, "params": parametri o {}})
+
+
+
+# ---------------------------------------------------------------- protocollo
+r = richiesta("initialize", {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "prova"}})
+verifica(r["result"]["protocolVersion"] == "2025-03-26" e r["result"]["serverInfo"]["name"] == "pitstudio" e "tools" in r["result"]["capabilities"], "initialize: " + tipo_testo(r)[:120])
+verifica("pytonIta" in r["result"]["instructions"], "le istruzioni parlano di pytonIta")
+verifica(s.gestisci({"jsonrpc": "2.0", "method": "notifications/initialized"}) è Nessuno, "una notifica non ha risposta")
+verifica(richiesta("ping")["result"] == {}, "ping")
+elenco = richiesta("tools/list")["result"]["tools"]
+nomi = [t["name"] per t in elenco]
+verifica(tutti_veri(n in nomi per n in ("leggi_file", "scrivi_file", "controlla_sintassi", "ottieni_form", "imposta_form", "cerca_nel_progetto", "membri_modulo")), "gli strumenti ci sono: " + tipo_testo(nomi))
+verifica("esegui_programma" non in nomi e "elimina_file" non in nomi e "apri_file" non in nomi e "vedi_anteprima" non in nomi, "niente esecuzione, cancellazione, interfaccia")
+verifica(tutti_veri("inputSchema" in t e t["description"] per t in elenco), "ogni strumento ha descrizione e schema")
+verifica(richiesta("metodo/strano")["error"]["code"] == -32601, "metodo sconosciuto = errore -32601")
+verifica(richiesta("tools/call", {"name": "esegui_programma", "arguments": {}})["error"]["code"] == -32602, "uno strumento non offerto non si chiama")
+
+
+definisci chiama(strumento, **argomenti):
+    r = richiesta("tools/call", {"name": strumento, "arguments": argomenti})
+    ritorna r["result"]["content"][0]["text"], r["result"]["isError"]
+
+
+# ---------------------------------------------------------------- strumenti sul progetto
+testo_, errore = chiama("elenca_file")
+verifica(non errore e "principale.pit" in testo_, "elenca_file: " + testo_[:60])
+testo_, errore = chiama("leggi_file", percorso="principale.pit")
+verifica(non errore e "ciao" in testo_, "leggi_file")
+testo_, errore = chiama("scrivi_file", percorso="saluto.pit", contenuto="nome = 'Ugo'\nstampa(nome)\n")
+verifica(non errore e os.path.exists(os.path.join(cartella, "saluto.pit")), "scrivi_file crea il file: " + testo_)
+testo_, errore = chiama("scrivi_file", percorso="rotto.pit", contenuto="definisci f(:\n    x = \n")
+verifica(errore e "NON SCRITTO" in testo_ e non os.path.exists(os.path.join(cartella, "rotto.pit")), "sintassi sbagliata: non scrive e lo dice: " + testo_[:80])
+testo_, errore = chiama("scrivi_file", percorso="grave.pit", contenuto="classe = 3\nstampa(classe)\n")
+verifica(errore e "errore grave" in testo_ e non os.path.exists(os.path.join(cartella, "grave.pit")), "errore grave di nome: non scrive: " + testo_[:100])
+testo_, errore = chiama("scrivi_file", percorso="finestra_ui.pit", contenuto="x = 1\n")
+verifica(errore e "imposta_form" in testo_, "i file *_ui.pit non si toccano a mano")
+testo_, errore = chiama("controlla_sintassi", codice="classe = 1\n")
+verifica("non partirebbe" in testo_, "controlla_sintassi riporta anche gli errori gravi")
+testo_, errore = chiama("modifica_file", percorso="saluto.pit", vecchio="Ugo", nuovo="Anna")
+verifica(non errore e "Anna" in open(os.path.join(cartella, "saluto.pit"), encoding="utf-8").read(), "modifica_file")
+testo_, errore = chiama("cerca_nel_progetto", testo="Anna")
+verifica("saluto.pit" in testo_, "cerca_nel_progetto")
+testo_, errore = chiama("leggi_file", percorso="../fuori.txt")
+verifica(errore, "fuori dal progetto non si legge: " + testo_[:60])
+
+# finestre
+f = Form("Accesso", "Accesso")
+f.aggiungi("Etichetta", 10, 10, nome="titolo", testo="Entra", larghezza=80, altezza=24)
+testo_, errore = chiama("imposta_form", form=json.loads(f.a_json()))
+verifica(non errore e os.path.exists(os.path.join(cartella, "accesso.form.json")) e os.path.exists(os.path.join(cartella, "accesso_ui.pit")), "imposta_form genera i tre file: " + testo_[:80])
+testo_, errore = chiama("ottieni_form", nome="Accesso")
+verifica(non errore e json.loads(testo_)["nome"] == "Accesso", "ottieni_form")
+testo_, errore = chiama("stato_ide")
+verifica("server MCP" in testo_ e "Accesso" in testo_ o "accesso" in testo_.lower(), "stato_ide: " + testo_[:80])
+
+# ---------------------------------------------------------------- l'esecuzione solo se richiesta
+s2 = mcp_server.ServerMcp(cartella, consenti_esecuzione=Vero)
+verifica("esegui_programma" in [t["name"] per t in s2.elenco_strumenti()], "con --consenti-esecuzione c'è esegui_programma")
+
+# ---------------------------------------------------------------- una riga alla volta
+verifica(s.gestisci_riga("") è Nessuno e json.loads(s.gestisci_riga("non json"))["error"]["code"] == -32700, "righe vuote e JSON non valido")
+gruppo = json.loads(s.gestisci_riga(json.dumps([{"jsonrpc": "2.0", "id": 5, "method": "ping"}, {"jsonrpc": "2.0", "method": "notifications/initialized"}])))
+verifica(lunghezza_di(gruppo) == 1 e gruppo[0]["id"] == 5, "richieste raggruppate")
+
+# ---------------------------------------------------------------- il processo vero
+script = os.path.join(QUI, "rad", "mcp_server.pit")
+ingresso = "\n".join(json.dumps(m) per m in [
+    {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}}},
+    {"jsonrpc": "2.0", "method": "notifications/initialized"},
+    {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "leggi_file", "arguments": {"percorso": "principale.pit"}}}]) + "\n"
+r = subprocess.run([sys.executable, script, "--progetto", cartella], input=ingresso, capture_output=Vero, text=Vero, encoding="utf-8", timeout=120)
+righe = [json.loads(x) per x in r.stdout.splitlines() se x.strip()]
+verifica(r.returncode == 0 e lunghezza_di(righe) == 2, "processo: due risposte su stdout (la notifica non ne ha): " + tipo_testo(lunghezza_di(righe)) + " | " + r.stderr[-200:])
+verifica(righe[0]["id"] == 1 e righe[1]["result"]["content"][0]["text"].find("ciao") >= 0, "e il contenuto è giusto")
+r = subprocess.run([sys.executable, script], capture_output=Vero, text=Vero, encoding="utf-8", timeout=60)
+verifica(r.returncode == 2 e "Uso:" in r.stderr, "senza --progetto: istruzioni e codice 2")
+comando, argomenti = mcp_server.comando_di_collegamento(cartella)
+verifica(argomenti[0].endswith("mcp_server.pit") e argomenti[-1] == os.path.abspath(cartella), "comando di collegamento")
+
+# ---------------------------------------------------------------- la finestra dei comandi
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.dialoghi importa DialogoMcp
+radice = tk.Tk()
+radice.geometry("1100x700+20+20")
+app = Applicazione(radice, Configurazione(os.path.join(tempfile.mkdtemp(), "c.json")))
+radice.update()
+d = DialogoMcp(radice, app.colori, comando, argomenti)
+radice.update()
+verifica(d.testi["claude"].startswith("claude mcp add pitstudio -- ") e "mcp_server.pit" in d.testi["claude"] e "--progetto" in d.testi["claude"], "comando per Claude Code: " + d.testi["claude"][:90])
+configurazione = json.loads(d.testi["json"])
+verifica(configurazione["mcpServers"]["pitstudio"]["command"] == comando e configurazione["mcpServers"]["pitstudio"]["args"] == argomenti, "configurazione JSON per gli altri programmi")
+d.copia("claude")
+verifica(radice.clipboard_get() == d.testi["claude"], "il pulsante copia negli appunti")
+d.destroy()
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_mcp: ok")

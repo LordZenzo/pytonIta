@@ -210,6 +210,11 @@
   "gruppo": "Assistente"
  },
  {
+  "id": "mcp",
+  "titolo": "Altri agenti con MCP",
+  "gruppo": "Assistente"
+ },
+ {
   "id": "riepilogo",
   "titolo": "Scheda dei comandi (una pagina)",
   "gruppo": "Riferimento"

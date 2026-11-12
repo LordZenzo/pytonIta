@@ -397,6 +397,7 @@ classe Applicazione:
         strumenti.add_command(label="Chiedi all'AI di spiegare il codice selezionato", command=se_stesso.ai_spiega)
         strumenti.add_command(label="Chiedi all'AI di correggere l'ultimo errore", command=se_stesso.ai_correggi)
         strumenti.add_command(label="Apri Claude Code nel progetto (con il tuo abbonamento)…", command=se_stesso.apri_claude_code)
+        strumenti.add_command(label="Collega altri agenti (MCP)…", command=se_stesso.collega_agenti_mcp)
         strumenti.add_command(label="Annulla l'ultima modifica dell'assistente", command=se_stesso.annulla_ultima_ai)
         strumenti.add_command(label="Cronologia delle modifiche dell'assistente…", command=se_stesso.cronologia_ai)
         strumenti.add_command(label="Statistiche dell'assistente (token, codice valido)…", command=se_stesso.statistiche_ai)
@@ -2015,6 +2016,14 @@ classe Applicazione:
                               "Trova la causa, correggi il codice e verifica eseguendolo.")
 
     # ---- Claude Code (app ufficiale di Anthropic, con l'abbonamento dell'utente)
+    definisci collega_agenti_mcp(se_stesso):
+        """Mostra come collegare altri agenti (Claude Code, Cursor…) agli strumenti di PitStudio via MCP."""
+        da rad importa mcp_server
+        da rad.dialoghi importa DialogoMcp
+        cartella = se_stesso.progetto.cartella se se_stesso.progetto altrimenti os.getcwd()
+        comando, argomenti = mcp_server.comando_di_collegamento(cartella, se_stesso.config_.interprete())
+        ritorna DialogoMcp(se_stesso.radice, se_stesso.colori, comando, argomenti).mostra()
+
     definisci apri_claude_code(se_stesso):
         """Prepara il progetto (istruzioni e controlli) e apre il Claude Code ufficiale in una nuova console."""
         se non se_stesso.progetto:

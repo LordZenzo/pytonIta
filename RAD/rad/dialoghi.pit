@@ -1,4 +1,5 @@
 """Finestre di dialogo di PitStudio: nuovo progetto, nuova finestra, ricerca nel progetto, informazioni."""
+importa json
 importa os
 importa tkinter come tk
 da tkinter importa ttk, filedialog, messagebox
@@ -480,3 +481,37 @@ classe DialogoCronologiaAI(DialogoBase):
             ritorna
         se_stesso.annulla_gruppo(g)
         se_stesso._riempi()
+
+classe DialogoMcp(DialogoBase):
+    """Come collegare altri agenti (Claude Code, Cursor…) agli strumenti di PitStudio con il protocollo MCP: comandi pronti da copiare."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, comando, argomenti):
+        DialogoBase.__init__(se_stesso, genitore, "Collega altri agenti (MCP)", colori, 720, 470)
+        se_stesso.comando = comando
+        se_stesso.argomenti = argomenti
+        se_stesso.grid_columnconfigure(0, weight=1)
+        riga_cmd = " ".join('"' + x + '"' se " " in x altrimenti x per x in [comando] + argomenti)
+        configurazione = json.dumps({"mcpServers": {"pitstudio": {"command": comando, "args": argomenti}}}, indent=2, ensure_ascii=Falso)
+        se_stesso.testi = {"claude": f"claude mcp add pitstudio -- {riga_cmd}", "json": configurazione, "cmd": riga_cmd}
+        tk.Label(se_stesso, anchor="w", justify="left", wraplength=680, background=colori["pannello"], foreground=colori["primo_piano"],
+                 text="PitStudio può offrire i suoi strumenti ad altri agenti che parlano MCP: leggere e scrivere i file del progetto con il controllo della sintassi e "
+                      "degli errori gravi, ottenere e impostare le finestre, cercare nel progetto, esplorare i moduli. Il server si avvia da solo quando l'agente lo "
+                      "chiede e non ha bisogno di PitStudio aperto. Non cancella file e non esegue programmi.").grid(row=0, column=0, padx=14, pady=(12, 6), sticky="we")
+        per riga_n, (titolo, chiave) in enumera((("Claude Code (un comando, da lanciare nella cartella del progetto):", "claude"),
+                                                  ("Altri programmi (Cursor, Windsurf…): voce da aggiungere alla loro configurazione MCP:", "json")), 1):
+            tk.Label(se_stesso, text=titolo, anchor="w", background=colori["pannello"], foreground=colori["tenue"]).grid(row=riga_n * 2 - 1, column=0, padx=14, sticky="we")
+            t = tk.Text(se_stesso, height=2 se chiave == "claude" altrimenti 9, wrap="word", background=colori["campo"], foreground=colori["primo_piano"],
+                        relief="flat", highlightthickness=1, highlightbackground=colori["bordo"])
+            t.insert("1.0", se_stesso.testi[chiave])
+            t.configure(state="disabled")
+            t.grid(row=riga_n * 2, column=0, padx=14, pady=(2, 8), sticky="we")
+            se_stesso.testi["widget_" + chiave] = t
+        cornice = tk.Frame(se_stesso, background=colori["pannello"])
+        cornice.grid(row=6, column=0, sticky="e", padx=14, pady=8)
+        tk.Button(cornice, text="Chiudi", command=se_stesso.destroy, background=colori["pulsante"], foreground=colori["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        tk.Button(cornice, text="Copia la configurazione", command=lambda: se_stesso.copia("json"), background=colori["pulsante"], foreground=colori["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        tk.Button(cornice, text="Copia il comando per Claude Code", command=lambda: se_stesso.copia("claude"), background=colori["accento"], foreground="#ffffff", relief="flat", padx=12).pack(side="right", padx=4)
+
+    definisci copia(se_stesso, chiave):
+        se_stesso.clipboard_clear()
+        se_stesso.clipboard_append(se_stesso.testi[chiave])

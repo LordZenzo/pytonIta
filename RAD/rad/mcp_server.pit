@@ -1,0 +1,189 @@
+"""Server MCP di PitStudio: gli strumenti dell'assistente (leggere e scrivere file con controllo di sintassi, ottenere e impostare le finestre,
+cercare nel progetto, esplorare i moduli) per altri agenti — Claude Code, Cursor, ecc. — che parlano il protocollo MCP.
+
+Si avvia senza l'interfaccia (PitStudio può essere chiuso):
+
+    pitonit rad/mcp_server.pit --progetto C:/miei/programmi/negozio [--consenti-esecuzione]
+
+e parla JSON-RPC 2.0 su standard input/output (un messaggio per riga). La scrittura dei file passa dagli stessi controlli dell'assistente
+(sintassi, errori gravi di nome, niente modifica diretta dei file *_ui.pit). Eseguire il programma richiede --consenti-esecuzione;
+cancellare file non è mai offerto.
+"""
+importa json
+importa os
+importa sys
+importa threading
+
+AQUI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+se AQUI non in sys.path:
+    sys.path.insert(0, AQUI)
+
+da rad importa ai, form_modello
+da rad importa VERSIONE
+da rad.config importa Configurazione
+da rad.progetto importa Progetto
+
+VERSIONE_PROTOCOLLO = "2025-06-18"
+# gli strumenti offerti di serie; esegui_programma solo con --consenti-esecuzione
+STRUMENTI_SICURI = ("stato_ide", "elenca_file", "leggi_file", "cerca_nel_progetto", "controlla_sintassi", "membri_modulo",
+                    "scrivi_file", "modifica_file", "ottieni_form", "imposta_form")
+
+
+classe PonteDiretto:
+    """Nessuna interfaccia da aspettare: si esegue subito."""
+    definisci esegui(se_stesso, funzione, tempo=60):
+        ritorna funzione()
+
+
+classe AmbienteSenzaInterfaccia:
+    """Quello che gli strumenti chiedono all'ambiente, fatto sui file del progetto (senza finestre)."""
+
+    definisci __inizializza__(se_stesso, cartella):
+        se_stesso.progetto = Progetto(cartella)
+
+    definisci stato_ide(se_stesso):
+        p = se_stesso.progetto
+        ritorna {"progetto": p.nome, "cartella": p.cartella, "file_principale": p.principale, "finestre": p.forms(),
+                 "schede_aperte": [], "file_attivo": Nessuno, "programma_in_esecuzione": Falso, "modo": "server MCP (senza interfaccia)"}
+
+    definisci contenuto_aperto(se_stesso, assoluto):
+        ritorna Nessuno
+
+    definisci chiedi_conferma(se_stesso, titolo, dettaglio):
+        ritorna Vero                    # decide l'agente esterno (e chi lo usa) con i suoi permessi
+
+    definisci scrivi_file(se_stesso, assoluto, contenuto):
+        os.makedirs(os.path.dirname(assoluto), exist_ok=Vero)
+        con open(assoluto, "w", encoding="utf-8", newline="\n") come f:
+            f.write(contenuto)
+
+    definisci elimina_percorso(se_stesso, assoluto):
+        solleva ErroreDiValore("Il server MCP non cancella file.")
+
+    definisci apri_file_a_riga(se_stesso, assoluto, riga):
+        passa
+
+    definisci salva_tutto(se_stesso):
+        passa
+
+    definisci mostra_in_console(se_stesso, nome, risultato):
+        passa
+
+    definisci json_form(se_stesso, nome):
+        p = form_modello.percorsi_form(se_stesso.progetto.cartella, nome)["json"]
+        se non os.path.exists(p):
+            per rel in se_stesso.progetto.forms():
+                se os.path.basename(rel).lower() == nome.lower() + ".form.json":
+                    p = se_stesso.progetto.assoluto(rel)
+        se non os.path.exists(p):
+            solleva ErroreDiValore(f"finestra non trovata: {nome}")
+        con open(p, encoding="utf-8") come f:
+            ritorna f.read()
+
+    definisci imposta_form(se_stesso, f):
+        cartella = se_stesso.progetto.cartella
+        per rel in se_stesso.progetto.forms():
+            se os.path.basename(rel).lower() == f.nome.lower() + ".form.json":
+                cartella = os.path.dirname(se_stesso.progetto.assoluto(rel))
+        ritorna form_modello.salva_form(f, cartella)
+
+
+classe ServerMcp:
+    """Il protocollo MCP (JSON-RPC 2.0, un messaggio per riga) sopra gli strumenti dell'assistente."""
+
+    definisci __inizializza__(se_stesso, cartella, consenti_esecuzione=Falso, config=Nessuno):
+        se_stesso.cartella = cartella
+        se_stesso.config_ = config o Configurazione(os.path.join(cartella, ".rad", "mcp_config.json"))
+        se_stesso.config_.imposta("ai.conferma_scrittura", Falso, notifica=Falso)
+        se_stesso.config_.imposta("ai.conferma_esecuzione", Falso, notifica=Falso)
+        se_stesso.ambiente = AmbienteSenzaInterfaccia(cartella)
+        se_stesso.strumenti = ai.Strumenti(se_stesso.ambiente, se_stesso.config_, PonteDiretto())
+        se_stesso.strumenti.immagini_ammesse = Falso
+        se_stesso.nomi = tipo_lista(STRUMENTI_SICURI) + (["esegui_programma"] se consenti_esecuzione altrimenti [])
+        se_stesso.strumenti.nomi_ammessi = se_stesso.nomi
+        se_stesso.chiuso = Falso
+
+    definisci elenco_strumenti(se_stesso):
+        ritorna [{"name": d["name"], "description": d.get("description", ""), "inputSchema": d["input_schema"]}
+                 per d in ai.DEFINIZIONI se d["name"] in se_stesso.nomi]
+
+    definisci chiama(se_stesso, nome, argomenti):
+        testo_, errore = se_stesso.strumenti.esegui(nome, argomenti o {})
+        ritorna {"content": [{"type": "text", "text": testo_}], "isError": bool(errore)}
+
+    definisci gestisci(se_stesso, messaggio):
+        """Una richiesta JSON-RPC (dizionario) → la risposta (dizionario), oppure Nessuno per le notifiche."""
+        metodo = messaggio.get("method")
+        id_ = messaggio.get("id")
+        parametri = messaggio.get("params") o {}
+        se id_ è Nessuno:                       # notifica (notifications/initialized, cancelled…): nessuna risposta
+            ritorna Nessuno
+        prova:
+            se metodo == "initialize":
+                risultato = {"protocolVersion": parametri.get("protocolVersion") o VERSIONE_PROTOCOLLO, "capabilities": {"tools": {}},
+                             "serverInfo": {"name": "pitstudio", "version": VERSIONE},
+                             "instructions": "Strumenti di PitStudio per il progetto «" + se_stesso.ambiente.progetto.nome + "» (programmi in pytonIta, Python con parole chiave italiane): "
+                                             "scrivi i .pit con le parole chiave italiane e i nomi predefiniti con trattino basso (tipo_testo, lunghezza_di…); i file *_ui.pit si cambiano con imposta_form."}
+            altrimenti_se metodo == "ping":
+                risultato = {}
+            altrimenti_se metodo == "tools/list":
+                risultato = {"tools": se_stesso.elenco_strumenti()}
+            altrimenti_se metodo == "tools/call":
+                nome = parametri.get("name", "")
+                se nome non in se_stesso.nomi:
+                    ritorna {"jsonrpc": "2.0", "id": id_, "error": {"code": -32602, "message": f"Strumento sconosciuto o non offerto: {nome}"}}
+                risultato = se_stesso.chiama(nome, parametri.get("arguments"))
+            altrimenti:
+                ritorna {"jsonrpc": "2.0", "id": id_, "error": {"code": -32601, "message": f"Metodo non supportato: {metodo}"}}
+        eccetto Eccezione come errore:
+            ritorna {"jsonrpc": "2.0", "id": id_, "error": {"code": -32603, "message": f"{tipo_di(errore).__name__}: {errore}"}}
+        ritorna {"jsonrpc": "2.0", "id": id_, "result": risultato}
+
+    definisci gestisci_riga(se_stesso, riga):
+        """Una riga di testo in ingresso → la riga da rispondere (o Nessuno)."""
+        riga = riga.strip()
+        se non riga:
+            ritorna Nessuno
+        prova:
+            messaggio = json.loads(riga)
+        eccetto ValueError:
+            ritorna json.dumps({"jsonrpc": "2.0", "id": Nessuno, "error": {"code": -32700, "message": "JSON non valido"}})
+        se isinstance(messaggio, tipo_lista):              # richieste raggruppate
+            risposte = [r per r in (se_stesso.gestisci(m) per m in messaggio) se r è non Nessuno]
+            ritorna json.dumps(risposte, ensure_ascii=Falso) se risposte altrimenti Nessuno
+        risposta = se_stesso.gestisci(messaggio)
+        ritorna json.dumps(risposta, ensure_ascii=Falso) se risposta è non Nessuno altrimenti Nessuno
+
+    definisci servi(se_stesso, ingresso=Nessuno, uscita=Nessuno):
+        ingresso = ingresso o sys.stdin
+        uscita = uscita o sys.stdout
+        per riga in ingresso:
+            risposta = se_stesso.gestisci_riga(riga)
+            se risposta è non Nessuno:
+                uscita.write(risposta + "\n")
+                uscita.flush()
+
+
+definisci comando_di_collegamento(cartella, interprete=Nessuno):
+    """(comando, argomenti) per collegare un agente esterno a questo server, per un certo progetto."""
+    interprete = interprete o sys.executable
+    ritorna interprete, [os.path.abspath(__file__), "--progetto", os.path.abspath(cartella)]
+
+
+definisci principale(argv=Nessuno):
+    argv = tipo_lista(sys.argv[1:] se argv è Nessuno altrimenti argv)
+    cartella = Nessuno
+    consenti = "--consenti-esecuzione" in argv
+    se "--progetto" in argv:
+        i = argv.index("--progetto")
+        cartella = argv[i + 1] se i + 1 < lunghezza_di(argv) altrimenti Nessuno
+    se non cartella o non os.path.isdir(cartella):
+        sys.stderr.write("Uso: pitonit rad/mcp_server.pit --progetto CARTELLA [--consenti-esecuzione]\n")
+        ritorna 2
+    # il canale è lo standard output: tutto il resto va sullo standard error
+    ServerMcp(cartella, consenti).servi()
+    ritorna 0
+
+
+se __nome__ == "__main__":
+    sys.exit(principale())
