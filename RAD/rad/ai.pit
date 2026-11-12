@@ -1162,6 +1162,7 @@ classe Agente:
 
     definisci _ciclo(se_stesso, messaggi, sistema):
         massimo = int(se_stesso.config_.ottieni("ai.passi_massimi", 25))
+        vuote = 0                      # risposte senza testo né strumenti, di fila
         per passo in intervallo_di(massimo):
             se se_stesso.arresto.is_set():
                 se_stesso.su_evento("info", "Interrotto.")
@@ -1186,15 +1187,25 @@ classe Agente:
                                           cache_lettura=uso.get("cache_read_input_tokens", 0),
                                           cache_scrittura=uso.get("cache_creation_input_tokens", 0))
             richieste = []
+            ha_testo = Falso
             per b in blocchi:
                 se b.get("type") == "text" e b.get("text", "").strip():
                     se_stesso.su_evento("testo", b["text"])
                     se_stesso.strumenti.spiegazione = b["text"]
+                    ha_testo = Vero
                 altrimenti_se b.get("type") == "tool_use":
                     richieste.append(b)
             se risposta.get("stop_reason") != "tool_use" o non richieste:
                 se risposta.get("stop_reason") == "max_tokens":
                     se_stesso.su_evento("info", "La risposta è stata tagliata (max_token). Aumenta il limite nelle impostazioni.")
+                altrimenti_se non ha_testo e non richieste:
+                    # il modello ha chiuso senza scrivere nulla (succede con i modelli «ragionanti»): gli si chiede di rispondere, al massimo due volte
+                    vuote += 1
+                    se vuote <= 2:
+                        se_stesso.su_evento("info", "Il modello non ha scritto nessuna risposta: gli chiedo di rispondere.")
+                        messaggi.append({"role": "user", "content": [{"type": "text", "text": "Non hai scritto nessuna risposta. In base a quanto hai letto e visto finora, rispondi adesso all'utente."}]})
+                        continua
+                    se_stesso.su_evento("info", "Il modello non ha dato nessuna risposta. Riprova la domanda o scegli un altro modello.")
                 ritorna
             risultati = []
             per b in richieste:

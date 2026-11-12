@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.23
+
+- **L'assistente non si ferma più in silenzio.** Se il modello (di solito uno «ragionante» come gpt-oss) chiude senza scrivere nessuna risposta, anche dopo aver usato strumenti, PitStudio gli chiede di rispondere (al massimo due volte) e lo scrive nella chat; se continua a tacere lo dice all'utente invece di lasciare la chat ferma.
+
 ## Novità della 2.22
 
 - **Barra di stato con Ollama:** non dice più «manca la chiave» (il modello locale non ne vuole).

@@ -1,0 +1,82 @@
+"""Un modello che chiude senza scrivere nulla (dopo aver letto un file, o subito): l'agente glielo fa notare, al massimo due volte, poi lo dice all'utente."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.config importa Configurazione
+da rad importa ai
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+classe Ponte:
+    definisci esegui(se_stesso, f, tempo=60):
+        ritorna f()
+
+
+classe Ambiente:
+    progetto = Nessuno
+
+
+classe ClienteFinto:
+    """Risponde secondo un copione: lista di risposte (blocchi, stop_reason)."""
+    nome = "finto"
+
+    definisci __inizializza__(se_stesso, copione):
+        se_stesso.copione = tipo_lista(copione)
+        se_stesso.viste = []
+
+    definisci modello(se_stesso):
+        ritorna "finto"
+
+    definisci supporta_immagini(se_stesso):
+        ritorna Falso
+
+    definisci senza_strumenti(se_stesso):
+        ritorna Falso
+
+    definisci chiama(se_stesso, messaggi, sistema, strumenti):
+        se_stesso.viste.append(lunghezza_di(messaggi))
+        blocchi, stop = se_stesso.copione.pop(0)
+        ritorna {"content": blocchi, "stop_reason": stop, "usage": {}}
+
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+VUOTA = ([{"type": "ragionamento", "text": "penso"}], "end_turn")
+TESTO = ([{"type": "text", "text": "Ecco la risposta."}], "end_turn")
+
+
+definisci fai_girare(copione):
+    cliente = ClienteFinto(copione)
+    eventi = []
+    agente = ai.Agente(cliente, ai.Strumenti(Ambiente(), cfg, Ponte()), cfg, lambda t, d: eventi.append((t, d)))
+    messaggi = [{"role": "user", "content": [{"type": "text", "text": "ciao"}]}]
+    agente.esegui(messaggi, "S")
+    ritorna cliente, eventi, messaggi
+
+
+# una risposta vuota, poi il testo: il sollecito funziona
+cliente, eventi, messaggi = fai_girare([VUOTA, TESTO])
+verifica([d per t, d in eventi se t == "testo"] == ["Ecco la risposta."], "dopo il sollecito il modello risponde: " + tipo_testo(eventi))
+verifica([d per t, d in eventi se t == "info" e "non ha scritto" in d], "l'utente vede che gli è stato chiesto di rispondere")
+verifica(messaggi[-2]["role"] == "user" e "rispondi adesso" in messaggi[-2]["content"][0]["text"], "il sollecito è un messaggio dell'utente")
+# sempre vuota: due solleciti, poi lo dice
+cliente, eventi, messaggi = fai_girare([VUOTA, VUOTA, VUOTA, TESTO])
+verifica(lunghezza_di(cliente.viste) == 3 e cliente.copione != [] , "si ferma dopo due solleciti (tre chiamate): " + tipo_testo(cliente.viste))
+verifica([d per t, d in eventi se t == "info" e "nessuna risposta" in d], "e lo dice all'utente")
+verifica([d per t, d in eventi se t == "testo"] == [], "senza inventare testo")
+# una risposta normale non viene sollecitata
+cliente, eventi, messaggi = fai_girare([TESTO])
+verifica(lunghezza_di(cliente.viste) == 1 e non [d per t, d in eventi se t == "info"], "una risposta con testo non cambia nulla")
+# tagliata dal limite: si dice del limite, non si sollecita
+cliente, eventi, messaggi = fai_girare([([], "max_tokens")])
+verifica(lunghezza_di(cliente.viste) == 1 e [d per t, d in eventi se t == "info" e "tagliata" in d], "max_tokens: nessun sollecito")
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_ai_risposta_vuota: ok")
