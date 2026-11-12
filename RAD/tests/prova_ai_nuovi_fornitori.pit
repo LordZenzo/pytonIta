@@ -1,0 +1,125 @@
+"""Assistente AI: OpenAI, OpenRouter e modelli locali (Ollama) con server finti: indirizzo, chiave, campi, errori chiari, elenco dei modelli installati."""
+importa sys, os, tempfile, json, threading
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da http.server importa BaseHTTPRequestHandler, HTTPServer
+da rad.config importa Configurazione
+da rad importa ai, impostazioni
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+richieste = []
+
+
+classe Finto(BaseHTTPRequestHandler):
+    definisci log_message(se_stesso, *a):
+        passa
+
+    definisci do_GET(se_stesso):
+        richieste.append(("GET", se_stesso.path, {k.lower(): v per k, v in se_stesso.headers.items()}, Nessuno))
+        dati = json.dumps({"models": [{"name": "qwen2.5-coder:7b"}, {"name": "llama3.1:8b"}]}).encode("utf-8")
+        se_stesso.send_response(200)
+        se_stesso.send_header("content-type", "application/json")
+        se_stesso.send_header("content-length", tipo_testo(lunghezza_di(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+    definisci do_POST(se_stesso):
+        corpo = json.loads(se_stesso.rfile.read(int(se_stesso.headers["Content-Length"])).decode("utf-8"))
+        richieste.append(("POST", se_stesso.path, {k.lower(): v per k, v in se_stesso.headers.items()}, corpo))
+        se corpo.get("model") == "non-esiste":
+            dati = json.dumps({"error": {"message": "model 'non-esiste' not found"}}).encode("utf-8")
+            se_stesso.send_response(404)
+        altrimenti:
+            dati = json.dumps({"choices": [{"message": {"content": "Ciao dal server."}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 12, "completion_tokens": 3}}).encode("utf-8")
+            se_stesso.send_response(200)
+        se_stesso.send_header("content-type", "application/json")
+        se_stesso.send_header("content-length", tipo_testo(lunghezza_di(dati)))
+        se_stesso.end_headers()
+        se_stesso.wfile.write(dati)
+
+
+server = HTTPServer(("127.0.0.1", 0), Finto)
+threading.Thread(target=server.serve_forever, daemon=Vero).start()
+base = f"http://127.0.0.1:{server.server_port}"
+
+cartella = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella, "config.json"))
+MESSAGGI = [{"role": "user", "content": [{"type": "text", "text": "ciao"}]}]
+STRUMENTI = [{"name": "stato_ide", "description": "stato", "input_schema": {"type": "object", "properties": {}}}]
+
+# ---------------------------------------------------------------- scelta del fornitore
+per nome, classe_ in (("openai", ai.ClienteOpenAI), ("openrouter", ai.ClienteOpenRouter), ("ollama", ai.ClienteOllama)):
+    cfg.imposta("ai.fornitore", nome, notifica=Falso)
+    verifica(ai.fornitore_di(cfg) == nome e isinstance(ai.crea_cliente(cfg), classe_), "fornitore " + nome)
+    verifica(lunghezza_di(ai.modelli_di(cfg)) >= 1 o nome == "ollama", "modelli suggeriti per " + nome)
+
+# ---------------------------------------------------------------- OpenAI
+per v in ("OPENAI_API_KEY", "OPENROUTER_API_KEY"):
+    os.environ.pop(v, Nessuno)          # la prova non deve dipendere dalle chiavi di chi la esegue
+cfg.imposta("ai.fornitore", "openai", notifica=Falso)
+cfg.imposta("ai.url_openai", base + "/v1", notifica=Falso)
+prova:
+    ai.crea_cliente(cfg).chiama(MESSAGGI, "S", STRUMENTI)
+    verifica(Falso, "senza chiave doveva dare errore")
+eccetto ai.ErroreAI come errore:
+    verifica("OpenAI" in tipo_testo(errore) e "OPENAI_API_KEY" in tipo_testo(errore), "senza chiave: errore chiaro: " + tipo_testo(errore)[:80])
+cfg.imposta("ai.chiave_openai", "chiave-oa", notifica=Falso)
+r = ai.crea_cliente(cfg).chiama(MESSAGGI, "SISTEMA", STRUMENTI)
+metodo, percorso, intest, corpo = richieste[-1]
+verifica(percorso == "/v1/chat/completions" e intest.get("authorization") == "Bearer chiave-oa", "OpenAI: indirizzo e chiave: " + percorso)
+verifica("max_completion_tokens" in corpo e "max_tokens" non in corpo e corpo["model"] == "gpt-4.1", "OpenAI: max_completion_tokens e modello: " + tipo_testo(sorted(corpo)))
+verifica(corpo["messages"][0] == {"role": "system", "content": "SISTEMA"} e corpo["tools"][0]["function"]["name"] == "stato_ide", "messaggi e strumenti nel formato chat")
+verifica(r["content"][0]["text"] == "Ciao dal server." e r["stop_reason"] == "end_turn" e r["usage"]["input_tokens"] == 12, "risposta tradotta nel formato interno: " + tipo_testo(r))
+
+# ---------------------------------------------------------------- OpenRouter
+cfg.imposta("ai.fornitore", "openrouter", notifica=Falso)
+cfg.imposta("ai.url_openrouter", base + "/api/v1", notifica=Falso)
+cfg.imposta("ai.chiave_openrouter", "chiave-or", notifica=Falso)
+ai.crea_cliente(cfg).chiama(MESSAGGI, "S", [])
+metodo, percorso, intest, corpo = richieste[-1]
+verifica(percorso == "/api/v1/chat/completions" e intest.get("authorization") == "Bearer chiave-or" e intest.get("x-title") == "PitStudio", "OpenRouter: indirizzo, chiave e titolo")
+verifica("max_tokens" in corpo e "tools" non in corpo e corpo["model"] == "anthropic/claude-sonnet-4.5", "OpenRouter: max_tokens, niente strumenti se non ce ne sono")
+
+# ---------------------------------------------------------------- Ollama (locale)
+cfg.imposta("ai.fornitore", "ollama", notifica=Falso)
+cfg.imposta("ai.url_ollama", base + "/v1", notifica=Falso)
+cliente = ai.crea_cliente(cfg)
+verifica(cliente.chiave() == "" e non cliente.richiede_chiave, "Ollama non vuole nessuna chiave")
+cliente.chiama(MESSAGGI, "S", STRUMENTI)
+metodo, percorso, intest, corpo = richieste[-1]
+verifica(percorso == "/v1/chat/completions" e "authorization" non in intest, "Ollama: nessuna intestazione di autorizzazione")
+verifica(ai.modelli_installati_ollama(cfg) == ["llama3.1:8b", "qwen2.5-coder:7b"], "elenco dei modelli installati: " + tipo_testo(ai.modelli_installati_ollama(cfg)))
+verifica(richieste[-1][1] == "/api/tags", "li legge da /api/tags (senza /v1)")
+verifica(ai.modelli_di(cfg) == ["llama3.1:8b", "qwen2.5-coder:7b"], "e la casella della chat li propone")
+cfg.imposta("ai.modello_ollama", "non-esiste", notifica=Falso)
+prova:
+    ai.crea_cliente(cfg).chiama(MESSAGGI, "S", [])
+    verifica(Falso, "modello inesistente doveva dare errore")
+eccetto ai.ErroreAI come errore:
+    verifica("ollama pull non-esiste" in tipo_testo(errore), "modello non installato: dice come scaricarlo: " + tipo_testo(errore)[:120])
+cfg.imposta("ai.modello_ollama", "qwen2.5-coder:7b", notifica=Falso)
+cfg.imposta("ai.url_ollama", "http://127.0.0.1:9/v1", notifica=Falso)          # nessuno ascolta
+prova:
+    ai.crea_cliente(cfg).chiama(MESSAGGI, "S", [])
+    verifica(Falso, "Ollama spento doveva dare errore")
+eccetto ai.ErroreAI come errore:
+    verifica("ollama serve" in tipo_testo(errore), "Ollama spento: dice di avviarlo: " + tipo_testo(errore)[:100])
+verifica(ai.modelli_installati_ollama(cfg) == [] e ai.modelli_di(cfg) == cfg.ottieni("ai.modelli_ollama"), "Ollama spento: nessun elenco, restano i suggeriti")
+
+# ---------------------------------------------------------------- impostazioni
+campi = [k[0] per gruppo, voci in impostazioni.SCHEDE per k in voci] se hasattr(impostazioni, "SCHEDE") altrimenti []
+verifica(non campi o ("ai.chiave_openai" in campi e "ai.chiave_openrouter" in campi e "ai.url_ollama" in campi e "ai.modello_ollama" in campi), "campi nelle impostazioni")
+verifica("openai" in tipo_testo([voce per gruppo, voci in getattr(impostazioni, "SCHEDE", []) per voce in voci se voce[0] == "ai.fornitore"]) o non campi, "il fornitore si sceglie dall'elenco")
+
+server.shutdown()
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_ai_nuovi_fornitori: ok")

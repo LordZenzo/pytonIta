@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.5
+
+- **Altri fornitori per l'assistente AI**: OpenAI, OpenRouter (una chiave per molti modelli) e **modelli sul tuo computer con Ollama** (nessuna chiave, nessun costo, i dati non escono dal PC; PitStudio legge da Ollama l'elenco dei modelli scaricati). Si scelgono in Impostazioni → Assistente AI. Provati con server finti: non con i servizi veri.
+
 ## Novità della 2.4
 
 - **Disposizione in riga e in colonna** (finestra, Riquadro, pagina di Schede): i componenti uno dopo l'altro, con «Si allarga» per chi deve prendere lo spazio che avanza. Si riordinano trascinando, con le frecce o dall'ispettore. Il programma usa lo stesso calcolo della griglia, quindi quello che vedi è quello che ottieni.

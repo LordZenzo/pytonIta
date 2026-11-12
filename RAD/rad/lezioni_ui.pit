@@ -253,7 +253,7 @@ classe FinestraLezioni(tk.Toplevel):
             se_stesso.nota_ai.configure(text="Il professore AI risponde alle tue domande su questa lezione e ti guida negli esercizi, senza darti subito la soluzione.")
             se_stesso.configura_ai.grid_forget()
         altrimenti:
-            se_stesso.nota_ai.configure(text="Per avere un professore che risponde alle tue domande serve configurare l'assistente AI (Claude, Gemini o DeepSeek). "
+            se_stesso.nota_ai.configure(text="Per avere un professore che risponde alle tue domande serve configurare l'assistente AI (Claude, Gemini, DeepSeek, OpenAI, OpenRouter o un modello locale con Ollama). "
                                              "Il quiz e gli esercizi funzionano anche senza.")
             se_stesso.configura_ai.grid(row=8, column=0, sticky="w", pady=6)
 

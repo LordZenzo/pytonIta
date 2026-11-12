@@ -1,13 +1,13 @@
 # L'assistente AI
 
-L'assistente è **Claude** (oppure **Gemini** o **DeepSeek**, a scelta) e lavora dentro PitStudio: non solo ti risponde, ma può **usare l'ambiente** al posto tuo, sul progetto aperto.
+L'assistente è **Claude** (oppure **Gemini**, **DeepSeek**, **OpenAI**, **OpenRouter** o un **modello sul tuo computer** con Ollama, a scelta) e lavora dentro PitStudio: non solo ti risponde, ma può **usare l'ambiente** al posto tuo, sul progetto aperto.
 
 ![La chat con l'assistente](immagini/assistente.png)
 
 ## Configurazione (una volta sola)
 
 1. Apri *Strumenti → Impostazioni → Assistente AI*.
-2. Scegli il **fornitore** (Claude, Gemini o DeepSeek; Claude è il predefinito e di solito il più bravo a programmare) e incolla la sua **chiave API** (la chiave resta nel tuo computer, nel file `~\.rad\config.json`). In alternativa imposta la variabile d'ambiente: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` o `DEEPSEEK_API_KEY`.
+2. Scegli il **fornitore** (Claude, Gemini, DeepSeek, OpenAI, OpenRouter o Ollama; Claude è il predefinito e di solito il più bravo a programmare) e incolla la sua **chiave API** (Ollama non ne ha bisogno: installalo da ollama.com, scarica un modello con `ollama pull qwen2.5-coder:7b` e PitStudio lo trova da solo; con un modello locale nulla esce dal tuo computer, ma i modelli piccoli sbagliano di più e non tutti sanno usare gli strumenti) (la chiave resta nel tuo computer, nel file `~\.rad\config.json`). In alternativa imposta la variabile d'ambiente: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` o `DEEPSEEK_API_KEY`.
 3. Scegli il **modello** del fornitore (anche dal menu in alto nella chat) e le **conferme** (vedi sotto). Premi OK.
 
 La barra di stato in basso mostra «● Assistente AI pronto» quando la chiave c'è.
@@ -85,7 +85,7 @@ Se hai un abbonamento a Claude ma non crediti per l'API, puoi usare **Claude Cod
 
 - **Conferme**: per default l'assistente chiede il permesso prima di **scrivere file** e prima di **eseguire programmi**; vedi un'anteprima di cosa farà. Eliminare un file chiede sempre conferma. Le conferme si regolano nelle impostazioni.
 - L'assistente lavora **solo dentro la cartella del progetto**: non può leggere né scrivere fuori.
-- Il contenuto che gli mostri (file letti, output dei programmi, ciò che scrivi) viene inviato al fornitore che hai scelto (Anthropic, Google o DeepSeek) per ottenere la risposta, come in qualsiasi uso dell'API. Non aprire progetti con dati riservati se non vuoi che vengano inviati.
+- Il contenuto che gli mostri (file letti, output dei programmi, ciò che scrivi) viene inviato al fornitore che hai scelto (Anthropic, Google, DeepSeek, OpenAI o OpenRouter; con Ollama nulla esce dal tuo computer) per ottenere la risposta, come in qualsiasi uso dell'API. Non aprire progetti con dati riservati se non vuoi che vengano inviati.
 - Puoi aggiungere **istruzioni permanenti** (per esempio «rispondi in modo molto breve») nelle impostazioni.
 
 > **Nota:** i costi dell'API dipendono dal modello e da quanto testo viene scambiato; in basso nella chat vedi i token usati in questa conversazione.

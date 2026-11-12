@@ -346,6 +346,96 @@ classe ClienteDeepSeek(ClienteBase):
         ritorna risposta_da_openai(se_stesso._invia(base + "/chat/completions", corpo, {"authorization": "Bearer " + chiave}))
 
 
+# ---------------------------------------------------------------- altri fornitori con il formato «chat completions»: OpenAI, OpenRouter, modelli locali (Ollama)
+classe ClienteChat(ClienteBase):
+    """Parte comune dei fornitori che parlano come OpenAI (/chat/completions). Le sottoclassi dicono dove e con quale chiave."""
+    suffisso = ""                      # nelle chiavi di configurazione: ai.chiave_<suffisso>, ai.modello_<suffisso>, ai.url_<suffisso>
+    url_predefinito = ""
+    richiede_chiave = Vero
+    campo_massimo = "max_tokens"       # OpenAI ora vuole «max_completion_tokens»
+    intestazioni_extra = {}
+
+    definisci chiama(se_stesso, messaggi, sistema, strumenti):
+        chiave = se_stesso._chiave_o_errore() se se_stesso.richiede_chiave altrimenti se_stesso.chiave()
+        corpo = {"model": se_stesso.modello(), se_stesso.campo_massimo: int(se_stesso.config_.ottieni("ai.max_token", 4096)),
+                 "messages": messaggi_a_openai(messaggi, sistema)}
+        se strumenti:
+            corpo["tools"] = [{"type": "function", "function": {"name": s["name"], "description": s.get("description", ""), "parameters": s["input_schema"]}}
+                              per s in strumenti]
+        base = se_stesso.config_.ottieni("ai.url_" + se_stesso.suffisso, se_stesso.url_predefinito).rstrip("/")
+        intestazioni = dict(se_stesso.intestazioni_extra)
+        se chiave:
+            intestazioni["authorization"] = "Bearer " + chiave
+        ritorna risposta_da_openai(se_stesso._invia(base + "/chat/completions", corpo, intestazioni))
+
+
+classe ClienteOpenAI(ClienteChat):
+    """OpenAI (chat completions)."""
+    nome = "OpenAI"
+    suffisso = "openai"
+    chiave_config = "ai.chiave_openai"
+    variabili_ambiente = ("OPENAI_API_KEY",)
+    chiave_modello = "ai.modello_openai"
+    chiave_economico = "ai.modello_economico_openai"
+    modello_predefinito = "gpt-4.1"
+    economico_predefinito = "gpt-4.1-mini"
+    url_predefinito = "https://api.openai.com/v1"
+    campo_massimo = "max_completion_tokens"
+
+
+classe ClienteOpenRouter(ClienteChat):
+    """OpenRouter: una sola chiave per molti modelli di fornitori diversi (nomi come «anthropic/claude-sonnet-4.5»)."""
+    nome = "OpenRouter"
+    suffisso = "openrouter"
+    chiave_config = "ai.chiave_openrouter"
+    variabili_ambiente = ("OPENROUTER_API_KEY",)
+    chiave_modello = "ai.modello_openrouter"
+    chiave_economico = "ai.modello_economico_openrouter"
+    modello_predefinito = "anthropic/claude-sonnet-4.5"
+    economico_predefinito = "anthropic/claude-haiku-4.5"
+    url_predefinito = "https://openrouter.ai/api/v1"
+    intestazioni_extra = {"x-title": "PitStudio"}
+
+
+classe ClienteOllama(ClienteChat):
+    """Modelli sul tuo computer con Ollama (o qualunque server compatibile): nessuna chiave, nessun costo, i dati non escono dal PC."""
+    nome = "Ollama (locale)"
+    suffisso = "ollama"
+    chiave_config = "ai.chiave_ollama"
+    variabili_ambiente = ()
+    chiave_modello = "ai.modello_ollama"
+    chiave_economico = "ai.modello_economico_ollama"
+    modello_predefinito = "qwen2.5-coder:7b"
+    economico_predefinito = "qwen2.5-coder:7b"
+    url_predefinito = "http://localhost:11434/v1"
+    richiede_chiave = Falso
+
+    definisci _invia(se_stesso, url, corpo, intestazioni):
+        prova:
+            ritorna ClienteBase._invia(se_stesso, url, corpo, intestazioni)
+        eccetto ErroreAI come errore:
+            testo_ = tipo_testo(errore)
+            se "Connessione non riuscita" in testo_ o "Errore di rete" in testo_:
+                solleva ErroreAI("Non trovo Ollama su questo computer. Avvialo (ollama serve) e controlla l'indirizzo in Impostazioni → Assistente AI. "
+                                 "Dettaglio: " + testo_)
+            se "404" in testo_ e "model" in testo_.lower():
+                solleva ErroreAI(f"Il modello «{corpo.get('model')}» non è installato in Ollama: scaricalo con  ollama pull {corpo.get('model')}")
+            solleva
+
+
+definisci modelli_installati_ollama(config, tempo=2):
+    """I nomi dei modelli che Ollama ha scaricato (lista vuota se Ollama non risponde)."""
+    base = config.ottieni("ai.url_ollama", ClienteOllama.url_predefinito).rstrip("/")
+    se base.endswith("/v1"):
+        base = base[:-3]
+    prova:
+        con urllib.request.urlopen(base + "/api/tags", timeout=tempo) come r:
+            dati = json.loads(r.read().decode("utf-8"))
+        ritorna sorted(m.get("name", "") per m in dati.get("models", []) se m.get("name"))
+    eccetto Exception:
+        ritorna []
+
+
 # ---------------------------------------------------------------- Gemini (generateContent)
 definisci strumenti_a_gemini(strumenti):
     """Le dichiarazioni delle funzioni per Gemini. Gemini non accetta un «object» senza campi: quei parametri diventano testo JSON.
@@ -485,7 +575,7 @@ classe ClienteGemini(ClienteBase):
         ritorna risposta_da_gemini(se_stesso._invia(f"{base}/models/{se_stesso.modello()}:generateContent", corpo, {"x-goog-api-key": chiave}), da_json)
 
 
-CLIENTI = {"claude": ClienteClaude, "gemini": ClienteGemini, "deepseek": ClienteDeepSeek}
+CLIENTI = {"claude": ClienteClaude, "gemini": ClienteGemini, "deepseek": ClienteDeepSeek, "openai": ClienteOpenAI, "openrouter": ClienteOpenRouter, "ollama": ClienteOllama}
 
 
 definisci fornitore_di(config):
@@ -507,8 +597,11 @@ definisci chiave_modello(config):
 definisci modelli_di(config):
     """I modelli suggeriti per il fornitore scelto (elenco della casella nella chat)."""
     f = fornitore_di(config)
-    chiave = {"claude": "ai.modelli", "gemini": "ai.modelli_gemini", "deepseek": "ai.modelli_deepseek"}[f]
+    chiave = {"claude": "ai.modelli", "gemini": "ai.modelli_gemini", "deepseek": "ai.modelli_deepseek", "openai": "ai.modelli_openai",
+              "openrouter": "ai.modelli_openrouter", "ollama": "ai.modelli_ollama"}[f]
     elenco = config.ottieni(chiave, [])
+    se f == "ollama":
+        elenco = modelli_installati_ollama(config) o elenco          # quelli davvero scaricati, se Ollama risponde
     se f == "gemini":
         elenco = [MODELLI_GEMINI_RITIRATI.get(m, m) per m in elenco]
         elenco = [m per i, m in enumera(elenco) se m non in elenco[:i]]
