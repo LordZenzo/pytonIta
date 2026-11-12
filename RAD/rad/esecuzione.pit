@@ -138,6 +138,7 @@ classe Esecutore:
         se_stesso.coda = queue.Queue()
         se_stesso.inizio = 0
         se_stesso.limite = Nessuno
+        se_stesso.generazione = 0         # numero dell'ultimo avvio: gli eventi di un processo vecchio non devono toccare quello nuovo
 
     @property
     definisci in_esecuzione(se_stesso):
@@ -147,36 +148,38 @@ classe Esecutore:
         se se_stesso.in_esecuzione:
             solleva ErroreDiEsecuzione("un programma è già in esecuzione")
         ambiente = ambiente_base()
+        se_stesso.generazione += 1
+        generazione = se_stesso.generazione
         se_stesso.processo = subprocess.Popen(argomenti, cwd=cartella, stdin=subprocess.PIPE,
                                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                               env=ambiente, creationflags=_FLAG_NASCONDI, start_new_session=piattaforma.NUOVA_SESSIONE)
         se_stesso.inizio = time.time()
         p = se_stesso.processo
         se_stesso.limite = limiti_mod.applica(p, *limiti) se limiti altrimenti Nessuno
-        t_out = threading.Thread(target=se_stesso._leggi, args=(p.stdout, "out"), daemon=Vero)
-        t_err = threading.Thread(target=se_stesso._leggi, args=(p.stderr, "err"), daemon=Vero)
+        t_out = threading.Thread(target=se_stesso._leggi, args=(p.stdout, "out", generazione), daemon=Vero)
+        t_err = threading.Thread(target=se_stesso._leggi, args=(p.stderr, "err", generazione), daemon=Vero)
         t_out.start()
         t_err.start()
-        threading.Thread(target=se_stesso._attendi_fine, args=(p, t_out, t_err), daemon=Vero).start()
+        threading.Thread(target=se_stesso._attendi_fine, args=(p, t_out, t_err, generazione), daemon=Vero).start()
 
-    definisci _leggi(se_stesso, flusso, canale):
+    definisci _leggi(se_stesso, flusso, canale, generazione):
         prova:
             mentre Vero:
                 blocco = flusso.read1(4096) se hasattr(flusso, "read1") altrimenti flusso.read(4096)
                 se non blocco:
                     interrompi
-                se_stesso.coda.put((canale, blocco.decode("utf-8", "replace")))
+                se_stesso.coda.put((canale, blocco.decode("utf-8", "replace"), generazione))
         eccetto (OSError, ValueError):
             passa
 
-    definisci _attendi_fine(se_stesso, p, t_out, t_err):
+    definisci _attendi_fine(se_stesso, p, t_out, t_err, generazione):
         codice = p.wait()
         se se_stesso.limite:
             se_stesso.limite.chiudi()
             se_stesso.limite = Nessuno
         t_out.join(1)
         t_err.join(1)
-        se_stesso.coda.put(("fine", (codice, round(time.time() - se_stesso.inizio, 2))))
+        se_stesso.coda.put(("fine", (codice, round(time.time() - se_stesso.inizio, 2)), generazione))
 
     definisci ferma(se_stesso):
         p = se_stesso.processo
@@ -190,6 +193,10 @@ classe Esecutore:
                 piattaforma.termina_gruppo(p)
         eccetto OSError:
             passa
+        prova:
+            p.wait(3)                     # così, quando ferma() torna, il processo è davvero finito e si può riavviare subito
+        eccetto subprocess.TimeoutExpired:
+            passa
 
     definisci invia(se_stesso, riga):
         p = se_stesso.processo
@@ -201,13 +208,16 @@ classe Esecutore:
                 passa
 
     definisci eventi(se_stesso):
-        """Eventi in attesa: [('out', testo) | ('err', testo) | ('fine', (codice, secondi))]."""
+        """Eventi in attesa: [('out', testo) | ('err', testo) | ('fine', (codice, secondi))]. Si scartano quelli dei processi vecchi
+        (fermati e subito riavviati): la loro fine non deve fermare il programma nuovo."""
         risultato = []
         mentre Vero:
             prova:
-                risultato.append(se_stesso.coda.get_nowait())
+                tipo_, dati, generazione = se_stesso.coda.get_nowait()
             eccetto queue.Empty:
                 interrompi
+            se generazione == se_stesso.generazione:
+                risultato.append((tipo_, dati))
         ritorna risultato
 
 
@@ -319,6 +329,12 @@ classe Console(tk.Frame):
             ritorna Falso
         se se_stesso.config_.ottieni("esecuzione.pulisci_console", Vero):
             se_stesso.pulisci()
+        se se_stesso._lavoro è non Nessuno:          # l'attesa dell'esecuzione precedente (se ancora attiva) non serve più: ne parte una nuova
+            prova:
+                se_stesso.after_cancel(se_stesso._lavoro)
+            eccetto tk.TclError:
+                passa
+            se_stesso._lavoro = Nessuno
         se_stesso._errori_recenti = ""
         se_stesso._visto_output = Falso
         se_stesso._cartella_esecuzione = cartella

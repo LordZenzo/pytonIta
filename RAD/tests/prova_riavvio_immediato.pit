@@ -1,0 +1,76 @@
+"""Fermare un programma (o un debug) e riavviarlo subito: il nuovo avvio parte davvero e la fine del vecchio processo non lo ferma né lo disturba."""
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.esecuzione importa Console
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+classe Azioni:
+    definisci __inizializza__(se_stesso):
+        se_stesso.finiti = []
+        se_stesso.stati = []
+
+    definisci apri_file_a_riga(se_stesso, p, r):
+        passa
+
+    definisci stato_esecuzione(se_stesso, v):
+        se_stesso.stati.append(v)
+
+    definisci esecuzione_finita(se_stesso, codice):
+        se_stesso.finiti.append(codice)
+
+
+cartella_prova = tempfile.mkdtemp()
+lungo = os.path.join(cartella_prova, "lungo.pit")
+open(lungo, "w", encoding="utf-8").write("importa tempo\nstampa('lungo partito')\ntempo.sleep(60)\n")
+breve = os.path.join(cartella_prova, "breve.pit")
+open(breve, "w", encoding="utf-8").write("importa tempo\nstampa('breve partito')\ntempo.sleep(1.2)\nstampa('breve finito')\n")
+cfg = Configurazione(os.path.join(cartella_prova, "c.json"))
+radice = tk.Tk()
+az = Azioni()
+c = Console(radice, cfg, colori(cfg), az)
+c.pack(fill="both", expand=Vero)
+
+
+definisci aspetta(condizione, secondi=15):
+    inizio = time.time()
+    mentre non condizione() e time.time() - inizio < secondi:
+        radice.update()
+        time.sleep(0.02)
+    ritorna condizione()
+
+
+# un debug finto: riceve la fine del processo e si chiude, come SessioneDebug.termina
+eventi_debug = []
+c.gestore_debug = lambda ev: eventi_debug.append(ev)
+verifica(c.esegui([sys.executable, "-u", lungo], cartella_prova, "lungo"), "il primo programma parte")
+verifica(aspetta(lambda: "lungo partito" in c.t.get("1.0", "end")), "ed è in corso")
+c.ferma()
+# riavvio IMMEDIATO, senza aspettare nulla (il processo vecchio sta ancora morendo)
+gestore_nuovo = []
+c.gestore_debug = lambda ev: gestore_nuovo.append(ev)
+partito = c.esegui([sys.executable, "-u", breve], cartella_prova, "breve")
+verifica(partito, "il riavvio immediato parte (prima: «già in esecuzione» e nessun effetto)")
+verifica(aspetta(lambda: "breve partito" in c.t.get("1.0", "end")), "e produce il suo output")
+verifica(c.in_esecuzione, "e resta in corso: la fine del processo vecchio non lo ferma")
+verifica(gestore_nuovo == [], "la fine del vecchio processo non arriva al gestore del nuovo debug: " + tipo_testo(gestore_nuovo))
+verifica(aspetta(lambda: "breve finito" in c.t.get("1.0", "end")), "il nuovo programma arriva alla fine")
+verifica(aspetta(lambda: lunghezza_di(az.finiti) >= 1), "e la sua fine è notificata una volta sola")
+verifica(az.finiti == [0], "con il suo codice, non con quello del processo ucciso: " + tipo_testo(az.finiti))
+verifica(gestore_nuovo == [{"evento": "fine_processo"}], "il gestore riceve la fine del SUO processo")
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_riavvio_immediato: ok")

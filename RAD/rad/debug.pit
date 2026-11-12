@@ -361,8 +361,12 @@ classe SessioneDebug:
         se se_stesso.pannello è Nessuno:
             se_stesso.pannello = PannelloDebug(app.centro, se_stesso)
             se_stesso.pannello.applica_colori(app.colori)
-        se str(se_stesso.pannello) non in [tipo_testo(x) per x in app.centro.panes()]:
-            app.centro.add(se_stesso.pannello, before=app.console, minsize=110, height=210)
+        riquadri = [tipo_testo(x) per x in app.centro.panes()]
+        se str(se_stesso.pannello) non in riquadri:
+            se str(app.console) in riquadri:
+                app.centro.add(se_stesso.pannello, before=app.console, minsize=110, height=210)
+            altrimenti:                      # la console è chiusa: non è nel pannello diviso, e «before» darebbe errore
+                app.centro.add(se_stesso.pannello, minsize=110, height=210)
         se_stesso.pannello.aggiorna_osservate([{"espressione": elemento, "valore": "…"} per elemento in se_stesso.osservate])
 
     definisci _nascondi_pannello(se_stesso):

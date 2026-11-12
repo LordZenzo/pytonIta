@@ -1,0 +1,52 @@
+"""Debug con la console CHIUSA: parte, si ferma e si riavvia subito, due volte di fila (prima il pannello del debug dava un errore e non accadeva nulla)."""
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cartella = tempfile.mkdtemp()
+progetto = Progetto.nuovo(os.path.join(cartella, "P"), "P", "console")
+principale = os.path.join(progetto.cartella, "principale.pit")
+open(principale, "w", encoding="utf-8").write("a = 1\nb = 2\nstampa(a + b)\n")
+cfg = Configurazione(os.path.join(cartella, "c.json"))
+cfg.imposta("finestra.console_visibile", Falso, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+app.apri_progetto(progetto.cartella)
+radice.update()
+verifica(tipo_testo(app.console) non in [tipo_testo(x) per x in app.centro.panes()], "la console è chiusa (prova di partenza)")
+
+
+definisci aspetta(condizione, secondi=15):
+    inizio = time.time()
+    mentre non condizione() e time.time() - inizio < secondi:
+        radice.update()
+        time.sleep(0.02)
+    ritorna condizione()
+
+
+per giro in (1, 2, 3):
+    verifica(app.debug.avvia(principale, Vero), f"giro {giro}: il debug parte")
+    verifica(app.debug.attiva e aspetta(lambda: app.debug.fermo), f"giro {giro}: si ferma sulla prima riga")
+    verifica(str(app.debug.pannello) in [tipo_testo(x) per x in app.centro.panes()], f"giro {giro}: il pannello del debug è visibile")
+    app.debug.comando("ferma")           # e al giro dopo si riavvia SUBITO, senza aspettare
+    verifica(non app.debug.attiva, f"giro {giro}: dopo «ferma» la sessione è chiusa")
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_debug_console_chiusa: ok")

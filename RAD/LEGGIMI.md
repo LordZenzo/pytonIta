@@ -16,6 +16,11 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.24
+
+- **Debug con la console chiusa:** il debug partiva solo la prima volta, e solo con la console aperta. Con la console chiusa il pannello del debug dava un errore interno e non accadeva nulla. Ora parte sempre.
+- **Ferma e riavvia subito:** la fine del vecchio processo poteva arrivare dopo l'avvio del nuovo e fermarlo (o scrivere «terminato con codice 1» nella console). Ora ogni avvio ha il suo numero e gli eventi di un processo vecchio vengono scartati; «Ferma» aspetta davvero la fine del processo.
+
 ## Novità della 2.23
 
 - **L'assistente non si ferma più in silenzio.** Se il modello (di solito uno «ragionante» come gpt-oss) chiude senza scrivere nessuna risposta, anche dopo aver usato strumenti, PitStudio gli chiede di rispondere (al massimo due volte) e lo scrive nella chat; se continua a tacere lo dice all'utente invece di lasciare la chat ferma.
