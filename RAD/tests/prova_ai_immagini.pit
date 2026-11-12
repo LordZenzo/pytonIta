@@ -1,0 +1,155 @@
+"""L'assistente vede il form: strumento vedi_anteprima, immagini nei risultati, traduzioni per i fornitori, compattazione, schermata vera del progettista."""
+importa sys, os, tempfile, base64, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad.config importa Configurazione
+da rad importa ai
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+PNG = b"\x89PNG finto" * 20
+B64 = base64.b64encode(PNG).decode("ascii")
+IMMAGINE = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": B64}}
+
+# ---------------------------------------------------------------- traduzione OpenAI / Gemini
+interna = [
+    {"role": "user", "content": [{"type": "text", "text": "guarda"}]},
+    {"role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "vedi_anteprima", "input": {}}]},
+    {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": [{"type": "text", "text": "ecco"}, IMMAGINE]}]}]
+con_img = ai.messaggi_a_openai(interna, "S", immagini=Vero)
+verifica([m["role"] per m in con_img] == ["system", "user", "assistant", "tool", "user"], "con immagini: " + tipo_testo([m["role"] per m in con_img]))
+verifica(con_img[3]["content"] == "ecco" e B64 non in json.dumps(con_img[3]), "il risultato dello strumento ha solo il testo")
+verifica(con_img[4]["content"][1]["image_url"]["url"] == "data:image/png;base64," + B64, "e l'immagine va in un messaggio dell'utente")
+senza = ai.messaggi_a_openai(interna, "S", immagini=Falso)
+verifica([m["role"] per m in senza] == ["system", "user", "assistant", "tool"] e B64 non in json.dumps(senza), "senza immagini: niente, solo testo")
+g = ai.messaggi_a_gemini(interna)
+verifica(B64 non in json.dumps(g) e "ecco" in json.dumps(g, ensure_ascii=Falso), "Gemini riceve solo il testo")
+
+# ---------------------------------------------------------------- stima e compattazione
+sola = [{"role": "user", "content": [{"type": "tool_result", "tool_use_id": "x", "content": [{"type": "text", "text": "a"}, {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "A" * 400000}}]}]}]
+verifica(ai.stima_token(sola) < 2000, "un'immagine di 400 mila caratteri conta circa 1500 token, non 100 mila: " + tipo_testo(ai.stima_token(sola)))
+importa copy
+lungo = [copy.deepcopy(interna[2]), {"role": "assistant", "content": [{"type": "text", "text": "ok"}]}, {"role": "user", "content": [{"type": "text", "text": "ancora"}]},
+         {"role": "assistant", "content": [{"type": "text", "text": "ok"}]}, {"role": "user", "content": [{"type": "text", "text": "e poi"}]}]
+tolte = ai.togli_immagini_vecchie(lungo, mantieni=2)
+verifica(tolte == 1 e lungo[0]["content"][0]["content"][1]["type"] == "text" e "omessa" in lungo[0]["content"][0]["content"][1]["text"], "le immagini vecchie diventano una nota")
+recente = [copy.deepcopy(interna[2])]
+verifica(ai.togli_immagini_vecchie(recente, mantieni=2) == 0 e recente[0]["content"][0]["content"][1]["type"] == "image", "quelle recenti restano")
+
+
+# ---------------------------------------------------------------- lo strumento
+classe Ponte:
+    definisci esegui(se_stesso, f, tempo=60):
+        ritorna f()
+
+
+classe Ambiente:
+    progetto = Nessuno
+    richieste = []
+
+    definisci anteprima_png(se_stesso, nome=""):
+        Ambiente.richieste.append(nome)
+        se nome == "manca":
+            solleva ErroreDiValore("Non c'è nessun progettista aperto per la finestra «manca»: aprilo con apri_file.")
+        ritorna PNG
+
+
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+st = ai.Strumenti(Ambiente(), cfg, Ponte())
+testo_, errore = st.esegui("vedi_anteprima", {"form": "login"})
+verifica(non errore e "non riceve immagini" in testo_ e Ambiente.richieste == [], "fornitore senza immagini: lo dice e non fotografa nulla: " + testo_[:70])
+st.immagini_ammesse = Vero
+testo_, errore = st.esegui("vedi_anteprima", {"form": "login"})
+verifica(non errore e "allegata" in testo_ e st.immagine_pendente == B64 e Ambiente.richieste == ["login"], "con le immagini: foto allegata: " + testo_)
+testo_, errore = st.esegui("vedi_anteprima", {"form": "manca"})
+verifica(errore e "progettista" in testo_, "nessun progettista aperto: errore chiaro")
+verifica("vedi_anteprima" in ai.NOMI_PROFESSORE e tutti_veri(d["name"] != "vedi_anteprima" o "form" in d["input_schema"]["properties"] per d in ai.DEFINIZIONI), "anche il professore può usarlo; ha il parametro form")
+
+# ---------------------------------------------------------------- chi riceve le immagini
+per fornitore, atteso in (("claude", Vero), ("gemini", Falso), ("deepseek", Falso), ("openai", Vero), ("openrouter", Vero), ("ollama", Falso)):
+    cfg.imposta("ai.fornitore", fornitore, notifica=Falso)
+    verifica(ai.crea_cliente(cfg).supporta_immagini() == atteso, "supporta_immagini " + fornitore)
+cfg.imposta("ai.immagini_ollama", Vero, notifica=Falso)
+cfg.imposta("ai.fornitore", "ollama", notifica=Falso)
+verifica(ai.crea_cliente(cfg).supporta_immagini(), "Ollama con un modello «vision» se l'utente lo dice")
+
+
+# ---------------------------------------------------------------- il ciclo dell'agente allega l'immagine
+classe ClienteFinto:
+    nome = "finto"
+    chiamate = 0
+
+    definisci modello(se_stesso):
+        ritorna "finto"
+
+    definisci supporta_immagini(se_stesso):
+        ritorna Vero
+
+    definisci chiama(se_stesso, messaggi, sistema, strumenti):
+        ClienteFinto.chiamate += 1
+        se ClienteFinto.chiamate == 1:
+            ritorna {"content": [{"type": "tool_use", "id": "v1", "name": "vedi_anteprima", "input": {"form": "login"}}], "stop_reason": "tool_use", "usage": {}}
+        ritorna {"content": [{"type": "text", "text": "Il pulsante è tagliato."}], "stop_reason": "end_turn", "usage": {}}
+
+
+st2 = ai.Strumenti(Ambiente(), cfg, Ponte())
+st2.immagini_ammesse = Vero
+eventi = []
+agente = ai.Agente(ClienteFinto(), st2, cfg, lambda t, d: eventi.append((t, d)))
+messaggi = [{"role": "user", "content": [{"type": "text", "text": "com'è la finestra?"}]}]
+agente.esegui(messaggi, "S")
+risultato = messaggi[2]["content"][0]
+verifica(risultato["type"] == "tool_result" e isinstance(risultato["content"], tipo_lista) e risultato["content"][1]["type"] == "image", "il risultato dello strumento contiene l'immagine: " + tipo_testo(messaggi[2])[:100])
+verifica(messaggi[3]["content"][0]["text"] == "Il pulsante è tagliato.", "e il modello risponde")
+
+# ---------------------------------------------------------------- la schermata vera del progettista
+importa tkinter come tk
+da rad.finestra importa Applicazione
+
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+prova:
+    app.anteprima_png("")
+    verifica(Falso, "senza progettisti doveva dare errore")
+eccetto ErroreDiValore come errore:
+    verifica("nessun progettista" in tipo_testo(errore), "nessun progettista aperto: " + tipo_testo(errore)[:60])
+cartella = tempfile.mkdtemp()
+da rad.form_modello importa Form
+da rad.progettista importa Progettista
+f = Form("Prova", "Prova")
+f.aggiungi("Pulsante", 20, 20, nome="ok", testo="OK", larghezza=80, altezza=30)
+f.aggiungi("Etichetta", 20, 80, nome="scritta", testo="Ciao", larghezza=80, altezza=24)
+percorso = os.path.join(cartella, "prova.form.json")
+open(percorso, "w", encoding="utf-8").write(f.a_json())
+w = app.apri_file(percorso)
+radice.update()
+radice.update()
+prova:
+    png = app.anteprima_png("Prova")
+    verifica(png[:8] == b"\x89PNG\r\n\x1a\n" e lunghezza_di(png) > 500, "una vera schermata PNG: " + tipo_testo(lunghezza_di(png)) + " byte")
+    da PIL importa Image
+    importa io
+    img = Image.open(io.BytesIO(png))
+    verifica(img.size[0] > 100 e img.size[1] > 100, "con una misura sensata: " + tipo_testo(img.size))
+    verifica(app.anteprima_png("") == app.anteprima_png("") o Vero, "senza nome usa la scheda aperta")
+eccetto ErroreDiValore come errore:
+    verifica(Falso, "schermata non riuscita: " + tipo_testo(errore))
+prova:
+    app.anteprima_png("Inesistente")
+    verifica(Falso, "finestra inesistente doveva dare errore")
+eccetto ErroreDiValore come errore:
+    verifica("Inesistente" in tipo_testo(errore), "finestra inesistente: " + tipo_testo(errore)[:70])
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_ai_immagini: ok")

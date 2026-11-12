@@ -55,6 +55,10 @@ classe PannelloChat(tk.Frame):
         se_stesso.etichetta_professore.pack(side="left", padx=8, pady=3)
         se_stesso.pulsante_professore = tk.Button(se_stesso.banda_professore, text="Esci dal professore", command=se_stesso.esci_dal_professore, relief="flat")
         se_stesso.pulsante_professore.pack(side="right", padx=6, pady=3)
+        se_stesso.livello_indizio = 0
+        se_stesso.pulsante_indizio = tk.Button(se_stesso.banda_professore, text="💡 Indizio", command=se_stesso.chiedi_indizio, relief="flat")
+        se_stesso.pulsante_indizio.pack(side="right", padx=2, pady=3)
+        suggerisci(se_stesso.pulsante_indizio, "Un indizio alla volta: ogni pressione ne chiede uno più preciso (da 1 a 4). Se scrivi tu un nuovo messaggio si ricomincia dal primo.")
         b = tk.Button(testata, text="Nuova chat", command=se_stesso.nuova_chat)
         b.pack(side="right", padx=3, pady=3)
         suggerisci(b, "Inizia una nuova conversazione con l'assistente")
@@ -133,6 +137,7 @@ classe PannelloChat(tk.Frame):
         se_stesso.banda_professore.configure(background=c["accento"])
         se_stesso.etichetta_professore.configure(background=c["accento"], foreground="#ffffff")
         se_stesso.pulsante_professore.configure(background=c["pulsante"], foreground=c["primo_piano"])
+        se_stesso.pulsante_indizio.configure(background=c["pulsante"], foreground=c["primo_piano"])
         se_stesso.stato.configure(background=c["pannello"], foreground=c["tenue"])
         per casella in (se_stesso.casella_contesto, se_stesso.casella_economico):
             casella.configure(background=c["pannello"], foreground=c["tenue"], activebackground=c["pannello"],
@@ -245,12 +250,21 @@ classe PannelloChat(tk.Frame):
             ritorna ""
         ritorna info
 
-    definisci invia(se_stesso, testo_=Nessuno, economico=Nessuno):
+    definisci chiedi_indizio(se_stesso):
+        """Il pulsante «Indizio» del professore: ogni pressione chiede un indizio più preciso (livelli da 1 a 4)."""
+        se non se_stesso.professore o (se_stesso.lavoro e se_stesso.lavoro.is_alive()):
+            ritorna
+        livello = min(4, se_stesso.livello_indizio + 1)
+        se_stesso.invia(f"Indizio livello {livello}", _indizio=livello)
+
+    definisci invia(se_stesso, testo_=Nessuno, economico=Nessuno, _indizio=Nessuno):
         se se_stesso.lavoro e se_stesso.lavoro.is_alive():
             ritorna
         domanda = (testo_ se testo_ è non Nessuno altrimenti se_stesso.ingresso.get("1.0", "end")).strip()
         se non domanda:
             ritorna
+        se_stesso.livello_indizio = _indizio o 0          # un messaggio scritto dall'allievo azzera gli indizi
+        se_stesso.pulsante_indizio.configure(text=f"💡 Indizio ({_indizio}/4)" se _indizio altrimenti "💡 Indizio")
         se testo_ è Nessuno:
             se_stesso.ingresso.delete("1.0", "end")
         se_stesso._scrivi("Tu\n", "etichetta_utente")
@@ -271,6 +285,7 @@ classe PannelloChat(tk.Frame):
         altrimenti:
             se_stesso._scrivi(f"(modello: {cliente.modello()})\n", "info")
         strumenti = ai.Strumenti(se_stesso.ambiente, se_stesso.config_, se_stesso.ponte)
+        strumenti.immagini_ammesse = cliente.supporta_immagini()
         se se_stesso.config_.ottieni("ai.storia", Vero):
             strumenti.storia = getattr(se_stesso.ambiente, "storia", Nessuno)
             strumenti.descrizione = domanda[:120]
@@ -397,6 +412,8 @@ classe PannelloChat(tk.Frame):
             ritorna Falso
         se_stesso.nuova_chat()
         se_stesso.professore = dict(lezione)
+        se_stesso.livello_indizio = 0
+        se_stesso.pulsante_indizio.configure(text="💡 Indizio")
         se_stesso.etichetta_professore.configure(text=f"🎓 Professore · lezione {lezione.get('numero')}: {lezione.get('titolo')}")
         se_stesso.banda_professore.pack(fill="x", after=se_stesso.testata)
         se_stesso.applica_colori(se_stesso.colori)

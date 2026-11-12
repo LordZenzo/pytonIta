@@ -862,6 +862,25 @@ classe Progettista(tk.Frame):
         ritorna tk.Checkbutton(genitore, variable=var, background=c_["pannello"], selectcolor=c_["casella"], activebackground=c_["pannello"],
                                command=lambda: alla_modifica(var.get()))
 
+    definisci cattura_png(se_stesso):
+        """Una schermata (PNG) della finestra come è disegnata, per l'assistente AI. Serve PIL e la finestra di PitStudio visibile."""
+        prova:
+            da PIL importa ImageGrab
+        eccetto ImportError come errore:
+            solleva ErroreDiValore("Per vedere l'anteprima serve il pacchetto Pillow (pip install pillow).") da errore
+        se_stesso.update_idletasks()
+        s = se_stesso.superficie
+        x0, y0 = s.winfo_rootx(), s.winfo_rooty()
+        riquadro = (x0, y0, x0 + max(1, s.winfo_width()), y0 + max(1, s.winfo_height()))
+        prova:
+            immagine = ImageGrab.grab(bbox=riquadro)
+        eccetto Exception come errore:
+            solleva ErroreDiValore(f"Non riesco a fotografare lo schermo: {errore}") da errore
+        importa io
+        dati = io.BytesIO()
+        immagine.save(dati, format="PNG")
+        ritorna dati.getvalue()
+
     definisci _posizione_sequenza(se_stesso, c, indice):
         form_modello.sposta_in_sequenza(se_stesso.form, c, indice)
         se_stesso._rilayout()

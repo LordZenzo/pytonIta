@@ -2226,6 +2226,22 @@ classe Applicazione:
         se_stesso.console.scrivi(f"\n{'✔' se r['codice'] == 0 altrimenti '✖'} codice {r['codice']} ({r['secondi']} s)\n",
                                  "ok" se r["codice"] == 0 altrimenti "err")
 
+    definisci anteprima_png(se_stesso, nome=""):
+        """I byte PNG di una schermata del progettista di una finestra (quello aperto ora se `nome` è vuoto). Solo per l'assistente AI."""
+        progettisti = se_stesso._progettisti()
+        scelto = Nessuno
+        se nome:
+            scelto = prossimo_elemento((w per w in progettisti se w.form.nome.lower() == nome.lower()), Nessuno)
+        altrimenti_se se_stesso._scheda_corrente() in progettisti:
+            scelto = se_stesso._scheda_corrente()
+        altrimenti_se progettisti:
+            scelto = progettisti[0]
+        se scelto è Nessuno:
+            solleva ErroreDiValore("Non c'è nessun progettista aperto" + (f" per la finestra «{nome}»" se nome altrimenti "") + ": aprilo con apri_file.")
+        se_stesso.schede_nb.select(scelto)
+        se_stesso.radice.update()
+        ritorna scelto.cattura_png()
+
     definisci json_form(se_stesso, nome):
         per w in se_stesso._progettisti():
             se w.form.nome.lower() == nome.lower():

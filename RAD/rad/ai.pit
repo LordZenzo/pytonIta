@@ -2,6 +2,7 @@
 
 La conversazione ha sempre il formato dell'API Messages di Anthropic (blocchi text, tool_use, tool_result): ogni cliente la traduce
 nel formato del proprio fornitore e traduce la risposta di nuovo in quel formato, così l'agente e gli strumenti non cambiano."""
+importa base64
 importa json
 importa os
 importa threading
@@ -46,6 +47,10 @@ DEFINIZIONI = [
      "input_schema": {"type": "object", "properties": {
          "testo": {"type": "string"}, "estensioni": {"type": "array", "items": {"type": "string"}}},
          "required": ["testo"]}},
+    {"name": "vedi_anteprima",
+     "description": "Ti mostra una schermata della finestra disegnata nel progettista (come la vede l'utente): utile per controllare l'aspetto, gli allineamenti, i testi tagliati. "
+                    "Serve che il progettista di quella finestra sia aperto. Ritorna un'immagine (solo se il fornitore la accetta).",
+     "input_schema": {"type": "object", "properties": {"form": {"type": "string", "description": "nome della finestra (vuoto = quella aperta ora)"}}}},
     {"name": "controlla_sintassi",
      "description": "Controlla la sintassi pytonIta di un file del progetto (o di un testo). Restituisce 'ok' o riga/colonna/messaggio; segnala anche gli errori gravi del controllo (parole chiave usate come nomi, funzioni predefinite nascoste da una variabile) che impedirebbero al programma di partire.",
      "input_schema": {"type": "object", "properties": {
@@ -97,7 +102,7 @@ DEFINIZIONI = [
 
 
 # il professore guarda, legge ed esegue, ma non scrive al posto dell'allievo
-NOMI_PROFESSORE = ("stato_ide", "elenca_file", "leggi_file", "cerca_nel_progetto", "controlla_sintassi", "esegui_programma", "apri_file", "membri_modulo")
+NOMI_PROFESSORE = ("stato_ide", "elenca_file", "leggi_file", "cerca_nel_progetto", "controlla_sintassi", "esegui_programma", "apri_file", "membri_modulo", "vedi_anteprima")
 DEFINIZIONI_PROFESSORE = [d per d in DEFINIZIONI se d["name"] in NOMI_PROFESSORE]
 
 # strumenti che possono cambiare i file del progetto: prima del primo di questi si fotografa lo stato (annullabile)
@@ -111,7 +116,36 @@ classe ErroreAI(Eccezione):
 
 definisci stima_token(messaggi):
     """Stima grossolana dei token di una conversazione (circa 4 caratteri per token)."""
-    ritorna lunghezza_di(json.dumps(messaggi, ensure_ascii=Falso)) // 4
+    testo_ = json.dumps(messaggi, ensure_ascii=Falso)
+    immagini = 0
+    per m in messaggi:
+        se isinstance(m.get("content"), tipo_lista):
+            per b in m["content"]:
+                se isinstance(b, dict) e isinstance(b.get("content"), tipo_lista):
+                    per x in b["content"]:
+                        se isinstance(x, dict) e x.get("type") == "image":
+                            immagini += 1
+                            testo_ = testo_.replace(x.get("source", {}).get("data", "@@"), "", 1)
+    ritorna lunghezza_di(testo_) // 4 + immagini * 1500          # un'immagine costa all'incirca 1500 token
+
+
+definisci togli_immagini_vecchie(messaggi, mantieni=2):
+    """Le immagini dei vecchi risultati degli strumenti diventano una nota: pesano molto e il modello le ha già viste.
+    Restano quelle degli ultimi `mantieni` messaggi. Ritorna quante ne ha tolte."""
+    tolte = 0
+    per m in messaggi[:max(0, lunghezza_di(messaggi) - mantieni)]:
+        se isinstance(m.get("content"), tipo_lista):
+            per b in m["content"]:
+                se isinstance(b, dict) e b.get("type") == "tool_result" e isinstance(b.get("content"), tipo_lista):
+                    nuovo = []
+                    per x in b["content"]:
+                        se isinstance(x, dict) e x.get("type") == "image":
+                            nuovo.append({"type": "text", "text": "[immagine omessa: era già stata vista]"})
+                            tolte += 1
+                        altrimenti:
+                            nuovo.append(x)
+                    b["content"] = nuovo
+    ritorna tolte
 
 
 definisci compatta(messaggi, soglia_token, mantieni=6):
@@ -197,6 +231,10 @@ classe ClienteBase:
         se_stesso.config_ = config
         se_stesso.modello_forzato = Nessuno       # se impostato vale al posto del modello scelto (modello economico)
 
+    definisci supporta_immagini(se_stesso):
+        """True se il fornitore (e il modello scelto) accetta immagini dai risultati degli strumenti."""
+        ritorna Falso
+
     definisci modello(se_stesso):
         ritorna se_stesso.modello_forzato o se_stesso.config_.ottieni(se_stesso.chiave_modello, se_stesso.modello_predefinito)
 
@@ -248,6 +286,9 @@ classe ClienteClaude(ClienteBase):
     modello_predefinito = "claude-sonnet-5-5"
     economico_predefinito = "claude-haiku-5-5"
 
+    definisci supporta_immagini(se_stesso):
+        ritorna Vero
+
     definisci chiama(se_stesso, messaggi, sistema, strumenti):
         chiave = se_stesso._chiave_o_errore()
         messaggi = pulisci_per_claude(messaggi)
@@ -262,7 +303,7 @@ classe ClienteClaude(ClienteBase):
 
 
 # ---------------------------------------------------------------- DeepSeek (formato «chat completions», come OpenAI)
-definisci messaggi_a_openai(messaggi, sistema):
+definisci messaggi_a_openai(messaggi, sistema, immagini=Falso):
     """La conversazione interna nel formato chat completions: system, user, assistant (con tool_calls) e tool."""
     r = [{"role": "system", "content": sistema}]
     per m in messaggi:
@@ -284,6 +325,15 @@ definisci messaggi_a_openai(messaggi, sistema):
             per b in c:
                 se b.get("type") == "tool_result":
                     esito = b.get("content")
+                    se isinstance(esito, tipo_lista):
+                        # testo e immagini: il testo va nel risultato, le immagini (se il modello le accetta) in un messaggio a parte
+                        pezzi_testo = [x.get("text", "") per x in esito se isinstance(x, dict) e x.get("type") == "text"]
+                        r.append({"role": "tool", "tool_call_id": b["tool_use_id"], "content": "\n".join(pezzi_testo)})
+                        immagini_ = [x per x in esito se isinstance(x, dict) e x.get("type") == "image"]
+                        se immagini_ e immagini:
+                            r.append({"role": "user", "content": [{"type": "text", "text": "Immagine del risultato dello strumento:"}] +
+                                      [{"type": "image_url", "image_url": {"url": "data:" + x["source"]["media_type"] + ";base64," + x["source"]["data"]}} per x in immagini_]})
+                        continua
                     r.append({"role": "tool", "tool_call_id": b["tool_use_id"],
                               "content": esito se isinstance(esito, tipo_testo) altrimenti json.dumps(esito, ensure_ascii=Falso)})
             testi = [b["text"] per b in c se b.get("type") == "text"]
@@ -354,11 +404,15 @@ classe ClienteChat(ClienteBase):
     richiede_chiave = Vero
     campo_massimo = "max_tokens"       # OpenAI ora vuole «max_completion_tokens»
     intestazioni_extra = {}
+    con_immagini = Vero
+
+    definisci supporta_immagini(se_stesso):
+        ritorna se_stesso.con_immagini
 
     definisci chiama(se_stesso, messaggi, sistema, strumenti):
         chiave = se_stesso._chiave_o_errore() se se_stesso.richiede_chiave altrimenti se_stesso.chiave()
         corpo = {"model": se_stesso.modello(), se_stesso.campo_massimo: int(se_stesso.config_.ottieni("ai.max_token", 4096)),
-                 "messages": messaggi_a_openai(messaggi, sistema)}
+                 "messages": messaggi_a_openai(messaggi, sistema, immagini=se_stesso.supporta_immagini())}
         se strumenti:
             corpo["tools"] = [{"type": "function", "function": {"name": s["name"], "description": s.get("description", ""), "parameters": s["input_schema"]}}
                               per s in strumenti]
@@ -409,6 +463,9 @@ classe ClienteOllama(ClienteChat):
     economico_predefinito = "qwen2.5-coder:7b"
     url_predefinito = "http://localhost:11434/v1"
     richiede_chiave = Falso
+
+    definisci supporta_immagini(se_stesso):
+        ritorna bool(se_stesso.config_.ottieni("ai.immagini_ollama", Falso))          # solo i modelli «vision» (llava, qwen2.5-vl…): lo decide l'utente
 
     definisci _invia(se_stesso, url, corpo, intestazioni):
         prova:
@@ -485,6 +542,8 @@ definisci messaggi_a_gemini(messaggi):
                 parti.append(p)
             altrimenti_se t == "tool_result":
                 esito = b.get("content")
+                se isinstance(esito, tipo_lista):
+                    esito = "\n".join(x.get("text", "") per x in esito se isinstance(x, dict) e x.get("type") == "text")
                 se non isinstance(esito, tipo_testo):
                     esito = json.dumps(esito, ensure_ascii=Falso)
                 parti.append({"functionResponse": {"name": nomi.get(b["tool_use_id"], "strumento"),
@@ -692,6 +751,14 @@ classe Strumenti:
         se non trovati:
             ritorna "nessun risultato"
         ritorna "\n".join(f"{f}:{n}: {r}" per f, n, r in trovati)
+
+    definisci s_vedi_anteprima(se_stesso, form=""):
+        if_non_ammesse = "Questo fornitore o modello non riceve immagini: descrivi il form leggendo i suoi dati (ottieni_form)."
+        se non getattr(se_stesso, "immagini_ammesse", Falso):
+            ritorna if_non_ammesse
+        png = se_stesso.ponte.esegui(lambda: se_stesso.ambiente.anteprima_png(form))
+        se_stesso.immagine_pendente = base64.b64encode(png).decode("ascii")
+        ritorna f"Schermata della finestra «{form o 'aperta ora'}» ({lunghezza_di(png) // 1024} KB), allegata come immagine."
 
     definisci s_controlla_sintassi(se_stesso, percorso=Nessuno, codice=Nessuno):
         se codice è Nessuno:
@@ -936,6 +1003,7 @@ classe Agente:
                 se_stesso.su_evento("info", f"Conversazione lunga: accorciati i vecchi risultati (circa {risparmiati // 4} token in meno).")
                 se se_stesso.registro:
                     se_stesso.registro.scrivi("compattazione", richiesta=se_stesso.id_richiesta, token_risparmiati=risparmiati // 4)
+            togli_immagini_vecchie(messaggi)
             risposta = se_stesso.cliente.chiama(messaggi, sistema, se_stesso.definizioni o DEFINIZIONI)
             se_stesso._passi = passo + 1
             blocchi = risposta.get("content", [])
@@ -967,10 +1035,15 @@ classe Agente:
                     continua
                 se_stesso.su_evento("strumento", {"nome": b["name"], "parametri": b.get("input", {})})
                 inizio = time.time()
+                se_stesso.strumenti.immagine_pendente = Nessuno
                 esito, errore = se_stesso.strumenti.esegui(b["name"], b.get("input", {}))
                 se_stesso.su_evento("risultato", {"nome": b["name"], "testo": esito, "errore": errore,
                                                   "secondi": round(time.time() - inizio, 2)})
-                risultati.append({"type": "tool_result", "tool_use_id": b["id"], "content": esito, "is_error": errore})
+                contenuto = esito
+                immagine = getattr(se_stesso.strumenti, "immagine_pendente", Nessuno)
+                se immagine e non errore:
+                    contenuto = [{"type": "text", "text": esito}, {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": immagine}}]
+                risultati.append({"type": "tool_result", "tool_use_id": b["id"], "content": contenuto, "is_error": errore})
             messaggi.append({"role": "user", "content": risultati})
         se_stesso.su_evento("info", f"Raggiunto il limite di {massimo} passi per richiesta.")
 
@@ -1009,6 +1082,14 @@ Regole:
 - Se c'è un errore, spiega cosa significa il messaggio e dove guardare, non correggerlo al posto suo.
 - Resta sull'argomento della lezione; se l'allievo chiede altro, rispondi in breve e riporta il discorso alla lezione.
 - Incoraggia: sbagliare serve a imparare.
+
+## INDIZI A LIVELLI
+Quando l'allievo scrive «Indizio livello N» (N da 1 a 4) rispondi SOLO con quel livello, in poche righe, e non anticipare i livelli successivi:
+- Livello 1: una domanda che lo fa ragionare, o il richiamo del concetto da usare. Nessun codice.
+- Livello 2: dove guardare (quale riga, quale parte del programma) e quale regola vale lì. Nessun codice.
+- Livello 3: un esempio piccolo e DIVERSO dal suo problema, scritto in pytonIta, da cui può copiare l'idea.
+- Livello 4: la riga (o le due righe) che mancano, spiegate; mai il programma intero.
+La soluzione completa la dai solo se l'allievo dice chiaramente che si arrende, e dopo avergli spiegato cosa imparerebbe provandoci ancora. Se l'indizio richiesto è oltre il quarto, ripeti il livello 4 con parole diverse.
 
 Il testo della lezione che l'allievo sta studiando:
 

@@ -4,6 +4,10 @@ L'assistente è **Claude** (oppure **Gemini**, **DeepSeek**, **OpenAI**, **OpenR
 
 ![La chat con l'assistente](immagini/assistente.png)
 
+## L'assistente vede la finestra
+
+Con il progettista aperto l'assistente può chiedere una **schermata della finestra** che stai disegnando (strumento `vedi_anteprima`) per controllare l'aspetto: componenti tagliati, allineamenti, testi troppo lunghi. Funziona con i fornitori che accettano immagini (Claude, OpenAI, OpenRouter; con Ollama solo se scegli un modello «vision» e metti `ai.immagini_ollama` a vero in `config.json`) e serve il pacchetto Pillow. La schermata è solo della finestra disegnata, non del resto dello schermo; viene inviata al fornitore come ogni altro contenuto. Le immagini vecchie vengono tolte dalla conversazione per risparmiare.
+
 ## Configurazione (una volta sola)
 
 1. Apri *Strumenti → Impostazioni → Assistente AI*.

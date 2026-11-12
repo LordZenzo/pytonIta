@@ -18,6 +18,7 @@ Dal menu *Aiuto → Lezioni (con quiz e professore)…* (o dalla finestra che co
 - **Leggi la lezione**: apre la guida su quella lezione.
 - **Fai il quiz**: da 4 a 7 domande a risposte multiple, una alla volta, anche del tipo «Che cosa stampa questo programma?». Se sbagli ti dice perché e quale sezione rileggere. Con almeno l'80% di risposte giuste la lezione è superata (✔) e ti consiglia la successiva. Il quiz funziona **senza AI**.
 - **Esercizi guidati**: scrivi il codice e PitStudio lo controlla.
+- **Indizio**: nella chat del professore il pulsante **💡 Indizio** chiede un aiuto alla volta, sempre più preciso (livello 1: una domanda per ragionare; 2: dove guardare; 3: un esempio simile; 4: la riga che manca). Se scrivi tu un messaggio si ricomincia dal primo. La soluzione intera non te la dà, a meno che tu dica che ti arrendi.
 - **Chiedi al professore**: se hai configurato l'assistente AI (Claude, Gemini, DeepSeek, OpenAI, OpenRouter o Ollama), la chat diventa il *professore* della lezione: spiega con parole semplici, ti fa domande, legge il tuo codice e ti dà un indizio alla volta, **senza scrivere il programma al posto tuo**. Per uscire c'è il pulsante «Esci dal professore» nella chat. Senza AI il pulsante ti porta alle Impostazioni.
 
 ## Le lezioni

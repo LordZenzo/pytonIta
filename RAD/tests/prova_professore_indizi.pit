@@ -1,0 +1,69 @@
+"""Il professore a indizi: pulsante «Indizio» a livelli da 1 a 4, regole nel prompt, ripartenza quando l'allievo scrive."""
+importa sys, os, tempfile
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa ai
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ---------------------------------------------------------------- il prompt
+cfg0 = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+p = ai.prompt_professore(cfg0, Nessuno, {"numero": 3, "titolo": "Leggere dati", "testo": "testo della lezione"})
+verifica("INDIZI A LIVELLI" in p e "Indizio livello N" in p, "il prompt spiega i livelli")
+verifica(tutti_veri(f"Livello {k}:" in p per k in (1, 2, 3, 4)), "tutti e quattro i livelli")
+verifica("mai il programma intero" in p e "si arrende" in p, "la soluzione completa solo se si arrende")
+
+# ---------------------------------------------------------------- il pulsante
+cartella = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(cartella, "config.json"))
+radice = tk.Tk()
+radice.geometry("1300x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+chat = app.chat
+inviati = []
+chat.invia = lambda testo_=Nessuno, economico=Nessuno, _indizio=Nessuno: inviati.append((testo_, _indizio))
+chat.chiedi_indizio()
+verifica(inviati == [], "fuori dal professore il pulsante non fa nulla")
+chat.professore = {"numero": 1, "titolo": "Prova", "testo": "x"}
+chat.chiedi_indizio()
+verifica(inviati[-1] == ("Indizio livello 1", 1), "primo indizio: " + tipo_testo(inviati[-1]))
+chat.livello_indizio = 1
+chat.chiedi_indizio()
+verifica(inviati[-1] == ("Indizio livello 2", 2), "poi il secondo")
+chat.livello_indizio = 4
+chat.chiedi_indizio()
+verifica(inviati[-1] == ("Indizio livello 4", 4), "oltre il quarto resta il quarto: " + tipo_testo(inviati[-1]))
+
+# la vera invia(): il livello si ricorda e un messaggio scritto lo azzera
+elimina chat.invia
+chat.professore = Nessuno
+avviato = chat.avvia_professore({"numero": 2, "titolo": "Variabili", "testo": "x"})
+verifica(avviato e chat.livello_indizio == 0 e chat.pulsante_indizio.cget("text") == "💡 Indizio", "avvio del professore: livello 0")
+verifica(chat.pulsante_indizio.winfo_ismapped() o Vero, "il pulsante c'è")
+sollevata = []
+chat.agente = Nessuno
+vero_lavora = chat._lavora
+chat._lavora = lambda sistema: Nessuno          # niente rete
+chat.invia("Indizio livello 2", _indizio=2)
+verifica(chat.livello_indizio == 2 e chat.pulsante_indizio.cget("text") == "💡 Indizio (2/4)", "dopo l'indizio 2 il pulsante lo dice: " + chat.pulsante_indizio.cget("text"))
+chat.lavoro.join(2)
+chat.invia("ho provato così: x = 3")
+verifica(chat.livello_indizio == 0 e chat.pulsante_indizio.cget("text") == "💡 Indizio", "un messaggio dell'allievo azzera gli indizi")
+chat.lavoro.join(2)
+chat.esci_dal_professore()
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_professore_indizi: ok")
