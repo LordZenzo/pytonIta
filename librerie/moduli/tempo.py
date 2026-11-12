@@ -10,7 +10,8 @@ from _italiano import alias_tipo, kw_tipo, ottieni as _ott
 def __getattr__(nome):
     return getattr(_orig, nome)
 
-aspetta = _ott(_orig, 'sleep')
+pausa = _ott(_orig, 'sleep')
+aspetta = pausa          # nome vecchio, ancora valido
 adesso = _ott(_orig, 'time')
 orario_locale = _ott(_orig, 'localtime')
 orario_utc = _ott(_orig, 'gmtime')

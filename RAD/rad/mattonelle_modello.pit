@@ -81,7 +81,7 @@ TIPI = {
                   descrizione="Termina la funzione restituendo un valore"),
     "passa": _d("istruzione", "flusso", ["non fare nulla"], codice="passa"),
     "attendi": _d("istruzione", "flusso", ["aspetta", ("i", "secondi", "numero", "1"), "secondi"],
-                  codice="tempo.aspetta({secondi})", moduli=["tempo"]),
+                  codice="tempo.pausa({secondi})", moduli=["tempo"]),
     # --- variabili
     "imposta": _d("istruzione", "variabili", ["imposta", ("c", "var", "x", "variabile_nuova"), "a", ("i", "valore", "valore", "0")],
                   codice="{var} = {valore}", descrizione="Assegna un valore a una variabile"),

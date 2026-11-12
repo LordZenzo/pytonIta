@@ -11294,10 +11294,10 @@ index 0000000..dc433f1
 +_basi(_orig)
 diff --git a/Lib/tempo.py b/Lib/tempo.py
 new file mode 100644
-index 0000000..0e7d500
+index 0000000..0ee8236
 --- /dev/null
 +++ b/Lib/tempo.py
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,36 @@
 +"""Modulo italiano per `time` (generato da tools/genera_moduli.py).
 +
 +Contiene tutti i nomi originali piu' gli alias italiani.
@@ -11310,7 +11310,8 @@ index 0000000..0e7d500
 +def __getattr__(nome):
 +    return getattr(_orig, nome)
 +
-+aspetta = _ott(_orig, 'sleep')
++pausa = _ott(_orig, 'sleep')
++aspetta = pausa          # nome vecchio, ancora valido
 +adesso = _ott(_orig, 'time')
 +orario_locale = _ott(_orig, 'localtime')
 +orario_utc = _ott(_orig, 'gmtime')

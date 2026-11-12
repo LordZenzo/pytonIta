@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.25
+
+- **`tempo.pausa(secondi)`** è il nome italiano di `time.sleep` (prima solo `tempo.aspetta`, che continua a funzionare). Aggiornati lezione 14, guida delle librerie, mattonella «aspetta» e l'indice delle librerie (tempo 1.1). Il nome `aspetta` resta in `asincronia`.
+
 ## Novità della 2.24
 
 - **Debug con la console chiusa:** il debug partiva solo la prima volta, e solo con la console aperta. Con la console chiusa il pannello del debug dava un errore interno e non accadeva nulla. Ora parte sempre.

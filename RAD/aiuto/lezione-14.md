@@ -93,13 +93,13 @@ Natale 2030 cade di mercoledì
 
 ### tempo: pause e cronometro
 
-`tempo.aspetta(secondi)` mette in pausa il programma; `tempo.adesso()` dà l'orologio in secondi (per misurare quanto dura qualcosa).
+`tempo.pausa(secondi)` mette in pausa il programma; `tempo.adesso()` dà l'orologio in secondi (per misurare quanto dura qualcosa).
 
 ```pit
 importa tempo
 
 inizio = tempo.adesso()
-tempo.aspetta(0.2)
+tempo.pausa(0.2)
 stampa(tempo.adesso() - inizio >= 0.2)
 ```
 

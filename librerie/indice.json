@@ -1406,14 +1406,14 @@
   },
   {
    "nome": "tempo",
-   "versione": "1.0",
+   "versione": "1.1",
    "categoria": "Data e ora",
    "descrizione": "Orologio, pause e misure di tempo.",
    "originale": "time",
    "file": [
     {
      "percorso": "tempo.py",
-     "sha256": "b113704190b54bba58513bf9d3c4986507c71f09eeabcd9fee3819e3afc1e808"
+     "sha256": "04fe4a479d15b12882c7d749e698ad0e309231db5973e75e18b3c2c6d21c4e84"
     }
    ]
   },

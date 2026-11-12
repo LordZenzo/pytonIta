@@ -23,7 +23,7 @@ MODULI = {
         bit_casuali=getrandbits byte_casuali=randbytes
     """),
     "tempo": dict(orig="time", nomi="""
-        aspetta=sleep adesso=time orario_locale=localtime orario_utc=gmtime
+        pausa=sleep aspetta=sleep adesso=time orario_locale=localtime orario_utc=gmtime
         formatta_tempo=strftime analizza_tempo=strptime
         contatore_prestazioni=perf_counter contatore_monotono=monotonic
         ora_testo=ctime crea_tempo=mktime fuso_orario=timezone

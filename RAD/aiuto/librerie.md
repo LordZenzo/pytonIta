@@ -12,7 +12,7 @@ I nomi più importanti sono scelti a mano, il resto dell'API è tradotto automat
 | pathlib | `percorso` | `Percorso("a.txt").leggi_testo()` |
 | sys | `sistema` | `sistema.argomenti` |
 | datetime | `data_ora` | `OraData.adesso()`, `Data(2026, 1, 31)` |
-| time, math, random | `tempo`, `matematica`, `casuale` | `tempo.aspetta(1)`, `matematica.radice_quadrata(9)` |
+| time, math, random | `tempo`, `matematica`, `casuale` | `tempo.pausa(1)`, `matematica.radice_quadrata(9)` |
 | json, csv | `formato_json`, `tabelle_csv` | `formato_json.carica_testo(t)` |
 | sqlite3 | `database` | `database.connetti("dati.db")` |
 | re | `espressioni_regolari` | `espressioni_regolari.cerca(modello, testo)` |
