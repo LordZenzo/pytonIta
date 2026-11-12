@@ -1,0 +1,165 @@
+"""La memoria nel debugger: costruzione dei nomi e degli oggetti, alias visibili, disposizione e disegno, pannello e una sessione di debug vera."""
+importa sys, os, tempfile, json, subprocess, time, importlib.util
+QUI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, QUI)
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.debug importa RUNNER, INIZIO_EVENTO, FINE_EVENTO, PREFISSO_COMANDO, PannelloDebug
+da rad importa memoria_vista
+da rad.tema importa colori
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+specifica = importlib.util.spec_from_file_location("debug_runner_prova", RUNNER)
+runner = importlib.util.module_from_spec(specifica)
+specifica.loader.exec_module(runner)
+
+# ---------------------------------------------------------------- il costruttore
+elenco = [1, 2, [3, 4]]
+alias = elenco
+
+
+classe Punto:
+    definisci __inizializza__(se_stesso):
+        se_stesso.x = elenco
+        se_stesso.n = 5
+        se_stesso.__segreto = 1
+
+
+valori_prova = {"elenco": elenco, "alias": alias, "p": Punto(), "n": 3, "testo": "ciao", "d": {"k": elenco, "v": 7}, "funzione": len, "classe": Punto, "vuoto": Nessuno}
+m = runner.costruisci_memoria(valori_prova)
+per_nome = {n["nome"]: n per n in m["nomi"]}
+verifica("funzione" non in per_nome e "classe" non in per_nome, "funzioni e classi non si disegnano")
+verifica(per_nome["n"] == {"nome": "n", "valore": "3", "ref": Nessuno} e per_nome["testo"]["valore"] == "'ciao'" e per_nome["vuoto"]["valore"] == "Nessuno", "i valori semplici stanno dentro il nome: " + tipo_testo(per_nome["n"]))
+verifica(per_nome["elenco"]["ref"] è non Nessuno e per_nome["elenco"]["ref"] == per_nome["alias"]["ref"], "due nomi, stesso oggetto: stesso riferimento")
+oggetto = m["oggetti"][per_nome["elenco"]["ref"]]
+verifica(oggetto["tipo"] == "lista" e [e_["valore"] per e_ in oggetto["elementi"][:2]] == ["1", "2"] e oggetto["elementi"][2]["ref"] è non Nessuno, "la lista ha due numeri e una lista dentro: " + tipo_testo(oggetto["elementi"]))
+interna = m["oggetti"][oggetto["elementi"][2]["ref"]]
+verifica(interna["tipo"] == "lista" e [e_["valore"] per e_ in interna["elementi"]] == ["3", "4"], "la lista interna")
+p = m["oggetti"][per_nome["p"]["ref"]]
+verifica(p["tipo"] == "Punto" e {e_["chiave"] per e_ in p["elementi"]} == {"x", "n"}, "istanza: attributi x e n (non i privati): " + tipo_testo([e_["chiave"] per e_ in p["elementi"]]))
+verifica([e_["ref"] per e_ in p["elementi"] se e_["chiave"] == "x"][0] == per_nome["elenco"]["ref"], "p.x punta alla stessa lista dei nomi")
+dizionario = m["oggetti"][per_nome["d"]["ref"]]
+verifica(dizionario["tipo"] == "dizionario" e dizionario["elementi"][0]["chiave"] == "'k'" e dizionario["elementi"][0]["ref"] == per_nome["elenco"]["ref"] e dizionario["elementi"][1]["valore"] == "7", "dizionario: chiavi e valori")
+verifica(lunghezza_di(m["oggetti"]) == 4, "quattro oggetti in tutto (lista, interna, istanza, dizionario): " + tipo_testo(lunghezza_di(m["oggetti"])))
+json.dumps(m)
+
+# limiti
+lunga = runner.costruisci_memoria({"l": tipo_lista(intervallo_di(50))})
+verifica(lunghezza_di(lunga["oggetti"][lunga["nomi"][0]["ref"]]["elementi"]) == 10 e lunga["oggetti"][lunga["nomi"][0]["ref"]]["troncato"], "oltre 10 elementi: troncata")
+profonda = []
+punta = profonda
+per _ in intervallo_di(8):
+    nuova = []
+    punta.append(nuova)
+    punta = nuova
+dp = runner.costruisci_memoria({"p": profonda})
+verifica(lunghezza_di(dp["oggetti"]) <= 4, "oltre la profondità si ferma: " + tipo_testo(lunghezza_di(dp["oggetti"])))
+ciclo = []
+ciclo.append(ciclo)
+cm = runner.costruisci_memoria({"c": ciclo})
+verifica(lunghezza_di(cm["oggetti"]) == 1 e cm["oggetti"][cm["nomi"][0]["ref"]]["elementi"][0]["ref"] == cm["nomi"][0]["ref"], "una lista che contiene se stessa non va in ciclo")
+molti = runner.costruisci_memoria({f"v{k}": [k] per k in intervallo_di(100)}, massimo_oggetti=30)
+verifica(lunghezza_di(molti["oggetti"]) == 30, "massimo 30 oggetti")
+
+# ---------------------------------------------------------------- la disposizione
+lay = memoria_vista.disponi(m)
+verifica(lunghezza_di(lay["nomi"]) == 7 e lunghezza_di(lay["oggetti"]) == 4, "disposizione: 7 nomi, 4 oggetti")
+x_oggetti = sorted({v[0] per v in lay["oggetti"].values()})
+verifica(x_oggetti[0] > memoria_vista.MARGINE + memoria_vista.LARGHEZZA_NOME, "gli oggetti stanno a destra dei nomi")
+condivise = [f_ per f_ in lay["frecce"] se f_[4]]
+verifica(lunghezza_di(condivise) >= 3, "le frecce verso la lista condivisa sono evidenziate: " + tipo_testo(lunghezza_di(condivise)))
+verifica(memoria_vista.disponi({}) == {"nomi": [], "oggetti": {}, "frecce": []}, "memoria vuota")
+altezze = [v[1] per v in lay["oggetti"].values() se v[4] == 1]
+verifica(lunghezza_di(set(altezze)) == lunghezza_di(altezze), "oggetti della stessa colonna uno sotto l'altro, non sovrapposti")
+
+# ---------------------------------------------------------------- il disegno
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+radice = tk.Tk()
+radice.geometry("900x500+20+20")
+vista = memoria_vista.VistaMemoria(radice)
+vista.pack(fill="both", expand=Vero)
+vista.mostra(m)
+radice.update()
+testi = [vista.itemcget(i, "text") per i in vista.find_all() se vista.type(i) == "text"]
+verifica("lista" in testi e "dizionario" in testi e "Punto" in testi e "elenco" in testi e "alias" in testi, "nel disegno ci sono i tipi e i nomi: " + tipo_testo(testi[:12]))
+verifica(lunghezza_di([i per i in vista.find_all() se vista.type(i) == "line"]) >= 6, "e le frecce")
+vista.mostra({"nomi": [], "oggetti": {}})
+verifica("Nessuna variabile" in [vista.itemcget(i, "text") per i in vista.find_all() se vista.type(i) == "text"][0], "memoria vuota: lo dice")
+
+# ---------------------------------------------------------------- il pannello del debugger
+classe Sessione:
+    definisci comando(se_stesso, nome):
+        passa
+
+
+pannello = PannelloDebug(radice, Sessione())
+pannello.pack(fill="both", expand=Vero)
+pannello.applica_colori(colori(cfg))
+radice.update()
+ev = {"evento": "fermo", "riga": 3, "funzione": "<module>", "pila": [], "variabili": [{"nome": "n", "valore": "3", "tipo": "int"}], "osservate": [], "memoria": m}
+pannello.mostra_stato(ev)
+verifica(pannello.ultima_memoria == m e non pannello.vista_memoria.winfo_ismapped(), "di serie si vede la tabella delle variabili")
+pannello.var_memoria.set(Vero)
+pannello.commuta_memoria()
+radice.update()
+verifica(pannello.vista_memoria.winfo_ismapped() e non pannello.variabili.winfo_ismapped() e lunghezza_di(pannello.vista_memoria.find_all()) > 10, "con «🧠 Memoria» si vede il disegno")
+ev2 = dict(ev, memoria={"nomi": [{"nome": "solo", "valore": "1", "ref": Nessuno}], "oggetti": {}})
+pannello.mostra_stato(ev2)
+verifica(pannello.ultima_memoria == ev2["memoria"] e "solo" in [pannello.vista_memoria.itemcget(i, "text") per i in pannello.vista_memoria.find_all() se pannello.vista_memoria.type(i) == "text"], "a ogni sosta il disegno si aggiorna")
+pannello.var_memoria.set(Falso)
+pannello.commuta_memoria()
+radice.update()
+verifica(pannello.variabili.winfo_ismapped() e non pannello.vista_memoria.winfo_ismapped(), "e si torna alla tabella")
+radice.destroy()
+
+# ---------------------------------------------------------------- una sessione di debug vera
+PITONIT = sys.executable
+cartella = tempfile.mkdtemp()
+programma = os.path.join(cartella, "alias.pit")
+open(programma, "w", encoding="utf-8").write("voti = [7, 8, 9]\ncopia = voti\ncopia.append(10)\nstampa(voti)\n")
+p = subprocess.Popen([PITONIT, "-u", RUNNER, programma, "--inizio"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+buffer = ""
+soste = []
+t0 = time.time()
+k = 0
+mentre time.time() - t0 < 20:
+    blocco = p.stdout.read1(4096).decode("utf-8", "replace")
+    se non blocco:
+        interrompi
+    buffer += blocco
+    mentre INIZIO_EVENTO in buffer e FINE_EVENTO in buffer:
+        i = buffer.index(INIZIO_EVENTO)
+        j = buffer.index(FINE_EVENTO, i)
+        evento = json.loads(buffer[i + lunghezza_di(INIZIO_EVENTO):j])
+        buffer = buffer[j + 1:]
+        se evento["evento"] == "fermo":
+            soste.append(evento)
+            p.stdin.write((PREFISSO_COMANDO + ("passo" se k < 3 altrimenti "continua") + "\n").encode("utf-8"))
+            p.stdin.flush()
+            k += 1
+    se p.poll() è non Nessuno e non blocco:
+        interrompi
+prova:
+    p.wait(10)
+eccetto Exception:
+    p.kill()
+ultima = [s per s in soste se s.get("memoria") e s["riga"] >= 4]
+verifica(ultima != [], "il runner manda la memoria a ogni sosta: " + tipo_testo(lunghezza_di(soste)) + " soste")
+se ultima:
+    mem = ultima[-1]["memoria"]
+    nomi_ = {n["nome"]: n per n in mem["nomi"]}
+    verifica(nomi_["voti"]["ref"] è non Nessuno e nomi_["voti"]["ref"] == nomi_["copia"]["ref"], "voti e copia sono lo stesso oggetto nel debug vero")
+    verifica([e_["valore"] per e_ in mem["oggetti"][nomi_["voti"]["ref"]]["elementi"]] == ["7", "8", "9", "10"], "e la lista ha anche il 10 aggiunto da copia")
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_memoria: ok")

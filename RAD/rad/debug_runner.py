@@ -72,6 +72,67 @@ def valore_it(valore, breve_max=40):
     return testo if len(testo) <= breve_max else testo[:breve_max - 1] + "…"
 
 
+# ---------------------------------------------------------------- la memoria: nomi e oggetti con i loro riferimenti
+_IMMUTABILI = (int, float, complex, str, bytes, bool, type(None))
+_TIPI_IT = {"list": "lista", "dict": "dizionario", "tuple": "tupla", "set": "insieme", "frozenset": "insieme_congelato"}
+
+
+def costruisci_memoria(variabili, massimo_oggetti=30, massimo_elementi=10, profondita=3):
+    """I nomi (variabili) e gli oggetti a cui puntano, per il disegno della memoria. Valori semplici (numeri, testi, Vero…) restano dentro il nome;
+    liste, dizionari, insiemi, tuple e istanze diventano oggetti con i loro elementi, uno solo anche se più nomi vi puntano.
+    -> {"nomi": [{nome, valore, ref}], "oggetti": {id: {tipo, testo, elementi: [{chiave, valore, ref}], troncato}}}"""
+    import inspect
+    oggetti = {}
+
+    def elemento(chiave, x, livello):
+        if isinstance(x, _IMMUTABILI):
+            return {"chiave": chiave, "valore": valore_it(x, 24), "ref": None}
+        return {"chiave": chiave, "valore": None, "ref": registra(x, livello)}
+
+    def registra(v, livello):
+        ref = str(id(v))
+        if ref in oggetti:
+            return ref
+        if len(oggetti) >= massimo_oggetti:
+            return None
+        tipo = type(v).__name__
+        voce = {"tipo": _TIPI_IT.get(tipo, tipo), "testo": valore_it(v, 30), "elementi": [], "troncato": False}
+        oggetti[ref] = voce
+        if livello >= profondita:
+            voce["troncato"] = True
+            return ref
+        try:
+            if isinstance(v, (list, tuple)):
+                for k, x in enumerate(v[:massimo_elementi]):
+                    voce["elementi"].append(elemento(k, x, livello + 1))
+                voce["troncato"] = len(v) > massimo_elementi
+            elif isinstance(v, (set, frozenset)):
+                for x in list(v)[:massimo_elementi]:
+                    voce["elementi"].append(elemento(None, x, livello + 1))
+                voce["troncato"] = len(v) > massimo_elementi
+            elif isinstance(v, dict):
+                for chiave, x in list(v.items())[:massimo_elementi]:
+                    voce["elementi"].append(elemento(valore_it(chiave, 16), x, livello + 1))
+                voce["troncato"] = len(v) > massimo_elementi
+            else:
+                for nome, x in list(vars(v).items())[:massimo_elementi]:
+                    if not nome.startswith("_"):            # attributi privati (_x, __x) non si disegnano
+                        voce["elementi"].append(elemento(nome, x, livello + 1))
+        except Exception:
+            pass
+        return ref
+
+    nomi = []
+    for nome, v in variabili.items():
+        if inspect.isroutine(v) or inspect.isclass(v) or inspect.ismodule(v):
+            continue
+        if isinstance(v, _IMMUTABILI):
+            nomi.append({"nome": nome, "valore": valore_it(v, 24), "ref": None})
+        else:
+            nomi.append({"nome": nome, "valore": None, "ref": registra(v, 1)})
+    return {"nomi": nomi, "oggetti": oggetti}
+
+
 # ---------------------------------------------------------------- spiegazione passo-passo della riga
 _BUILTIN_SICURI = {len, sum, min, max, abs, round, sorted, str, int, float, bool, repr, ord, chr, list, tuple, set, range, divmod, pow}
 
@@ -523,7 +584,11 @@ class Debugger(bdb.Bdb):
             self.prec_variabili = {v["nome"]: v["valore"] for v in variabili}
             self.prec_osservate = {o["espressione"]: o["valore"] for o in osservate}
         avviso, self.avviso = self.avviso, ""
-        emetti(evento=evento, file=os.path.abspath(frame.f_code.co_filename), riga=frame.f_lineno,
+        try:
+            memoria = costruisci_memoria({k: v for k, v in fonte.items() if not k.startswith("__")}) if evento in ("fermo", "frame") else None
+        except Exception:
+            memoria = None
+        emetti(evento=evento, memoria=memoria, file=os.path.abspath(frame.f_code.co_filename), riga=frame.f_lineno,
                funzione=frame.f_code.co_name, pila=pila, variabili=variabili, osservate=osservate, avviso=avviso,
                valutazione=self.valutazione(frame) if evento == "fermo" or evento == "frame" else [])
 

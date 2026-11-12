@@ -51,6 +51,10 @@ Appena il programma si ferma, il pannello ti aiuta a seguire il ragionamento:
 - **La riga in blu** sopra le variabili mostra come si calcola la riga che sta per essere eseguita, un passo alla volta. Per esempio `a + b * 2  →  3 + 4 * 2  →  3 + 8  →  11`, oppure per una condizione `totale > 10 e a < 5  →  11 > 10 e 3 < 5  →  Vero e Vero  →  Vero`. Per non cambiare il comportamento del programma, le funzioni scritte da te non vengono eseguite per spiegare la riga: si riducono solo i loro argomenti.
 - **I valori in arancione** (variabili ed espressioni osservate) sono quelli **cambiati dall'ultima sosta**, nella stessa funzione.
 
+## La memoria: scatole e frecce
+
+Il pulsante **🧠 Memoria** nella barra del debugger sostituisce la tabella delle variabili con un disegno: a sinistra i **nomi**, a destra gli **oggetti** (liste, dizionari, insiemi, tuple e istanze di classi) con i loro elementi. Numeri, testi, Vero/Falso e Nessuno stanno dentro la casella del nome; ciò che contiene altri oggetti ha un punto da cui parte una **freccia**. Se due nomi sono **lo stesso oggetto** (`copia = voti`) le frecce arrivano nella stessa scatola ed hanno il colore arancione: cambiare uno cambia anche l'altro, ed è l'errore più frequente di chi comincia. Il disegno si aggiorna a ogni sosta. Si mostrano al massimo 30 oggetti, 10 elementi per oggetto e 3 livelli di profondità; gli attributi privati (che cominciano con `_`), le funzioni, le classi e i moduli non si disegnano.
+
 ## Fermarsi quando una variabile cambia (watchpoint)
 
 Aggiungi un'espressione alle osservate (per esempio `totale`) e fai **doppio clic** sulla sua riga: compare 👁. Adesso **Continua** fa girare il programma riga per riga e si ferma appena quel valore cambia, con un messaggio come «👁 totale è cambiata: 0 → 10 (dopo la riga 4)» (scritto anche nella console). Nuovo doppio clic per toglierlo.

@@ -8,6 +8,7 @@ importa os
 importa tempfile
 importa tkinter come tk
 da rad importa stile
+da rad.memoria_vista importa VistaMemoria
 da tkinter importa ttk
 da rad.piattaforma importa FONT_MONO, FONT_UI, semi
 
@@ -39,6 +40,12 @@ classe PannelloDebug(tk.Frame):
             stile.suggerisci(b, f"{etichetta} ({tasto})")
         se_stesso.stato = tk.Label(se_stesso.barra, text="", anchor="e", font=(FONT_UI, 9))
         se_stesso.stato.pack(side="right", padx=8)
+        se_stesso.var_memoria = tk.BooleanVar(value=Falso)
+        se_stesso.pulsante_memoria = tk.Checkbutton(se_stesso.barra, text="🧠 Memoria", variable=se_stesso.var_memoria, indicatoron=Falso, relief="flat", padx=8, pady=1,
+                                                    command=se_stesso.commuta_memoria)
+        se_stesso.pulsante_memoria.pack(side="right", padx=4, pady=2)
+        stile.suggerisci(se_stesso.pulsante_memoria, "Mostra le variabili come scatole con le frecce verso gli oggetti: si vede quando due nomi sono lo stesso oggetto")
+        se_stesso.ultima_memoria = Nessuno
         # come si calcola la riga in cui il programma è fermo (es.  a + b * 2  →  3 + 8  →  11)
         se_stesso.valutazione = tk.Label(se_stesso, text="", anchor="w", justify="left", font=(FONT_MONO, 10))
         se_stesso.corpo = tk.PanedWindow(se_stesso, orient="horizontal", sashwidth=4, borderwidth=0)
@@ -57,6 +64,8 @@ classe PannelloDebug(tk.Frame):
         se_stesso.variabili.configure(yscrollcommand=sb.set)
         sb.pack(side="right", fill="y")
         se_stesso.variabili.pack(fill="both", expand=Vero)
+        se_stesso.cornice_variabili = a
+        se_stesso.vista_memoria = VistaMemoria(a)
         se_stesso.corpo.add(a, minsize=220, stretch="always", width=330)
 
         b = tk.Frame(se_stesso.corpo)
@@ -88,6 +97,16 @@ classe PannelloDebug(tk.Frame):
         se_stesso._frame_pila = []
         se_stesso.attiva_comandi(Falso)
 
+    definisci commuta_memoria(se_stesso):
+        """Passa dalla tabella delle variabili al disegno della memoria (e viceversa)."""
+        se se_stesso.var_memoria.get():
+            se_stesso.variabili.pack_forget()
+            se_stesso.vista_memoria.pack(fill="both", expand=Vero)
+            se_stesso.vista_memoria.mostra(se_stesso.ultima_memoria)
+        altrimenti:
+            se_stesso.vista_memoria.pack_forget()
+            se_stesso.variabili.pack(fill="both", expand=Vero)
+
     definisci attiva_comandi(se_stesso, fermo):
         per nome, b in se_stesso.pulsanti.items():
             b.configure(state="normal" se (fermo o nome == "ferma") altrimenti "disabled")
@@ -96,6 +115,10 @@ classe PannelloDebug(tk.Frame):
     definisci mostra_stato(se_stesso, ev, mantieni=Nessuno):
         """Mostra variabili, pila ed espressioni. mantieni: numero della riga della pila scelta dall'utente (la tiene selezionata)."""
         se_stesso.attiva_comandi(Vero)
+        se ev.get("memoria") è non Nessuno:
+            se_stesso.ultima_memoria = ev["memoria"]
+            se se_stesso.var_memoria.get():
+                se_stesso.vista_memoria.mostra(se_stesso.ultima_memoria)
         se_stesso.variabili.delete(*se_stesso.variabili.get_children())
         per v in ev.get("variabili", []):
             se_stesso.variabili.insert("", "end", values=(v["nome"], v["valore"], v["tipo"]), tags=("cambiata",) se v.get("cambiata") altrimenti ())
@@ -160,6 +183,8 @@ classe PannelloDebug(tk.Frame):
             b.configure(background=c["pulsante"], foreground=c["primo_piano"], activebackground=c["pulsante_attivo"],
                         disabledforeground=c["tenue"])
         se_stesso.valutazione.configure(background=c["pannello"], foreground=c["accento"])
+        se_stesso.vista_memoria.applica_colori(c)
+        se_stesso.pulsante_memoria.configure(background=c["pulsante"], foreground=c["primo_piano"], activebackground=c["pulsante_attivo"], selectcolor=c["accento"])
         se_stesso.osservate.tag_configure("cambiata", foreground="#e0a030")
         se_stesso.pila.configure(background=c["sfondo"], foreground=c["primo_piano"], selectbackground=c["accento"])
         se_stesso.campo.configure(background=c["sfondo"], foreground=c["primo_piano"], insertbackground=c["primo_piano"])

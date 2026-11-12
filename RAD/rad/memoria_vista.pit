@@ -1,0 +1,136 @@
+"""La memoria del programma fermo nel debugger: i nomi alt sinistra, gli oggetti (liste, dizionari, istanze…) alt destra, con le frecce.
+Se due nomi puntano allo stesso oggetto le frecce arrivano nella stessa scatola: si vede subito che cambiare uno cambia l'altro.
+
+Il debugger manda una struttura {"nomi": [{nome, valore, ref}], "oggetti": {id: {tipo, testo, elementi: [{chiave, valore, ref}], troncato}}}
+(vedi costruisci_memoria in debug_runner.py). `disponi` la trasforma in rettangoli e frecce, `VistaMemoria` la disegna."""
+importa tkinter come tk
+
+LARGHEZZA_NOME = 150
+LARGHEZZA_OGGETTO = 200
+ALTEZZA_RIGA = 20
+SPAZIO_COLONNE = 80
+SPAZIO_OGGETTI = 14
+MARGINE = 10
+COLORI_PREDEFINITI = {"editor": "#1e1e1e", "tenue": "#8a8a8a", "pannello": "#2b2b2b", "bordo": "#555555", "primo_piano": "#e6e6e6",
+                      "accento": "#4da3ff", "campo": "#252525", "pulsante": "#3a3a3a"}
+
+
+definisci disponi(memoria):
+    """-> {"nomi": [(nome, testo, x, y, larghezza, altezza, ref)], "oggetti": {id: (x, y, larghezza, altezza, colonna)}, "frecce": [(x1, y1, x2, y2, condivisa)]}"""
+    nomi = memoria.get("nomi", [])
+    oggetti = memoria.get("oggetti", {})
+    risultato = {"nomi": [], "oggetti": {}, "frecce": []}
+    # colonna di ogni oggetto = distanza minima da un nome
+    colonna = {}
+    coda = [(n["ref"], 1) per n in nomi se n.get("ref") in oggetti]
+    mentre coda:
+        ref, livello = coda.pop(0)
+        se ref in colonna:
+            continua
+        colonna[ref] = livello
+        per el in oggetti[ref].get("elementi", []):
+            se el.get("ref") in oggetti e el["ref"] non in colonna:
+                coda.append((el["ref"], livello + 1))
+    # quanti nomi o elementi puntano a ogni oggetto (per colorare quelli condivisi)
+    puntatori = {}
+    per n in nomi:
+        se n.get("ref"):
+            puntatori[n["ref"]] = puntatori.get(n["ref"], 0) + 1
+    per ogg in oggetti.values():
+        per el in ogg.get("elementi", []):
+            se el.get("ref"):
+                puntatori[el["ref"]] = puntatori.get(el["ref"], 0) + 1
+    # i nomi
+    y = MARGINE
+    posizione_nome = {}
+    per n in nomi:
+        risultato["nomi"].append((n["nome"], n.get("valore") o "", MARGINE, y, LARGHEZZA_NOME, ALTEZZA_RIGA + 4, n.get("ref")))
+        posizione_nome[n["nome"]] = (MARGINE + LARGHEZZA_NOME, y + (ALTEZZA_RIGA + 4) // 2)
+        y += ALTEZZA_RIGA + 8
+    # gli oggetti, colonna per colonna
+    per_colonna = {}
+    per ref, c in sorted(colonna.items(), key=lambda kv: (kv[1], kv[0])):
+        per_colonna.setdefault(c, []).append(ref)
+    per c, refs in per_colonna.items():
+        x = MARGINE + LARGHEZZA_NOME + SPAZIO_COLONNE + (c - 1) * (LARGHEZZA_OGGETTO + SPAZIO_COLONNE)
+        y = MARGINE
+        per ref in refs:
+            altezza = ALTEZZA_RIGA + max(1, lunghezza_di(oggetti[ref].get("elementi", []))) * ALTEZZA_RIGA + (ALTEZZA_RIGA se oggetti[ref].get("troncato") altrimenti 0)
+            risultato["oggetti"][ref] = (x, y, LARGHEZZA_OGGETTO, altezza, c)
+            y += altezza + SPAZIO_OGGETTI
+    # le frecce
+    per n in nomi:
+        se n.get("ref") in risultato["oggetti"]:
+            x1, y1 = posizione_nome[n["nome"]]
+            ox, oy, ol, oa, _ = risultato["oggetti"][n["ref"]]
+            risultato["frecce"].append((x1, y1, ox, oy + ALTEZZA_RIGA // 2, puntatori.get(n["ref"], 1) > 1))
+    per ref, (ox, oy, ol, oa, _) in risultato["oggetti"].items():
+        per i, el in enumera(oggetti[ref].get("elementi", [])):
+            se el.get("ref") in risultato["oggetti"]:
+                tx, ty, tl, ta, _ = risultato["oggetti"][el["ref"]]
+                risultato["frecce"].append((ox + ol, oy + ALTEZZA_RIGA + i * ALTEZZA_RIGA + ALTEZZA_RIGA // 2, tx, ty + ALTEZZA_RIGA // 2, puntatori.get(el["ref"], 1) > 1))
+    ritorna risultato
+
+
+classe VistaMemoria(tk.Canvas):
+    """Disegna la struttura della memoria (vedi disponi)."""
+
+    definisci __inizializza__(se_stesso, genitore, colori=Nessuno):
+        tk.Canvas.__init__(se_stesso, genitore, highlightthickness=0)
+        se_stesso.colori = colori o COLORI_PREDEFINITI
+        se_stesso.layout = {}
+        se_stesso.memoria = Nessuno
+        se_stesso.applica_colori(se_stesso.colori)
+
+    definisci applica_colori(se_stesso, colori):
+        se_stesso.colori = colori
+        se_stesso.configure(background=colori["editor"])
+        se se_stesso.memoria è non Nessuno:
+            se_stesso.mostra(se_stesso.memoria)
+
+    definisci mostra(se_stesso, memoria):
+        c = se_stesso.colori
+        se_stesso.memoria = memoria
+        se_stesso.delete("all")
+        se_stesso.layout = disponi(memoria o {})
+        oggetti = (memoria o {}).get("oggetti", {})
+        se non se_stesso.layout["nomi"]:
+            se_stesso.create_text(MARGINE, MARGINE, anchor="nw", fill=c["tenue"], text="Nessuna variabile in memoria.")
+            se_stesso.configure(scrollregion=(0, 0, 200, 40))
+            ritorna
+        larghezza = altezza = 0
+        per nome, testo_, x, y, larg, alt, ref in se_stesso.layout["nomi"]:
+            se_stesso.create_rectangle(x, y, x + larg, y + alt, outline=c["bordo"], fill=c["pannello"])
+            se_stesso.create_text(x + 6, y + alt // 2, anchor="w", fill=c["primo_piano"], font=("Segoe UI", 9, "bold"), text=nome)
+            se testo_:
+                se_stesso.create_text(x + larg - 6, y + alt // 2, anchor="e", fill=c["accento"], font=("Consolas", 9), text=testo_)
+            altrimenti:
+                se_stesso.create_oval(x + larg - 12, y + alt // 2 - 3, x + larg - 6, y + alt // 2 + 3, fill=c["accento"], outline=c["accento"])
+            altezza = max(altezza, y + alt)
+        per ref, (x, y, larg, alt, colonna) in se_stesso.layout["oggetti"].items():
+            ogg = oggetti.get(ref, {})
+            se_stesso.create_rectangle(x, y, x + larg, y + alt, outline=c["bordo"], fill=c["campo"])
+            se_stesso.create_rectangle(x, y, x + larg, y + ALTEZZA_RIGA, outline=c["bordo"], fill=c["pulsante"])
+            se_stesso.create_text(x + 6, y + ALTEZZA_RIGA // 2, anchor="w", fill=c["primo_piano"], font=("Segoe UI", 9, "bold"), text=ogg.get("tipo", "?"))
+            elementi = ogg.get("elementi", [])
+            se non elementi:
+                se_stesso.create_text(x + 6, y + ALTEZZA_RIGA + ALTEZZA_RIGA // 2, anchor="w", fill=c["tenue"], font=("Consolas", 9), text=ogg.get("testo", "")[:26] o "(vuoto)")
+            per i, el in enumera(elementi):
+                riga_y = y + ALTEZZA_RIGA + i * ALTEZZA_RIGA + ALTEZZA_RIGA // 2
+                etichetta = tipo_testo(el["chiave"]) + ": " se el.get("chiave") è non Nessuno altrimenti ""
+                se el.get("ref"):
+                    se_stesso.create_text(x + 6, riga_y, anchor="w", fill=c["tenue"], font=("Consolas", 9), text=etichetta)
+                    se_stesso.create_oval(x + larg - 12, riga_y - 3, x + larg - 6, riga_y + 3, fill=c["accento"], outline=c["accento"])
+                altrimenti:
+                    se_stesso.create_text(x + 6, riga_y, anchor="w", fill=c["primo_piano"], font=("Consolas", 9), text=(etichetta + (el.get("valore") o ""))[:28])
+            se ogg.get("troncato"):
+                se_stesso.create_text(x + 6, y + alt - ALTEZZA_RIGA // 2, anchor="w", fill=c["tenue"], font=("Consolas", 9), text="… altri elementi non mostrati")
+            larghezza = max(larghezza, x + larg)
+            altezza = max(altezza, y + alt)
+        per x1, y1, x2, y2, condivisa in se_stesso.layout["frecce"]:
+            colore = "#e0a030" se condivisa altrimenti c["accento"]
+            se x2 > x1:
+                se_stesso.create_line(x1, y1, x2, y2, arrow="last", fill=colore, width=2 se condivisa altrimenti 1, smooth=Vero)
+            altrimenti:
+                se_stesso.create_line(x1, y1, x1 + 20, y1, x1 + 20, y2 - 30, x2 - 20, y2 - 30, x2 - 20, y2, x2, y2, arrow="last", fill=colore, smooth=Vero)
+        se_stesso.configure(scrollregion=(0, 0, larghezza + MARGINE, altezza + MARGINE))
