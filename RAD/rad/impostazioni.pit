@@ -1,11 +1,23 @@
 """Finestra delle impostazioni di PitStudio (tutto è configurabile e salvato in ~/.rad/config.json)."""
 importa tkinter come tk
 importa tkinter.font come tkfont
+importa webbrowser
 da tkinter importa ttk, colorchooser, messagebox
 
 da rad.tema importa TEMI
 da rad.dialoghi importa DialogoBase
 da rad.piattaforma importa lega_rotella
+
+# dove si ottiene la chiave API (o si scarica il programma, per Ollama): accanto al campo compare un collegamento
+LINK_FORNITORI = {
+    "ai.chiave_api": ("Ottieni la chiave (Anthropic)", "https://console.anthropic.com/settings/keys"),
+    "ai.chiave_gemini": ("Ottieni la chiave (Google AI Studio)", "https://aistudio.google.com/apikey"),
+    "ai.chiave_deepseek": ("Ottieni la chiave (DeepSeek)", "https://platform.deepseek.com/api_keys"),
+    "ai.chiave_openai": ("Ottieni la chiave (OpenAI)", "https://platform.openai.com/api-keys"),
+    "ai.chiave_openrouter": ("Ottieni la chiave (OpenRouter)", "https://openrouter.ai/keys"),
+    "ai.url_ollama": ("Scarica Ollama (gratis, senza chiave)", "https://ollama.com/download"),
+    "ai.modello_ollama": ("Modelli disponibili", "https://ollama.com/library"),
+}
 
 SCHEDE = [
     ("Editor", [
@@ -102,6 +114,7 @@ classe Impostazioni(DialogoBase):
         se_stesso.resizable(Vero, Vero)
         se_stesso.config_ = config
         se_stesso.var = {}
+        se_stesso.link = {}
         se_stesso.var_colori = {}
         se_stesso._tele = {}              # pagina -> tela che la fa scorrere
         c = colori
@@ -196,6 +209,14 @@ classe Impostazioni(DialogoBase):
                              show="•" se tipo_ == "segreto" altrimenti "")
             w.grid(row=riga, column=1, sticky="we" se non (tipo_ in ("si_no", "numero") o tipo_.startswith("scelta:")) altrimenti "w", padx=12, pady=5)
             se_stesso.var[percorso] = (var, w, tipo_, valore)
+            se percorso in LINK_FORNITORI:
+                testo_link, indirizzo = LINK_FORNITORI[percorso]
+                link = tk.Label(pagina, text="🔗 " + testo_link, cursor="hand2", anchor="w", background=c["pannello"],
+                                foreground=c["accento"], font=("Segoe UI", 9, "underline"))
+                link.grid(row=riga, column=2, sticky="w", padx=(0, 12))
+                link.bind("<Button-1>", lambda evento, u=indirizzo: webbrowser.open(u))
+                link.indirizzo = indirizzo
+                se_stesso.link[percorso] = link
 
     definisci _scheda_tema(se_stesso, blocco):
         pagina = se_stesso._pagina(blocco, "Tema")

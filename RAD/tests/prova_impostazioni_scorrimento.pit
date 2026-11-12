@@ -47,6 +47,17 @@ corta = d._tele[tipo_testo(d.blocco.nametowidget(d.blocco.select()))]
 verifica(corta.yview() == (0.0, 1.0), "una pagina che ci sta non scorre")
 # i campi dei fornitori ci sono tutti
 verifica(tutti_veri(k in d.var per k in ("ai.fornitore", "ai.chiave_gemini", "ai.modello_gemini", "ai.chiave_deepseek", "ai.modello_deepseek")), "campi dei fornitori")
+# accanto a ogni chiave API c'è il collegamento alla piattaforma dove ottenerla
+aperti = []
+importa webbrowser
+vero_apri = webbrowser.open
+webbrowser.open = lambda u, *a, **k: aperti.append(u)
+verifica(tutti_veri(k in d.link per k in ("ai.chiave_api", "ai.chiave_gemini", "ai.chiave_deepseek", "ai.chiave_openai", "ai.chiave_openrouter", "ai.url_ollama")), "un collegamento per ogni fornitore: " + tipo_testo(sorted(d.link)))
+verifica(d.link["ai.chiave_openai"].indirizzo.startswith("https://platform.openai.com") e d.link["ai.chiave_api"].indirizzo.startswith("https://console.anthropic.com"), "gli indirizzi sono quelli giusti")
+d.link["ai.chiave_openrouter"].event_generate("<Button-1>")
+r.update()
+webbrowser.open = vero_apri
+verifica(aperti == ["https://openrouter.ai/keys"], "il clic apre la pagina nel browser: " + tipo_testo(aperti))
 d.destroy()
 
 app = Applicazione(r, cfg)

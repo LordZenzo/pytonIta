@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.10
+
+- **Dove prendere la chiave API**: nelle impostazioni dell'assistente, accanto a ogni chiave (Claude, Gemini, DeepSeek, OpenAI, OpenRouter) c'è il collegamento alla pagina della piattaforma dove crearla; per Ollama il collegamento al download e ai modelli.
+
 ## Novità della 2.9
 
 - **La memoria nel debugger**: il pulsante «🧠 Memoria» mostra i nomi e gli oggetti come scatole con le frecce; quando due nomi sono lo stesso oggetto lo si vede subito (frecce arancioni nella stessa scatola). Pensato per chi impara: l'alias di una lista è l'errore più comune.
