@@ -2155,7 +2155,7 @@ classe Applicazione:
     definisci ricarica_file_cambiati(se_stesso):
         """Rilegge i file aperti cambiati sul disco (dopo un cambio di ramo, un pull o un annulla di Git) e aggiorna l'elenco dei file."""
         per w in tipo_lista(se_stesso.schede.values()):
-            se isinstance(w, Editor):
+            se hasattr(w, "ricarica_se_cambiato_su_disco"):          # editor di testo, ma anche mattonelle, progettista e visori: tutti vanno riletti
                 prova:
                     w.ricarica_se_cambiato_su_disco()
                 eccetto Exception:
