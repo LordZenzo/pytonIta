@@ -737,6 +737,100 @@ definisci piano_stampa(percorso, imp=Nessuno, piattaforma=Nessuno):
     ritorna [{"tipo": "comando", "argomenti": comando}]
 
 
+SCRIPT_STAMPA_WINDOWS = """param([string]$Pdf, [string]$Stampante = "", [int]$Copie = 1, [string]$FronteRetro = "", [switch]$Prova)
+$ErrorActionPreference = "Stop"
+try {
+    Add-Type -AssemblyName System.Runtime.WindowsRuntime
+    Add-Type -AssemblyName System.Drawing
+    Add-Type -AssemblyName System.Windows.Forms
+    $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
+    $null = [Windows.Data.Pdf.PdfDocument, Windows.Data.Pdf, ContentType = WindowsRuntime]
+    $null = [Windows.Storage.Streams.InMemoryRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+    $metodi = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 }
+    $comeOperazione = $metodi | Where-Object { $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' } | Select-Object -First 1
+    $comeAzione = $metodi | Where-Object { $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction' } | Select-Object -First 1
+    function Attendi($operazione, $tipo) {
+        $t = $comeOperazione.MakeGenericMethod($tipo).Invoke($null, @($operazione))
+        $t.Wait(-1) | Out-Null
+        return $t.Result
+    }
+    $file = Attendi ([Windows.Storage.StorageFile]::GetFileFromPathAsync($Pdf)) ([Windows.Storage.StorageFile])
+    $documento = Attendi ([Windows.Data.Pdf.PdfDocument]::LoadFromFileAsync($file)) ([Windows.Data.Pdf.PdfDocument])
+    $immagini = New-Object System.Collections.ArrayList
+    for ($n = 0; $n -lt $documento.PageCount; $n++) {
+        $pagina = $documento.GetPage($n)
+        $opzioni = New-Object Windows.Data.Pdf.PdfPageRenderOptions
+        $opzioni.DestinationWidth = [uint32]([math]::Round($pagina.Size.Width * 200 / 96))
+        $flusso = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
+        $t = $comeAzione.Invoke($null, @($pagina.RenderToStreamAsync($flusso, $opzioni)))
+        $t.Wait(-1) | Out-Null
+        $flusso.Seek(0)
+        $memoria = New-Object System.IO.MemoryStream
+        [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($flusso).CopyTo($memoria)
+        $memoria.Position = 0
+        [void]$immagini.Add([System.Drawing.Image]::FromStream($memoria))
+        $pagina.Dispose()
+    }
+    if ($Prova) { Write-Output ("pagine: " + $immagini.Count + " " + $immagini[0].Width + "x" + $immagini[0].Height); exit 0 }
+
+    $stampa = New-Object System.Drawing.Printing.PrintDocument
+    $stampa.DocumentName = [System.IO.Path]::GetFileName($Pdf)
+    if ($Stampante -ne "") { $stampa.PrinterSettings.PrinterName = $Stampante }
+    $stampa.PrinterSettings.Copies = [int16]$Copie
+    if ($FronteRetro -eq "lato lungo") { $stampa.PrinterSettings.Duplex = [System.Drawing.Printing.Duplex]::Vertical }
+    elseif ($FronteRetro -eq "lato corto") { $stampa.PrinterSettings.Duplex = [System.Drawing.Printing.Duplex]::Horizontal }
+    $stampa.PrinterSettings.FromPage = 1
+    $stampa.PrinterSettings.ToPage = $immagini.Count
+
+    $script:indice = 0
+    $stampa.add_BeginPrint({ $script:indice = 0 })
+    $stampa.add_QueryPageSettings({ param($mittente, $e) $img = $immagini[$script:indice]; $e.PageSettings.Landscape = ($img.Width -gt $img.Height) })
+    $stampa.add_PrintPage({
+        param($mittente, $e)
+        $img = $immagini[$script:indice]
+        $area = $e.PageBounds
+        $scala = [math]::Min($area.Width / $img.Width, $area.Height / $img.Height)
+        $w = [int]($img.Width * $scala); $h = [int]($img.Height * $scala)
+        $e.Graphics.DrawImage($img, [int]($area.X + ($area.Width - $w) / 2), [int]($area.Y + ($area.Height - $h) / 2), $w, $h)
+        $script:indice++
+        $e.HasMorePages = ($script:indice -lt $immagini.Count)
+    })
+
+    $finestra = New-Object System.Windows.Forms.Form
+    $finestra.TopMost = $true; $finestra.ShowInTaskbar = $false; $finestra.Opacity = 0
+    $finestra.StartPosition = 'CenterScreen'; $finestra.Size = New-Object System.Drawing.Size(1, 1)
+    $finestra.Show()
+    $dialogo = New-Object System.Windows.Forms.PrintDialog
+    $dialogo.Document = $stampa
+    $dialogo.UseEXDialog = $true
+    $dialogo.AllowSomePages = $true
+    if ($dialogo.ShowDialog($finestra) -eq [System.Windows.Forms.DialogResult]::OK) { $stampa.Print() }
+    $finestra.Close()
+} catch {
+    [System.Windows.Forms.MessageBox]::Show("Non sono riuscito a stampare:`n" + $_.Exception.Message, "Stampa") | Out-Null
+    exit 1
+}
+"""
+
+
+definisci _stampa_con_finestra_windows(percorso, imp=Nessuno):
+    """Ripiego per Windows quando il programma dei PDF non sa stampare (per esempio ONLYOFFICE, o un lettore senza il comando «print»): Windows stesso disegna le pagine
+    e si apre la finestra di stampa del sistema, già con la stampante, le copie e il fronte-retro scelti. Ritorna Vero se l'ha avviata."""
+    imp = imp o Impostazioni()
+    prova:
+        cartella = tempfile.mkdtemp(prefix="stampa_")
+        script = os.path.join(cartella, "stampa.ps1")
+        con open(script, "w", encoding="utf-8-sig", newline="\n") come f:
+            f.write(SCRIPT_STAMPA_WINDOWS)
+        comando = ["powershell", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", script, "-Pdf", percorso, "-Copie", tipo_testo(imp.copie), "-FronteRetro", imp.fronte_retro]
+        se imp.stampante:
+            comando += ["-Stampante", imp.stampante]
+        subprocess.Popen(comando, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        ritorna Vero
+    eccetto OSError:
+        ritorna Falso
+
+
 definisci stampa_pdf(percorso, imp=Nessuno):
     """Manda il PDF alla stampante con le impostazioni. Ritorna Vero se l'ha mandato, Falso se il sistema non sa stampare PDF (allora si apre il PDF e si stampa da lì)."""
     prova:
@@ -750,6 +844,8 @@ definisci stampa_pdf(percorso, imp=Nessuno):
                 subprocess.run(passo["argomenti"], check=Vero)
         ritorna Vero
     eccetto (OSError, subprocess.CalledProcessError, AttributeError):
+        se sys.platform.startswith("win") e _stampa_con_finestra_windows(percorso, imp):
+            ritorna Vero
         apri_pdf(percorso)
         ritorna Falso
 
