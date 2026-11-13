@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.33
+
+- **Avviso per le funzioni definite due volte** nello stesso ambito (per esempio due «al_clic_stampa» nella stessa classe): la seconda cancella la prima e il pulsante sembra non fare niente. Ora il controllo lo segnala, con la riga dell'altra definizione.
+
 ## Novità della 2.32
 
 - **Stampa su Windows quando il programma dei PDF non sa stampare** (ONLYOFFICE e altri lettori senza il comando «print»): prima il PDF si apriva e non succedeva altro. Ora Windows disegna le pagine e si apre la finestra di stampa del sistema, già con stampante, copie e fronte-retro scelti.

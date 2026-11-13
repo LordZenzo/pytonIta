@@ -109,10 +109,10 @@ index cfdb708..076b1ff 100644
 +PyAPI_FUNC(int) PyCompile_OpcodeStackEffectWithJump(int opcode, int oparg, int jump);
 diff --git a/Lib/_controlla.py b/Lib/_controlla.py
 new file mode 100644
-index 0000000..fa84d84
+index 0000000..1c305a1
 --- /dev/null
 +++ b/Lib/_controlla.py
-@@ -0,0 +1,511 @@
+@@ -0,0 +1,523 @@
 +"""pitonit - controllo statico dei programmi .pit.
 +
 +Trova gli errori che nascono dagli alias italiani e che altrimenti
@@ -529,6 +529,18 @@ index 0000000..fa84d84
 +                    f"{nome}(...) richiama la variabile «{nome}» (definita alla riga {riga0}), "
 +                    f"che nasconde la funzione predefinita {nome}(): cambia il nome della variabile")
 +
++    # avvisi: funzione o classe definita due volte nello stesso ambito (la seconda cancella la prima)
++    for contenitore in ast.walk(albero):
++        if not isinstance(contenitore, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
++            continue
++        definite = {}
++        for istruzione in contenitore.body:
++            if not isinstance(istruzione, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) or istruzione.decorator_list:
++                continue
++            if istruzione.name in definite:
++                segnala(avvisi, istruzione, f"«{istruzione.name}» è già definita alla riga {definite[istruzione.name]}: "
++                                            f"vale solo l'ultima, la prima non verrà mai usata")
++            definite[istruzione.name] = istruzione.lineno
 +    # avvisi: funzioni predefinite nascoste (anche se non richiamate)
 +    for ambito in an.ambiti:
 +        for nome, legami in ambito.lega.items():
