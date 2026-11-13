@@ -1,0 +1,144 @@
+"""Le versioni dei moduli di PitStudio copiati nei progetti: ogni modulo dichiara VERSIONE_MODULO, la tabella non resta indietro, e la copia nel progetto si rinnova solo se è vecchia
+(una copia modificata a mano o più nuova non si tocca); «non ora» si ricorda per versione."""
+importa json
+importa os
+importa sys
+importa tempfile
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+da rad importa moduli_modelli, form_modello
+
+errori = []
+
+
+definisci verifica(condizione, messaggio):
+    se non condizione:
+        errori.append(messaggio)
+        stampa("ERRORE:", messaggio)
+
+
+definisci scrivi(percorso, testo):
+    con open(percorso, "w", encoding="utf-8", newline="\n") come f:
+        f.write(testo)
+
+
+definisci leggi(percorso):
+    con open(percorso, encoding="utf-8", newline="") come f:
+        ritorna f.read()
+
+
+# la tabella: nessun modulo cambia senza alzare la versione (se fallisce: alza VERSIONE_MODULO e lancia «pitonit -m rad.moduli_modelli --registra» da RAD)
+verifica(moduli_modelli.problemi_tabella() == [], "tabella delle versioni: " + tipo_testo(moduli_modelli.problemi_tabella()))
+per nome in moduli_modelli.MODULI:
+    verifica(moduli_modelli.versione_modello(nome) >= 1, nome + " dichiara VERSIONE_MODULO")
+verifica(sorted(moduli_modelli.MODULI) == sorted(progetto_nome per progetto_nome in [f[:-4] per f in os.listdir(moduli_modelli.CARTELLA_MODELLI) se f.endswith(".pit")]),
+         "tutti i file di modelli_codice sono nella lista dei moduli")
+
+cart = tempfile.mkdtemp()
+modello = leggi(moduli_modelli.percorso_modello("stampante"))
+disponibile = moduli_modelli.versione_modello("stampante")
+
+# assente -> la copia lo mette
+verifica(moduli_modelli.stato_modulo(cart, "stampante")["stato"] == "assente", "senza il file: assente")
+scritti = []
+form_modello.copia_stampante(cart, scritti)
+verifica(leggi(os.path.join(cart, "stampante.pit")) == modello e lunghezza_di(scritti) == 1, "il file mancante viene messo")
+verifica(moduli_modelli.stato_modulo(cart, "stampante")["stato"] == "aggiornato", "dopo la copia: aggiornato")
+scritti = []
+form_modello.copia_stampante(cart, scritti)
+verifica(scritti == [], "uguale: non riscrive")
+
+# vecchio: senza versione
+scrivi(os.path.join(cart, "stampante.pit"), "classe Vecchia:\n    passa\n")
+stato = moduli_modelli.stato_modulo(cart, "stampante")
+verifica(stato["stato"] == "vecchio" e stato["versione"] == 0, "copia senza versione: vecchia")
+verifica(moduli_modelli.etichetta(stato) == f"senza versione → {disponibile}", "etichetta senza versione: " + moduli_modelli.etichetta(stato))
+form_modello.copia_stampante(cart, [])
+verifica(leggi(os.path.join(cart, "stampante.pit")) == modello e os.path.exists(os.path.join(cart, "stampante.pit.bak")), "la vecchia si sostituisce e resta il .bak")
+
+# vecchio: versione più bassa (se PitStudio è ancora alla 1 non si può provare)
+se disponibile > 1:
+    scrivi(os.path.join(cart, "stampante.pit"), "VERSIONE_MODULO = 1\n")
+    stato = moduli_modelli.stato_modulo(cart, "stampante")
+    verifica(stato["stato"] == "vecchio" e moduli_modelli.etichetta(stato) == f"ver 1 → {disponibile}", "versione più bassa: " + moduli_modelli.etichetta(stato))
+
+# modificato a mano: stessa versione, testo diverso -> non si tocca
+modificato = modello + "\n# riga aggiunta a mano\n"
+scrivi(os.path.join(cart, "stampante.pit"), modificato)
+stato = moduli_modelli.stato_modulo(cart, "stampante")
+verifica(stato["stato"] == "modificato" e moduli_modelli.etichetta(stato) == f"ver {disponibile}, modificato", "modificata a mano: " + moduli_modelli.etichetta(stato))
+form_modello.copia_stampante(cart, [])
+verifica(leggi(os.path.join(cart, "stampante.pit")) == modificato, "la copia modificata a mano non si tocca")
+verifica(moduli_modelli.aggiorna_vecchi(cart) == [], "aggiorna_vecchi non tocca le modificate")
+verifica(moduli_modelli.da_proporre(cart) == [], "una modificata non si propone")
+
+# più nuova: viene da un PitStudio più recente -> non si tocca
+nuova = modello.replace(f"VERSIONE_MODULO = {disponibile}", f"VERSIONE_MODULO = {disponibile + 5}")
+scrivi(os.path.join(cart, "stampante.pit"), nuova)
+stato = moduli_modelli.stato_modulo(cart, "stampante")
+verifica(stato["stato"] == "piu_nuovo" e "più recente" in moduli_modelli.etichetta(stato), "più nuova: " + moduli_modelli.etichetta(stato))
+form_modello.copia_stampante(cart, [])
+verifica(leggi(os.path.join(cart, "stampante.pit")) == nuova, "la copia più nuova non si tocca")
+
+# controllo all'apertura: si propongono i vecchi, «non ora» si ricorda per quella versione
+cart2 = tempfile.mkdtemp()
+scrivi(os.path.join(cart2, "stampante.pit"), "x = 1\n")
+scrivi(os.path.join(cart2, "grafico.pit"), leggi(moduli_modelli.percorso_modello("grafico")))
+scrivi(os.path.join(cart2, "principale.pit"), "y = 2\n")
+verifica([s["nome"] per s in moduli_modelli.stati_del_progetto(cart2)] == ["grafico", "stampante"], "i moduli che il progetto contiene: " + tipo_testo(moduli_modelli.stati_del_progetto(cart2)))
+proposti = moduli_modelli.da_proporre(cart2)
+verifica([s["nome"] per s in proposti] == ["stampante"], "si propone solo il vecchio")
+moduli_modelli.ricorda_rifiuto(cart2, proposti)
+verifica(moduli_modelli.da_proporre(cart2) == [], "«non ora»: non si ripropone")
+verifica(moduli_modelli.stato_modulo(cart2, "stampante")["stato"] == "vecchio", "ma resta vecchio (nel menu si può aggiornare)")
+# esce una versione più nuova -> si ripropone
+rifiuti = moduli_modelli._rifiuti(cart2)
+rifiuti["stampante"] = disponibile - 1
+con open(os.path.join(cart2, ".rad", "moduli.json"), "w", encoding="utf-8") come f:
+    json.dump(rifiuti, f)
+verifica([s["nome"] per s in moduli_modelli.da_proporre(cart2)] == ["stampante"], "con una versione più nuova si richiede")
+verifica(moduli_modelli.aggiorna_vecchi(cart2) == ["stampante.pit"] e leggi(os.path.join(cart2, "stampante.pit")) == modello, "aggiorna_vecchi sostituisce solo i vecchi")
+
+# il flusso della finestra: all'apertura chiede, «No» ricorda, «Sì» aggiorna; dal menu mostra sempre lo stato
+da tkinter importa messagebox
+da rad importa finestra
+domande = []
+informazioni = []
+risposta = [Falso]
+messagebox.askyesno = lambda titolo, testo, **k: domande.append(testo) o risposta[0]
+messagebox.showinfo = lambda titolo, testo, **k: informazioni.append(testo)
+
+
+classe Finta:
+    definisci __inizializza__(se_stesso, cartella):
+        se_stesso.progetto = tipo_di("P", (), {})()
+        se_stesso.progetto.cartella = cartella
+        se_stesso.radice = Nessuno
+        se_stesso.righe = []
+        se_stesso.pannello_progetto = se_stesso
+        se_stesso.salvato = 0
+
+    definisci salva_tutto(se_stesso): se_stesso.salvato += 1
+    definisci ricarica_file_cambiati(se_stesso): passa
+    definisci aggiorna(se_stesso): passa
+    definisci info(se_stesso, m): se_stesso.righe.append(m)
+
+
+cart3 = tempfile.mkdtemp()
+scrivi(os.path.join(cart3, "stampante.pit"), "x = 1"+chr(10))
+finta = Finta(cart3)
+risposta[0] = Falso
+verifica(finestra.Applicazione.aggiorna_moduli(finta, offerto=Vero) == Falso e lunghezza_di(domande) == 1 e "stampante.pit" in domande[0] e "senza versione" in domande[0], "all'apertura chiede e mostra la versione")
+verifica(leggi(os.path.join(cart3, "stampante.pit")) == "x = 1"+chr(10), "rispondendo No non cambia niente")
+verifica(finestra.Applicazione.aggiorna_moduli(finta, offerto=Vero) == Falso e lunghezza_di(domande) == 1, "dopo «No» all'apertura non richiede")
+risposta[0] = Vero
+verifica(finestra.Applicazione.aggiorna_moduli(finta) == Vero e leggi(os.path.join(cart3, "stampante.pit")) == modello e finta.salvato == 1, "dal menu e rispondendo Sì aggiorna")
+verifica(finestra.Applicazione.aggiorna_moduli(finta) == Falso e "aggiornati" in informazioni[-1] e "stampante.pit  (ver " in informazioni[-1], "dopo, il menu dice che è tutto aggiornato con le versioni")
+
+# la stampa dopo la finestra di PitStudio non apre una seconda finestra di Windows
+sorgente = leggi(moduli_modelli.percorso_modello("stampante"))
+verifica("SenzaDialogo" in sorgente e "gia_chiesto=Vero" in sorgente, "la stampa dopo la finestra di PitStudio è senza seconda finestra")
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_moduli_versione: ok")

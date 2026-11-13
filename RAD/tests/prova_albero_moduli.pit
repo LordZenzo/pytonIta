@@ -49,7 +49,10 @@ albero = pannello.albero
 in_radice = [(albero.item(n, "text"), albero.item(n, "values")[1]) per n in albero.get_children("")]
 testi = [t per t, _ in in_radice]
 nodo = [n per n in albero.get_children("") se albero.item(n, "values")[1] == "m"]
-verifica(lunghezza_di(nodo) == 1 e "Moduli di PitStudio" in albero.item(nodo[0], "text") e "(5)" in albero.item(nodo[0], "text"), "un solo nodo, con il numero dei file: " + tipo_testo(testi))
+verifica(lunghezza_di(nodo) == 1 e "Moduli di PitStudio" in albero.item(nodo[0], "text") e "(" non in albero.item(nodo[0], "text"), "un solo nodo, senza il numero dei file: " + tipo_testo(testi))
+testi_figli = [albero.item(f, "text") per f in albero.get_children(nodo[0])]
+verifica(any("aspetto.pit" in t e "senza versione → 1" in t per t in testi_figli), "una copia senza versione dice «senza versione → 1»: " + tipo_testo(testi_figli))
+verifica(any(t.rstrip().endswith("fonte_dati.pit.bak") per t in testi_figli), "le copie .bak non hanno la versione: " + tipo_testo(testi_figli))
 figli = [albero.item(n, "text").split("  ", 1)[1].split(" ")[0] per n in albero.get_children(nodo[0])]
 verifica(figli == ["aspetto.pit", "fonte_dati.pit", "fonte_dati.pit.bak", "stampante.pit", "stampante.pit.bak"], "dentro ci sono i moduli e i .bak: " + tipo_testo(figli))
 verifica(tutti_veri(non t.endswith("aspetto.pit") e "stampante" non in t e "fonte_dati" non in t per t in testi se "Moduli" non in t), "e non compaiono più in radice: " + tipo_testo(testi))

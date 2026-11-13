@@ -351,6 +351,7 @@ classe Applicazione:
         prog.add_command(label="Imposta il file corrente come principale", command=se_stesso.imposta_corrente_principale)
         prog.add_command(label="Proprietà del progetto…", command=se_stesso.proprieta_progetto)
         prog.add_command(label="Aggiorna questo progetto dalla versione 1.x…", command=lambda: se_stesso.aggiorna_da_1x())
+        prog.add_command(label="Aggiorna i moduli di PitStudio del progetto…", command=lambda: se_stesso.aggiorna_moduli())
         prog.add_command(label="Converti questo progetto Python in pytonIta…", command=lambda: se_stesso.converti_progetto_py(se_stesso.progetto.cartella se se_stesso.progetto altrimenti ""))
         prog.add_command(label="Esporta il progetto come Python…", command=lambda: se_stesso.esporta_progetto_python())
         prog.add_command(label="Crea l'eseguibile (.exe)…", command=lambda: se_stesso.crea_eseguibile())
@@ -753,6 +754,7 @@ classe Applicazione:
             se_stesso.apri_file(se_stesso.progetto.percorso_principale())
         se_stesso.info(f"Progetto aperto: {cartella}")
         se_stesso.radice.after(400, se_stesso._proponi_aggiornamento_1x)
+        se_stesso.radice.after(900, se_stesso._proponi_aggiornamento_moduli)
 
     definisci _proponi_aggiornamento_1x(se_stesso):
         """Un progetto scritto con la 1.x (nomi vecchi, finestre generate col generatore vecchio) non parte: lo si propone subito all'apertura."""
@@ -766,6 +768,45 @@ classe Applicazione:
             se_stesso.aggiorna_da_1x(offerto=Vero)
         eccetto Eccezione come errore:
             se_stesso.info(f"Controllo del progetto non riuscito: {errore}")
+
+    definisci _proponi_aggiornamento_moduli(se_stesso):
+        """All'apertura: se il progetto ha moduli di PitStudio più vecchi di quelli di PitStudio, si avvisa e si propone di prendere l'ultima versione."""
+        se non se_stesso.progetto:
+            ritorna
+        prova:
+            se_stesso.aggiorna_moduli(offerto=Vero)
+        eccetto Eccezione come errore:
+            se_stesso.info(f"Controllo dei moduli di PitStudio non riuscito: {errore}")
+
+    definisci aggiorna_moduli(se_stesso, offerto=Falso):
+        """Confronta i moduli di PitStudio copiati nel progetto con quelli attuali e propone di sostituire i vecchi (la vecchia copia resta come .bak).
+        All'apertura (offerto) chiede solo per i moduli vecchi di cui non si è già detto «non ora»; dal menu mostra sempre lo stato di tutti."""
+        da rad importa moduli_modelli
+        se non se_stesso.progetto:
+            messagebox.showinfo("Moduli di PitStudio", "Apri prima un progetto.", parent=se_stesso.radice)
+            ritorna Falso
+        cartella = se_stesso.progetto.cartella
+        stati = moduli_modelli.stati_del_progetto(cartella)
+        vecchi = moduli_modelli.da_proporre(cartella) se offerto altrimenti [s per s in stati se s["stato"] == "vecchio"]
+        se non vecchi:
+            se non offerto:
+                righe = "\n".join("  " + moduli_modelli.riga_elenco(s) per s in stati) o "  (il progetto non contiene moduli di PitStudio)"
+                messagebox.showinfo("Moduli di PitStudio", "Tutti i moduli sono aggiornati.\n\n" + righe, parent=se_stesso.radice)
+            ritorna Falso
+        elenco = "\n".join("  " + moduli_modelli.riga_elenco(s) per s in vecchi)
+        altri = [s per s in stati se s["stato"] in ("modificato", "piu_nuovo")]
+        nota = ("\n\nQuesti non si toccano:\n" + "\n".join("  " + moduli_modelli.riga_elenco(s) per s in altri)) se altri altrimenti ""
+        se non messagebox.askyesno("Moduli di PitStudio", "Questo progetto ha moduli di PitStudio più vecchi di quelli attuali:\n\n" + elenco + nota
+                                   + "\n\nLi sostituisco con l'ultima versione? Le vecchie copie restano come .bak.", parent=se_stesso.radice):
+            se offerto:
+                moduli_modelli.ricorda_rifiuto(cartella, vecchi)       # «Non ora»: non si richiede finché non esce una versione più nuova
+            ritorna Falso
+        se_stesso.salva_tutto()
+        scritti = moduli_modelli.aggiorna_vecchi(cartella, [s["nome"] per s in vecchi])
+        se_stesso.ricarica_file_cambiati()
+        se_stesso.pannello_progetto.aggiorna()
+        se_stesso.info("Moduli di PitStudio aggiornati: " + ", ".join(scritti))
+        ritorna Vero
 
     definisci aggiorna_da_1x(se_stesso, offerto=Falso):
         """Aggiorna il progetto aperto dalla 1.x (nomi predefiniti, lettere ambigue, finestre, moduli). Si può annullare con «Annulla»."""

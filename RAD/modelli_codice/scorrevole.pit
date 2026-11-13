@@ -3,6 +3,7 @@
 Nel progettista il riquadro si disegna grande quanto il contenuto; nel programma si vede solo la parte «visibile»
 e il resto si raggiunge scorrendo. I componenti restano dove li hai messi (disposizione libera).
 """
+VERSIONE_MODULO = 1
 importa tkinter come tk
 da tkinter importa ttk
 

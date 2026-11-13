@@ -200,7 +200,7 @@ verifica(isinstance(s.stampanti(), list) e isinstance(s.stampante_predefinita(),
 # stampa(): manda il PDF con le impostazioni
 chiamate = []
 stampante.apri_pdf = lambda p: chiamate.append(("apri", p))
-stampante.stampa_pdf = lambda p, imp=Nessuno: chiamate.append(("stampa", p, imp)) o Vero
+stampante.stampa_pdf = lambda p, imp=Nessuno, gia_chiesto=Falso: chiamate.append(("stampa", p, imp)) o Vero
 s.imposta(copie=3)
 percorso = s.stampa()
 verifica(chiamate[-1][0] == "stampa" e chiamate[-1][2].copie == 3 e chiamate[-1][2].colore == "bianco e nero", "stampa() passa le impostazioni a stampa_pdf")

@@ -1,0 +1,26 @@
+{
+ "aspetto": {
+  "versione": 1,
+  "impronta": "8c1d4dfb7c80d8dc498cb1640f48efc2bc48e6059ba8da18857240e0aabf6b01"
+ },
+ "fonte_dati": {
+  "versione": 1,
+  "impronta": "5f5daeb624ea9ecb5ce7733526998cdbcbbd9294db6258bf0dea98bac4a3d189"
+ },
+ "griglia": {
+  "versione": 1,
+  "impronta": "fc1790ff055fc2fc7e65ca7f45a674ca38905f80a05ca33e6613ad6899c1802a"
+ },
+ "grafico": {
+  "versione": 1,
+  "impronta": "4a08f6b729f05f1e645562fc17afebdb3452cea1e90bf9170b9c1141697b59b5"
+ },
+ "scorrevole": {
+  "versione": 1,
+  "impronta": "ebc609b9858cf76d420e6c92cf0704c5a0ff3d7fd22d40444513252c39fdad29"
+ },
+ "stampante": {
+  "versione": 2,
+  "impronta": "0ae28dc9f0a2ce82872449faca7d7757f422c7a26ed2abe9a964b6fa7d1459f7"
+ }
+}

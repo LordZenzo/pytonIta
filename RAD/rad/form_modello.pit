@@ -7,6 +7,7 @@ importa shutil
 importa sys
 
 da rad importa versioni
+da rad importa moduli_modelli
 
 # il motore della disposizione a griglia sta con i modelli di codice (ne esiste una copia nei progetti che lo usano): qui serve per calcolare le posizioni
 _CARTELLA_MODELLI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice")
@@ -1320,124 +1321,48 @@ MODELLO_ASPETTO = os.path.join(CARTELLA_MODELLI, "aspetto.pit")
 
 
 definisci copia_aspetto(cartella, scritti=Nessuno):
-    """Mette nel progetto aspetto.pit (se non c'è): lo usano le finestre con un aspetto moderno."""
-    destinazione = os.path.join(cartella, "aspetto.pit")
-    se non os.path.exists(destinazione) e os.path.exists(MODELLO_ASPETTO):
-        con open(MODELLO_ASPETTO, encoding="utf-8") come sorgente, open(destinazione, "w", encoding="utf-8", newline="\n") come f:
-            f.write(sorgente.read())
-        se scritti è non Nessuno:
-            scritti.append(destinazione)
+    """Mette nel progetto aspetto.pit, o lo rinnova se è più vecchio di quello di PitStudio (la vecchia resta come .bak; una copia modificata a mano non si tocca). Vedi moduli_modelli."""
+    moduli_modelli.copia(cartella, "aspetto", scritti)
 
 
 MODELLO_SCORREVOLE = os.path.join(CARTELLA_MODELLI, "scorrevole.pit")
 
 
 definisci copia_scorrevole(cartella, scritti=Nessuno):
-    """Mette nel progetto scorrevole.pit (i riquadri scorrevoli); se la copia è diversa da quella di PitStudio la rinnova (la vecchia resta come .bak)."""
-    destinazione = os.path.join(cartella, "scorrevole.pit")
-    se non os.path.exists(MODELLO_SCORREVOLE):
-        ritorna
-    con open(MODELLO_SCORREVOLE, encoding="utf-8", newline="") come f:
-        nuova = f.read().replace("\r\n", chr(10))
-    se os.path.exists(destinazione):
-        con open(destinazione, encoding="utf-8", newline="") come f:
-            vecchia = f.read().replace("\r\n", chr(10))
-        se vecchia == nuova:
-            ritorna
-        shutil.copyfile(destinazione, destinazione + ".bak")
-    con open(destinazione, "w", encoding="utf-8", newline="\n") come f:
-        f.write(nuova)
-    se scritti è non Nessuno:
-        scritti.append(destinazione)
+    """Mette nel progetto scorrevole.pit, o lo rinnova se è più vecchio di quello di PitStudio (la vecchia resta come .bak; una copia modificata a mano non si tocca). Vedi moduli_modelli."""
+    moduli_modelli.copia(cartella, "scorrevole", scritti)
 
 
 MODELLO_GRAFICO = os.path.join(CARTELLA_MODELLI, "grafico.pit")
 
 
 definisci copia_grafico(cartella, scritti=Nessuno):
-    """Mette nel progetto grafico.pit (il componente Grafico); se la copia è diversa da quella di PitStudio la rinnova (la vecchia resta come .bak)."""
-    destinazione = os.path.join(cartella, "grafico.pit")
-    se non os.path.exists(MODELLO_GRAFICO):
-        ritorna
-    con open(MODELLO_GRAFICO, encoding="utf-8", newline="") come f:
-        nuova = f.read().replace("\r\n", chr(10))
-    se os.path.exists(destinazione):
-        con open(destinazione, encoding="utf-8", newline="") come f:
-            vecchia = f.read().replace("\r\n", chr(10))
-        se vecchia == nuova:
-            ritorna
-        shutil.copyfile(destinazione, destinazione + ".bak")
-    con open(destinazione, "w", encoding="utf-8", newline="\n") come f:
-        f.write(nuova)
-    se scritti è non Nessuno:
-        scritti.append(destinazione)
+    """Mette nel progetto grafico.pit, o lo rinnova se è più vecchio di quello di PitStudio (la vecchia resta come .bak; una copia modificata a mano non si tocca). Vedi moduli_modelli."""
+    moduli_modelli.copia(cartella, "grafico", scritti)
 
 
 MODELLO_STAMPANTE = os.path.join(CARTELLA_MODELLI, "stampante.pit")
 
 
 definisci copia_stampante(cartella, scritti=Nessuno):
-    """Mette nel progetto stampante.pit (stampa e PDF); se la copia è diversa da quella di PitStudio la rinnova (la vecchia resta come .bak)."""
-    destinazione = os.path.join(cartella, "stampante.pit")
-    se non os.path.exists(MODELLO_STAMPANTE):
-        ritorna
-    con open(MODELLO_STAMPANTE, encoding="utf-8", newline="") come f:
-        nuova = f.read().replace(chr(13) + chr(10), chr(10))
-    se os.path.exists(destinazione):
-        con open(destinazione, encoding="utf-8", newline="") come f:
-            vecchia = f.read().replace(chr(13) + chr(10), chr(10))
-        se vecchia == nuova:
-            ritorna
-        shutil.copyfile(destinazione, destinazione + ".bak")
-    con open(destinazione, "w", encoding="utf-8", newline=chr(10)) come f:
-        f.write(nuova)
-    se scritti è non Nessuno:
-        scritti.append(destinazione)
+    """Mette nel progetto stampante.pit, o lo rinnova se è più vecchio di quello di PitStudio (la vecchia resta come .bak; una copia modificata a mano non si tocca). Vedi moduli_modelli."""
+    moduli_modelli.copia(cartella, "stampante", scritti)
 
 
 MODELLO_GRIGLIA = os.path.join(CARTELLA_MODELLI, "griglia.pit")
 
 
 definisci copia_griglia(cartella, scritti=Nessuno):
-    """Mette nel progetto griglia.pit (il motore della disposizione a griglia); se la copia è diversa da quella di PitStudio la rinnova (la vecchia resta come .bak)."""
-    destinazione = os.path.join(cartella, "griglia.pit")
-    se non os.path.exists(MODELLO_GRIGLIA):
-        ritorna
-    con open(MODELLO_GRIGLIA, encoding="utf-8", newline="") come f:
-        nuova = f.read().replace("\r\n", chr(10))
-    se os.path.exists(destinazione):
-        con open(destinazione, encoding="utf-8", newline="") come f:
-            vecchia = f.read().replace("\r\n", chr(10))
-        se vecchia == nuova:
-            ritorna
-        shutil.copyfile(destinazione, destinazione + ".bak")
-    con open(destinazione, "w", encoding="utf-8", newline="\n") come f:
-        f.write(nuova)
-    se scritti è non Nessuno:
-        scritti.append(destinazione)
+    """Mette nel progetto griglia.pit, o lo rinnova se è più vecchio di quello di PitStudio (la vecchia resta come .bak; una copia modificata a mano non si tocca). Vedi moduli_modelli."""
+    moduli_modelli.copia(cartella, "griglia", scritti)
 
 
 MODELLO_FONTE_DATI = os.path.join(CARTELLA_MODELLI, "fonte_dati.pit")
 
 
 definisci copia_fonte_dati(cartella, scritti=Nessuno):
-    """Mette nel progetto fonte_dati.pit; se la copia è diversa da quella di PitStudio (più vecchia: per esempio senza i pulsanti Conferma e Annulla tutto)
-    la sostituisce, tenendo la vecchia come fonte_dati.pit.bak."""
-    destinazione = os.path.join(cartella, "fonte_dati.pit")
-    se non os.path.exists(MODELLO_FONTE_DATI):
-        ritorna
-    se os.path.exists(destinazione):
-        con open(MODELLO_FONTE_DATI, encoding="utf-8", newline="") come f:
-            nuova = "".join(f.read().splitlines())
-        con open(destinazione, encoding="utf-8", newline="") come f:
-            vecchia = "".join(f.read().splitlines())
-        se vecchia == nuova:
-            ritorna
-        shutil.copyfile(destinazione, destinazione + ".bak")
-    con open(MODELLO_FONTE_DATI, encoding="utf-8") come sorgente, open(destinazione, "w", encoding="utf-8", newline="\n") come f:
-        f.write(sorgente.read())
-    se scritti è non Nessuno:
-        scritti.append(destinazione)
+    """Mette nel progetto fonte_dati.pit, o lo rinnova se è più vecchio di quello di PitStudio (la vecchia resta come .bak; una copia modificata a mano non si tocca). Vedi moduli_modelli."""
+    moduli_modelli.copia(cartella, "fonte_dati", scritti)
 
 
 definisci salva_form(form, cartella):

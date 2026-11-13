@@ -6,6 +6,7 @@
 
 Questo file è stato creato da PitStudio (Database > Crea una maschera dalla tabella) e si può usare anche con finestre disegnate a mano.
 """
+VERSIONE_MODULO = 1
 importa datetime
 importa importlib
 importa json

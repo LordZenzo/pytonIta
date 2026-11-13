@@ -9,7 +9,7 @@ importa time
 importa tkinter come tk
 da tkinter importa ttk, messagebox, simpledialog, filedialog
 
-da rad importa form_modello, piattaforma, stile, versioni
+da rad importa form_modello, moduli_modelli, piattaforma, stile, versioni
 
 NOME_MANIFESTO = "progetto.rad.json"
 IGNORA = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules"}
@@ -586,7 +586,7 @@ classe PannelloProgetto(tk.Frame):
                 se_stesso.albero.item(n, open=Vero)
                 se_stesso._carica_figli(n)
 
-    definisci _inserisci_voce(se_stesso, nodo, relativo, nome_, e_cartella):
+    definisci _inserisci_voce(se_stesso, nodo, relativo, nome_, e_cartella, versione=""):
         rel = f"{relativo}/{nome_}" se relativo altrimenti nome_
         p = se_stesso.progetto.assoluto(rel)
         se e_cartella:
@@ -594,6 +594,8 @@ classe PannelloProgetto(tk.Frame):
         altrimenti:
             icona = ICONE.get(tipo_file(p), "📄")
         testo_ = f"{icona}  {nome_}"
+        se versione:
+            testo_ += f"   ({versione})"
         se rel == se_stesso.progetto.principale:
             testo_ += "   ★"
         n = se_stesso.albero.insert(nodo, "end", text=testo_, values=(rel, "d" se e_cartella altrimenti "f"))
@@ -626,10 +628,11 @@ classe PannelloProgetto(tk.Frame):
                 se modulo_fatto:
                     continua
                 modulo_fatto = Vero
-                g = se_stesso.albero.insert(nodo, "end", text=f"⚙  Moduli di PitStudio   ({lunghezza_di(moduli)})", values=("", "m"))
+                g = se_stesso.albero.insert(nodo, "end", text="⚙  Moduli di PitStudio", values=("", "m"))
                 se_stesso._nodi["@moduli"] = g
+                versioni_moduli = {s["file"].lower(): moduli_modelli.etichetta(s) per s in moduli_modelli.stati_del_progetto(se_stesso.progetto.cartella)}
                 per x in moduli:
-                    se_stesso._inserisci_voce(g, relativo, x, Falso)
+                    se_stesso._inserisci_voce(g, relativo, x, Falso, versioni_moduli.get(x.lower(), ""))
                 continua
             se nome_ in gruppi:
                 base, membri = gruppi[nome_]

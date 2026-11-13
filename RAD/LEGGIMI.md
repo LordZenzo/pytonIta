@@ -16,6 +16,14 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.34
+
+- **I moduli di PitStudio nei progetti hanno una versione** (aspetto, fonte_dati, griglia, grafico, scorrevole, stampante). Nel pannello Progetto compare accanto al nome: «stampante.pit (ver 2)»; se c'è una versione più nuova «(ver 1 → 2)», se l'hai modificato a mano «(ver 2, modificato)».
+- **Controllo all'apertura del progetto**: se un modulo è più vecchio di quello di PitStudio ti avvisa e propone di prendere l'ultima versione (la vecchia resta come `.bak`). «No» ricorda la scelta fino alla prossima versione; dal menu Progetto → «Aggiorna i moduli di PitStudio del progetto…» si può fare quando vuoi. Un modulo modificato a mano o più recente non si tocca mai da solo.
+- **Salvando una finestra** i moduli si rinnovano con le stesse regole (prima aspetto.pit non si aggiornava mai e gli altri si sovrascrivevano anche se modificati a mano).
+- **La stampante si sceglie una volta sola**: se la finestra di stampa di PitStudio ha già chiesto, il ripiego per Windows stampa subito, senza la seconda finestra di Windows.
+- Per chi modifica i moduli in `modelli_codice`: alza `VERSIONE_MODULO` e lancia `pitonit -m rad.moduli_modelli --registra` dalla cartella RAD (un test controlla che non si dimentichi).
+
 ## Novità della 2.33
 
 - **Avviso per le funzioni definite due volte** nello stesso ambito (per esempio due «al_clic_stampa» nella stessa classe): la seconda cancella la prima e il pulsante sembra non fare niente. Ora il controllo lo segnala, con la riga dell'altra definizione.

@@ -140,7 +140,7 @@ verifica("il componente non esiste" in t, "un componente che non c'è non rompe 
 # salvataggio, anteprima e stampa (senza aprire niente davvero)
 chiamate = []
 stampante.apri_pdf = lambda p: chiamate.append(("apri", p))
-stampante.stampa_pdf = lambda p, imp=Nessuno: chiamate.append(("stampa", p)) o Vero
+stampante.stampa_pdf = lambda p, imp=Nessuno, gia_chiesto=Falso: chiamate.append(("stampa", p)) o Vero
 p1 = stampante_.salva_pdf(os.path.join(tempfile.mkdtemp(), "importi.pdf"))
 verifica(os.path.isfile(p1) e struttura_ok(open(p1, "rb").read())[0], "salva_pdf scrive il file")
 p2 = stampante_.anteprima()

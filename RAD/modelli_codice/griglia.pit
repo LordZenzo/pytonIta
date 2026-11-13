@@ -9,6 +9,7 @@ Lo stesso calcolo serve al progettista (per disegnare) e al programma (per dispo
     rettangoli = calcola(larghezza, altezza, [(riga, colonna, righe, colonne, sticky, w, h), ...], colonne=[0, 1], righe=[0, 0, 1], margine=10, spazio=6)
     disponi(contenitore, [(widget, riga, colonna, righe, colonne, sticky, w, h), ...], colonne, righe, margine, spazio, larghezza, altezza)
 """
+VERSIONE_MODULO = 1
 
 MINIMO = 24          # sotto questa misura le colonne e le righe che si allargano non si comprimono quando lo spazio manca
 

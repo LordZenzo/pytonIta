@@ -1,0 +1,206 @@
+"""I moduli che PitStudio copia nei progetti (cartella modelli_codice): aspetto, fonte_dati, griglia, grafico, scorrevole, stampante.
+Ogni modulo dichiara la sua versione con la riga «VERSIONE_MODULO = n». Qui si confronta la copia del progetto con quella di PitStudio:
+  - «aggiornato»: stessa versione e stesso testo;
+  - «vecchio»: la copia del progetto ha una versione più bassa (o nessuna): si può sostituire, la vecchia resta come .bak;
+  - «modificato»: stessa versione ma testo diverso, l'ha cambiata qualcuno a mano: non si tocca senza chiedere;
+  - «piu_nuovo»: la copia del progetto viene da un PitStudio più recente: non si tocca;
+  - «assente»: il progetto non ha il file.
+Con «--registra» (dalla cartella RAD) si riscrive la tabella versioni_moduli.json dopo aver alzato VERSIONE_MODULO di un modulo cambiato."""
+importa hashlib
+importa json
+importa os
+importa re
+importa shutil
+importa sys
+
+CARTELLA_MODELLI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice")
+TABELLA = os.path.join(CARTELLA_MODELLI, "versioni_moduli.json")
+MODULI = ("aspetto", "fonte_dati", "griglia", "grafico", "scorrevole", "stampante")
+RIGA_VERSIONE = re.compile(r"^VERSIONE_MODULO\s*=\s*(\d+)\s*$", re.M)
+
+
+definisci _leggi(percorso):
+    con open(percorso, encoding="utf-8", newline="") come f:
+        ritorna f.read().replace(chr(13) + chr(10), chr(10))
+
+
+definisci versione_del_testo(testo):
+    """La versione dichiarata nel testo di un modulo (0 se non la dichiara: copie fatte da un PitStudio vecchio)."""
+    m = RIGA_VERSIONE.search(testo)
+    ritorna tipo_intero(m.group(1)) se m altrimenti 0
+
+
+definisci impronta(testo):
+    ritorna hashlib.sha256(testo.replace(chr(13) + chr(10), chr(10)).encode("utf-8")).hexdigest()
+
+
+definisci percorso_modello(nome):
+    ritorna os.path.join(CARTELLA_MODELLI, nome + ".pit")
+
+
+definisci versione_modello(nome):
+    prova:
+        ritorna versione_del_testo(_leggi(percorso_modello(nome)))
+    eccetto OSError:
+        ritorna 0
+
+
+definisci stato_modulo(cartella, nome):
+    """{"nome", "file", "versione" (della copia nel progetto, 0 se manca o non dichiara), "disponibile" (quella di PitStudio), "stato"}."""
+    file_ = nome + ".pit"
+    destinazione = os.path.join(cartella, file_)
+    nuova = _leggi(percorso_modello(nome))
+    disponibile = versione_del_testo(nuova)
+    risultato = {"nome": nome, "file": file_, "versione": 0, "disponibile": disponibile, "stato": "assente"}
+    se non os.path.exists(destinazione):
+        ritorna risultato
+    attuale = _leggi(destinazione)
+    versione = versione_del_testo(attuale)
+    risultato["versione"] = versione
+    se versione > disponibile:
+        risultato["stato"] = "piu_nuovo"
+    altrimenti_se versione < disponibile:
+        risultato["stato"] = "vecchio"
+    altrimenti_se attuale == nuova:
+        risultato["stato"] = "aggiornato"
+    altrimenti_se versione == 0:
+        risultato["stato"] = "vecchio"             # nessuna versione e testo diverso: copia di un PitStudio vecchio
+    altrimenti:
+        risultato["stato"] = "modificato"
+    ritorna risultato
+
+
+definisci stati_del_progetto(cartella):
+    """Lo stato di ogni modulo che il progetto contiene (quelli assenti non compaiono)."""
+    ritorna [s per s in (stato_modulo(cartella, nome) per nome in MODULI) se s["stato"] != "assente"]
+
+
+definisci installa(cartella, nome, scritti=Nessuno):
+    """Mette nel progetto la copia di PitStudio; se ce n'era un'altra diversa la tiene come .bak."""
+    destinazione = os.path.join(cartella, nome + ".pit")
+    nuova = _leggi(percorso_modello(nome))
+    se os.path.exists(destinazione):
+        se _leggi(destinazione) == nuova:
+            ritorna Falso
+        shutil.copyfile(destinazione, destinazione + ".bak")
+    con open(destinazione, "w", encoding="utf-8", newline=chr(10)) come f:
+        f.write(nuova)
+    se scritti è non Nessuno:
+        scritti.append(destinazione)
+    ritorna Vero
+
+
+definisci copia(cartella, nome, scritti=Nessuno):
+    """Quando una finestra usa il modulo: lo mette se manca, lo rinnova se è vecchio. Una copia modificata a mano o più nuova non si tocca."""
+    se non os.path.exists(percorso_modello(nome)):
+        ritorna Falso
+    se stato_modulo(cartella, nome)["stato"] in ("assente", "vecchio"):
+        ritorna installa(cartella, nome, scritti)
+    ritorna Falso
+
+
+definisci aggiorna_vecchi(cartella, nomi=Nessuno):
+    """Sostituisce i moduli vecchi (solo quelli in `nomi`, se dato). Ritorna i nomi dei file riscritti."""
+    scritti = []
+    per s in stati_del_progetto(cartella):
+        se s["stato"] == "vecchio" e (nomi è Nessuno o s["nome"] in nomi):
+            installa(cartella, s["nome"], scritti)
+    ritorna [os.path.basename(x) per x in scritti]
+
+
+definisci etichetta(stato):
+    """Il testo dopo il nome del file nel pannello Progetto: «ver 3», «ver 2 → 3», «ver 3, modificato», «ver 4, più recente»."""
+    versione, disponibile = stato["versione"], stato["disponibile"]
+    se stato["stato"] == "vecchio":
+        se versione:
+            ritorna f"ver {versione} → {disponibile}"
+        ritorna f"senza versione → {disponibile}"
+    se stato["stato"] == "modificato":
+        ritorna f"ver {versione}, modificato"
+    se stato["stato"] == "piu_nuovo":
+        ritorna f"ver {versione}, più recente di PitStudio"
+    ritorna f"ver {versione}"
+
+
+# ---------------------------------------------------------------- «Non ora»: il progetto si ricorda di non chiedere ancora per una versione
+definisci _file_rifiuti(cartella):
+    ritorna os.path.join(cartella, ".rad", "moduli.json")
+
+
+definisci _rifiuti(cartella):
+    prova:
+        con open(_file_rifiuti(cartella), encoding="utf-8") come f:
+            dati = json.load(f)
+        ritorna dati se isinstance(dati, dict) altrimenti {}
+    eccetto (OSError, ValueError):
+        ritorna {}
+
+
+definisci da_proporre(cartella):
+    """I moduli vecchi del progetto per i quali non si è già detto «non ora» per la versione che PitStudio offre adesso."""
+    rifiuti = _rifiuti(cartella)
+    ritorna [s per s in stati_del_progetto(cartella) se s["stato"] == "vecchio" e rifiuti.get(s["nome"]) != s["disponibile"]]
+
+
+definisci ricorda_rifiuto(cartella, stati):
+    rifiuti = _rifiuti(cartella)
+    per s in stati:
+        rifiuti[s["nome"]] = s["disponibile"]
+    prova:
+        os.makedirs(os.path.dirname(_file_rifiuti(cartella)), exist_ok=Vero)
+        con open(_file_rifiuti(cartella), "w", encoding="utf-8", newline=chr(10)) come f:
+            json.dump(rifiuti, f, indent=1)
+    eccetto OSError:
+        passa
+
+
+definisci riga_elenco(stato):
+    """Una riga per il testo delle finestre: «stampante.pit  (ver 2 → 3)»."""
+    ritorna f"{stato['file']}  ({etichetta(stato)})"
+
+
+# ---------------------------------------------------------------- la tabella delle versioni (serve ai test: un modulo non cambia senza alzare la versione)
+definisci tabella_attuale():
+    risultato = {}
+    per nome in MODULI:
+        testo = _leggi(percorso_modello(nome))
+        risultato[nome] = {"versione": versione_del_testo(testo), "impronta": impronta(testo)}
+    ritorna risultato
+
+
+definisci tabella_registrata():
+    prova:
+        con open(TABELLA, encoding="utf-8") come f:
+            ritorna json.load(f)
+    eccetto (OSError, ValueError):
+        ritorna {}
+
+
+definisci problemi_tabella():
+    """Elenco dei moduli cambiati senza alzare VERSIONE_MODULO, o senza versione, o non ancora registrati."""
+    registrata, attuale = tabella_registrata(), tabella_attuale()
+    problemi = []
+    per nome, dati in attuale.items():
+        se dati["versione"] < 1:
+            problemi.append(f"{nome}.pit non dichiara VERSIONE_MODULO")
+            continua
+        vecchio = registrata.get(nome)
+        se vecchio è Nessuno:
+            problemi.append(f"{nome}.pit non è nella tabella: lancia «--registra»")
+        altrimenti_se vecchio["impronta"] != dati["impronta"] e vecchio["versione"] == dati["versione"]:
+            problemi.append(f"{nome}.pit è cambiato ma VERSIONE_MODULO è ancora {dati['versione']}: alzala")
+        altrimenti_se vecchio != dati:
+            problemi.append(f"{nome}.pit: la tabella non è aggiornata, lancia «--registra»")
+    ritorna problemi
+
+
+se __nome__ == "__main__" e "--registra" in sys.argv:
+    registrata, attuale = tabella_registrata(), tabella_attuale()
+    ko = [n per n, d in attuale.items() se n in registrata e registrata[n]["impronta"] != d["impronta"] e registrata[n]["versione"] == d["versione"]]
+    se ko:
+        stampa("Prima alza VERSIONE_MODULO di:", ", ".join(ko))
+        sys.exit(1)
+    con open(TABELLA, "w", encoding="utf-8", newline=chr(10)) come f:
+        json.dump(attuale, f, indent=1, ensure_ascii=Falso)
+        f.write(chr(10))
+    stampa("tabella scritta:", ", ".join(f"{n} ver {d['versione']}" per n, d in attuale.items()))

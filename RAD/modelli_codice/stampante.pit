@@ -15,6 +15,7 @@ Questo file lo crea PitStudio nel progetto quando usi il componente «Stampa».
     s.salva_pdf()        # chiede dove salvarlo
     s.stampa()           # lo manda alla stampante (Windows: verbo «print» del programma PDF; altrove: lp)
 """
+VERSIONE_MODULO = 2
 importa os
 importa re
 importa sys
@@ -737,7 +738,7 @@ definisci piano_stampa(percorso, imp=Nessuno, piattaforma=Nessuno):
     ritorna [{"tipo": "comando", "argomenti": comando}]
 
 
-SCRIPT_STAMPA_WINDOWS = """param([string]$Pdf, [string]$Stampante = "", [int]$Copie = 1, [string]$FronteRetro = "", [switch]$Prova)
+SCRIPT_STAMPA_WINDOWS = """param([string]$Pdf, [string]$Stampante = "", [int]$Copie = 1, [string]$FronteRetro = "", [switch]$Prova, [switch]$SenzaDialogo)
 $ErrorActionPreference = "Stop"
 try {
     Add-Type -AssemblyName System.Runtime.WindowsRuntime
@@ -796,6 +797,11 @@ try {
         $e.HasMorePages = ($script:indice -lt $immagini.Count)
     })
 
+    if ($SenzaDialogo) {
+        if (-not $stampa.PrinterSettings.IsValid) { throw ("La stampante '" + $Stampante + "' non è disponibile.") }
+        $stampa.Print()
+        exit 0
+    }
     $finestra = New-Object System.Windows.Forms.Form
     $finestra.TopMost = $true; $finestra.ShowInTaskbar = $false; $finestra.Opacity = 0
     $finestra.StartPosition = 'CenterScreen'; $finestra.Size = New-Object System.Drawing.Size(1, 1)
@@ -813,9 +819,10 @@ try {
 """
 
 
-definisci _stampa_con_finestra_windows(percorso, imp=Nessuno):
+definisci _stampa_con_finestra_windows(percorso, imp=Nessuno, senza_dialogo=Falso):
     """Ripiego per Windows quando il programma dei PDF non sa stampare (per esempio ONLYOFFICE, o un lettore senza il comando «print»): Windows stesso disegna le pagine
-    e si apre la finestra di stampa del sistema, già con la stampante, le copie e il fronte-retro scelti. Ritorna Vero se l'ha avviata."""
+    e si apre la finestra di stampa del sistema, già con la stampante, le copie e il fronte-retro scelti. Ritorna Vero se l'ha avviata.
+    Con `senza_dialogo` (la finestra di PitStudio ha già chiesto tutto) stampa subito, senza chiedere di nuovo la stampante."""
     imp = imp o Impostazioni()
     prova:
         cartella = tempfile.mkdtemp(prefix="stampa_")
@@ -825,13 +832,15 @@ definisci _stampa_con_finestra_windows(percorso, imp=Nessuno):
         comando = ["powershell", "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", script, "-Pdf", percorso, "-Copie", tipo_testo(imp.copie), "-FronteRetro", imp.fronte_retro]
         se imp.stampante:
             comando += ["-Stampante", imp.stampante]
+        se senza_dialogo:
+            comando.append("-SenzaDialogo")
         subprocess.Popen(comando, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         ritorna Vero
     eccetto OSError:
         ritorna Falso
 
 
-definisci stampa_pdf(percorso, imp=Nessuno):
+definisci stampa_pdf(percorso, imp=Nessuno, gia_chiesto=Falso):
     """Manda il PDF alla stampante con le impostazioni. Ritorna Vero se l'ha mandato, Falso se il sistema non sa stampare PDF (allora si apre il PDF e si stampa da lì)."""
     prova:
         per passo in piano_stampa(percorso, imp):
@@ -844,7 +853,7 @@ definisci stampa_pdf(percorso, imp=Nessuno):
                 subprocess.run(passo["argomenti"], check=Vero)
         ritorna Vero
     eccetto (OSError, subprocess.CalledProcessError, AttributeError):
-        se sys.platform.startswith("win") e _stampa_con_finestra_windows(percorso, imp):
+        se sys.platform.startswith("win") e _stampa_con_finestra_windows(percorso, imp, gia_chiesto):
             ritorna Vero
         apri_pdf(percorso)
         ritorna Falso
@@ -1260,7 +1269,7 @@ classe Stampante:
         se azione:
             se_stesso._ricorda()
             se azione == "stampa":
-                se_stesso.stampa(chiedi=Falso)
+                se_stesso.stampa(chiedi=Falso, gia_chiesto=Vero)          # la finestra di PitStudio ha già chiesto: niente seconda finestra di Windows
             altrimenti_se azione == "anteprima":
                 se_stesso.anteprima()
             altrimenti_se azione == "pdf":
@@ -1273,7 +1282,7 @@ classe Stampante:
         apri_pdf(percorso)
         ritorna percorso
 
-    definisci stampa(se_stesso, chiedi=Nessuno):
+    definisci stampa(se_stesso, chiedi=Nessuno, gia_chiesto=Falso):
         """Manda il documento alla stampante con le impostazioni (se il sistema non sa stampare PDF lo apre per stamparlo da lì). Se `chiedi` è Vero (o, senza dire niente,
         la proprietà «Chiedi prima di stampare» è accesa) mostra prima la finestra di stampa. Ritorna il percorso del file, o Nessuno se hai annullato."""
         se chiedi è Nessuno:
@@ -1283,7 +1292,7 @@ classe Stampante:
                 ritorna Nessuno                 # annullata, oppure l'azione scelta (anteprima, PDF) è già stata eseguita dalla finestra
             ritorna ""
         percorso = se_stesso._temporaneo()
-        stampa_pdf(percorso, se_stesso.impostazioni)
+        stampa_pdf(percorso, se_stesso.impostazioni, gia_chiesto)
         ritorna percorso
 
     # ------------------------------------------------------------ impostazioni

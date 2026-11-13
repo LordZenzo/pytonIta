@@ -8,6 +8,7 @@
 
 Si ridisegna da solo quando cambia la misura. Con la fonte dati della finestra i dati arrivano dalla tabella (colonna delle etichette e colonna dei valori).
 """
+VERSIONE_MODULO = 1
 importa math
 importa tkinter come tk
 

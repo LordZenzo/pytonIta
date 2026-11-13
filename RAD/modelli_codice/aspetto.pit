@@ -8,6 +8,7 @@
 I colori scritti a mano su un componente (sfondo=..., primo_piano=...) hanno la precedenza sull'aspetto.
 Questo file è stato creato da PitStudio (proprietà «Aspetto» della finestra) e si può usare anche con finestre scritte a mano.
 """
+VERSIONE_MODULO = 1
 importa math
 importa tkinter come tk
 da tkinter importa ttk
