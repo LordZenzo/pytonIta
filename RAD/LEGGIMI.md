@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.30
+
+- **Debug: il valore per intero.** Un clic sul valore di una variabile o di una espressione osservata apre la finestra «Valore di …» con il valore completo: liste e dizionari su più righe con i rientri, i testi com'è (con gli a capo veri), tipo e numero di elementi, «Copia tutto». La finestra resta aperta e si aggiorna a ogni passo; si chiude da sola alla fine del debug. Il doppio clic sul 👁 funziona come prima. I valori molto grandi (oltre 200.000 caratteri) si accorciano con una nota.
+
 ## Novità della 2.29
 
 - **Memoria del debugger riprogettata per capirci qualcosa.** (1) Ogni scatola dice di chi è: il nome della variabile (anche più nomi: «a, b») oppure il percorso (`a[2]`, `c['x']`, `persona.indirizzo`). (2) Le frecce vanno solo da sinistra a destra, ognuna con il colore del suo punto di partenza; i rimandi a un oggetto già disegnato (anche cicli) non hanno più una freccia che si intreccia: sulla riga c'è scritto «↩ nome». (3) Una legenda sotto il disegno spiega i simboli. (4) Correzione: una lista raggiunta per prima passando da altri oggetti restava vuota e «troncata» anche quando era una variabile; ora gli oggetti si riempiono dal più vicino ai nomi.

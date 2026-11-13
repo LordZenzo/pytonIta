@@ -19,6 +19,7 @@ import bdb
 import json
 import linecache
 import os
+import pprint
 import re
 import sys
 
@@ -26,6 +27,7 @@ INIZIO, FINE = "\x01DBG", "\x02"
 FLAG_ITALIANO = 0x10000          # PyCF_ITALIANO: parole chiave italiane
 LIMITE_VALORE = 160
 LIMITE_VARIABILI = 80
+LIMITE_COMPLETO = 200000         # caratteri del valore «intero» mandato a richiesta (oltre si accorcia, con una nota)
 
 
 def emetti(**dati):
@@ -44,6 +46,22 @@ def breve(valore):
 
 def tipo_di(valore):
     return type(valore).__name__
+
+
+def completo(valore, massimo=LIMITE_COMPLETO):
+    """Il valore per intero, leggibile: un testo si mostra com'è (non con gli «\\n»), liste e dizionari su più righe con i rientri."""
+    try:
+        if isinstance(valore, str):
+            testo = valore
+        elif isinstance(valore, (list, tuple, dict, set, frozenset)):
+            testo = pprint.pformat(valore, width=88, compact=True, sort_dicts=False)
+        else:
+            testo = repr(valore)
+    except Exception:
+        testo = "<non rappresentabile>"
+    if len(testo) > massimo:
+        testo = testo[:massimo] + "\n… (altri %d caratteri non mostrati)" % (len(testo) - massimo)
+    return testo
 
 
 _NON_ESISTE = object()                 # l'espressione osservata non si può valutare (variabile non ancora creata, ambito diverso…)
@@ -485,6 +503,9 @@ class Debugger(bdb.Bdb):
             if nome == "osservate":                       # come «osserva», ma senza rispondere (si manda subito prima di riprendere)
                 self.imposta_osservate(dati)
                 continue
+            if nome == "valore":                          # il valore intero di una variabile o di un'espressione, per la finestra «Valore»
+                self.invia_valore(self.scelto or frame, dati)
+                continue
             if nome == "frame":
                 try:
                     pila = self.pila_utente(frame)
@@ -513,6 +534,23 @@ class Debugger(bdb.Bdb):
             else:
                 continue
             return
+
+    def invia_valore(self, frame, dati):
+        """Risponde con il valore intero dell'espressione (calcolata nella riga della pila scelta), o con l'errore."""
+        try:
+            espressione = str(json.loads(dati).get("e", "")).strip()
+        except ValueError:
+            espressione = ""
+        try:
+            codice = compile(espressione, "<valore>", "eval", FLAG_ITALIANO, True)
+            valore = eval(codice, frame.f_globals, frame.f_locals)
+            try:
+                lunghezza = len(valore)
+            except Exception:
+                lunghezza = None
+            emetti(evento="valore", espressione=espressione, tipo=tipo_di(valore), lunghezza=lunghezza, testo=completo(valore))
+        except Exception as errore:
+            emetti(evento="valore", espressione=espressione, errore=type(errore).__name__ + ": " + str(errore))
 
     def imposta_osservate(self, dati):
         """Le espressioni osservate: stringhe, oppure {"e": espressione, "ferma": vero/falso}."""

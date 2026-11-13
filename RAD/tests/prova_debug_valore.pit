@@ -1,0 +1,188 @@
+"""Valore intero nel debugger: il comando «valore» del debugger, la finestra «Valore di …» aperta con un clic sul valore, l'aggiornamento a ogni passo."""
+importa sys, os, tempfile, json, subprocess, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.debug importa RUNNER, INIZIO_EVENTO, FINE_EVENTO, PREFISSO_COMANDO, PannelloDebug, SessioneDebug, FinestraValore
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+PITONIT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "pitonit", "installazione", "pitonit.exe")
+cartella = tempfile.mkdtemp()
+programma = os.path.join(cartella, "p.pit")
+open(programma, "w", encoding="utf-8").write('''dati = list(range(400))
+testo_lungo = "riga\\n" * 60
+d = {"a": [1, 2, 3], "b": {"x": dati[:5]}}
+ciclo = [1]
+ciclo.append(ciclo)
+enorme = "x" * 300000
+fine = 1
+''')
+
+# ---------------------------------------------------------------- il debugger risponde al comando «valore»
+richieste = ["dati", "testo_lungo", "d", "ciclo", "enorme", "non_esiste", "dati[0] + dati[1]"]
+p = subprocess.Popen([PITONIT, "-u", RUNNER, programma, "--inizio"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+eventi = []
+buffer = ""
+inviati = Falso
+t0 = time.time()
+mentre time.time() - t0 < 20:
+    blocco = p.stdout.read1(65536).decode("utf-8", "replace")
+    se non blocco:
+        interrompi
+    buffer += blocco
+    mentre INIZIO_EVENTO in buffer e FINE_EVENTO in buffer:
+        i = buffer.index(INIZIO_EVENTO)
+        j = buffer.index(FINE_EVENTO, i)
+        ev = json.loads(buffer[i + len(INIZIO_EVENTO):j])
+        buffer = buffer[j + 1:]
+        eventi.append(ev)
+        se ev["evento"] == "fermo" e non inviati:
+            inviati = Vero
+            per k in intervallo_di(6):                       # passa le prime righe: all'ultima sosta il programma ha creato tutto
+                p.stdin.write((PREFISSO_COMANDO + "passo\n").encode("utf-8"))
+            p.stdin.flush()
+        se ev["evento"] == "fermo" e inviati e ev["riga"] == 7:
+            per richiesta in richieste:
+                p.stdin.write((PREFISSO_COMANDO + "valore " + json.dumps({"e": richiesta}) + "\n").encode("utf-8")).__class__
+            p.stdin.write((PREFISSO_COMANDO + "continua\n").encode("utf-8"))
+            p.stdin.flush()
+prova_finita = Falso
+prova:
+    p.wait(10)
+    prova_finita = Vero
+eccetto Exception:
+    p.kill()
+valori = {ev["espressione"]: ev per ev in eventi se ev["evento"] == "valore"}
+verifica(lunghezza_di(valori) == lunghezza_di(richieste), "una risposta per ogni richiesta: " + tipo_testo(sorted(valori)))
+v = valori.get("dati", {})
+verifica(v.get("tipo") == "list" e v.get("lunghezza") == 400 e "399" in v.get("testo", "") e v["testo"].count("\n") > 20, "la lista intera, su più righe: " + tipo_testo(v.get("testo", ""))[:60])
+verifica(valori["testo_lungo"]["testo"].count("\n") == 60 e "\\n" non in valori["testo_lungo"]["testo"], "un testo si mostra com'è, con gli a capo veri")
+verifica("'x': [0, 1, 2, 3, 4]" in valori["d"]["testo"] e valori["d"]["tipo"] == "dict", "il dizionario annidato")
+verifica("<Recursion" in valori["ciclo"]["testo"] o "[...]" in valori["ciclo"]["testo"], "una lista che contiene se stessa non manda il debugger in ciclo: " + valori["ciclo"]["testo"])
+verifica(lunghezza_di(valori["enorme"]["testo"]) < 210000 e "caratteri non mostrati" in valori["enorme"]["testo"], "un valore enorme si accorcia con una nota")
+verifica("errore" in valori["non_esiste"] e "NameError" in valori["non_esiste"]["errore"], "un'espressione che non si calcola dà l'errore: " + tipo_testo(valori["non_esiste"]))
+verifica(valori["dati[0] + dati[1]"]["testo"] == "1" e valori["dati[0] + dati[1]"]["tipo"] == "int", "anche le espressioni")
+verifica(prova_finita, "il programma poi finisce")
+
+# ---------------------------------------------------------------- la finestra e i clic
+classe Esecutore:
+    definisci __inizializza__(se_stesso):
+        se_stesso.invii = []
+
+    definisci invia(se_stesso, testo_):
+        se_stesso.invii.append(testo_)
+
+
+classe Consolina:
+    definisci __inizializza__(se_stesso):
+        se_stesso.esecutore = Esecutore()
+
+
+cfg = Configurazione(os.path.join(cartella, "c.json"))
+radice = tk.Tk()
+radice.geometry("1100x420+20+20")
+
+
+classe Centro:
+    definisci forget(se_stesso, pannello):
+        passa
+
+
+classe AppFinta:
+    definisci __inizializza__(se_stesso):
+        se_stesso.console = Consolina()
+        se_stesso.radice = radice
+        se_stesso.colori = colori(cfg)
+        se_stesso.centro = Centro()
+
+
+app = AppFinta()
+sessione = SessioneDebug(app)
+sessione.attiva = Vero
+sessione.fermo = Vero
+pannello = PannelloDebug(radice, sessione)
+pannello.pack(fill="both", expand=Vero)
+sessione.pannello = pannello
+pannello.applica_colori(app.colori)
+radice.update()
+evento_fermo = {"evento": "fermo", "file": "x.pit", "riga": 3, "funzione": "<module>", "pila": [{"file": "x.pit", "riga": 3, "funzione": "<module>"}],
+                "variabili": [{"nome": "dati", "valore": "[0, 1, 2…", "tipo": "list", "cambiata": Falso}],
+                "osservate": [{"espressione": "d['a']", "valore": "[1, 2, 3]", "cambiata": Falso, "ferma": Falso}], "avviso": "", "valutazione": []}
+sessione.osservate = ["d['a']"]
+pannello.mostra_stato(evento_fermo)
+radice.update()
+
+
+definisci clic(albero, riga, colonna):
+    x0, y0, larghezza, altezza = albero.bbox(riga, colonna)
+    albero.event_generate("<ButtonRelease-1>", x=x0 + 5, y=y0 + altezza // 2)
+
+
+definisci aspetta_un_poco(ms=450):
+    fine = time.time() + ms / 1000
+    mentre time.time() < fine:
+        radice.update()
+        time.sleep(0.01)
+
+
+riga_o = pannello.osservate.get_children()[0]
+clic(pannello.osservate, riga_o, "#1")
+aspetta_un_poco()
+verifica(app.console.esecutore.invii != [] e "valore" in app.console.esecutore.invii[-1] e "d['a']" in app.console.esecutore.invii[-1], "un clic sul valore di una osservata chiede il valore intero: " + tipo_testo(app.console.esecutore.invii))
+verifica(sessione.finestra_valore è non Nessuno e sessione.finestra_valore.winfo_exists(), "e apre la finestra")
+sessione.gestisci_evento({"evento": "valore", "espressione": "d['a']", "tipo": "list", "lunghezza": 3, "testo": "[1,\n 2,\n 3]"})
+radice.update()
+verifica(sessione.finestra_valore.t.get("1.0", "end-1c") == "[1,\n 2,\n 3]" e "tipo: list" in sessione.finestra_valore.info.cget("text") e "3 elementi" in sessione.finestra_valore.info.cget("text"), "la finestra mostra il testo intero, il tipo e la lunghezza: " + sessione.finestra_valore.info.cget("text"))
+verifica("d['a']" in sessione.finestra_valore.title(), "il titolo dice di quale espressione")
+# un clic fuori dalla colonna del valore non apre niente
+invii_prima = lunghezza_di(app.console.esecutore.invii)
+x0, y0, larghezza, altezza = pannello.osservate.bbox(riga_o, "#0")
+pannello.osservate.event_generate("<ButtonRelease-1>", x=x0 + 5, y=y0 + altezza // 2)
+aspetta_un_poco()
+verifica(lunghezza_di(app.console.esecutore.invii) == invii_prima, "un clic sul nome dell'espressione non chiede nulla")
+# il doppio clic (👁) non apre la finestra
+sessione.finestra_valore.destroy()
+sessione.finestra_valore = Nessuno
+app.console.esecutore.invii.clear()
+x0, y0, larghezza, altezza = pannello.osservate.bbox(riga_o, "#1")
+per giro in (1, 2):                              # due clic ravvicinati = doppio clic
+    pannello.osservate.event_generate("<ButtonPress-1>", x=x0 + 5, y=y0 + altezza // 2)
+    pannello.osservate.event_generate("<ButtonRelease-1>", x=x0 + 5, y=y0 + altezza // 2)
+aspetta_un_poco()
+verifica(non almeno_uno_vero("valore " in invio per invio in app.console.esecutore.invii) e sessione.finestra_valore è Nessuno, "il doppio clic non apre la finestra del valore: " + tipo_testo(app.console.esecutore.invii))
+verifica(almeno_uno_vero("osserva" in invio per invio in app.console.esecutore.invii), "ma attiva il 👁 come prima")
+# le variabili: clic sulla colonna del valore
+riga_v = pannello.variabili.get_children()[0]
+clic(pannello.variabili, riga_v, "#2")
+aspetta_un_poco()
+verifica(almeno_uno_vero("valore" in i e "dati" in i per i in app.console.esecutore.invii) e sessione.finestra_valore è non Nessuno, "anche il valore di una variabile: " + tipo_testo(app.console.esecutore.invii))
+# con la finestra aperta, a ogni nuova sosta il valore si richiede di nuovo
+app.console.esecutore.invii.clear()
+sessione.gestisci_evento(dict(evento_fermo, riga=4))
+verifica(lunghezza_di(app.console.esecutore.invii) >= 1 e "dati" in app.console.esecutore.invii[0], "a ogni passo la finestra aperta si aggiorna: " + tipo_testo(app.console.esecutore.invii))
+# una risposta con errore
+sessione.gestisci_evento({"evento": "valore", "espressione": "dati", "errore": "NameError: x"})
+verifica("⚠ NameError" in sessione.finestra_valore.t.get("1.0", "end"), "l'errore si mostra nella finestra")
+# il programma finisce: la finestra si chiude
+sessione.termina()
+radice.update()
+verifica(sessione.finestra_valore è Nessuno, "quando il debug finisce la finestra si chiude")
+# se il programma non è fermo non si chiede nulla
+sessione.attiva, sessione.fermo = Vero, Falso
+app.console.esecutore.invii.clear()
+verifica(sessione.chiedi_valore("dati", Vero) == Falso e app.console.esecutore.invii == [], "col programma in corsa non si chiede nulla")
+radice.destroy()
+
+se errori:
+    stampa("PROVE FALLITE:", errori)
+    sys.exit(1)
+stampa("prova_debug_valore: ok")

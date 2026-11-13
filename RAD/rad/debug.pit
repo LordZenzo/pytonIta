@@ -21,6 +21,66 @@ COMANDI = [("continua", "▶", "Continua", "F5"), ("passo", "⤼", "Passo", "F10
            ("esci", "↥", "Esci", "Maiusc+F11"), ("ferma", "■", "Ferma", "Maiusc+F5")]
 
 
+classe FinestraValore(tk.Toplevel):
+    """Il valore intero di una variabile o di una espressione osservata, in una finestra che resta aperta e si aggiorna a ogni passo."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, sessione):
+        tk.Toplevel.__init__(se_stesso, genitore)
+        se_stesso.sessione = sessione
+        se_stesso.espressione = ""
+        se_stesso.title("Valore")
+        se_stesso.geometry("620x420")
+        se_stesso.minsize(320, 200)
+        se_stesso.configure(background=colori["pannello"])
+        se_stesso.rowconfigure(1, weight=1)
+        se_stesso.columnconfigure(0, weight=1)
+        se_stesso.info = tk.Label(se_stesso, anchor="w", justify="left", background=colori["pannello"], foreground=colori["tenue"], font=(FONT_UI, 9))
+        se_stesso.info.grid(row=0, column=0, sticky="we", padx=10, pady=(8, 2))
+        cornice = tk.Frame(se_stesso, background=colori["pannello"])
+        cornice.grid(row=1, column=0, sticky="nsew", padx=10, pady=2)
+        cornice.rowconfigure(0, weight=1)
+        cornice.columnconfigure(0, weight=1)
+        se_stesso.t = tk.Text(cornice, wrap="none", font=(FONT_MONO, 10), background=colori["campo"], foreground=colori["primo_piano"],
+                              insertbackground=colori["cursore"], relief="flat", highlightthickness=1, highlightbackground=colori["bordo"], padx=6, pady=4)
+        sy = ttk.Scrollbar(cornice, orient="vertical", command=se_stesso.t.yview)
+        sx = ttk.Scrollbar(cornice, orient="horizontal", command=se_stesso.t.xview)
+        se_stesso.t.configure(yscrollcommand=sy.set, xscrollcommand=sx.set)
+        se_stesso.t.grid(row=0, column=0, sticky="nsew")
+        sy.grid(row=0, column=1, sticky="ns")
+        sx.grid(row=1, column=0, sticky="we")
+        barra = tk.Frame(se_stesso, background=colori["pannello"])
+        barra.grid(row=2, column=0, sticky="we", padx=10, pady=(4, 8))
+        se_stesso.var_a_capo = tk.BooleanVar(value=Falso)
+        tk.Checkbutton(barra, text="A capo automatico", variable=se_stesso.var_a_capo, command=se_stesso._a_capo, background=colori["pannello"],
+                       foreground=colori["primo_piano"], selectcolor=colori["casella"], activebackground=colori["pannello"]).pack(side="left")
+        tk.Button(barra, text="Chiudi", command=se_stesso.destroy, relief="flat", background=colori["pulsante"], foreground=colori["primo_piano"], padx=12).pack(side="right")
+        tk.Button(barra, text="Copia tutto", command=se_stesso.copia, relief="flat", background=colori["pulsante"], foreground=colori["primo_piano"], padx=12).pack(side="right", padx=6)
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.destroy())
+        se_stesso.protocol("WM_DELETE_WINDOW", se_stesso.destroy)
+
+    definisci _a_capo(se_stesso):
+        se_stesso.t.configure(wrap="word" se se_stesso.var_a_capo.get() altrimenti "none")
+
+    definisci copia(se_stesso):
+        se_stesso.clipboard_clear()
+        se_stesso.clipboard_append(se_stesso.t.get("1.0", "end-1c"))
+
+    definisci mostra(se_stesso, ev):
+        """Mostra la risposta del debugger («valore»): il testo intero, il tipo e la lunghezza."""
+        se_stesso.espressione = ev.get("espressione", "")
+        se_stesso.title(f"Valore di {se_stesso.espressione}")
+        se_stesso.t.configure(state="normal")
+        se_stesso.t.delete("1.0", "end")
+        se ev.get("errore"):
+            se_stesso.info.configure(text="Non si può calcolare adesso")
+            se_stesso.t.insert("1.0", "⚠ " + ev["errore"])
+        altrimenti:
+            lunghezza = ev.get("lunghezza")
+            se_stesso.info.configure(text=f"{se_stesso.espressione}   ·   tipo: {ev.get('tipo')}" + (f"   ·   {lunghezza} elementi" se lunghezza è non Nessuno altrimenti ""))
+            se_stesso.t.insert("1.0", ev.get("testo", ""))
+        se_stesso.t.configure(state="disabled")
+
+
 classe PannelloDebug(tk.Frame):
     """Barra dei comandi + variabili, pila e espressioni osservate."""
 
@@ -60,6 +120,7 @@ classe PannelloDebug(tk.Frame):
         se_stesso.variabili.column("valore", width=150, minwidth=60, stretch=Vero)
         se_stesso.variabili.column("tipo", width=60, minwidth=40, stretch=Falso)
         se_stesso.variabili.tag_configure("cambiata", foreground="#e0a030")
+        se_stesso.variabili.bind("<ButtonRelease-1>", lambda evento: se_stesso._clic_valore(se_stesso.variabili, evento, "#2", Falso))
         sb = ttk.Scrollbar(a, orient="vertical", command=se_stesso.variabili.yview)
         se_stesso.variabili.configure(yscrollcommand=sb.set)
         sb.pack(side="right", fill="y")
@@ -77,7 +138,7 @@ classe PannelloDebug(tk.Frame):
         se_stesso.corpo.add(b, minsize=140, stretch="never", width=200)
 
         c = tk.Frame(se_stesso.corpo)
-        se_stesso._etichetta_osserva = tk.Label(c, text="Osservate · doppio clic 👁 = ferma se cambia", anchor="w", font=(FONT_UI, 9))
+        se_stesso._etichetta_osserva = tk.Label(c, text="Osservate · clic sul valore = vedi tutto · doppio clic 👁 = ferma se cambia", anchor="w", font=(FONT_UI, 9))
         se_stesso._etichetta_osserva.pack(fill="x", padx=4)
         se_stesso.var_osserva = tk.StringVar()
         se_stesso.campo = tk.Entry(c, textvariable=se_stesso.var_osserva, relief="flat", font=(FONT_UI, 9))
@@ -90,7 +151,10 @@ classe PannelloDebug(tk.Frame):
         se_stesso.osservate.column("#0", width=110)
         se_stesso.osservate.column("valore", width=110)
         se_stesso.osservate.column("ferma", width=30, minwidth=30, stretch=Falso, anchor="center")
-        se_stesso.osservate.bind("<Double-Button-1>", se_stesso._commuta_ferma)
+        se_stesso.osservate.bind("<Double-Button-1>", se_stesso._doppio_clic_osservata)
+        se_stesso.osservate.bind("<ButtonRelease-1>", lambda evento: se_stesso._clic_valore(se_stesso.osservate, evento, "#1", Vero))
+        se_stesso._clic_in_attesa = Nessuno
+        se_stesso._ignora_rilascio = Falso
         se_stesso.osservate.pack(fill="both", expand=Vero, padx=4, pady=(2, 0))
         se_stesso.osservate.bind("<Delete>", se_stesso._rimuovi_osservata)
         se_stesso.corpo.add(c, minsize=180, stretch="never", width=260)
@@ -149,6 +213,31 @@ classe PannelloDebug(tk.Frame):
             se_stesso.osservate.insert("", "end", text=elemento["espressione"], values=(elemento["valore"], "👁" se elemento["espressione"] in se_stesso.sessione.ferma_su altrimenti ""),
                                        tags=("cambiata",) se elemento.get("cambiata") altrimenti ())
 
+    definisci _clic_valore(se_stesso, albero, evento, colonna, e_osservata):
+        """Un clic sul valore di una variabile o di una espressione osservata apre la finestra con il valore intero. Si aspetta un attimo:
+        se è l'inizio di un doppio clic (👁) la finestra non si apre."""
+        se e_osservata e se_stesso._ignora_rilascio:          # è il rilascio che chiude un doppio clic: non è un clic sul valore
+            se_stesso._ignora_rilascio = Falso
+            ritorna
+        riga = albero.identify_row(evento.y)
+        se non riga o albero.identify_column(evento.x) != colonna:
+            ritorna
+        espressione = albero.item(riga, "text") se e_osservata altrimenti albero.item(riga, "values")[0]
+        se se_stesso._clic_in_attesa è non Nessuno:
+            se_stesso.after_cancel(se_stesso._clic_in_attesa)
+        se_stesso._clic_in_attesa = se_stesso.after(280, lambda: se_stesso._apri_valore(espressione))
+
+    definisci _doppio_clic_osservata(se_stesso, evento=Nessuno):
+        se se_stesso._clic_in_attesa è non Nessuno:
+            se_stesso.after_cancel(se_stesso._clic_in_attesa)
+            se_stesso._clic_in_attesa = Nessuno
+        se_stesso._ignora_rilascio = Vero
+        se_stesso._commuta_ferma(evento)
+
+    definisci _apri_valore(se_stesso, espressione):
+        se_stesso._clic_in_attesa = Nessuno
+        se_stesso.sessione.chiedi_valore(espressione, Vero)
+
     definisci _commuta_ferma(se_stesso, evento=Nessuno):
         """Doppio clic su una espressione osservata: ferma il programma quando il suo valore cambia (o toglie la richiesta)."""
         riga = se_stesso.osservate.identify_row(evento.y) se evento è non Nessuno altrimenti ""
@@ -203,6 +292,7 @@ classe SessioneDebug:
         se_stesso.osservate = []
         se_stesso.ferma_su = set()        # espressioni osservate con «ferma quando cambia»
         se_stesso.file_fermo = Nessuno
+        se_stesso.finestra_valore = Nessuno           # la finestra «Valore di …», se aperta
         se_stesso._frame_scelto = 0
 
     # ------------------------------------------------------------ avvio
@@ -264,6 +354,8 @@ classe SessioneDebug:
             se_stesso.mostra_posizione(ev["file"], ev["riga"], segna=Vero)
             se se_stesso.pannello:
                 se_stesso.pannello.mostra_stato(ev)
+            se se_stesso._finestra_valore_aperta():
+                se_stesso.chiedi_valore(se_stesso.finestra_valore.espressione)          # la finestra aperta si aggiorna a ogni passo
             se getattr(se_stesso, "_osservate_da_inviare", Falso):
                 se_stesso._osservate_da_inviare = Falso
                 se se_stesso.osservate:
@@ -271,6 +363,8 @@ classe SessioneDebug:
         altrimenti_se tipo_ == "frame":
             se se_stesso.pannello:
                 se_stesso.pannello.mostra_stato(ev, mantieni=se_stesso._frame_scelto)
+        altrimenti_se tipo_ == "valore":
+            se_stesso.mostra_valore(ev)
         altrimenti_se tipo_ in ("fine", "fine_processo"):
             se_stesso.termina()
 
@@ -292,7 +386,29 @@ classe SessioneDebug:
                 passa
         se_stesso._editor_marcato = Nessuno
 
+    definisci _finestra_valore_aperta(se_stesso):
+        ritorna se_stesso.finestra_valore è non Nessuno e se_stesso.finestra_valore.winfo_exists() e bool(se_stesso.finestra_valore.espressione)
+
+    definisci chiedi_valore(se_stesso, espressione, apri=Falso):
+        """Chiede al debugger il valore intero (se il programma è fermo). La risposta arriva come evento «valore» e apre/aggiorna la finestra."""
+        se non (se_stesso.attiva e se_stesso.fermo) o non espressione:
+            ritorna Falso
+        se apri e non (se_stesso.finestra_valore è non Nessuno e se_stesso.finestra_valore.winfo_exists()):
+            se_stesso.finestra_valore = FinestraValore(se_stesso.app.radice, se_stesso.app.colori, se_stesso)
+        se apri:
+            se_stesso.finestra_valore.espressione = espressione
+        se_stesso.app.console.esecutore.invia(PREFISSO_COMANDO + "valore " + json.dumps({"e": espressione}))
+        ritorna Vero
+
+    definisci mostra_valore(se_stesso, ev):
+        se se_stesso.finestra_valore è non Nessuno e se_stesso.finestra_valore.winfo_exists():
+            se_stesso.finestra_valore.mostra(ev)
+            se_stesso.finestra_valore.lift()
+
     definisci termina(se_stesso):
+        se se_stesso.finestra_valore è non Nessuno e se_stesso.finestra_valore.winfo_exists():
+            se_stesso.finestra_valore.destroy()
+        se_stesso.finestra_valore = Nessuno
         se_stesso.attiva = Falso
         se_stesso.fermo = Falso
         se_stesso._cancella_marcatore()
