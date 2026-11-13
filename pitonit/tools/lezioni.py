@@ -90,7 +90,7 @@ def lavora(percorso, riempi):
             if r.returncode == 0:
                 problemi.append(f"{nome}:{riga_blocco}: doveva fallire ma è riuscito")
             continue
-        usa_ingresso = "leggi(" in codice
+        usa_ingresso = "leggi(" in codice or "leggi_tastiera(" in codice
         candidati = (INGRESSI if usa_ingresso else [INGRESSO])
         r = None
         try:

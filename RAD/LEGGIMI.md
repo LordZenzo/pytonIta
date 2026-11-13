@@ -16,6 +16,12 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.31
+
+- **`ordinato_di`, `massimo_di`, `minimo_di`, `somma_di` accettano di nuovo le opzioni in italiano** (`chiave=`, `inverso=`, `predefinito=`, `inizio=`): dopo il cambio dei nomi della 1.51 la tabella non li riconosceva più e la guida prometteva qualcosa che non funzionava.
+- **`asincronia.pausa(...)`**, come `tempo.pausa(...)` (`aspetta` resta valido).
+- Lo strumento che prova gli esempi delle lezioni (`lezioni.py --verifica`) riconosce `leggi_tastiera` e fa parte della verifica completa: 131 esempi, 0 problemi.
+
 ## Novità della 2.30
 
 - **Debug: il valore per intero.** Un clic sul valore di una variabile o di una espressione osservata apre la finestra «Valore di …» con il valore completo: liste e dizionari su più righe con i rientri, i testi com'è (con gli a capo veri), tipo e numero di elementi, «Copia tutto». La finestra resta aperta e si aggiorna a ogni passo; si chiude da sola alla fine del debug. Il doppio clic sul 👁 funziona come prima. I valori molto grandi (oltre 200.000 caratteri) si accorciano con una nota. Una struttura che contiene se stessa non mostra più l'indirizzo interno: dice a quale oggetto torna, con il nome della variabile o il percorso (`<torna a «a»>`, `«b[0]»`). Le strutture enormi, o con moltissimi elementi ripetuti (per esempio `x = [x, x]` annidato 40 volte, che scritto per intero avrebbe 2**40 elementi), si mostrano in sintesi: prima il debugger si bloccava a scriverle (anche la tabella delle variabili e il disegno della memoria).

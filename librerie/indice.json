@@ -120,14 +120,14 @@
   },
   {
    "nome": "asincronia",
-   "versione": "1.0",
+   "versione": "1.1",
    "categoria": "Parallelismo",
    "descrizione": "Programmazione asincrona con asincrono/attendi.",
    "originale": "asyncio",
    "file": [
     {
      "percorso": "asincronia.py",
-     "sha256": "9793b6b629e27307c06be1dbaa016185fd142860f153adfddd0d800bfa3a0398"
+     "sha256": "69a5a91f5f1b16399618ca95e2ec9e7ab9d4db688b57fab01d467de266e0ef74"
     }
    ]
   },

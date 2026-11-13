@@ -626,7 +626,7 @@ index 0000000..fa84d84
 +    sys.exit(main(sys.argv[1:]))
 diff --git a/Lib/_italiano.py b/Lib/_italiano.py
 new file mode 100644
-index 0000000..b8d63ce
+index 0000000..20adff3
 --- /dev/null
 +++ b/Lib/_italiano.py
 @@ -0,0 +1,681 @@
@@ -1243,15 +1243,15 @@ index 0000000..b8d63ce
 +
 +# --------------------------------------------------------------------------
 +# Opzioni con nome in italiano per le funzioni e i metodi predefiniti
-+#   ordinato(x, chiave=..., inverso=Vero)   massimo(x, predefinito=0)
++#   ordinato_di(x, chiave=..., inverso=Vero)   massimo_di(x, predefinito=0)
 +#   apri(nome, modalita="w", codifica="utf-8")   enumera(x, inizio=1) ...
 +# I nomi inglesi (key=, reverse=, encoding=...) continuano a funzionare.
 +# --------------------------------------------------------------------------
 +_KW_FUNZIONI = {
-+    "ordinato": {"chiave": "key", "inverso": "reverse"},
-+    "massimo": {"chiave": "key", "predefinito": "default"},
-+    "minimo": {"chiave": "key", "predefinito": "default"},
-+    "somma": {"inizio": "start"},
++    "ordinato_di": {"chiave": "key", "inverso": "reverse"},
++    "massimo_di": {"chiave": "key", "predefinito": "default"},
++    "minimo_di": {"chiave": "key", "predefinito": "default"},
++    "somma_di": {"inizio": "start"},
 +    "arrotonda": {"cifre": "ndigits"},
 +    "apri": {"modalita": "mode", "codifica": "encoding", "errori": "errors",
 +             "a_capo": "newline"},
@@ -1628,10 +1628,10 @@ index 0000000..35cf82f
 +_basi(_orig)
 diff --git a/Lib/asincronia.py b/Lib/asincronia.py
 new file mode 100644
-index 0000000..3340131
+index 0000000..0e99468
 --- /dev/null
 +++ b/Lib/asincronia.py
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,57 @@
 +"""Modulo italiano per `asyncio` (generato da tools/genera_moduli.py).
 +
 +Contiene tutti i nomi originali piu' gli alias italiani.
@@ -1645,6 +1645,7 @@ index 0000000..3340131
 +    return getattr(_orig, nome)
 +
 +esegui = _ott(_orig, 'run')
++pausa = _ott(_orig, 'sleep')
 +aspetta = _ott(_orig, 'sleep')
 +raccogli = _ott(_orig, 'gather')
 +crea_attivita = _ott(_orig, 'create_task')

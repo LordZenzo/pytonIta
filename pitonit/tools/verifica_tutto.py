@@ -95,6 +95,16 @@ if os.path.exists(verifica):
 else:
     print("  (verifica_moduli.pit non trovato)")
 
+# 3b --------------------------------------------------------------- esempi delle lezioni
+titolo("3b. esempi delle lezioni")
+if "--rapida" not in sys.argv:
+    r = subprocess.run([sys.executable if sys.executable.lower().endswith("python.exe") else "python", os.path.join(RADICE, "tools", "lezioni.py"), "--verifica"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    ultime = (r.stdout.strip().splitlines() or [""])[-1]
+    print(f"  codice {r.returncode}: {ultime[:150]}")
+    if r.returncode != 0 or " 0 problemi" not in ultime:
+        problemi.append("lezioni.py --verifica segnala problemi")
+
 # 4 ---------------------------------------------------------------- test di PitStudio
 if "--rapida" not in sys.argv:
     titolo("4. test di PitStudio")

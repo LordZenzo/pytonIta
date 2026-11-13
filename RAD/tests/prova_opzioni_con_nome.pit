@@ -1,0 +1,41 @@
+# Le opzioni con nome in italiano delle funzioni predefinite (guida «linguaggio»: chiave=, inverso=, predefinito=, inizio=)
+# e il nome «pausa» per aspettare, in tempo e in asincronia.
+importa asincronia
+importa tempo
+
+errori = []
+
+
+definisci verifica(nome, atteso, reale):
+    se atteso != reale:
+        errori.append("%s: atteso %r, ottenuto %r" % (nome, atteso, reale))
+
+
+numeri = [5, 2, 9, 1]
+verifica("ordinato_di inverso", [9, 5, 2, 1], ordinato_di(numeri, inverso=Vero))
+verifica("ordinato_di chiave", [9, 5, 2, 1], ordinato_di(numeri, chiave=lambda x: -x))
+verifica("massimo_di chiave", 1, massimo_di(numeri, chiave=lambda x: -x))
+verifica("minimo_di chiave", 9, minimo_di(numeri, chiave=lambda x: -x))
+verifica("massimo_di predefinito", 0, massimo_di([], predefinito=0))
+verifica("somma_di inizio", 10, somma_di([1, 2], inizio=7))
+copia = numeri.copia()
+copia.ordina(inverso=Vero)
+verifica("lista.ordina inverso", [9, 5, 2, 1], copia)
+
+verifica("tempo.pausa", Vero, tempo.pausa(0) è Nessuno)
+verifica("tempo.aspetta (vecchio)", Vero, tempo.aspetta(0) è Nessuno)
+
+
+asincrono definisci fai():
+    attendi asincronia.pausa(0)
+    attendi asincronia.aspetta(0)
+    ritorna 7
+
+
+verifica("asincronia.pausa", 7, asincronia.esegui(fai()))
+
+se errori:
+    per errore in errori:
+        stampa("ERRORE:", errore)
+    esci(1)
+stampa("opzioni con nome e pausa: ok")

@@ -3,7 +3,7 @@ in automatico dal glossario; qui si scelgono i nomi dei moduli e delle classi.""
 
 MODULI = {
     "asincronia": dict(orig="asyncio", nomi="""
-        esegui=run aspetta=sleep raccogli=gather crea_attivita=create_task
+        esegui=run pausa=sleep aspetta=sleep raccogli=gather crea_attivita=create_task
         attendi_per=wait_for in_filo=to_thread
         Ciclo=AbstractEventLoop Attivita=Task Futuro=Future
         Coda=Queue CodaLifo=LifoQueue CodaPriorita=PriorityQueue

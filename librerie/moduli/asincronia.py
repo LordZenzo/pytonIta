@@ -11,6 +11,7 @@ def __getattr__(nome):
     return getattr(_orig, nome)
 
 esegui = _ott(_orig, 'run')
+pausa = _ott(_orig, 'sleep')
 aspetta = _ott(_orig, 'sleep')
 raccogli = _ott(_orig, 'gather')
 crea_attivita = _ott(_orig, 'create_task')
