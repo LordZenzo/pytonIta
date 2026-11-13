@@ -21,6 +21,7 @@ import linecache
 import os
 import pprint
 import re
+import reprlib
 import sys
 
 INIZIO, FINE = "\x01DBG", "\x02"
@@ -36,11 +37,55 @@ def emetti(**dati):
     sys.__stdout__.flush()
 
 
-def breve(valore):
+LIMITE_NODI = 50000              # una struttura che scritta per intero avrebbe più elementi di così si mostra in sintesi
+
+
+class _TroppoGrande(Exception):
+    pass
+
+
+def troppo_grande(valore, limite=LIMITE_NODI):
+    """True se scrivere il valore per intero richiederebbe più di `limite` elementi. Conta gli elementi come li scriverebbe repr(): una lista che compare
+    due volte conta due volte (così [x, x, ...] annidato 40 volte non si scrive mai: sarebbero 2**40 elementi), mentre un ciclo conta una volta sola."""
+    contatore = [0]
+    in_corso = set()
+
+    def visita(v):
+        contatore[0] += 1
+        if contatore[0] > limite:
+            raise _TroppoGrande()
+        if isinstance(v, (list, tuple, set, frozenset, dict)):
+            if id(v) in in_corso:
+                return
+            in_corso.add(id(v))
+            try:
+                for x in (list(v.keys()) + list(v.values()) if isinstance(v, dict) else list(v)):
+                    visita(x)
+            finally:
+                in_corso.discard(id(v))
     try:
-        t = repr(valore)
+        visita(valore)
+        return False
+    except (_TroppoGrande, RecursionError):
+        return True
+
+
+def repr_sicura(valore, limite=LIMITE_NODI):
+    """repr(valore), ma una struttura enorme (o con tanta condivisione) si scrive in sintesi: i primi elementi, poi «…». `limite`: quanti elementi
+    al massimo si scrivono per intero (chi mostra solo poche decine di caratteri può usarne uno piccolo: il controllo costa meno)."""
+    try:
+        if troppo_grande(valore, limite):
+            sintesi = reprlib.Repr()
+            sintesi.maxlevel, sintesi.maxlist, sintesi.maxtuple, sintesi.maxdict, sintesi.maxset = 6, 30, 30, 30, 30
+            sintesi.maxstring, sintesi.maxother = 120, 120
+            return sintesi.repr(valore)
+        return repr(valore)
     except Exception:
-        t = "<non rappresentabile>"
+        return "<non rappresentabile>"
+
+
+def breve(valore):
+    t = repr_sicura(valore, 2000)
     return t if len(t) <= LIMITE_VALORE else t[:LIMITE_VALORE] + "…"
 
 
@@ -72,14 +117,19 @@ def _etichette(valore, base, massimo=5000):
 
 def completo(valore, massimo=LIMITE_COMPLETO, etichetta="valore"):
     """Il valore per intero, leggibile: un testo si mostra com'è (non con gli «\\n»), liste e dizionari su più righe con i rientri.
-    Una struttura che contiene se stessa non mostra l'indirizzo interno ma dice a quale oggetto torna: «<ciclo: rimanda a «a»>»."""
+    Una struttura che contiene se stessa non mostra l'indirizzo interno ma dice a quale oggetto torna: «<torna a «a»>»."""
     try:
         if isinstance(valore, str):
             testo = valore
+        elif isinstance(valore, (list, tuple, dict, set, frozenset)) and troppo_grande(valore):
+            sintesi = reprlib.Repr()
+            sintesi.maxlevel, sintesi.maxlist, sintesi.maxtuple, sintesi.maxdict, sintesi.maxset = 8, 200, 200, 200, 200
+            sintesi.maxstring, sintesi.maxother = 500, 500
+            testo = sintesi.repr(valore) + "\n\n(struttura molto grande, o con molti elementi ripetuti: se ne mostra una sintesi)"
         elif isinstance(valore, (list, tuple, dict, set, frozenset)):
             etichette = _etichette(valore, etichetta)
             originale = pprint._recursion
-            pprint._recursion = lambda oggetto: "<ciclo: rimanda a «%s»>" % etichette.get(id(oggetto), "un oggetto già mostrato")
+            pprint._recursion = lambda oggetto: "<torna a «%s»>" % etichette.get(id(oggetto), "un oggetto già mostrato")
             try:
                 testo = pprint.pformat(valore, width=88, compact=True, sort_dicts=False)
             finally:
@@ -96,7 +146,7 @@ def completo(valore, massimo=LIMITE_COMPLETO, etichetta="valore"):
 _NON_ESISTE = object()                 # l'espressione osservata non si può valutare (variabile non ancora creata, ambito diverso…)
 
 
-def valore_it(valore, breve_max=40):
+def valore_it(valore, breve_max=40, _livello=0):
     """Come si mostra un valore a chi impara: Vero/Falso/Nessuno, e testi lunghi accorciati."""
     if valore is _NON_ESISTE:
         return "—"
@@ -109,11 +159,11 @@ def valore_it(valore, breve_max=40):
     try:
         if isinstance(valore, range):
             testo = "intervallo_di(%d, %d)" % (valore.start, valore.stop) if valore.step == 1 else "intervallo_di(%d, %d, %d)" % (valore.start, valore.stop, valore.step)
-        elif isinstance(valore, (list, tuple)) and len(valore) <= 8:
+        elif isinstance(valore, (list, tuple)) and len(valore) <= 8 and _livello < 3:        # solo 3 livelli: [x, x] annidato 40 volte farebbe 2**40 chiamate
             apri, chiudi = ("[", "]") if isinstance(valore, list) else ("(", ")" if len(valore) != 1 else ",)")
-            testo = apri + ", ".join(valore_it(x, 20) for x in valore) + chiudi
+            testo = apri + ", ".join(valore_it(x, 20, _livello + 1) for x in valore) + chiudi
         else:
-            testo = repr(valore)
+            testo = repr_sicura(valore, 500)
     except Exception:
         testo = "<non rappresentabile>"
     return testo if len(testo) <= breve_max else testo[:breve_max - 1] + "…"
