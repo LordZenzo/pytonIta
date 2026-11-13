@@ -17,11 +17,13 @@ COLORI_PREDEFINITI = {"editor": "#1e1e1e", "tenue": "#8a8a8a", "pannello": "#2b2
 
 
 definisci disponi(memoria):
-    """-> {"nomi": [(nome, testo, x, y, larghezza, altezza, ref)], "oggetti": {id: (x, y, larghezza, altezza, colonna)}, "frecce": [(x1, y1, x2, y2, condivisa, punti, colore)]}
+    """-> {"nomi": [(nome, testo, x, y, larghezza, altezza, ref)], "oggetti": {id: (x, y, larghezza, altezza, colonna)}, "frecce": [(x1, y1, x2, y2, condivisa, punti, colore)], "richiami": {(ref dell'oggetto, indice dell'elemento): ref dell'oggetto a cui rimanda}}
+    Le frecce vanno solo «in avanti» (da sinistra a destra, verso una colonna più a destra): i rimandi a un oggetto già disegnato più a sinistra
+    o nella stessa colonna non hanno freccia, si scrivono come testo («↩ a») nella riga dell'elemento.
     `punti` = percorso ad angoli retti [x, y, x, y, ...] da (x1, y1) a (x2, y2)."""
     nomi = memoria.get("nomi", [])
     oggetti = memoria.get("oggetti", {})
-    risultato = {"nomi": [], "oggetti": {}, "frecce": []}
+    risultato = {"nomi": [], "oggetti": {}, "frecce": [], "richiami": {}}
     # colonna di ogni oggetto = distanza minima da un nome
     colonna = {}
     coda = [(n["ref"], 1) per n in nomi se n.get("ref") in oggetti]
@@ -84,6 +86,9 @@ definisci disponi(memoria):
         per i, el in enumera(oggetti[ref].get("elementi", [])):
             se el.get("ref") in risultato["oggetti"]:
                 tx, ty, tl, ta, c_arrivo = risultato["oggetti"][el["ref"]]
+                se c_arrivo <= c_partenza:
+                    risultato["richiami"][(ref, i)] = el["ref"]          # rimanda indietro: niente freccia
+                    continua
                 da_tracciare.append((c_partenza, ox + ol, oy + ALTEZZA_RIGA + i * ALTEZZA_RIGA + ALTEZZA_RIGA // 2, c_arrivo, tx, ty + ALTEZZA_RIGA // 2, puntatori.get(el["ref"], 1) > 1, colore))
     uso_spazio = {}                 # quante corsie ha già occupato ogni spazio tra colonne (indice = colonna a destra dello spazio)
     corsie_alte = 0
@@ -113,6 +118,10 @@ definisci _corsia(uso_spazio, colonna_destra, totale):
     sinistra = x_colonna(colonna_destra) - SPAZIO_COLONNE
     passo = max(3, min(8, (SPAZIO_COLONNE - 16) // max(1, totale)))
     ritorna sinistra + 8 + (n * passo) % (SPAZIO_COLONNE - 16)
+
+
+definisci _corto(testo_, massimo):
+    ritorna testo_ se lunghezza_di(testo_) <= massimo altrimenti testo_[:massimo - 1] + "…"
 
 
 classe VistaMemoria(tk.Canvas):
@@ -147,19 +156,24 @@ classe VistaMemoria(tk.Canvas):
             se_stesso.configure(scrollregion=(0, 0, 200, 40))
             ritorna
         larghezza = altezza = 0
+        # il colore di ogni punto di partenza (il puntino ha il colore della sua freccia)
+        colori_partenza = {(x1, y1): colore per x1, y1, x2, y2, condivisa, punti, colore in se_stesso.layout["frecce"]}
         per nome, testo_, x, y, larg, alt, ref in se_stesso.layout["nomi"]:
             se_stesso.create_rectangle(x, y, x + larg, y + alt, outline=c["bordo"], fill=c["pannello"])
             se_stesso.create_text(x + 6, y + alt // 2, anchor="w", fill=c["primo_piano"], font=("Segoe UI", 9, "bold"), text=nome)
             se testo_:
                 se_stesso.create_text(x + larg - 6, y + alt // 2, anchor="e", fill=c["accento"], font=("Consolas", 9), text=testo_)
             altrimenti:
-                se_stesso.create_oval(x + larg - 12, y + alt // 2 - 3, x + larg - 6, y + alt // 2 + 3, fill=c["accento"], outline=c["accento"])
+                tinta = colori_partenza.get((x + larg, y + alt // 2), c["accento"])
+                se_stesso.create_oval(x + larg - 12, y + alt // 2 - 3, x + larg - 6, y + alt // 2 + 3, fill=tinta, outline=tinta)
             altezza = max(altezza, y + alt)
         per ref, (x, y, larg, alt, colonna) in se_stesso.layout["oggetti"].items():
             ogg = oggetti.get(ref, {})
             se_stesso.create_rectangle(x, y, x + larg, y + alt, outline=c["bordo"], fill=c["campo"])
             se_stesso.create_rectangle(x, y, x + larg, y + ALTEZZA_RIGA, outline=c["bordo"], fill=c["pulsante"])
             se_stesso.create_text(x + 6, y + ALTEZZA_RIGA // 2, anchor="w", fill=c["primo_piano"], font=("Segoe UI", 9, "bold"), text=ogg.get("tipo", "?"))
+            se ogg.get("etichetta"):               # di chi è questa scatola: il nome della variabile, o il percorso (a[2], c['x'])
+                se_stesso.create_text(x + larg - 6, y + ALTEZZA_RIGA // 2, anchor="e", fill=c["accento"], font=("Consolas", 9, "bold"), text=_corto(ogg["etichetta"], 22))
             elementi = ogg.get("elementi", [])
             se non elementi:
                 se_stesso.create_text(x + 6, y + ALTEZZA_RIGA + ALTEZZA_RIGA // 2, anchor="w", fill=c["tenue"], font=("Consolas", 9), text=ogg.get("testo", "")[:26] o "(vuoto)")
@@ -168,7 +182,14 @@ classe VistaMemoria(tk.Canvas):
                 etichetta = tipo_testo(el["chiave"]) + ": " se el.get("chiave") è non Nessuno altrimenti ""
                 se el.get("ref"):
                     se_stesso.create_text(x + 6, riga_y, anchor="w", fill=c["tenue"], font=("Consolas", 9), text=etichetta)
-                    se_stesso.create_oval(x + larg - 12, riga_y - 3, x + larg - 6, riga_y + 3, fill=c["accento"], outline=c["accento"])
+                    destinazione = se_stesso.layout["richiami"].get((ref, i))
+                    se destinazione:
+                        # rimanda a un oggetto già disegnato più a sinistra: niente freccia (si intreccerebbe), si dice a chi
+                        se_stesso.create_text(x + larg - 6, riga_y, anchor="e", fill=c["accento"], font=("Consolas", 9),
+                                              text="↩ " + _corto(oggetti.get(destinazione, {}).get("etichetta") o "?", 16))
+                    altrimenti:
+                        tinta = colori_partenza.get((x + larg, riga_y), c["accento"])
+                        se_stesso.create_oval(x + larg - 12, riga_y - 3, x + larg - 6, riga_y + 3, fill=tinta, outline=tinta)
                 altrimenti:
                     se_stesso.create_text(x + 6, riga_y, anchor="w", fill=c["primo_piano"], font=("Consolas", 9), text=(etichetta + (el.get("valore") o ""))[:28])
             se ogg.get("troncato"):
@@ -177,4 +198,6 @@ classe VistaMemoria(tk.Canvas):
             altezza = max(altezza, y + alt)
         per x1, y1, x2, y2, condivisa, punti, colore in se_stesso.layout["frecce"]:
             se_stesso.create_line(*punti, arrow="last", fill=colore, width=3 se condivisa altrimenti 2, joinstyle="round")
-        se_stesso.configure(scrollregion=(0, 0, larghezza + MARGINE, altezza + MARGINE))
+        se_stesso.create_text(MARGINE, altezza + 14, anchor="nw", fill=c["tenue"], font=("Segoe UI", 8), text="●  la freccia porta all'oggetto a cui si punta")
+        se_stesso.create_text(MARGINE, altezza + 30, anchor="nw", fill=c["tenue"], font=("Segoe UI", 8), text="↩  rimanda a un oggetto già disegnato: il suo nome è in alto a destra nella sua scatola")
+        se_stesso.configure(scrollregion=(0, 0, max(larghezza + MARGINE, 520), altezza + 56))

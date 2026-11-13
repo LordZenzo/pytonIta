@@ -84,21 +84,22 @@ def costruisci_memoria(variabili, massimo_oggetti=30, massimo_elementi=10, profo
     import inspect
     oggetti = {}
 
-    def elemento(chiave, x, livello):
+    def elemento(chiave, x, livello, etichetta):
         if isinstance(x, _IMMUTABILI):
             return {"chiave": chiave, "valore": valore_it(x, 24), "ref": None}
-        return {"chiave": chiave, "valore": None, "ref": registra(x, livello)}
+        return {"chiave": chiave, "valore": None, "ref": registra(x, livello, etichetta)}
 
     coda = []                  # oggetti registrati e ancora da riempire, in ordine di distanza dai nomi
 
-    def registra(v, livello):
+    def registra(v, livello, etichetta=""):
         ref = str(id(v))
         if ref in oggetti:
             return ref
         if len(oggetti) >= massimo_oggetti:
             return None
         tipo = type(v).__name__
-        voce = {"tipo": _TIPI_IT.get(tipo, tipo), "testo": valore_it(v, 30), "elementi": [], "troncato": False}
+        # «etichetta»: a chi appartiene (il nome della variabile, oppure il percorso: a[2], c['x'], persona.indirizzo)
+        voce = {"tipo": _TIPI_IT.get(tipo, tipo), "testo": valore_it(v, 30), "elementi": [], "troncato": False, "etichetta": etichetta}
         oggetti[ref] = voce
         coda.append((voce, v, livello))
         return ref
@@ -110,20 +111,20 @@ def costruisci_memoria(variabili, massimo_oggetti=30, massimo_elementi=10, profo
         try:
             if isinstance(v, (list, tuple)):
                 for k, x in enumerate(v[:massimo_elementi]):
-                    voce["elementi"].append(elemento(k, x, livello + 1))
+                    voce["elementi"].append(elemento(k, x, livello + 1, f"{voce['etichetta']}[{k}]"))
                 voce["troncato"] = len(v) > massimo_elementi
             elif isinstance(v, (set, frozenset)):
                 for x in list(v)[:massimo_elementi]:
-                    voce["elementi"].append(elemento(None, x, livello + 1))
+                    voce["elementi"].append(elemento(None, x, livello + 1, f"{voce['etichetta']}[…]"))
                 voce["troncato"] = len(v) > massimo_elementi
             elif isinstance(v, dict):
                 for chiave, x in list(v.items())[:massimo_elementi]:
-                    voce["elementi"].append(elemento(valore_it(chiave, 16), x, livello + 1))
+                    voce["elementi"].append(elemento(valore_it(chiave, 16), x, livello + 1, f"{voce['etichetta']}[{valore_it(chiave, 16)}]"))
                 voce["troncato"] = len(v) > massimo_elementi
             else:
                 for nome, x in list(vars(v).items())[:massimo_elementi]:
                     if not nome.startswith("_"):            # attributi privati (_x, __x) non si disegnano
-                        voce["elementi"].append(elemento(nome, x, livello + 1))
+                        voce["elementi"].append(elemento(nome, x, livello + 1, f"{voce['etichetta']}.{nome}"))
         except Exception:
             pass
 
@@ -134,10 +135,17 @@ def costruisci_memoria(variabili, massimo_oggetti=30, massimo_elementi=10, profo
         if isinstance(v, _IMMUTABILI):
             nomi.append({"nome": nome, "valore": valore_it(v, 24), "ref": None})
         else:
-            nomi.append({"nome": nome, "valore": None, "ref": registra(v, 1)})
+            riferimento = registra(v, 1, nome)
+            nomi.append({"nome": nome, "valore": None, "ref": riferimento})
+            if riferimento is not None:
+                oggetti[riferimento].setdefault("nomi", []).append(nome)
     while coda:                # prima gli oggetti dei nomi (livello 1), poi i loro elementi (livello 2)...: ognuno si riempie al livello più vicino
         voce, v, livello = coda.pop(0)
         riempi(voce, v, livello)
+    for voce in oggetti.values():                    # un oggetto a cui puntano più nomi li porta tutti: «a, b»
+        if voce.get("nomi"):
+            voce["etichetta"] = ", ".join(voce["nomi"])
+        voce.pop("nomi", None)
     return {"nomi": nomi, "oggetti": oggetti}
 
 

@@ -18,7 +18,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Novità della 2.29
 
-- **Memoria del debugger più chiara.** (1) Correzione: una lista raggiunta per prima passando da altri oggetti (per esempio `a → c → b`) restava vuota e «troncata» anche quando era una variabile (`b`); ora gli oggetti si riempiono dal più vicino ai nomi. (2) Ogni nome e ogni oggetto ha il suo colore: le frecce che escono dalla stessa scatola hanno lo stesso colore, così si segue una freccia dal colore del suo punto di partenza.
+- **Memoria del debugger riprogettata per capirci qualcosa.** (1) Ogni scatola dice di chi è: il nome della variabile (anche più nomi: «a, b») oppure il percorso (`a[2]`, `c['x']`, `persona.indirizzo`). (2) Le frecce vanno solo da sinistra a destra, ognuna con il colore del suo punto di partenza; i rimandi a un oggetto già disegnato (anche cicli) non hanno più una freccia che si intreccia: sulla riga c'è scritto «↩ nome». (3) Una legenda sotto il disegno spiega i simboli. (4) Correzione: una lista raggiunta per prima passando da altri oggetti restava vuota e «troncata» anche quando era una variabile; ora gli oggetti si riempiono dal più vicino ai nomi.
 
 ## Novità della 2.28
 

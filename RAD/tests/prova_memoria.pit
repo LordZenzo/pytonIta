@@ -75,8 +75,8 @@ verifica(lunghezza_di(lay["nomi"]) == 7 e lunghezza_di(lay["oggetti"]) == 4, "di
 x_oggetti = sorted({v[0] per v in lay["oggetti"].values()})
 verifica(x_oggetti[0] > memoria_vista.MARGINE + memoria_vista.LARGHEZZA_NOME, "gli oggetti stanno a destra dei nomi")
 condivise = [f_ per f_ in lay["frecce"] se f_[4]]
-verifica(lunghezza_di(condivise) >= 3, "le frecce verso la lista condivisa sono evidenziate: " + tipo_testo(lunghezza_di(condivise)))
-verifica(memoria_vista.disponi({}) == {"nomi": [], "oggetti": {}, "frecce": []}, "memoria vuota")
+verifica(lunghezza_di(condivise) >= 2, "le frecce verso la lista condivisa sono evidenziate: " + tipo_testo(lunghezza_di(condivise)))
+verifica(memoria_vista.disponi({}) == {"nomi": [], "oggetti": {}, "frecce": [], "richiami": {}}, "memoria vuota")
 
 
 definisci scatole_di(lay_):
@@ -109,7 +109,7 @@ difficile = {"nomi": [{"nome": "a", "valore": "", "ref": "A"}, {"nome": "b", "va
                          "C": {"tipo": "dict", "testo": "", "elementi": [{"chiave": "k", "valore": "", "ref": "D"}, {"chiave": "z", "valore": "", "ref": "A"}]},
                          "D": {"tipo": "list", "testo": "", "elementi": [{"chiave": 0, "valore": "", "ref": "A"}]}}}
 lay_d = memoria_vista.disponi(difficile)
-verifica(lunghezza_di(lay_d["frecce"]) == 3 + 3 + 1 + 2 + 1, "tutte le frecce ci sono: " + tipo_testo(lunghezza_di(lay_d["frecce"])))
+verifica(lunghezza_di(lay_d["frecce"]) == 5 e lunghezza_di(lay_d["richiami"]) == 5, "5 frecce in avanti (3 nomi, A→B, B→C) e 5 rimandi indietro scritti come testo: " + tipo_testo((lunghezza_di(lay_d["frecce"]), lunghezza_di(lay_d["richiami"]))))
 verifica(attraversamenti(lay_d) == 0, "caso difficile: nessuna freccia attraversa una scatola: " + tipo_testo(attraversamenti(lay_d)))
 verifica(min(min(f_[5][1::2]) per f_ in lay_d["frecce"]) >= 0, "e nessun percorso esce dall'alto")
 # un colore per ogni punto di partenza: le frecce che escono dalla stessa scatola hanno lo stesso colore, e nomi diversi colori diversi
@@ -126,6 +126,19 @@ ogg_b = mem["oggetti"][mem["nomi"][1]["ref"]]
 verifica(non ogg_b["troncato"] e lunghezza_di(ogg_b["elementi"]) == 2 e tutti_veri(el["ref"] == mem["nomi"][0]["ref"] per el in ogg_b["elementi"]), "b = [a, a] mostra i suoi due elementi, che puntano ad a: " + tipo_testo(ogg_b))
 ogg_c = mem["oggetti"][mem["nomi"][2]["ref"]]
 verifica(lunghezza_di(ogg_c["elementi"]) == 2, "e c mostra 'x' e 'y'")
+# le etichette: a chi appartiene ogni scatola
+verifica([mem["oggetti"][nome_["ref"]]["etichetta"] per nome_ in mem["nomi"]] == ["a", "b", "c"], "le scatole dei nomi portano il nome: " + tipo_testo([voce["etichetta"] per voce in mem["oggetti"].values()]))
+esterna = [[1], {"k": [2]}]
+copia_nome = esterna
+mem3 = runner.costruisci_memoria({"esterna": esterna, "copia_nome": copia_nome})
+verifica(mem3["oggetti"][mem3["nomi"][0]["ref"]]["etichetta"] == "esterna, copia_nome", "due nomi sullo stesso oggetto: la scatola li porta tutti e due: " + tipo_testo(mem3["oggetti"][mem3["nomi"][0]["ref"]]["etichetta"]))
+interne = sorted(voce["etichetta"] per voce in mem3["oggetti"].values())
+verifica("esterna[0]" in interne e "esterna[1]" in interne e "esterna[1]['k']" in interne, "gli oggetti senza nome portano il percorso: " + tipo_testo(interne))
+classe Persona:
+    definisci __inizializza__(se_stesso):
+        se_stesso.indirizzo = [1, 2]
+mem4 = runner.costruisci_memoria({"persona": Persona()})
+verifica("persona.indirizzo" in [voce["etichetta"] per voce in mem4["oggetti"].values()], "gli attributi: persona.indirizzo")
 # la profondità resta un limite: una catena lunga si ferma, ma gli oggetti più vicini ai nomi sono completi
 catena = []
 punta = catena
@@ -148,7 +161,12 @@ vista.mostra(m)
 radice.update()
 testi = [vista.itemcget(i, "text") per i in vista.find_all() se vista.type(i) == "text"]
 verifica("lista" in testi e "dizionario" in testi e "Punto" in testi e "elenco" in testi e "alias" in testi, "nel disegno ci sono i tipi e i nomi: " + tipo_testo(testi[:12]))
-verifica(lunghezza_di([i per i in vista.find_all() se vista.type(i) == "line"]) >= 6, "e le frecce")
+verifica(lunghezza_di([i per i in vista.find_all() se vista.type(i) == "line"]) == lunghezza_di(lay["frecce"]), "le frecce disegnate sono quelle in avanti: " + tipo_testo(lunghezza_di([i per i in vista.find_all() se vista.type(i) == "line"])))
+testi_vista = [vista.itemcget(i, "text") per i in vista.find_all() se vista.type(i) == "text"]
+verifica(almeno_uno_vero(t.startswith("↩ ") per t in testi_vista) == (lunghezza_di(lay["richiami"]) > 0), "i rimandi indietro sono scritti come «↩ nome»")
+verifica(almeno_uno_vero("la freccia porta" in t per t in testi_vista) e almeno_uno_vero("rimanda a un oggetto" in t per t in testi_vista), "c'è la legenda dei simboli")
+etichette = [voce["etichetta"] per voce in m["oggetti"].values()]
+verifica(tutti_veri(etichette) e lunghezza_di(set(etichette)) == lunghezza_di(etichette), "ogni scatola ha un'etichetta diversa: " + tipo_testo(etichette))
 vista.mostra({"nomi": [], "oggetti": {}})
 verifica("Nessuna variabile" in [vista.itemcget(i, "text") per i in vista.find_all() se vista.type(i) == "text"][0], "memoria vuota: lo dice")
 
