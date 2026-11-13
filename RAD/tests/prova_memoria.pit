@@ -88,7 +88,7 @@ definisci attraversamenti(lay_):
     """Quanti tratti delle frecce passano DENTRO una scatola (esclusi i punti di partenza e di arrivo sui bordi)."""
     scatole = scatole_di(lay_)
     guasti = 0
-    per x1, y1, x2, y2, _, punti in lay_["frecce"]:
+    per x1, y1, x2, y2, _, punti, _colore in lay_["frecce"]:
         per k in intervallo_di(0, lunghezza_di(punti) - 2, 2):
             ax, ay, bx, by = punti[k], punti[k + 1], punti[k + 2], punti[k + 3]
             sx0, sx1, sy0, sy1 = min(ax, bx), max(ax, bx), min(ay, by), max(ay, by)
@@ -112,6 +112,29 @@ lay_d = memoria_vista.disponi(difficile)
 verifica(lunghezza_di(lay_d["frecce"]) == 3 + 3 + 1 + 2 + 1, "tutte le frecce ci sono: " + tipo_testo(lunghezza_di(lay_d["frecce"])))
 verifica(attraversamenti(lay_d) == 0, "caso difficile: nessuna freccia attraversa una scatola: " + tipo_testo(attraversamenti(lay_d)))
 verifica(min(min(f_[5][1::2]) per f_ in lay_d["frecce"]) >= 0, "e nessun percorso esce dall'alto")
+# un colore per ogni punto di partenza: le frecce che escono dalla stessa scatola hanno lo stesso colore, e nomi diversi colori diversi
+colori_nome = [f_[6] per f_ in lay_d["frecce"][:3]]
+verifica(lunghezza_di(set(colori_nome)) == 3, "i tre nomi hanno tre colori diversi: " + tipo_testo(colori_nome))
+verifica(tutti_veri(f_[6] in memoria_vista.COLORI_FRECCE per f_ in lay_d["frecce"]), "i colori sono quelli della tavolozza")
+# il caso dell'utente: a = [1, 2]; b = [a, a]; c = {"x": b, "y": a}; a.append(c) -> la lista b è una variabile e deve mostrare i suoi due elementi
+a_ = [1, 2]
+b_ = [a_, a_]
+c_ = {"x": b_, "y": a_}
+a_.append(c_)
+mem = runner.costruisci_memoria({"a": a_, "b": b_, "c": c_})
+ogg_b = mem["oggetti"][mem["nomi"][1]["ref"]]
+verifica(non ogg_b["troncato"] e lunghezza_di(ogg_b["elementi"]) == 2 e tutti_veri(el["ref"] == mem["nomi"][0]["ref"] per el in ogg_b["elementi"]), "b = [a, a] mostra i suoi due elementi, che puntano ad a: " + tipo_testo(ogg_b))
+ogg_c = mem["oggetti"][mem["nomi"][2]["ref"]]
+verifica(lunghezza_di(ogg_c["elementi"]) == 2, "e c mostra 'x' e 'y'")
+# la profondità resta un limite: una catena lunga si ferma, ma gli oggetti più vicini ai nomi sono completi
+catena = []
+punta = catena
+per _ in intervallo_di(6):
+    nuova = [1]
+    punta.append(nuova)
+    punta = nuova
+mem2 = runner.costruisci_memoria({"x": catena})
+verifica(mem2["oggetti"][mem2["nomi"][0]["ref"]]["elementi"] != [] e almeno_uno_vero(voce["troncato"] per voce in mem2["oggetti"].values()), "una catena lunga si ferma alla profondità massima")
 altezze = [v[1] per v in lay["oggetti"].values() se v[4] == 1]
 verifica(lunghezza_di(set(altezze)) == lunghezza_di(altezze), "oggetti della stessa colonna uno sotto l'altro, non sovrapposti")
 

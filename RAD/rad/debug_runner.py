@@ -89,6 +89,8 @@ def costruisci_memoria(variabili, massimo_oggetti=30, massimo_elementi=10, profo
             return {"chiave": chiave, "valore": valore_it(x, 24), "ref": None}
         return {"chiave": chiave, "valore": None, "ref": registra(x, livello)}
 
+    coda = []                  # oggetti registrati e ancora da riempire, in ordine di distanza dai nomi
+
     def registra(v, livello):
         ref = str(id(v))
         if ref in oggetti:
@@ -98,9 +100,13 @@ def costruisci_memoria(variabili, massimo_oggetti=30, massimo_elementi=10, profo
         tipo = type(v).__name__
         voce = {"tipo": _TIPI_IT.get(tipo, tipo), "testo": valore_it(v, 30), "elementi": [], "troncato": False}
         oggetti[ref] = voce
+        coda.append((voce, v, livello))
+        return ref
+
+    def riempi(voce, v, livello):
         if livello >= profondita:
             voce["troncato"] = True
-            return ref
+            return
         try:
             if isinstance(v, (list, tuple)):
                 for k, x in enumerate(v[:massimo_elementi]):
@@ -120,7 +126,6 @@ def costruisci_memoria(variabili, massimo_oggetti=30, massimo_elementi=10, profo
                         voce["elementi"].append(elemento(nome, x, livello + 1))
         except Exception:
             pass
-        return ref
 
     nomi = []
     for nome, v in variabili.items():
@@ -130,6 +135,9 @@ def costruisci_memoria(variabili, massimo_oggetti=30, massimo_elementi=10, profo
             nomi.append({"nome": nome, "valore": valore_it(v, 24), "ref": None})
         else:
             nomi.append({"nome": nome, "valore": None, "ref": registra(v, 1)})
+    while coda:                # prima gli oggetti dei nomi (livello 1), poi i loro elementi (livello 2)...: ognuno si riempie al livello più vicino
+        voce, v, livello = coda.pop(0)
+        riempi(voce, v, livello)
     return {"nomi": nomi, "oggetti": oggetti}
 
 

@@ -11,12 +11,13 @@ ALTEZZA_RIGA = 20
 SPAZIO_COLONNE = 80
 SPAZIO_OGGETTI = 14
 MARGINE = 10
+COLORI_FRECCE = ["#4da3ff", "#e0a030", "#5fd38d", "#e06c9f", "#b08cf0", "#4fd1d1"]       # ogni nome e ogni oggetto ha il suo colore: si segue la freccia dal colore
 COLORI_PREDEFINITI = {"editor": "#1e1e1e", "tenue": "#8a8a8a", "pannello": "#2b2b2b", "bordo": "#555555", "primo_piano": "#e6e6e6",
                       "accento": "#4da3ff", "campo": "#252525", "pulsante": "#3a3a3a"}
 
 
 definisci disponi(memoria):
-    """-> {"nomi": [(nome, testo, x, y, larghezza, altezza, ref)], "oggetti": {id: (x, y, larghezza, altezza, colonna)}, "frecce": [(x1, y1, x2, y2, condivisa, punti)]}
+    """-> {"nomi": [(nome, testo, x, y, larghezza, altezza, ref)], "oggetti": {id: (x, y, larghezza, altezza, colonna)}, "frecce": [(x1, y1, x2, y2, condivisa, punti, colore)]}
     `punti` = percorso ad angoli retti [x, y, x, y, ...] da (x1, y1) a (x2, y2)."""
     nomi = memoria.get("nomi", [])
     oggetti = memoria.get("oggetti", {})
@@ -77,15 +78,16 @@ definisci disponi(memoria):
         se n.get("ref") in risultato["oggetti"]:
             x1, y1 = posizione_nome[n["nome"]]
             ox, oy, ol, oa, c_arrivo = risultato["oggetti"][n["ref"]]
-            da_tracciare.append((0, x1, y1, c_arrivo, ox, oy + ALTEZZA_RIGA // 2, puntatori.get(n["ref"], 1) > 1))
-    per ref, (ox, oy, ol, oa, c_partenza) in risultato["oggetti"].items():
+            da_tracciare.append((0, x1, y1, c_arrivo, ox, oy + ALTEZZA_RIGA // 2, puntatori.get(n["ref"], 1) > 1, COLORI_FRECCE[lunghezza_di(da_tracciare) % lunghezza_di(COLORI_FRECCE)]))
+    per numero, (ref, (ox, oy, ol, oa, c_partenza)) in enumera(risultato["oggetti"].items()):
+        colore = COLORI_FRECCE[(lunghezza_di(nomi) + numero) % lunghezza_di(COLORI_FRECCE)]          # tutte le frecce che escono da questo oggetto
         per i, el in enumera(oggetti[ref].get("elementi", [])):
             se el.get("ref") in risultato["oggetti"]:
                 tx, ty, tl, ta, c_arrivo = risultato["oggetti"][el["ref"]]
-                da_tracciare.append((c_partenza, ox + ol, oy + ALTEZZA_RIGA + i * ALTEZZA_RIGA + ALTEZZA_RIGA // 2, c_arrivo, tx, ty + ALTEZZA_RIGA // 2, puntatori.get(el["ref"], 1) > 1))
+                da_tracciare.append((c_partenza, ox + ol, oy + ALTEZZA_RIGA + i * ALTEZZA_RIGA + ALTEZZA_RIGA // 2, c_arrivo, tx, ty + ALTEZZA_RIGA // 2, puntatori.get(el["ref"], 1) > 1, colore))
     uso_spazio = {}                 # quante corsie ha già occupato ogni spazio tra colonne (indice = colonna a destra dello spazio)
     corsie_alte = 0
-    per partenza, x1, y1, arrivo, x2, y2, condivisa in da_tracciare:
+    per partenza, x1, y1, arrivo, x2, y2, condivisa, colore in da_tracciare:
         se arrivo == partenza + 1:
             lx = _corsia(uso_spazio, arrivo, lunghezza_di(da_tracciare))
             punti = [x1, y1, lx, y1, lx, y2, x2, y2]
@@ -95,7 +97,7 @@ definisci disponi(memoria):
             yh = MARGINE // 2 + 4 * corsie_alte
             corsie_alte += 1
             punti = [x1, y1, xa, y1, xa, yh, xb, yh, xb, y2, x2, y2]
-        risultato["frecce"].append((x1, y1, x2, y2, condivisa, punti))
+        risultato["frecce"].append((x1, y1, x2, y2, condivisa, punti, colore))
     ritorna risultato
 
 
@@ -173,7 +175,6 @@ classe VistaMemoria(tk.Canvas):
                 se_stesso.create_text(x + 6, y + alt - ALTEZZA_RIGA // 2, anchor="w", fill=c["tenue"], font=("Consolas", 9), text="… altri elementi non mostrati")
             larghezza = max(larghezza, x + larg)
             altezza = max(altezza, y + alt)
-        per x1, y1, x2, y2, condivisa, punti in se_stesso.layout["frecce"]:
-            colore = "#e0a030" se condivisa altrimenti c["accento"]
-            se_stesso.create_line(*punti, arrow="last", fill=colore, width=2 se condivisa altrimenti 1, joinstyle="round")
+        per x1, y1, x2, y2, condivisa, punti, colore in se_stesso.layout["frecce"]:
+            se_stesso.create_line(*punti, arrow="last", fill=colore, width=3 se condivisa altrimenti 2, joinstyle="round")
         se_stesso.configure(scrollregion=(0, 0, larghezza + MARGINE, altezza + MARGINE))

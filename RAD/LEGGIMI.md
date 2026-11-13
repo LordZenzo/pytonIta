@@ -16,6 +16,10 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.29
+
+- **Memoria del debugger più chiara.** (1) Correzione: una lista raggiunta per prima passando da altri oggetti (per esempio `a → c → b`) restava vuota e «troncata» anche quando era una variabile (`b`); ora gli oggetti si riempiono dal più vicino ai nomi. (2) Ogni nome e ogni oggetto ha il suo colore: le frecce che escono dalla stessa scatola hanno lo stesso colore, così si segue una freccia dal colore del suo punto di partenza.
+
 ## Novità della 2.28
 
 - **La chat dell'assistente è del progetto.** Cambiando progetto la chat si rinnova da sola (contatori di token e costo compresi), e riaprendo un progetto si ritrova la sua conversazione. Se l'assistente sta ancora lavorando, PitStudio chiede se fermarlo prima di aprire l'altro progetto, e la sua risposta non finisce più nella chat (né nel file) del progetto nuovo.
