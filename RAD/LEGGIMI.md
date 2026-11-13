@@ -18,7 +18,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Novità della 2.30
 
-- **Debug: il valore per intero.** Un clic sul valore di una variabile o di una espressione osservata apre la finestra «Valore di …» con il valore completo: liste e dizionari su più righe con i rientri, i testi com'è (con gli a capo veri), tipo e numero di elementi, «Copia tutto». La finestra resta aperta e si aggiorna a ogni passo; si chiude da sola alla fine del debug. Il doppio clic sul 👁 funziona come prima. I valori molto grandi (oltre 200.000 caratteri) si accorciano con una nota.
+- **Debug: il valore per intero.** Un clic sul valore di una variabile o di una espressione osservata apre la finestra «Valore di …» con il valore completo: liste e dizionari su più righe con i rientri, i testi com'è (con gli a capo veri), tipo e numero di elementi, «Copia tutto». La finestra resta aperta e si aggiorna a ogni passo; si chiude da sola alla fine del debug. Il doppio clic sul 👁 funziona come prima. I valori molto grandi (oltre 200.000 caratteri) si accorciano con una nota. Una struttura che contiene se stessa non mostra più l'indirizzo interno: dice a quale oggetto torna, con il nome della variabile o il percorso (`<ciclo: rimanda a «a»>`, `«b[0]»`).
 
 ## Novità della 2.29
 

@@ -20,7 +20,7 @@ cartella = tempfile.mkdtemp()
 programma = os.path.join(cartella, "p.pit")
 open(programma, "w", encoding="utf-8").write('''dati = list(range(400))
 testo_lungo = "riga\\n" * 60
-d = {"a": [1, 2, 3], "b": {"x": dati[:5]}}
+d = {"a": [1, 2, 3], "b": {"x": dati[:5]}}; ca = [1, 2]; cb = [ca, ca]; cc = {"x": cb, "y": ca}; ca.append(cc)
 ciclo = [1]
 ciclo.append(ciclo)
 enorme = "x" * 300000
@@ -28,7 +28,7 @@ fine = 1
 ''')
 
 # ---------------------------------------------------------------- il debugger risponde al comando «valore»
-richieste = ["dati", "testo_lungo", "d", "ciclo", "enorme", "non_esiste", "dati[0] + dati[1]"]
+richieste = ["dati", "testo_lungo", "d", "ciclo", "enorme", "non_esiste", "dati[0] + dati[1]", "ca", "cb"]
 p = subprocess.Popen([PITONIT, "-u", RUNNER, programma, "--inizio"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 eventi = []
 buffer = ""
@@ -67,7 +67,9 @@ v = valori.get("dati", {})
 verifica(v.get("tipo") == "list" e v.get("lunghezza") == 400 e "399" in v.get("testo", "") e v["testo"].count("\n") > 20, "la lista intera, su più righe: " + tipo_testo(v.get("testo", ""))[:60])
 verifica(valori["testo_lungo"]["testo"].count("\n") == 60 e "\\n" non in valori["testo_lungo"]["testo"], "un testo si mostra com'è, con gli a capo veri")
 verifica("'x': [0, 1, 2, 3, 4]" in valori["d"]["testo"] e valori["d"]["tipo"] == "dict", "il dizionario annidato")
-verifica("<Recursion" in valori["ciclo"]["testo"] o "[...]" in valori["ciclo"]["testo"], "una lista che contiene se stessa non manda il debugger in ciclo: " + valori["ciclo"]["testo"])
+verifica(valori["ciclo"]["testo"] == "[1, <ciclo: rimanda a «ciclo»>]", "una lista che contiene se stessa dice a chi torna, non l'indirizzo interno: " + valori["ciclo"]["testo"])
+verifica("Recursion" non in valori["ca"]["testo"] e "id=" non in valori["ca"]["testo"] e valori["ca"]["testo"].count("rimanda a «ca»") == 3, "tre ritorni ad «ca» nel suo valore: " + valori["ca"]["testo"])
+verifica("rimanda a «cb»" in valori["cb"]["testo"] e "rimanda a «cb[0]»" in valori["cb"]["testo"], "un oggetto già dentro la struttura si nomina con il suo percorso: " + valori["cb"]["testo"])
 verifica(lunghezza_di(valori["enorme"]["testo"]) < 210000 e "caratteri non mostrati" in valori["enorme"]["testo"], "un valore enorme si accorcia con una nota")
 verifica("errore" in valori["non_esiste"] e "NameError" in valori["non_esiste"]["errore"], "un'espressione che non si calcola dà l'errore: " + tipo_testo(valori["non_esiste"]))
 verifica(valori["dati[0] + dati[1]"]["testo"] == "1" e valori["dati[0] + dati[1]"]["tipo"] == "int", "anche le espressioni")

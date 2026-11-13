@@ -48,13 +48,42 @@ def tipo_di(valore):
     return type(valore).__name__
 
 
-def completo(valore, massimo=LIMITE_COMPLETO):
-    """Il valore per intero, leggibile: un testo si mostra com'è (non con gli «\\n»), liste e dizionari su più righe con i rientri."""
+def _etichette(valore, base, massimo=5000):
+    """{id dell'oggetto: percorso} dei contenitori (liste, tuple, dizionari) dentro `valore`, dal più vicino alla radice: a, a[2], a[2]['x']…"""
+    etichette = {}
+    coda = [(valore, base)]
+    while coda and len(etichette) < massimo:
+        oggetto, percorso = coda.pop(0)
+        if id(oggetto) in etichette:
+            continue
+        etichette[id(oggetto)] = percorso
+        try:
+            if isinstance(oggetto, (list, tuple)):
+                figli = [(x, "%s[%d]" % (percorso, k)) for k, x in enumerate(oggetto)]
+            elif isinstance(oggetto, dict):
+                figli = [(x, "%s[%s]" % (percorso, repr(chiave)[:24])) for chiave, x in oggetto.items()]
+            else:
+                continue
+        except Exception:
+            continue
+        coda.extend((x, e) for x, e in figli if isinstance(x, (list, tuple, dict)))
+    return etichette
+
+
+def completo(valore, massimo=LIMITE_COMPLETO, etichetta="valore"):
+    """Il valore per intero, leggibile: un testo si mostra com'è (non con gli «\\n»), liste e dizionari su più righe con i rientri.
+    Una struttura che contiene se stessa non mostra l'indirizzo interno ma dice a quale oggetto torna: «<ciclo: rimanda a «a»>»."""
     try:
         if isinstance(valore, str):
             testo = valore
         elif isinstance(valore, (list, tuple, dict, set, frozenset)):
-            testo = pprint.pformat(valore, width=88, compact=True, sort_dicts=False)
+            etichette = _etichette(valore, etichetta)
+            originale = pprint._recursion
+            pprint._recursion = lambda oggetto: "<ciclo: rimanda a «%s»>" % etichette.get(id(oggetto), "un oggetto già mostrato")
+            try:
+                testo = pprint.pformat(valore, width=88, compact=True, sort_dicts=False)
+            finally:
+                pprint._recursion = originale
         else:
             testo = repr(valore)
     except Exception:
@@ -548,7 +577,7 @@ class Debugger(bdb.Bdb):
                 lunghezza = len(valore)
             except Exception:
                 lunghezza = None
-            emetti(evento="valore", espressione=espressione, tipo=tipo_di(valore), lunghezza=lunghezza, testo=completo(valore))
+            emetti(evento="valore", espressione=espressione, tipo=tipo_di(valore), lunghezza=lunghezza, testo=completo(valore, etichetta=espressione))
         except Exception as errore:
             emetti(evento="valore", espressione=espressione, errore=type(errore).__name__ + ": " + str(errore))
 
