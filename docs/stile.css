@@ -69,15 +69,23 @@ h1 em{font-style:normal;color:var(--acc)}
 .fin .bar i{width:11px;height:11px;border-radius:50%;background:var(--line);display:block}
 .fin .bar span{margin-left:8px}
 .fin img{display:block;width:100%;height:auto}
-.fin button.zoom{all:unset;display:block;cursor:zoom-in;width:100%}
+.fin button.zoom{all:unset;display:grid;position:relative;overflow:hidden;cursor:zoom-in;width:100%}
 .fin button.zoom:focus-visible{outline:3px solid var(--acc);outline-offset:-3px}
-.solo-scuro,.solo-chiaro{display:block}
-.solo-chiaro{display:none}
-@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .solo-scuro{display:none}:root:not([data-theme="dark"]) .solo-chiaro{display:block}}
-:root[data-theme="light"] .solo-scuro{display:none}
-:root[data-theme="light"] .solo-chiaro{display:block}
-:root[data-theme="dark"] .solo-scuro{display:block}
-:root[data-theme="dark"] .solo-chiaro{display:none}
+/* Le due versioni dello screenshot sono sovrapposte: quella del tema attuale sta sotto,
+   l'altra sopra, ritagliata. Al passaggio del mouse si scopre da sinistra a destra. */
+.solo-scuro,.solo-chiaro{display:block;grid-area:1/1;transition:clip-path .9s cubic-bezier(.65,0,.35,1)}
+.solo-scuro{z-index:1}
+.solo-chiaro{z-index:2;clip-path:inset(0 100% 0 0)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .solo-scuro{z-index:2;clip-path:inset(0 100% 0 0)}:root:not([data-theme="dark"]) .solo-chiaro{z-index:1;clip-path:none}}
+:root[data-theme="light"] .solo-scuro{z-index:2;clip-path:inset(0 100% 0 0)}
+:root[data-theme="light"] .solo-chiaro{z-index:1;clip-path:none}
+:root[data-theme="dark"] .solo-scuro{z-index:1;clip-path:none}
+:root[data-theme="dark"] .solo-chiaro{z-index:2;clip-path:inset(0 100% 0 0)}
+.fin button.zoom:hover img.solo-scuro,.fin button.zoom:hover img.solo-chiaro,
+.fin button.zoom:focus-visible img.solo-scuro,.fin button.zoom:focus-visible img.solo-chiaro{clip-path:inset(0 0 0 0)}
+.fin button.zoom::after{content:"";position:absolute;z-index:3;top:0;bottom:0;left:0;width:3px;background:var(--acc);box-shadow:0 0 16px var(--acc);opacity:0;pointer-events:none}
+.fin button.zoom:hover::after,.fin button.zoom:focus-visible::after{animation:passa .9s cubic-bezier(.65,0,.35,1) forwards}
+@keyframes passa{0%{left:0;opacity:1}85%{opacity:1}100%{left:calc(100% - 3px);opacity:0}}
 
 /* codice */
 pre{background:var(--code);border:1px solid var(--line);border-radius:12px;padding:18px 20px;overflow-x:auto;font:15px/1.6 ui-monospace,"Cascadia Code",Consolas,Menlo,monospace;margin:0;tab-size:4}

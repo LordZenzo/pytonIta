@@ -24,7 +24,10 @@
   document.addEventListener("click", function (e) {
     var b = e.target.closest("button.zoom");
     if (!b || !dlg.showModal) return;
-    var img = [].filter.call(b.querySelectorAll("img"), function (x) { return x.offsetParent !== null; })[0] || b.querySelector("img");
+    var vis = [].filter.call(b.querySelectorAll("img"), function (x) { return x.offsetParent !== null; });
+    var z = function (x) { return +getComputedStyle(x).zIndex || 0; };
+    vis.sort(function (p, q) { return z(p) - z(q); });          // sotto: tema attuale; sopra: l'altro tema
+    var img = (b.matches(":hover") ? vis[vis.length - 1] : vis[0]) || b.querySelector("img");
     var im = dlg.querySelector("img");
     im.src = img.currentSrc || img.src;
     im.alt = img.alt;
