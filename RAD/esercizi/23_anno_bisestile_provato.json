@@ -1,0 +1,34 @@
+{
+  "id": "anno_bisestile_provato",
+  "titolo": "Anno bisestile, con le prove",
+  "argomento": "Test",
+  "livello": "Avanzato",
+  "consegna": "Scrivi la funzione `e_bisestile(anno)` (un anno è bisestile se è divisibile per 4 ma non per 100, **oppure** se è divisibile per 400). Prima controllala con quattro `asserisci` (2000 sì, 1900 no, 2024 sì, 2023 no), poi leggi un anno e stampa `bisestile` o `non bisestile`.\n\nEsempio: `2024` → `bisestile`",
+  "iniziale": "definisci e_bisestile(anno):\n    # restituisci Vero o Falso\n    passa\n\n\n# controlla la funzione con asserisci\n\n\nanno = tipo_intero(leggi_tastiera(\"\"))\n",
+  "prove": [
+    {
+      "ingresso": "2024\n",
+      "uscita": "bisestile"
+    },
+    {
+      "ingresso": "1900\n",
+      "uscita": "non bisestile"
+    },
+    {
+      "ingresso": "2000\n",
+      "uscita": "bisestile"
+    },
+    {
+      "ingresso": "2023\n",
+      "uscita": "non bisestile"
+    }
+  ],
+  "suggerimenti": [
+    "La regola: `(anno % 4 == 0 e anno % 100 != 0) o anno % 400 == 0`.",
+    "Un controllo: `asserisci e_bisestile(2000)` e `asserisci non e_bisestile(1900)`.",
+    "Alla fine: `stampa(\"bisestile\" se e_bisestile(anno) altrimenti \"non bisestile\")`."
+  ],
+  "soluzione": "definisci e_bisestile(anno):\n    ritorna (anno % 4 == 0 e anno % 100 != 0) o anno % 400 == 0\n\n\nasserisci e_bisestile(2000)\nasserisci non e_bisestile(1900)\nasserisci e_bisestile(2024)\nasserisci non e_bisestile(2023)\n\nanno = tipo_intero(leggi_tastiera(\"\"))\nstampa(\"bisestile\" se e_bisestile(anno) altrimenti \"non bisestile\")\n",
+  "confronto": "esatto",
+  "ordine": 23
+}

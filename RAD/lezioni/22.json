@@ -1,0 +1,90 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "importa matematica\nstampa(matematica.radice_quadrata(49))",
+   "giusta": "7.0",
+   "sbagliate": [
+    {
+     "testo": "7",
+     "indizio": "radice_quadrata restituisce un numero decimale."
+    },
+    "49",
+    "Errore"
+   ],
+   "spiegazione": "La radice quadrata di 49 è 7, scritta come 7.0 perché è un decimale.",
+   "sezione": "Le librerie che ci sono già"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "se __nome__ == \"__main__\":\n    stampa(\"lanciato\")\naltrimenti:\n    stampa(\"importato\")",
+   "giusta": "lanciato",
+   "sbagliate": [
+    {
+     "testo": "importato",
+     "indizio": "Il file è quello lanciato direttamente."
+    },
+    "lanciato\nimportato",
+    "niente"
+   ],
+   "spiegazione": "__nome__ vale \"__main__\" quando il file viene lanciato e non importato.",
+   "sezione": "Il codice che parte solo se lanci il file"
+  },
+  {
+   "domanda": "Che nome ha il modulo creato dal file geometria.pit?",
+   "giusta": "geometria",
+   "sbagliate": [
+    {
+     "testo": "geometria.pit",
+     "indizio": "Il nome del modulo non comprende l'estensione."
+    },
+    "Geometria",
+    "main"
+   ],
+   "spiegazione": "Il nome del file, senza estensione, diventa il nome del modulo: importa geometria.",
+   "sezione": "Un modulo è un file"
+  },
+  {
+   "domanda": "Quale riga importa solo la funzione area_cerchio dal modulo geometria?",
+   "giusta": "da geometria importa area_cerchio",
+   "sbagliate": [
+    {
+     "testo": "importa geometria.area_cerchio",
+     "indizio": "Questa forma non è valida: dopo importa va il nome di un modulo."
+    },
+    "importa area_cerchio da geometria",
+    "da area_cerchio importa geometria"
+   ],
+   "spiegazione": "La forma è da modulo importa nome.",
+   "sezione": "Tre modi di importare"
+  },
+  {
+   "domanda": "Che cosa rende una cartella un pacchetto?",
+   "giusta": "il file __init__.pit al suo interno",
+   "sbagliate": [
+    {
+     "testo": "il fatto di contenere più di un file",
+     "indizio": "Serve il file speciale __init__.pit."
+    },
+    "un nome che inizia con una maiuscola",
+    "il file principale.pit"
+   ],
+   "spiegazione": "Il file __init__.pit (anche vuoto) dice che la cartella è un pacchetto.",
+   "sezione": "Un pacchetto è una cartella"
+  },
+  {
+   "domanda": "Dove si installano le librerie esterne in PitStudio senza usare il terminale?",
+   "giusta": "nel pannello Pip",
+   "sbagliate": [
+    {
+     "testo": "nel pannello Git",
+     "indizio": "Quello serve per i commit e le versioni."
+    },
+    "nel pannello Test",
+    "con il progettista di finestre"
+   ],
+   "spiegazione": "Il pannello Pip cerca, installa e toglie i pacchetti per il progetto o per tutti.",
+   "sezione": "Le librerie degli altri"
+  }
+ ]
+}

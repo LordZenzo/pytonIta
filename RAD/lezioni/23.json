@@ -1,0 +1,89 @@
+{
+ "domande": [
+  {
+   "domanda": "Che cosa succede a una pila di mattonelle non attaccata a un cappello?",
+   "giusta": "non viene eseguita",
+   "sbagliate": [
+    {
+     "testo": "viene eseguita per prima",
+     "indizio": "Senza cappello la pila non fa parte di nessun flusso."
+    },
+    "viene eseguita per ultima",
+    "viene cancellata da PitStudio"
+   ],
+   "spiegazione": "PitStudio lo segnala con «non collegato»: la pila resta ferma.",
+   "sezione": "Le forme e i colori"
+  },
+  {
+   "domanda": "Quale forma ha una mattonella che contiene altre mattonelle, come «se» o «per ogni»?",
+   "giusta": "a «C»",
+   "sbagliate": [
+    {
+     "testo": "a pillola",
+     "indizio": "La pillola è per i valori."
+    },
+    "a esagono",
+    "a cappello"
+   ],
+   "spiegazione": "I blocchi a «C» contengono altre mattonelle nella loro «bocca».",
+   "sezione": "Le forme e i colori"
+  },
+  {
+   "domanda": "Come si riconosce la mattonella da cui parte il programma?",
+   "giusta": "è il cappello giallo con la cupola in alto",
+   "sbagliate": [
+    {
+     "testo": "è la prima della tavolozza",
+     "indizio": "Parte la pila che ha un cappello."
+    },
+    "è sempre a forma di C",
+    "è quella con la scritta scrivi"
+   ],
+   "spiegazione": "Il cappello, giallo, segna l'inizio di una pila: «Quando parte il programma».",
+   "sezione": "Le forme e i colori"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "per n in intervallo_di(1, 11):\n    se n % 2 == 0:\n        stampa(n)",
+   "giusta": "2\n4\n6\n8\n10",
+   "sbagliate": [
+    {
+     "testo": "1\n2\n3\n4\n5\n6\n7\n8\n9\n10",
+     "indizio": "Solo i numeri pari passano la condizione del se."
+    },
+    "1\n3\n5\n7\n9",
+    "2\n4\n6\n8"
+   ],
+   "spiegazione": "È il codice generato dal primo programma a mattonelle: il ciclo e il se, scritti in testo.",
+   "sezione": "Il tuo primo programma, a mattonelle"
+  },
+  {
+   "domanda": "Che cosa si vede premendo ‹/› Codice nell'editor a mattonelle?",
+   "giusta": "il codice pytonIta generato dalle mattonelle",
+   "sbagliate": [
+    {
+     "testo": "un manuale delle mattonelle",
+     "indizio": "Mostra il programma, non la guida."
+    },
+    "il risultato dell'esecuzione",
+    "un codice diverso, solo per le mattonelle"
+   ],
+   "spiegazione": "Sotto le mattonelle c'è sempre il normale codice pytonIta.",
+   "sezione": "Il tuo primo programma, a mattonelle"
+  },
+  {
+   "domanda": "Come si porta via una sola istruzione, senza quelle che la seguono?",
+   "giusta": "tenendo premuto Alt mentre la si trascina",
+   "sbagliate": [
+    {
+     "testo": "tenendo premuto Ctrl",
+     "indizio": "Ctrl con la rotella cambia lo zoom."
+    },
+    "con un doppio clic",
+    "non è possibile: si porta dietro sempre tutte le seguenti"
+   ],
+   "spiegazione": "Di solito l'istruzione si porta dietro le seguenti; con Alt si stacca solo lei.",
+   "sezione": "Staccare e spostare"
+  }
+ ]
+}

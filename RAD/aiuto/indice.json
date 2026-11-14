@@ -26,7 +26,7 @@
  },
  {
   "id": "lezioni",
-  "titolo": "Il percorso: 16 lezioni",
+  "titolo": "Il percorso: 24 lezioni",
   "gruppo": "Imparare a programmare"
  },
  {
@@ -106,7 +106,47 @@
  },
  {
   "id": "lezione-16",
-  "titolo": "16. Progetto finale",
+  "titolo": "16. Tuple e insiemi",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-17",
+  "titolo": "17. Comprehension, lambda e ricorsione",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-18",
+  "titolo": "18. Generatori e iteratori",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-19",
+  "titolo": "19. Gli oggetti più a fondo",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-20",
+  "titolo": "20. I database con SQLite",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-21",
+  "titolo": "21. Provare il proprio codice",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-22",
+  "titolo": "22. Moduli e pacchetti",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-23",
+  "titolo": "23. Programmare a mattonelle",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-24",
+  "titolo": "24. Progetto finale",
   "gruppo": "Imparare a programmare"
  },
  {

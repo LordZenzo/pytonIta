@@ -1,0 +1,34 @@
+{
+  "id": "fattoriale_ricorsivo",
+  "titolo": "Il fattoriale, con la ricorsione",
+  "argomento": "Ricorsione",
+  "livello": "Avanzato",
+  "consegna": "Scrivi una funzione **ricorsiva** `fattoriale(n)` (senza cicli) e usala per stampare il fattoriale di un numero letto da tastiera. Il fattoriale di 0 è 1.\n\nEsempio: `5` → `120`",
+  "iniziale": "definisci fattoriale(n):\n    # caso base e passo ricorsivo\n    passa\n\n\nn = tipo_intero(leggi_tastiera(\"\"))\nstampa(fattoriale(n))\n",
+  "prove": [
+    {
+      "ingresso": "5\n",
+      "uscita": "120"
+    },
+    {
+      "ingresso": "0\n",
+      "uscita": "1"
+    },
+    {
+      "ingresso": "1\n",
+      "uscita": "1"
+    },
+    {
+      "ingresso": "10\n",
+      "uscita": "3628800"
+    }
+  ],
+  "suggerimenti": [
+    "Serve un **caso base**: per n = 0 (o 1) il risultato è 1.",
+    "Per gli altri: `n * fattoriale(n - 1)`.",
+    "Ricordati di scrivere `ritorna` in entrambi i casi."
+  ],
+  "soluzione": "definisci fattoriale(n):\n    se n <= 1:\n        ritorna 1\n    ritorna n * fattoriale(n - 1)\n\n\nn = tipo_intero(leggi_tastiera(\"\"))\nstampa(fattoriale(n))\n",
+  "confronto": "esatto",
+  "ordine": 18
+}

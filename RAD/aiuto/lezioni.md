@@ -1,6 +1,6 @@
 # Impara a programmare
 
-Questo percorso ti porta da zero a un programma completo, **scrivendo codice in italiano**. Sono 16 lezioni brevi: ognuna spiega una cosa sola, ti mostra esempi da provare e finisce con qualche **esercizio** (le soluzioni sono in fondo, ma prima prova da solo!).
+Questo percorso ti porta da zero a un programma completo, **scrivendo codice in italiano**. Sono 24 lezioni brevi: ognuna spiega una cosa sola, ti mostra esempi da provare e finisce con qualche **esercizio** (le soluzioni sono in fondo, ma prima prova da solo!).
 
 ## Come si studia
 
@@ -13,7 +13,7 @@ Questo percorso ti porta da zero a un programma completo, **scrivendo codice in 
 
 ## Il quiz e il professore
 
-Dal menu *Aiuto → Lezioni (con quiz e professore)…* (o dalla finestra che compare all'avvio, scegliendo «Iniziare una lezione») trovi l'elenco delle 16 lezioni con i tuoi progressi.
+Dal menu *Aiuto → Lezioni (con quiz e professore)…* (o dalla finestra che compare all'avvio, scegliendo «Iniziare una lezione») trovi l'elenco delle 24 lezioni con i tuoi progressi.
 
 - **Leggi la lezione**: apre la guida su quella lezione.
 - **Fai il quiz**: da 4 a 7 domande a risposte multiple, una alla volta, anche del tipo «Che cosa stampa questo programma?». Se sbagli ti dice perché e quale sezione rileggere. Con almeno l'80% di risposte giuste la lezione è superata (✔) e ti consiglia la successiva. Il quiz funziona **senza AI**.
@@ -40,7 +40,15 @@ Dal menu *Aiuto → Lezioni (con quiz e professore)…* (o dalla finestra che co
 | 13 | [Le classi](#lezione-13) | oggetti con dati e azioni |
 | 14 | [Le librerie](#lezione-14) | `importa` e il pannello Librerie |
 | 15 | [Le finestre](#lezione-15) | un'applicazione grafica |
-| 16 | [Progetto finale](#lezione-16) | un gioco completo |
+| 16 | [Tuple e insiemi](#lezione-16) | raccolte che non cambiano, valori senza doppioni |
+| 17 | [Comprehension, lambda e ricorsione](#lezione-17) | liste in una riga, funzioni senza nome, funzioni che si richiamano |
+| 18 | [Generatori e iteratori](#lezione-18) | `produci`, valori uno alla volta |
+| 19 | [Gli oggetti più a fondo](#lezione-19) | metodi speciali, attributi di classe, composizione |
+| 20 | [I database con SQLite](#lezione-20) | tabelle e comandi SQL |
+| 21 | [Provare il proprio codice](#lezione-21) | `asserisci` e `test_unitari` |
+| 22 | [Moduli e pacchetti](#lezione-22) | dividere il programma in più file |
+| 23 | [Programmare a mattonelle](#lezione-23) | costruire programmi a blocchi |
+| 24 | [Progetto finale](#lezione-24) | un gioco completo |
 
 ## Un consiglio
 

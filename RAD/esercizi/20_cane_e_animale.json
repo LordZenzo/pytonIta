@@ -1,0 +1,26 @@
+{
+  "id": "cane_e_animale",
+  "titolo": "Il cane che eredita",
+  "argomento": "Oggetti",
+  "livello": "Avanzato",
+  "consegna": "La classe `Animale` ha un nome e un metodo `verso()` che restituisce `\"...\"`. Scrivi `Cane`, figlia di `Animale`, che ridefinisce `verso()` restituendo `\"Bau\"`. Leggi un nome e stampa `nome: verso` per un `Animale` e per un `Cane` con quel nome, su due righe.\n\nEsempio: `Rex` → `Rex: ...` e `Rex: Bau`",
+  "iniziale": "classe Animale:\n    definisci __inizializza__(se_stesso, nome):\n        se_stesso.nome = nome\n\n    definisci verso(se_stesso):\n        ritorna \"...\"\n\n\n# scrivi qui la classe Cane\n\n\nnome = leggi_tastiera(\"\")\n",
+  "prove": [
+    {
+      "ingresso": "Rex\n",
+      "uscita": "Rex: ...\nRex: Bau"
+    },
+    {
+      "ingresso": "Micio\n",
+      "uscita": "Micio: ...\nMicio: Bau"
+    }
+  ],
+  "suggerimenti": [
+    "Una classe figlia si scrive `classe Cane(Animale):`.",
+    "Basta ridefinire il metodo `verso`: il costruttore lo eredita.",
+    "Per ogni oggetto: `stampa(f\"{x.nome}: {x.verso()}\")`."
+  ],
+  "soluzione": "classe Animale:\n    definisci __inizializza__(se_stesso, nome):\n        se_stesso.nome = nome\n\n    definisci verso(se_stesso):\n        ritorna \"...\"\n\n\nclasse Cane(Animale):\n    definisci verso(se_stesso):\n        ritorna \"Bau\"\n\n\nnome = leggi_tastiera(\"\")\nper x in [Animale(nome), Cane(nome)]:\n    stampa(f\"{x.nome}: {x.verso()}\")\n",
+  "confronto": "esatto",
+  "ordine": 20
+}

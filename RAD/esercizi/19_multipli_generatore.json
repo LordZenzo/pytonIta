@@ -1,0 +1,30 @@
+{
+  "id": "multipli_generatore",
+  "titolo": "I multipli, con un generatore",
+  "argomento": "Generatori",
+  "livello": "Avanzato",
+  "consegna": "Scrivi un **generatore** `multipli(base, quanti)` che produce `base`, `2*base`, … per `quanti` valori. Leggi base e quanti (due righe) e stampa i valori separati da uno spazio.\n\nEsempio: `7` e `4` → `7 14 21 28`",
+  "iniziale": "definisci multipli(base, quanti):\n    # usa produci\n    passa\n\n\nbase = tipo_intero(leggi_tastiera(\"\"))\nquanti = tipo_intero(leggi_tastiera(\"\"))\n",
+  "prove": [
+    {
+      "ingresso": "7\n4\n",
+      "uscita": "7 14 21 28"
+    },
+    {
+      "ingresso": "3\n1\n",
+      "uscita": "3"
+    },
+    {
+      "ingresso": "10\n5\n",
+      "uscita": "10 20 30 40 50"
+    }
+  ],
+  "suggerimenti": [
+    "Dentro la funzione, un ciclo `per k in intervallo_di(1, quanti + 1)`.",
+    "A ogni giro: `produci base * k`.",
+    "Per stamparli: `\" \".join(tipo_testo(v) per v in multipli(base, quanti))`."
+  ],
+  "soluzione": "definisci multipli(base, quanti):\n    per k in intervallo_di(1, quanti + 1):\n        produci base * k\n\n\nbase = tipo_intero(leggi_tastiera(\"\"))\nquanti = tipo_intero(leggi_tastiera(\"\"))\nstampa(\" \".join(tipo_testo(v) per v in multipli(base, quanti)))\n",
+  "confronto": "esatto",
+  "ordine": 19
+}

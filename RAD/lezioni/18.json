@@ -1,0 +1,92 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "definisci tre():\n    produci 1\n    produci 2\n    produci 3\nstampa(somma_di(tre()))",
+   "giusta": "6",
+   "sbagliate": [
+    {
+     "testo": "3",
+     "indizio": "somma_di somma tutti i valori prodotti, non solo l'ultimo."
+    },
+    "1 2 3",
+    "[1, 2, 3]"
+   ],
+   "spiegazione": "Il generatore produce 1, 2 e 3 e somma_di li somma: 6.",
+   "sezione": "La funzione generatore"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "definisci g():\n    stampa(\"a\")\n    produci 1\n    stampa(\"b\")\nx = g()\nstampa(\"fine\")",
+   "giusta": "fine",
+   "sbagliate": [
+    {
+     "testo": "a\nfine",
+     "indizio": "Chiamare il generatore non esegue il suo corpo: parte solo alla prima richiesta di un valore."
+    },
+    "a\nb\nfine",
+    "fine\na"
+   ],
+   "spiegazione": "g() crea soltanto il generatore: senza chiedergli un valore nessuna riga del suo corpo viene eseguita.",
+   "sezione": "La funzione generatore"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "g = (n * 2 per n in [1, 2, 3])\nstampa(tipo_lista(g))\nstampa(tipo_lista(g))",
+   "giusta": "[2, 4, 6]\n[]",
+   "sbagliate": [
+    {
+     "testo": "[2, 4, 6]\n[2, 4, 6]",
+     "indizio": "Un generatore si consuma una volta sola."
+    },
+    "[]\n[]",
+    "Errore"
+   ],
+   "spiegazione": "Dopo il primo giro il generatore è finito: la seconda lista è vuota.",
+   "sezione": "Un generatore si consuma una volta sola"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "it = iteratore_di([10, 20])\nstampa(prossimo_elemento(it))\nstampa(prossimo_elemento(it))",
+   "giusta": "10\n20",
+   "sbagliate": [
+    {
+     "testo": "10\n10",
+     "indizio": "Ogni richiesta passa all'elemento successivo."
+    },
+    "20\n10",
+    "[10, 20]"
+   ],
+   "spiegazione": "prossimo_elemento restituisce un valore alla volta: prima 10, poi 20.",
+   "sezione": "Che cosa è un iteratore"
+  },
+  {
+   "domanda": "Quale parola trasforma una funzione in un generatore?",
+   "giusta": "produci",
+   "sbagliate": [
+    {
+     "testo": "ritorna",
+     "indizio": "ritorna termina la funzione e basta."
+    },
+    "genera",
+    "lambda"
+   ],
+   "spiegazione": "produci restituisce un valore e ricorda dove si era fermata la funzione.",
+   "sezione": "La funzione generatore"
+  },
+  {
+   "domanda": "Perché un generatore è utile con tantissimi valori?",
+   "giusta": "perché produce un valore alla volta senza costruire tutta la lista",
+   "sbagliate": [
+    {
+     "testo": "perché è sempre più veloce di un ciclo",
+     "indizio": "Il vantaggio principale è la memoria, non la velocità."
+    },
+    "perché si può modificare come una lista",
+    "perché stampa da solo i valori"
+   ],
+   "spiegazione": "Un generatore calcola un valore solo quando serve, quindi può anche essere infinito.",
+   "sezione": "Perché è utile"
+  }
+ ]
+}

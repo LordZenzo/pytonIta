@@ -1,0 +1,101 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "stampa([n * 2 per n in intervallo_di(1, 4)])",
+   "giusta": "[2, 4, 6]",
+   "sbagliate": [
+    {
+     "testo": "[1, 2, 3]",
+     "indizio": "Ogni numero viene raddoppiato."
+    },
+    {
+     "testo": "[2, 4, 6, 8]",
+     "indizio": "intervallo_di(1, 4) si ferma prima del 4: i numeri sono 1, 2 e 3."
+    },
+    "[1, 4, 9]"
+   ],
+   "spiegazione": "I numeri sono 1, 2 e 3; raddoppiati diventano 2, 4 e 6.",
+   "sezione": "Costruire una lista in una riga"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "numeri = [1, 2, 3, 4, 5, 6]\nstampa([n per n in numeri se n % 3 == 0])",
+   "giusta": "[3, 6]",
+   "sbagliate": [
+    {
+     "testo": "[1, 2, 4, 5]",
+     "indizio": "La condizione tiene i multipli di 3, non gli altri."
+    },
+    "[3]",
+    "[1, 2, 3, 4, 5, 6]"
+   ],
+   "spiegazione": "Dopo il se restano solo i numeri divisibili per 3: 3 e 6.",
+   "sezione": "Con una condizione"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "quadrato = lambda x: x * x\nstampa(quadrato(6))",
+   "giusta": "36",
+   "sbagliate": [
+    {
+     "testo": "12",
+     "indizio": "x * x è il quadrato, non il doppio."
+    },
+    "x * x",
+    "66"
+   ],
+   "spiegazione": "La lambda moltiplica il numero per se stesso: 6 * 6 = 36.",
+   "sezione": "Funzioni senza nome: lambda"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "definisci somma_fino(n):\n    se n == 0:\n        ritorna 0\n    ritorna n + somma_fino(n - 1)\nstampa(somma_fino(4))",
+   "giusta": "10",
+   "sbagliate": [
+    {
+     "testo": "4",
+     "indizio": "A ogni chiamata si aggiunge n alla somma dei precedenti."
+    },
+    "0",
+    "24"
+   ],
+   "spiegazione": "4 + 3 + 2 + 1 + 0 = 10: ogni chiamata aggiunge il suo n e richiama la funzione con n - 1.",
+   "sezione": "La ricorsione"
+  },
+  {
+   "domanda": "Che cosa non può mancare in una funzione ricorsiva perché si fermi?",
+   "giusta": "il caso base",
+   "sbagliate": [
+    {
+     "testo": "un ciclo per",
+     "indizio": "La ricorsione sostituisce il ciclo: non serve."
+    },
+    {
+     "testo": "una lambda",
+     "indizio": "Non c'entra con la ricorsione."
+    },
+    {
+     "testo": "la parola produci",
+     "indizio": "Quella serve per i generatori."
+    }
+   ],
+   "spiegazione": "Il caso base è la condizione in cui la funzione smette di richiamarsi.",
+   "sezione": "La ricorsione"
+  },
+  {
+   "domanda": "Completa la riga per ordinare le parole dalla più corta: ordinato_di(parole, ___=lambda p: lunghezza_di(p))",
+   "giusta": "chiave",
+   "sbagliate": [
+    {
+     "testo": "inverso",
+     "indizio": "inverso= serve a invertire l'ordine, non a dire cosa confrontare."
+    },
+    "ordine",
+    "funzione"
+   ],
+   "spiegazione": "L'opzione chiave= riceve la funzione che calcola, per ogni elemento, il valore da confrontare.",
+   "sezione": "Funzioni senza nome: lambda"
+  }
+ ]
+}

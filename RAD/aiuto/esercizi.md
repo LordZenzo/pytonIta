@@ -16,7 +16,7 @@ Accanto a ogni esercizio compare ✓ quando l'hai risolto, e in fondo vedi quant
 
 ## Gli esercizi
 
-Tredici esercizi in ordine di difficoltà: stampare, numeri e variabili, decisioni con `se`, cicli, liste, stringhe, funzioni, dizionari e una classe.
+Ventitré esercizi in ordine di difficoltà: stampare, numeri e variabili, decisioni con `se`, cicli, liste, stringhe, funzioni, dizionari, classi, e poi tuple e insiemi, comprehension, ricorsione, generatori, oggetti con metodi speciali, database SQLite e test.
 
 ## Per le classi
 

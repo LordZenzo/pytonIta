@@ -120,10 +120,10 @@ Applicazione.mostra_avvio = originale
 fl = app.apri_lezioni()
 radice.update()
 verifica(app.apri_lezioni() è fl, "una sola finestra delle lezioni")
-verifica(lunghezza_di(fl.elenco.get_children()) == 16 e fl.numero_scelto() == 1, "16 lezioni, parte dalla prima")
+verifica(lunghezza_di(fl.elenco.get_children()) == 24 e fl.numero_scelto() == 1, "24 lezioni, parte dalla prima")
 verifica(fl.pulsanti["quiz"].cget("state") == "normal", "il quiz c'è")
 verifica(non fl.ai_pronta() e "serve l'AI" in fl.pulsanti["professore"].cget("text") e fl.configura_ai.winfo_ismapped(), "senza chiave: il professore chiede di configurare l'AI")
-verifica("Lezioni superate: 0 su 16" in fl.progresso.cget("text"), fl.progresso.cget("text"))
+verifica("Lezioni superate: 0 su 24" in fl.progresso.cget("text"), fl.progresso.cget("text"))
 pagine = []
 app.impostazioni = lambda pagina=Nessuno: pagine.append(pagina)
 fl.professore()
@@ -195,7 +195,7 @@ verifica(quiz.stato(cfg, 1) == "✔ 5/6", "progresso salvato: " + quiz.stato(cfg
 q.destroy()
 fl.riempi()
 verifica("✔ 5/6" in fl.elenco.item("1", "values"), "l'elenco mostra il risultato: " + tipo_testo(fl.elenco.item("1", "values")))
-verifica(fl.numero_scelto() == 1 e "Lezioni superate: 1 su 16" in fl.progresso.cget("text"), "contatore delle lezioni superate")
+verifica(fl.numero_scelto() == 1 e "Lezioni superate: 1 su 24" in fl.progresso.cget("text"), "contatore delle lezioni superate")
 # fai_quiz dal pulsante
 chiuso = []
 originale_mostra = DialogoQuiz.mostra

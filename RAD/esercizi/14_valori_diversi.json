@@ -1,0 +1,30 @@
+{
+  "id": "valori_diversi",
+  "titolo": "Quanti valori diversi",
+  "argomento": "Tuple e insiemi",
+  "livello": "Intermedio",
+  "consegna": "Leggi una riga con dei numeri separati da spazi e stampa **quanti valori diversi** contiene.\n\nEsempio: `3 1 3 2 1 5` → 4",
+  "iniziale": "riga = leggi_tastiera(\"\")\nnumeri = riga.split()\n",
+  "prove": [
+    {
+      "ingresso": "3 1 3 2 1 5\n",
+      "uscita": "4"
+    },
+    {
+      "ingresso": "7 7 7\n",
+      "uscita": "1"
+    },
+    {
+      "ingresso": "1 2 3 4\n",
+      "uscita": "4"
+    }
+  ],
+  "suggerimenti": [
+    "Un insieme non ammette doppioni: `tipo_insieme(numeri)`.",
+    "Quanti elementi ha? `lunghezza_di(...)`.",
+    "Anche i testi \"3\" e \"3\" sono uguali: non serve convertirli in numeri."
+  ],
+  "soluzione": "riga = leggi_tastiera(\"\")\nnumeri = riga.split()\nstampa(lunghezza_di(tipo_insieme(numeri)))\n",
+  "confronto": "esatto",
+  "ordine": 14
+}

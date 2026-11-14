@@ -16,6 +16,13 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.35
+
+- **Il percorso di lezioni passa da 16 a 24.** Otto lezioni nuove, prima del progetto finale (che diventa la lezione 24): tuple e insiemi; comprehension, `lambda` e ricorsione; generatori e iteratori; gli oggetti più a fondo (metodi speciali, attributi di classe, composizione); i database con SQLite; provare il proprio codice (`asserisci`, `test_unitari`); moduli e pacchetti; programmare a mattonelle.
+- **Quiz**: 48 domande nuove (8 lezioni da 6 domande, 25 del tipo «Che cosa stampa?» con il codice eseguito e verificato). Ogni errore ha il suo indizio.
+- **Esercizi guidati**: da 13 a 23, con prove automatiche (insiemi, comprehension, ricorsione, generatore, classe che eredita, metodi speciali, SQLite, test).
+- **Attenzione**: il «Progetto finale» passa dal numero 16 al 24; i progressi salvati con il vecchio numero 16 restano legati alla lezione 16 (Tuple e insiemi).
+
 ## Novità della 2.34
 
 - **I moduli di PitStudio nei progetti hanno una versione** (aspetto, fonte_dati, griglia, grafico, scorrevole, stampante). Nel pannello Progetto compare accanto al nome: «stampante.pit (ver 2)»; se c'è una versione più nuova «(ver 1 → 2)», se l'hai modificato a mano «(ver 2, modificato)».
@@ -203,7 +210,8 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Novità della 1.46
 
-- **Salvataggio di sicurezza**: ogni 30 secondi PitStudio copia in `~\.radecupero` i file con modifiche non salvate (editor e finestre del progettista, senza toccare i file). Dopo una chiusura improvvisa, alla riapertura propone di ripristinarli. Le copie spariscono quando salvi o chiudi la scheda. Si regola in Impostazioni → Editor.
+- **Salvataggio di sicurezza**: ogni 30 secondi PitStudio copia in `~\.rad
+ecupero` i file con modifiche non salvate (editor e finestre del progettista, senza toccare i file). Dopo una chiusura improvvisa, alla riapertura propone di ripristinarli. Le copie spariscono quando salvi o chiudi la scheda. Si regola in Impostazioni → Editor.
 
 ## Novità della 1.45
 
@@ -242,7 +250,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 ## Novità della 1.40
 
 - **Finestra d'avvio**: all'apertura di PitStudio compare «Che cosa vuoi fare?»: aprire l'ultimo lavoro, iniziare un nuovo progetto o iniziare una lezione di apprendimento, più l'elenco dei progetti recenti. La casella «Non chiedere più» riporta il comportamento di prima (si riapre subito l'ultimo lavoro); la finestra si riapre da *File → Finestra di avvio…*. Con una cartella sulla riga di comando si apre quella e basta.
-- **Lezioni con quiz**: *Aiuto → Lezioni (con quiz e professore)…* mostra le 16 lezioni con i progressi (✔ con almeno l'80%). Ogni lezione ha un quiz a risposte multiple (93 domande in tutto, 51 del tipo «Che cosa stampa?» con il codice verificato eseguendolo) con un indizio per ogni errore e la sezione da rileggere. Funziona anche senza AI.
+- **Lezioni con quiz**: *Aiuto → Lezioni (con quiz e professore)…* mostra le 24 lezioni con i progressi (✔ con almeno l'80%). Ogni lezione ha un quiz a risposte multiple (141 domande in tutto, 76 del tipo «Che cosa stampa?» con il codice verificato eseguendolo) con un indizio per ogni errore e la sezione da rileggere. Funziona anche senza AI.
 - **Barra**: nuovo pulsante «Console» accanto all'assistente, per mostrare e nascondere la console; come l'assistente è verde quando il pannello è aperto.
 - **Corretto**: «Mostra in Esplora risorse» nel menu del pannello Progetto dava un errore (modulo non importato).
 - **Quiz**: ogni risposta è un pulsante e quella scelta si colora per intero (prima il pallino, nel tema scuro, non si vedeva); la giusta diventa verde e la sbagliata scelta rossa. Le risposte si scelgono anche da tastiera (tasti 1-9, frecce su/giù, Invio per controllare).
@@ -320,7 +328,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Novità della 1.28
 
-- **Per chi impara**: la **Galleria di esempi** (11 progetti pronti: console, finestre, database; si copiano in un nuovo progetto e si provano) e gli **Esercizi guidati** (13 esercizi con controllo automatico del codice, suggerimenti, soluzione e progressi). Per le classi: gli allievi **esportano i progressi** in un file, l'insegnante ne ottiene il **report della classe** e può aggiungere **esercizi propri** (file `.json`). Entrambi si aprono dal menu *Aiuto* e dalla schermata di benvenuto.
+- **Per chi impara**: la **Galleria di esempi** (11 progetti pronti: console, finestre, database; si copiano in un nuovo progetto e si provano) e gli **Esercizi guidati** (23 esercizi con controllo automatico del codice, suggerimenti, soluzione e progressi). Per le classi: gli allievi **esportano i progressi** in un file, l'insegnante ne ottiene il **report della classe** e può aggiungere **esercizi propri** (file `.json`). Entrambi si aprono dal menu *Aiuto* e dalla schermata di benvenuto.
 - Corretto: un carattere scritto come «Segoe UI 14 bold» nel progettista faceva fallire la finestra generata.
 
 ## Novità della 1.27
@@ -449,7 +457,7 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 
 ## Imparare e correggere (v1.2)
 
-- **Lezioni**: 16 lezioni con esercizi e soluzioni nella guida (gruppo «Imparare a programmare»); ogni esempio è verificato da `pitonit	ools\lezioni.py --verifica`.
+- **Lezioni**: 24 lezioni con esercizi e soluzioni nella guida (gruppo «Imparare a programmare»); ogni esempio è verificato da `pitonit	ools\lezioni.py --verifica`.
 - **Debugger**: punti di arresto (clic sul margine o F9), F6 per avviare, passo/entra/esci (F10/F11/Maiusc+F11), variabili, pila ed espressioni osservate. Funziona con `.pit` e `.py` (`rad\debug_runner.py`).
 - **Errori con suggerimenti** 💡: la console e l'editor spiegano come correggere gli errori più comuni (`rad\diagnosi.pit`).
 

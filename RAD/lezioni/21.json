@@ -1,0 +1,91 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "definisci doppio(n):\n    ritorna n * 2\nasserisci doppio(4) == 8\nstampa(\"ok\")",
+   "giusta": "ok",
+   "sbagliate": [
+    {
+     "testo": "8",
+     "indizio": "asserisci non stampa nulla quando la condizione è vera."
+    },
+    "Errore",
+    "Vero"
+   ],
+   "spiegazione": "La condizione è vera, quindi asserisci non fa niente e il programma stampa ok.",
+   "sezione": "`asserisci`: la prova più semplice"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "prova:\n    asserisci 1 + 1 == 3, \"conto sbagliato\"\neccetto ErroreDiAsserzione come errore:\n    stampa(errore)",
+   "giusta": "conto sbagliato",
+   "sbagliate": [
+    {
+     "testo": "ok",
+     "indizio": "La condizione è falsa: asserisci solleva un errore."
+    },
+    "1 + 1 == 3",
+    "Falso"
+   ],
+   "spiegazione": "Quando la condizione è falsa asserisci solleva ErroreDiAsserzione con il messaggio dato.",
+   "sezione": "`asserisci`: la prova più semplice"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa io\nimporta test_unitari\nclasse P(test_unitari.CasoDiTest):\n    definisci test_a(se_stesso):\n        se_stesso.asserisci_uguale(2 + 2, 4)\n    definisci test_b(se_stesso):\n        se_stesso.asserisci_uguale(2 + 2, 5)\nesito = test_unitari.EsecutoreTestTestuale(stream=io.StringIO()).esegui(test_unitari.CaricatoreTest().carica_test_da_caso(P))\nstampa(esito.testsRun, lunghezza_di(esito.failures))",
+   "giusta": "2 1",
+   "sbagliate": [
+    {
+     "testo": "2 0",
+     "indizio": "Il secondo test controlla che 2 + 2 faccia 5: fallisce."
+    },
+    "1 1",
+    "2 2"
+   ],
+   "spiegazione": "Le prove eseguite sono 2 e una fallisce, perché 2 + 2 non è 5.",
+   "sezione": "Il modulo `test_unitari`"
+  },
+  {
+   "domanda": "Oltre al caso normale, quali casi conviene provare?",
+   "giusta": "i casi limite (un solo elemento, zero) e quelli sbagliati",
+   "sbagliate": [
+    {
+     "testo": "nessun altro: se il caso normale funziona, il resto va da sé",
+     "indizio": "I difetti si nascondono spesso proprio nei casi limite."
+    },
+    "solo quelli molto lunghi",
+    "solo quelli che stampano qualcosa"
+   ],
+   "spiegazione": "I casi limite e quelli sbagliati sono dove le funzioni si rompono più spesso.",
+   "sezione": "Che cosa provare"
+  },
+  {
+   "domanda": "Quando un test viene considerato riuscito dal pannello Test di PitStudio?",
+   "giusta": "quando il programma termina senza errori",
+   "sbagliate": [
+    {
+     "testo": "quando stampa la parola OK",
+     "indizio": "Conta solo che il programma finisca senza errori."
+    },
+    "quando è più veloce di un secondo",
+    "quando contiene la parola asserisci"
+   ],
+   "spiegazione": "Un test riesce se finisce con codice di uscita 0: per questo asserisci basta.",
+   "sezione": "Con PitStudio: il pannello Test"
+  },
+  {
+   "domanda": "Hai trovato un errore nel programma. Che cosa conviene fare per prima cosa?",
+   "giusta": "scrivere un test che mostra l'errore, poi correggere il codice",
+   "sbagliate": [
+    {
+     "testo": "correggere subito e non pensarci più",
+     "indizio": "Senza un test l'errore potrebbe tornare senza che te ne accorga."
+    },
+    "cancellare la funzione e riscriverla",
+    "eseguire il programma più volte finché funziona"
+   ],
+   "spiegazione": "Un test scritto prima della correzione impedisce all'errore di tornare inosservato.",
+   "sezione": "Con PitStudio: il pannello Test"
+  }
+ ]
+}

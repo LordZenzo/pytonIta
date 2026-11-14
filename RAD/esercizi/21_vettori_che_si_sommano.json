@@ -1,0 +1,30 @@
+{
+  "id": "vettori_che_si_sommano",
+  "titolo": "Vettori che si sommano",
+  "argomento": "Oggetti",
+  "livello": "Avanzato",
+  "consegna": "Crea la classe `Vettore(x, y)` con i metodi speciali `__somma__` (somma componente per componente) e `__testo__` (che scrive `(x, y)`). Leggi quattro numeri (x1, y1, x2, y2: uno per riga) e stampa la somma dei due vettori.\n\nEsempio: `1 2 3 4` (uno per riga) → `(4, 6)`",
+  "iniziale": "classe Vettore:\n    definisci __inizializza__(se_stesso, x, y):\n        se_stesso.x = x\n        se_stesso.y = y\n\n    # aggiungi __somma__ e __testo__\n\n\nx1 = tipo_intero(leggi_tastiera(\"\"))\ny1 = tipo_intero(leggi_tastiera(\"\"))\nx2 = tipo_intero(leggi_tastiera(\"\"))\ny2 = tipo_intero(leggi_tastiera(\"\"))\n",
+  "prove": [
+    {
+      "ingresso": "1\n2\n3\n4\n",
+      "uscita": "(4, 6)"
+    },
+    {
+      "ingresso": "0\n0\n5\n-5\n",
+      "uscita": "(5, -5)"
+    },
+    {
+      "ingresso": "-1\n-1\n-1\n-1\n",
+      "uscita": "(-2, -2)"
+    }
+  ],
+  "suggerimenti": [
+    "`__somma__(se_stesso, altro)` deve restituire un **nuovo** `Vettore`.",
+    "`__testo__(se_stesso)` restituisce un testo: `f\"({se_stesso.x}, {se_stesso.y})\"`.",
+    "Alla fine: `stampa(Vettore(x1, y1) + Vettore(x2, y2))`."
+  ],
+  "soluzione": "classe Vettore:\n    definisci __inizializza__(se_stesso, x, y):\n        se_stesso.x = x\n        se_stesso.y = y\n\n    definisci __somma__(se_stesso, altro):\n        ritorna Vettore(se_stesso.x + altro.x, se_stesso.y + altro.y)\n\n    definisci __testo__(se_stesso):\n        ritorna f\"({se_stesso.x}, {se_stesso.y})\"\n\n\nx1 = tipo_intero(leggi_tastiera(\"\"))\ny1 = tipo_intero(leggi_tastiera(\"\"))\nx2 = tipo_intero(leggi_tastiera(\"\"))\ny2 = tipo_intero(leggi_tastiera(\"\"))\nstampa(Vettore(x1, y1) + Vettore(x2, y2))\n",
+  "confronto": "esatto",
+  "ordine": 21
+}

@@ -1,0 +1,34 @@
+{
+  "id": "media_con_sql",
+  "titolo": "La media con SQL",
+  "argomento": "Database",
+  "livello": "Avanzato",
+  "consegna": "Leggi una riga con dei voti (numeri interi separati da spazi), inseriscili in una tabella SQLite **in memoria** e stampa la media calcolata dal database con `AVG`, arrotondata a 1 decimale.\n\nEsempio: `8 9 7` → `8.0`",
+  "iniziale": "importa database\n\nvoti = [tipo_intero(x) per x in leggi_tastiera(\"\").split()]\ndb = database.connetti(\":memory:\")\ndb.esegui(\"CREATE TABLE voti (valore INTEGER)\")\n",
+  "prove": [
+    {
+      "ingresso": "8 9 7\n",
+      "uscita": "8.0"
+    },
+    {
+      "ingresso": "10\n",
+      "uscita": "10.0"
+    },
+    {
+      "ingresso": "6 7\n",
+      "uscita": "6.5"
+    },
+    {
+      "ingresso": "5 6 6 9\n",
+      "uscita": "6.5"
+    }
+  ],
+  "suggerimenti": [
+    "Per inserire tanti voti insieme: `db.esegui_molti(\"INSERT INTO voti VALUES (?)\", ...)`, dove ogni riga è una tupla `(voto,)`.",
+    "La media: `db.esegui(\"SELECT AVG(valore) FROM voti\").ottieni_uno()[0]`.",
+    "Per arrotondare: `arrotonda(media, 1)`."
+  ],
+  "soluzione": "importa database\n\nvoti = [tipo_intero(x) per x in leggi_tastiera(\"\").split()]\ndb = database.connetti(\":memory:\")\ndb.esegui(\"CREATE TABLE voti (valore INTEGER)\")\ndb.esegui_molti(\"INSERT INTO voti VALUES (?)\", [(v,) per v in voti])\nmedia = db.esegui(\"SELECT AVG(valore) FROM voti\").ottieni_uno()[0]\nstampa(arrotonda(media, 1))\ndb.chiudi()\n",
+  "confronto": "esatto",
+  "ordine": 22
+}

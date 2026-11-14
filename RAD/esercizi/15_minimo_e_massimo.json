@@ -1,0 +1,30 @@
+{
+  "id": "minimo_e_massimo",
+  "titolo": "Minimo e massimo insieme",
+  "argomento": "Tuple e insiemi",
+  "livello": "Intermedio",
+  "consegna": "Scrivi una funzione `estremi(numeri)` che restituisce **due valori** (il minimo e il massimo). Leggi una riga di numeri interi e stampa `minimo massimo`.\n\nEsempio: `4 9 2 7` → `2 9`",
+  "iniziale": "definisci estremi(numeri):\n    # restituisci il minimo e il massimo\n    passa\n\n\nnumeri = [tipo_intero(x) per x in leggi_tastiera(\"\").split()]\n",
+  "prove": [
+    {
+      "ingresso": "4 9 2 7\n",
+      "uscita": "2 9"
+    },
+    {
+      "ingresso": "5\n",
+      "uscita": "5 5"
+    },
+    {
+      "ingresso": "-3 -8 0\n",
+      "uscita": "-8 0"
+    }
+  ],
+  "suggerimenti": [
+    "Una funzione può restituire due valori separati da virgola: `ritorna a, b`.",
+    "Il minimo e il massimo: `minimo_di(numeri)` e `massimo_di(numeri)`.",
+    "Per usarli: `piccolo, grande = estremi(numeri)`."
+  ],
+  "soluzione": "definisci estremi(numeri):\n    ritorna minimo_di(numeri), massimo_di(numeri)\n\n\nnumeri = [tipo_intero(x) per x in leggi_tastiera(\"\").split()]\npiccolo, grande = estremi(numeri)\nstampa(piccolo, grande)\n",
+  "confronto": "esatto",
+  "ordine": 15
+}

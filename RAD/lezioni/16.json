@@ -1,51 +1,107 @@
 {
  "domande": [
   {
-   "domanda": "Nel gioco «Indovina il numero» quale costrutto ripete i tentativi?",
-   "giusta": "mentre",
+   "tipo": "stampa",
+   "codice": "punto = (3, 5)\nx, y = punto\nstampa(x + y)",
+   "giusta": "8",
    "sbagliate": [
     {
-     "testo": "definisci",
-     "indizio": "definisci crea una funzione, non ripete."
+     "testo": "35",
+     "indizio": "Le due variabili contengono numeri, non testi: + li somma."
     },
-    "importa",
-    "classe"
+    "(3, 5)",
+    "Errore"
    ],
-   "spiegazione": "Si ripete finché il giocatore non indovina: è un ciclo mentre.",
-   "sezione": "Progetto 1 · Indovina il numero"
+   "spiegazione": "Spacchettando, x vale 3 e y vale 5: 3 + 5 = 8.",
+   "sezione": "Spacchettare"
   },
   {
-   "domanda": "Come fa il programma a scegliere un numero a caso?",
-   "giusta": "Usa la libreria casuale",
+   "tipo": "stampa",
+   "codice": "a = 1\nb = 2\na, b = b, a\nstampa(a, b)",
+   "giusta": "2 1",
    "sbagliate": [
-    "Lo chiede all'utente",
-    "Usa sempre lo stesso numero",
-    "Lo legge da un file"
+    {
+     "testo": "1 2",
+     "indizio": "Le due variabili vengono scambiate, non lasciate come prima."
+    },
+    "2 2",
+    "1 1"
    ],
-   "spiegazione": "Dopo importa casuale si chiede un numero a caso.",
-   "sezione": "Progetto 1 · Indovina il numero"
+   "spiegazione": "Con a, b = b, a i due valori si scambiano: a diventa 2 e b diventa 1.",
+   "sezione": "Spacchettare"
   },
   {
-   "domanda": "Perché la rubrica usa un dizionario?",
-   "giusta": "Per associare a ogni nome il suo numero di telefono",
+   "tipo": "stampa",
+   "codice": "stampa(lunghezza_di({1, 2, 2, 3, 3, 3}))",
+   "giusta": "3",
    "sbagliate": [
-    "Perché i dizionari sono più veloci dei file",
-    "Perché le liste non esistono",
-    "Per ordinare i numeri"
+    {
+     "testo": "6",
+     "indizio": "In un insieme i doppioni contano una volta sola."
+    },
+    "5",
+    "2"
    ],
-   "spiegazione": "Il dizionario collega una chiave (il nome) a un valore (il telefono).",
-   "sezione": "Progetto 2 · Rubrica telefonica"
+   "spiegazione": "L'insieme contiene solo i valori diversi: 1, 2 e 3.",
+   "sezione": "L'insieme"
   },
   {
-   "domanda": "Come si ritrovano i contatti la volta dopo?",
-   "giusta": "Salvandoli in un file (per esempio JSON) e rileggendolo all'avvio",
+   "tipo": "stampa",
+   "codice": "a = {1, 2, 3}\nb = {2, 3, 4}\nstampa(ordinato_di(a.intersezione(b)))",
+   "giusta": "[2, 3]",
    "sbagliate": [
-    "Sono già nella memoria del computer",
-    "Li riscrive l'utente",
-    "Non è possibile"
+    {
+     "testo": "[1, 2, 3, 4]",
+     "indizio": "Questa sarebbe l'unione: tutti i valori, una volta sola."
+    },
+    {
+     "testo": "[1]",
+     "indizio": "Questa sarebbe la differenza: i valori di a che non sono in b."
+    },
+    "[4]"
    ],
-   "spiegazione": "I dati in memoria spariscono alla chiusura: vanno scritti su disco.",
-   "sezione": "Progetto 2 · Rubrica telefonica"
+   "spiegazione": "L'intersezione tiene solo i valori presenti in entrambi: 2 e 3.",
+   "sezione": "Unione, intersezione, differenza"
+  },
+  {
+   "domanda": "Quale riga crea una tupla con un solo elemento?",
+   "giusta": "(7,)",
+   "sbagliate": [
+    {
+     "testo": "(7)",
+     "indizio": "Senza la virgola finale sono solo parentesi attorno a un numero."
+    },
+    {
+     "testo": "[7]",
+     "indizio": "Le quadre creano una lista."
+    },
+    {
+     "testo": "{7}",
+     "indizio": "Le graffe creano un insieme."
+    }
+   ],
+   "spiegazione": "Una tupla con un solo elemento vuole la virgola finale: (7,).",
+   "sezione": "La tupla"
+  },
+  {
+   "domanda": "Come si crea un insieme vuoto?",
+   "giusta": "tipo_insieme()",
+   "sbagliate": [
+    {
+     "testo": "{}",
+     "indizio": "Le graffe vuote sono un dizionario."
+    },
+    {
+     "testo": "()",
+     "indizio": "Le tonde vuote sono una tupla vuota."
+    },
+    {
+     "testo": "[]",
+     "indizio": "Le quadre vuote sono una lista vuota."
+    }
+   ],
+   "spiegazione": "Un insieme vuoto si crea con tipo_insieme(): {} è un dizionario vuoto.",
+   "sezione": "L'insieme"
   }
  ]
 }

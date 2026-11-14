@@ -1,0 +1,30 @@
+{
+  "id": "quadrati_dei_pari",
+  "titolo": "Quadrati dei numeri pari",
+  "argomento": "Comprehension",
+  "livello": "Intermedio",
+  "consegna": "Leggi un numero n e stampa la **lista** dei quadrati dei numeri **pari** da 1 a n (estremi compresi). Usa una comprehension.\n\nEsempio: `10` → `[4, 16, 36, 64, 100]`",
+  "iniziale": "n = tipo_intero(leggi_tastiera(\"\"))\n",
+  "prove": [
+    {
+      "ingresso": "10\n",
+      "uscita": "[4, 16, 36, 64, 100]"
+    },
+    {
+      "ingresso": "5\n",
+      "uscita": "[4, 16]"
+    },
+    {
+      "ingresso": "1\n",
+      "uscita": "[]"
+    }
+  ],
+  "suggerimenti": [
+    "Una comprehension ha la forma `[espressione per x in elenco se condizione]`.",
+    "`intervallo_di(1, n + 1)` arriva fino a n; un numero è pari se `x % 2 == 0`.",
+    "L'espressione da mettere all'inizio è `x * x`."
+  ],
+  "soluzione": "n = tipo_intero(leggi_tastiera(\"\"))\nstampa([x * x per x in intervallo_di(1, n + 1) se x % 2 == 0])\n",
+  "confronto": "esatto",
+  "ordine": 17
+}

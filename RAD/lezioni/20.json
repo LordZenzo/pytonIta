@@ -1,0 +1,100 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "importa database\ndb = database.connetti(\":memory:\")\ndb.esegui(\"CREATE TABLE t (x INTEGER)\")\ndb.esegui_molti(\"INSERT INTO t VALUES (?)\", [(1,), (2,), (3,)])\nstampa(db.esegui(\"SELECT SUM(x) FROM t\").ottieni_uno()[0])",
+   "giusta": "6",
+   "sbagliate": [
+    {
+     "testo": "3",
+     "indizio": "SUM somma i valori della colonna, COUNT li conterebbe."
+    },
+    "(6,)",
+    "123"
+   ],
+   "spiegazione": "SUM(x) somma 1 + 2 + 3; ottieni_uno()[0] prende il valore dentro la tupla della riga.",
+   "sezione": "Leggere i dati"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa database\ndb = database.connetti(\":memory:\")\ndb.esegui(\"CREATE TABLE t (x INTEGER)\")\ndb.esegui_molti(\"INSERT INTO t VALUES (?)\", [(3,), (8,), (5,)])\nriga_x = db.esegui(\"SELECT x FROM t WHERE x > 4 ORDER BY x\").ottieni_tutti()\nstampa([riga[0] per riga in riga_x])",
+   "giusta": "[5, 8]",
+   "sbagliate": [
+    {
+     "testo": "[3, 5, 8]",
+     "indizio": "WHERE x > 4 esclude il 3."
+    },
+    {
+     "testo": "[8, 5]",
+     "indizio": "ORDER BY x ordina dal più piccolo al più grande."
+    },
+    "[3]"
+   ],
+   "spiegazione": "WHERE tiene solo i valori maggiori di 4 e ORDER BY li mette in ordine crescente.",
+   "sezione": "Leggere i dati"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa database\ndb = database.connetti(\":memory:\")\ndb.esegui(\"CREATE TABLE t (nome TEXT, v INTEGER)\")\ndb.esegui_molti(\"INSERT INTO t VALUES (?, ?)\", [(\"a\", 1), (\"b\", 2)])\ndb.esegui(\"UPDATE t SET v = 0 WHERE nome = ?\", (\"a\",))\nstampa(db.esegui(\"SELECT v FROM t ORDER BY nome\").ottieni_tutti())",
+   "giusta": "[(0,), (2,)]",
+   "sbagliate": [
+    {
+     "testo": "[(1,), (2,)]",
+     "indizio": "L'UPDATE ha cambiato la riga di a."
+    },
+    {
+     "testo": "[(0,), (0,)]",
+     "indizio": "WHERE limita la modifica alla riga con nome a."
+    },
+    "[(2,)]"
+   ],
+   "spiegazione": "L'UPDATE agisce solo sulla riga di a, che passa da 1 a 0; b resta 2.",
+   "sezione": "Correggere e cancellare"
+  },
+  {
+   "domanda": "Perché i valori si passano con ? e non scrivendoli dentro il testo SQL con una f-string?",
+   "giusta": "per evitare la SQL injection",
+   "sbagliate": [
+    {
+     "testo": "perché è più veloce da scrivere",
+     "indizio": "È più sicuro, non più corto."
+    },
+    "perché SQLite non accetta i testi",
+    "perché le f-string non esistono in SQL"
+   ],
+   "spiegazione": "Con i segnaposto il valore non viene mai interpretato come un comando SQL.",
+   "sezione": "Inserire i dati: mai con le f-string!"
+  },
+  {
+   "domanda": "Quale comando SQL cambia le righe già presenti in una tabella?",
+   "giusta": "UPDATE",
+   "sbagliate": [
+    {
+     "testo": "INSERT INTO",
+     "indizio": "Aggiunge righe nuove."
+    },
+    {
+     "testo": "SELECT",
+     "indizio": "Legge soltanto."
+    },
+    "CREATE TABLE"
+   ],
+   "spiegazione": "UPDATE cambia i valori delle righe esistenti; INSERT ne aggiunge, DELETE ne toglie.",
+   "sezione": "Correggere e cancellare"
+  },
+  {
+   "domanda": "Che cosa succede se scrivi DELETE FROM clienti senza WHERE?",
+   "giusta": "si cancellano tutte le righe della tabella",
+   "sbagliate": [
+    {
+     "testo": "non succede nulla",
+     "indizio": "Senza condizione il comando riguarda tutte le righe."
+    },
+    "si cancella solo l'ultima riga",
+    "il database rifiuta il comando"
+   ],
+   "spiegazione": "Senza WHERE un UPDATE o un DELETE riguarda tutte le righe: controlla sempre la condizione.",
+   "sezione": "Correggere e cancellare"
+  }
+ ]
+}

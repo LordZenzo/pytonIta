@@ -1,0 +1,92 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "classe Punto:\n    definisci __inizializza__(se_stesso, x):\n        se_stesso.x = x\n    definisci __somma__(se_stesso, altro):\n        ritorna Punto(se_stesso.x + altro.x)\n    definisci __testo__(se_stesso):\n        ritorna f\"P{se_stesso.x}\"\nstampa(Punto(2) + Punto(5))",
+   "giusta": "P7",
+   "sbagliate": [
+    {
+     "testo": "7",
+     "indizio": "Il risultato è un oggetto Punto: stampa usa __testo__."
+    },
+    "Errore",
+    "P2P5"
+   ],
+   "spiegazione": "__somma__ crea Punto(7) e __testo__ lo scrive come P7.",
+   "sezione": "Metodi speciali"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "classe Gettone:\n    creati = 0\n    definisci __inizializza__(se_stesso):\n        Gettone.creati += 1\nGettone()\nGettone()\nstampa(Gettone.creati)",
+   "giusta": "2",
+   "sbagliate": [
+    {
+     "testo": "0",
+     "indizio": "Ogni creazione di un oggetto esegue __inizializza__ e aumenta il contatore."
+    },
+    "1",
+    "Errore"
+   ],
+   "spiegazione": "creati è un attributo di classe: lo condividono tutti gli oggetti e sale a ogni creazione.",
+   "sezione": "Attributi di classe"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "classe Quadrato:\n    definisci __inizializza__(se_stesso, lato):\n        se_stesso.lato = lato\n    @attributo_calcolato\n    definisci area(se_stesso):\n        ritorna se_stesso.lato ** 2\nq = Quadrato(3)\nq.lato = 5\nstampa(q.area)",
+   "giusta": "25",
+   "sbagliate": [
+    {
+     "testo": "9",
+     "indizio": "Una proprietà calcolata si ricalcola ogni volta che la leggi."
+    },
+    "15",
+    "10"
+   ],
+   "spiegazione": "L'area si calcola al momento della lettura, con il lato aggiornato a 5: 25.",
+   "sezione": "Una proprietà calcolata"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "classe A:\n    definisci chi(se_stesso):\n        ritorna \"A\"\nclasse B(A):\n    definisci chi(se_stesso):\n        ritorna classe_base().chi() + \"B\"\nstampa(B().chi())",
+   "giusta": "AB",
+   "sbagliate": [
+    {
+     "testo": "B",
+     "indizio": "Il metodo richiama anche quello della classe di base."
+    },
+    "A",
+    "BA"
+   ],
+   "spiegazione": "classe_base().chi() restituisce \"A\" e poi si aggiunge \"B\": AB.",
+   "sezione": "Estendere una classe e richiamare quella di base"
+  },
+  {
+   "domanda": "Un'Auto contiene un Motore. Quale legame descrive meglio la relazione?",
+   "giusta": "composizione: l'auto ha un motore",
+   "sbagliate": [
+    {
+     "testo": "ereditarietà: l'auto è un motore",
+     "indizio": "Un'auto non è un motore: lo contiene."
+    },
+    "ereditarietà: il motore è un'auto",
+    "nessun legame: sono due classi separate"
+   ],
+   "spiegazione": "Quando si dice «ha un» si usa la composizione; l'ereditarietà è per «è un».",
+   "sezione": "«È un» oppure «ha un»?"
+  },
+  {
+   "domanda": "Quale metodo speciale fa funzionare lunghezza_di(oggetto)?",
+   "giusta": "__lunghezza__",
+   "sbagliate": [
+    {
+     "testo": "__testo__",
+     "indizio": "Quello serve per stampare l'oggetto."
+    },
+    "__inizializza__",
+    "__somma__"
+   ],
+   "spiegazione": "Con __lunghezza__ decidi il numero che lunghezza_di restituisce per i tuoi oggetti.",
+   "sezione": "Metodi speciali"
+  }
+ ]
+}

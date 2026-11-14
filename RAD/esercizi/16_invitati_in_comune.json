@@ -1,0 +1,30 @@
+{
+  "id": "invitati_in_comune",
+  "titolo": "Invitati in comune",
+  "argomento": "Tuple e insiemi",
+  "livello": "Avanzato",
+  "consegna": "Leggi due righe di nomi separati da spazi (gli invitati del venerdì e quelli del sabato). Stampa, in **ordine alfabetico** e separati da uno spazio, i nomi presenti in **entrambe**. Se non ce ne sono, stampa `nessuno`.\n\nEsempio: `Anna Luca Sara` e `Sara Marco Anna` → `Anna Sara`",
+  "iniziale": "venerdi = leggi_tastiera(\"\").split()\nsabato = leggi_tastiera(\"\").split()\n",
+  "prove": [
+    {
+      "ingresso": "Anna Luca Sara\nSara Marco Anna\n",
+      "uscita": "Anna Sara"
+    },
+    {
+      "ingresso": "Anna Luca\nMarco Elisa\n",
+      "uscita": "nessuno"
+    },
+    {
+      "ingresso": "Zeno Bea Cino\nCino Bea Zeno\n",
+      "uscita": "Bea Cino Zeno"
+    }
+  ],
+  "suggerimenti": [
+    "Trasforma le due liste in insiemi: `tipo_insieme(venerdi)`.",
+    "Gli elementi in comune: il metodo `intersezione`.",
+    "Per l'ordine alfabetico: `ordinato_di(...)`; per unire i nomi: `\" \".join(...)`; se il risultato è vuoto stampa `nessuno`."
+  ],
+  "soluzione": "venerdi = leggi_tastiera(\"\").split()\nsabato = leggi_tastiera(\"\").split()\ncomuni = ordinato_di(tipo_insieme(venerdi).intersezione(tipo_insieme(sabato)))\nse comuni:\n    stampa(\" \".join(comuni))\naltrimenti:\n    stampa(\"nessuno\")\n",
+  "confronto": "esatto",
+  "ordine": 16
+}

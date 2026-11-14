@@ -14,7 +14,7 @@ definisci verifica(c, m):
 
 
 lezioni = quiz.elenco_lezioni()
-verifica(lunghezza_di(lezioni) == 16 e [v["numero"] per v in lezioni] == tipo_lista(intervallo_di(1, 17)), "16 lezioni in ordine: " + str(lunghezza_di(lezioni)))
+verifica(lunghezza_di(lezioni) == 24 e [v["numero"] per v in lezioni] == tipo_lista(intervallo_di(1, 25)), "24 lezioni in ordine: " + str(lunghezza_di(lezioni)))
 verifica(lezioni[7]["titolo"] == "I dizionari" e lezioni[7]["id"] == "lezione-08" e lezioni[7]["obiettivo"], "titolo e obiettivo della lezione 8: " + str(lezioni[7]))
 verifica("dizionario" in quiz.testo_lezione(8), "testo della lezione")
 
@@ -86,9 +86,9 @@ verifica(quiz.registra(cfg, 1, 5, 6) == Vero e quiz.stato(cfg, 1) == "✔ 5/6" e
 verifica(quiz.registra(cfg, 1, 2, 6) == Falso e quiz.stato(cfg, 1) == "✔ 5/6", "un risultato peggiore non toglie il ✔ né il migliore: " + quiz.stato(cfg, 1))
 verifica(quiz.progressi(cfg)["1"]["tentativi"] == 3, "conta i tentativi")
 verifica(cfg.ottieni("lezioni.ultima") == 1, "ricorda l'ultima lezione")
-per n in intervallo_di(2, 17):
+per n in intervallo_di(2, 25):
     quiz.registra(cfg, n, 4, 5)
-verifica(quiz.prossima(cfg, lezioni) == 16, "finite tutte: resta l'ultima")
+verifica(quiz.prossima(cfg, lezioni) == 24, "finite tutte: resta l'ultima")
 c1 = quiz.consiglio(5, 5, [])
 c2 = quiz.consiglio(2, 5, ["Metodi utili", "Metodi utili", "Dividere e unire"])
 c3 = quiz.consiglio(4, 5, ["Metodi utili"], ultima=Vero)
