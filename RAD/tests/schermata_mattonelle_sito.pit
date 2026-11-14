@@ -1,0 +1,85 @@
+"""Screenshot delle mattonelle per la pagina web (docs/img). Uso: pitonit schermata_mattonelle_sito.pit [cartella di uscita] [tema]
+Come schermate_sito.pit: ritaglia sempre la finestra, non lo schermo."""
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa ai
+
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
+tema_scelto = sys.argv[2] se lunghezza_di(sys.argv) > 2 altrimenti "scuro"
+os.makedirs(uscita, exist_ok=Vero)
+os.makedirs("C:/Progetti", exist_ok=Vero)
+temp = tempfile.mkdtemp(dir="C:/Progetti")
+cfg = Configurazione(os.path.join(temp, "config.json"))
+cfg.imposta("tema", tema_scelto, notifica=Falso)
+cfg.imposta("ai.conferma_scrittura", Falso, notifica=Falso)
+cfg.imposta("ai.conferma_esecuzione", Falso, notifica=Falso)
+radice = tk.Tk()
+radice.geometry(f"{min(1840, radice.winfo_screenwidth() - 40)}x{min(1000, radice.winfo_screenheight() - 100)}+10+10")
+radice.attributes("-topmost", Vero)
+app = Applicazione(radice, cfg)
+app._proponi_aggiornamento_1x = lambda *a, **k: Nessuno
+app._proponi_aggiornamento_moduli = lambda *a, **k: Nessuno
+
+
+definisci aspetta(secondi=0.6):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        time.sleep(0.03)
+
+
+cart = os.path.join(temp, "Mattoni")
+Progetto.nuovo(cart, "Mattoni", "mattonelle")
+app.apri_progetto(cart)
+aspetta(0.5)
+app.nuovo_mattonelle(nome="calcolo")
+aspetta(0.5)
+
+programma = {"principale": {"radici": [{"x": 30, "y": 30, "pila": [
+    {"t": "avvio"},
+    {"t": "stampa", "i": {"valore": {"t": "unisci", "l": {"a": "5! = "}, "i": {"b": {"t": "fnv:fattoriale", "l": {"p0": "5"}}}}}}]}]},
+    "funzioni": [{"radici": [{"x": 30, "y": 30, "pila": [
+        {"t": "definisci_funzione", "c": {"nome": "fattoriale", "parametri": "n"}},
+        {"t": "se", "i": {"cond": {"t": "minore_uguale", "i": {"a": {"t": "variabile", "c": {"nome": "n"}}}, "l": {"b": "1"}}},
+         "b": {"corpo": [{"t": "ritorna", "l": {"valore": "1"}}]}},
+        {"t": "ritorna", "i": {"valore": {"t": "moltiplica", "i": {"a": {"t": "variabile", "c": {"nome": "n"}},
+         "b": {"t": "fnv:fattoriale", "i": {"p0": {"t": "sottrai", "i": {"a": {"t": "variabile", "c": {"nome": "n"}}}, "l": {"b": "1"}}}}}}}}]}]}]}
+strumenti = ai.Strumenti(app, cfg, app.ponte)
+esito, errore = strumenti.esegui("imposta_mattonelle", {"nome": "calcolo", "programma": programma})
+stampa("imposta_mattonelle:", errore, esito[:80])
+aspetta(0.5)
+ed = app.schede[os.path.abspath(os.path.join(cart, "calcolo.mattonelle.json"))]
+ed.vai_alla_funzione("fattoriale")
+ed.vedi_codice()
+
+app.chat._scrivi("Tu" + chr(10), "etichetta_utente")
+app.chat._scrivi("Fammi una funzione che calcola il fattoriale, a mattonelle." + chr(10), "utente")
+app.chat._scrivi("Assistente" + chr(10), "etichetta_ai")
+app.chat._gestisci("strumento", {"nome": "imposta_mattonelle", "parametri": {}})
+app.chat._gestisci("risultato", {"nome": "imposta_mattonelle", "testo": "programma salvato: calcolo.mattonelle.json, calcolo.pit", "errore": Falso, "secondi": 0.04})
+app.chat._gestisci("testo", "Ho creato la funzione `fattoriale` e il flusso principale: tutto a **mattonelle**. Il codice pytonIta si genera da solo.")
+app.console.scrivi("▶ calcolo.pit\n", "info")
+app.console.scrivi("5! = 120\n", "out")
+aspetta(0.8)
+
+prova:
+    app.corpo.sash_place(0, 270, 0)
+    app.corpo.forget(app.chat)
+eccetto Exception:
+    passa
+app.chat.cliente_pronto = lambda: Vero
+app._aggiorna_stato_ai()
+radice.attributes("-topmost", Vero)
+radice.lift()
+aspetta(0.8)
+x, y = radice.winfo_rootx(), radice.winfo_rooty()
+img = ImageGrab.grab(bbox=(x, y, x + radice.winfo_width(), y + radice.winfo_height()))
+img.save(os.path.join(uscita, f"mattonelle_{tema_scelto}.png"))
+stampa("salvata", f"mattonelle_{tema_scelto}.png", img.size)
+app.chiudi_tutte_le_schede()
+radice.destroy()
