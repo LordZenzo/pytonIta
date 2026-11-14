@@ -1,0 +1,86 @@
+"""Prova del modulo suono, senza far uscire suoni: winsound viene sostituito da un finto che registra le chiamate."""
+importa os, tempfile
+importa suono
+
+cartella = tempfile.mkdtemp()
+
+
+classe FintoWinsound:
+    SND_FILENAME = 0x20000
+    SND_NODEFAULT = 2
+    SND_ASYNC = 1
+    SND_LOOP = 8
+    SND_PURGE = 0x40
+    MB_ICONASTERISK = 64
+    MB_ICONEXCLAMATION = 48
+    MB_ICONHAND = 16
+    MB_ICONQUESTION = 32
+    MB_OK = 0
+
+    definisci __inizializza__(se_stesso):
+        se_stesso.chiamate = []
+
+    definisci PlaySound(se_stesso, nome, flag):
+        se_stesso.chiamate.append(("PlaySound", nome, flag))
+
+    definisci Beep(se_stesso, frequenza, durata):
+        se_stesso.chiamate.append(("Beep", frequenza, durata))
+
+    definisci MessageBeep(se_stesso, tipo):
+        se_stesso.chiamate.append(("MessageBeep", tipo))
+
+
+finto = FintoWinsound()
+suono._ws = finto
+
+# note e frequenze
+asserisci abs(suono.frequenza_nota("la4") - 440.0) < 1e-9
+asserisci abs(suono.frequenza_nota("do4") - 261.6256) < 1e-3
+asserisci abs(suono.frequenza_nota("do#4") - 277.1826) < 1e-3
+asserisci abs(suono.frequenza_nota("sib3") - 233.0819) < 1e-3
+asserisci abs(suono.frequenza_nota("sol5") - 783.9909) < 1e-3
+asserisci suono.frequenza_nota("pausa") == 0
+asserisci abs(suono.frequenza_nota("LA") - 440.0) < 1e-9          # senza ottava: la quarta
+prova:
+    suono.frequenza_nota("xx4")
+    asserisci Falso, "doveva rifiutare la nota"
+eccetto ValueError come errore:
+    stampa("nota sbagliata rifiutata:", errore)
+
+# tono e melodia su file
+t = suono.crea_tono(os.path.join(cartella, "tono.wav"), 440, 0.5)
+asserisci os.path.isfile(t)
+asserisci abs(suono.durata_di(t) - 0.5) < 0.001
+con suono.apri_onda(t, "rb") come w:
+    asserisci (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 44100)
+m = suono.crea_melodia(os.path.join(cartella, "m.wav"), [("do4", 1), ("mi4", 1), ("pausa", 1), ("sol4", 2)], tempo=120)
+asserisci abs(suono.durata_di(m) - 2.5) < 0.001               # 5 battute a 120 al minuto
+stampa("durate:", round(suono.durata_di(t), 3), round(suono.durata_di(m), 3))
+
+# riproduzione (finta)
+suono.riproduci(t)
+suono.riproduci(t, attendi=Falso)
+suono.ripeti(t)
+suono.ferma()
+suono.beep(1000, 0.2)
+suono.avviso("errore")
+suono.avviso("standard")
+nomi = [c[0] per c in finto.chiamate]
+asserisci nomi == ["PlaySound", "PlaySound", "PlaySound", "PlaySound", "Beep", "MessageBeep", "MessageBeep"], nomi
+asserisci finto.chiamate[0][2] == finto.SND_FILENAME | finto.SND_NODEFAULT                       # attende
+asserisci finto.chiamate[1][2] & finto.SND_ASYNC                                                 # in sottofondo
+asserisci finto.chiamate[2][2] & finto.SND_LOOP
+asserisci finto.chiamate[3][1] è Nessuno e finto.chiamate[3][2] == finto.SND_PURGE            # ferma
+asserisci finto.chiamate[4] == ("Beep", 1000, 200)
+asserisci finto.chiamate[5][1] == finto.MB_ICONHAND
+prova:
+    suono.avviso("boh")
+    asserisci Falso, "doveva rifiutare il tipo"
+eccetto ValueError come errore:
+    stampa("tipo di avviso rifiutato:", errore)
+prova:
+    suono.riproduci(os.path.join(cartella, "non_esiste.wav"))
+    asserisci Falso, "doveva rifiutare il file mancante"
+eccetto FileNotFoundError come errore:
+    stampa("file mancante:", tipo_di(errore).__name__)
+stampa("ok")

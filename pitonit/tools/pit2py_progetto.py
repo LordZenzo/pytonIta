@@ -17,6 +17,7 @@ from pit2py_tabelle import cartelle_lib         # noqa: E402
 IGNORA = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules"}
 SALTA_FILE = (".form.json", ".mattonelle.json")         # sorgenti dei progettisti: servono solo a PitStudio
 MANIFESTO = "progetto.rad.json"
+MODULI_PROPRI = ("suono", "multimedia", "ffmpeg", "lettore")      # moduli di pytonIta senza equivalente in Python: si copiano accanto al programma
 
 # modulo -> pacchetto di PyPI, quando i nomi sono diversi e il pacchetto non e' installato con pitonit
 PYPI = {"numpy": "numpy", "pandas": "pandas", "scipy": "scipy", "matplotlib": "matplotlib", "requests": "requests",
@@ -126,6 +127,21 @@ Note
 """
 
 
+def _proteggi_nomi_modulo(progetto, nome_modulo):
+    """Un modulo proprio di pytonIta ha nomi suoi, senza equivalente in Python: li tratta come nomi definiti dal programma
+    (cosi' `.salva(...)` non diventa `.save(...)`). Conta anche le stringhe che sono nomi: molti metodi si creano da tabelle."""
+    for lib in cartelle_lib():
+        percorso = os.path.join(lib, nome_modulo + ".py")
+        if os.path.exists(percorso):
+            albero = ast.parse(open(percorso, encoding="utf-8").read())
+            progetto.aggiungi(albero)
+            for n in ast.walk(albero):
+                if isinstance(n, ast.Constant) and isinstance(n.value, str) and n.value.isidentifier() and len(n.value) > 1:
+                    progetto.definiti.add(n.value)
+                    progetto.parametri.add(n.value)
+            return
+
+
 def converti_progetto(origine, destinazione, nome_progetto=None):
     """Converte il progetto in `origine` nella cartella `destinazione` (da creare o vuota).
     Ritorna un dizionario: destinazione, file_python, altri_file, pacchetti [(nome, versione)], sconosciuti, errori [(file, testo)], note, principale."""
@@ -160,6 +176,9 @@ def converti_progetto(origine, destinazione, nome_progetto=None):
             progetto.aggiungi(ast.parse(t2[rel]))
         except ((SyntaxError,) + tokenizer_errori()) as e:
             errori.append((rel, f"errore di sintassi: {e}"))
+    for nome_modulo in MODULI_PROPRI:           # i nomi dei moduli propri (suono, multimedia, ffmpeg) non vanno tradotti in inglese
+        if any(re.search(r"^\s*(import|from)\s+" + nome_modulo + r"\b", testo, re.M) for testo in t2.values()):
+            _proteggi_nomi_modulo(progetto, nome_modulo)
     rapporto, convertiti = [], []
     os.makedirs(destinazione, exist_ok=True)
     for rel in elenco_pit:
@@ -181,7 +200,24 @@ def converti_progetto(origine, destinazione, nome_progetto=None):
         dest = os.path.join(destinazione, rel)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         shutil.copyfile(os.path.join(origine, rel), dest)
-    tutti_py = [os.path.join(destinazione, r) for r in convertiti] + [os.path.join(destinazione, r) for r in altri if r.endswith(".py")]
+    propri_copiati = []
+    cambiato = True
+    while cambiato:                         # un modulo copiato puo' a sua volta importarne un altro (suono -> multimedia)
+        cambiato = False
+        for nome_modulo in MODULI_PROPRI:
+            if nome_modulo + ".py" in propri_copiati or os.path.exists(os.path.join(destinazione, nome_modulo + ".py")):
+                continue
+            modello = re.compile(r"^\s*(import|from)\s+" + nome_modulo + chr(92) + "b", re.M)
+            if not any(modello.search(open(os.path.join(destinazione, r), encoding="utf-8").read()) for r in convertiti + propri_copiati):
+                continue
+            for lib in cartelle_lib():
+                sorgente = os.path.join(lib, nome_modulo + ".py")
+                if os.path.exists(sorgente):
+                    shutil.copyfile(sorgente, os.path.join(destinazione, nome_modulo + ".py"))
+                    propri_copiati.append(nome_modulo + ".py")
+                    cambiato = True
+                    break
+    tutti_py = [os.path.join(destinazione, r) for r in convertiti + propri_copiati] + [os.path.join(destinazione, r) for r in altri if r.endswith(".py")]
     moduli_progetto = {os.path.splitext(os.path.basename(p))[0] for p in tutti_py} | {
         c for c in os.listdir(destinazione) if os.path.isdir(os.path.join(destinazione, c))}
     pacchetti, sconosciuti = trova_requisiti(tutti_py, moduli_progetto)

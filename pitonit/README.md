@@ -59,7 +59,7 @@ git -c core.autocrlf=false diff --cached HEAD --no-color > ..\patch\pitonit.patc
 Controlla che si applichi su una copia pulita di `42155a0` (`git apply --check`) prima di fare il commit.
 
 ## Librerie in italiano
-152 moduli (`ELENCO_LIBRERIE.md`, circa 8.700 alias): tkinter (`interfaccia`, `interfaccia.tema`, ...), ctypes (`tipi_c`), reportlab
+152 moduli (`ELENCO_LIBRERIE.md`, circa 8.700 alias) più `suono`, `multimedia`, `ffmpeg` e `lettore`, scritti a mano (suoni e melodie; ffmpeg e ffprobe comandati a catena; un lettore che avvolge VLC, e poi mpv, senza includerli): tkinter (`interfaccia`, `interfaccia.tema`, ...), ctypes (`tipi_c`), reportlab
 (`rapporti_pdf`), datetime (`data_ora`), sqlite3 (`database`), shutil, urllib, threading (`thread`), subprocess
 (`processi`), argparse (`argomenti`), requests (`richieste`), la libreria standard più comune, numpy (`numerico`),
 pandas (`tabelle`), scipy (`scienza`), matplotlib (`grafici`), tksheet, PIL (`immagini`).

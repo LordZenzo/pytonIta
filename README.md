@@ -15,7 +15,7 @@ Tre parti, una sola installazione:
 | Parte | Cosa è |
 |---|---|
 | **pitonit** | Un vero interprete CPython 3.13 ricompilato: le parole chiave italiane sono lette dal parser C, non da un traduttore. File `.pit`. Installazione isolata: non tocca Python, il PATH né il registro. |
-| **PitStudio** | L'ambiente di sviluppo, scritto in pytonIta: editor con suggerimenti, progetti, progettista di finestre, **programmi a mattonelle** (stile Scratch, con conversione da e verso il codice), debugger, console, assistente AI, **gestore di database** (SQLite e MySQL, con creazione guidata di tabelle ed editor SQL), **esportazione in Python** con l'elenco delle librerie e **creazione dell'eseguibile `.exe`**. |
+| **PitStudio** | L'ambiente di sviluppo, scritto in pytonIta: editor con suggerimenti, progetti, progettista di finestre, **programmi a mattonelle** (stile Scratch, con conversione da e verso il codice), debugger, console, assistente AI, **gestore di database** (SQLite e MySQL, con creazione guidata di tabelle ed editor SQL), **esportazione in Python** con l'elenco delle librerie e **creazione dell'eseguibile `.exe`**, **multimedia**: le librerie `ffmpeg` (ffmpeg e ffprobe comandati a catena) e `lettore` (VLC, e poi mpv) per costruire lettori, convertitori e strumenti di montaggio; ffmpeg e VLC non sono inclusi, PitStudio li cerca sul computer. |
 | **Installatore** | Un solo file `Installa_pytonIta.exe` (Windows): si scompatta in una cartella temporanea, installa e si cancella. Non servono Python né diritti di amministratore. |
 
 ## Scaricare

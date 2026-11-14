@@ -1,0 +1,70 @@
+"""Screenshot per la pagina web (docs/img): Esplora ffmpeg, Informazioni su un file e il lettore (VLC).
+Uso: pitonit schermate_media_sito.pit [cartella di uscita] [tema]. Ritaglia sempre la finestra, non lo schermo."""
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.media_ui importa FinestraLettore
+importa ffmpeg
+
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
+tema_scelto = sys.argv[2] se lunghezza_di(sys.argv) > 2 altrimenti "scuro"
+os.makedirs(uscita, exist_ok=Vero)
+temp = tempfile.mkdtemp()
+cfg = Configurazione(os.path.join(temp, "config.json"))
+cfg.imposta("tema", tema_scelto, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("900x500+10+10")
+app = Applicazione(radice, cfg)
+app._proponi_aggiornamento_1x = lambda *a, **k: Nessuno
+app._proponi_aggiornamento_moduli = lambda *a, **k: Nessuno
+
+
+definisci aspetta(secondi):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        time.sleep(0.02)
+
+
+definisci foto(finestra, nome, larghezza, altezza):
+    finestra.geometry(f"{larghezza}x{altezza}+30+30")
+    finestra.attributes("-topmost", Vero)
+    finestra.lift()
+    aspetta(1.2)
+    x, y = finestra.winfo_rootx(), finestra.winfo_rooty()
+    immagine = ImageGrab.grab(bbox=(x, y, x + finestra.winfo_width(), y + finestra.winfo_height()))
+    immagine.save(os.path.join(uscita, nome))
+    stampa("salvata", nome, immagine.size)
+
+
+# un video di prova gradevole, senza dati personali
+video = os.path.join(temp, "vacanza_estate.mp4")
+ffmpeg.apri("mandelbrot=size=640x360:rate=25:end_scale=0.01", formato="lavfi").sorgente("sine=frequency=262:duration=20") \
+    .mappa("0:v").mappa("1:a").durata(20).codec_video("libx264").formato_pixel("yuv420p").codec_audio("aac") \
+    .metadati(title="Vacanza d'estate", artist="Famiglia Rossi").salva(video)
+
+# 1. Esplora ffmpeg
+aspetta(0.5)
+finestra = app.esplora_ffmpeg()
+finestra.var_cerca.set("scale")
+aspetta(0.5)
+finestra.elenco.selection_set([x per x in finestra.elenco.get_children() se finestra.elenco.item(x, "text") == "scale"][0])
+foto(finestra, f"esplora_{tema_scelto}.png", 980, 620)
+finestra.destroy()
+
+# 2. Informazioni su un file
+finestra = app.informazioni_file(video)
+aspetta(2.5)
+foto(finestra, f"info_{tema_scelto}.png", 820, 600)
+finestra.destroy()
+
+# 3. Il lettore
+finestra = FinestraLettore(app, video, opzioni_motore=["--no-audio"])
+aspetta(2.0)
+finestra.pannello.lettore.posizione = 7
+foto(finestra, f"lettore_{tema_scelto}.png", 860, 600)
+finestra._chiudi()
+radice.destroy()

@@ -1,0 +1,8 @@
+{
+  "nome": "Suoni e melodie",
+  "principale": "principale.pit",
+  "descrizione": "Scegli un brano e ascoltalo: il programma crea le note con il modulo suono. Puoi anche salvarlo in un file .wav.",
+  "argomenti": "modulo suono, liste di tuple, dizionari, file .wav",
+  "creato": "",
+  "modello": "esempio"
+}

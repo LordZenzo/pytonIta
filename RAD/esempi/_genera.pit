@@ -90,6 +90,49 @@ mentre Vero:
 stampa("Ciao!")
 ''')
 
+c = nuovo_esempio("melodie", "Suoni e melodie", "Scegli un brano e ascoltalo: il programma crea le note con il modulo suono. Puoi anche salvarlo in un file .wav.",
+                  "Principiante", "Console", ["modulo suono", "liste di tuple", "dizionari", "file .wav"])
+scrivi(c, "principale.pit", '''
+"""Suoni e melodie: scegli un brano e ascoltalo (servono le casse accese)."""
+importa os
+importa suono
+
+# Ogni nota e' (nome, battute): "do4" e' il do centrale, "pausa" e' il silenzio.
+FRA_MARTINO = [("do4", 1), ("re4", 1), ("mi4", 1), ("do4", 1)] * 2 + [("mi4", 1), ("fa4", 1), ("sol4", 2)] * 2 + [
+    ("sol4", 0.5), ("la4", 0.5), ("sol4", 0.5), ("fa4", 0.5), ("mi4", 1), ("do4", 1)] * 2 + [
+    ("do4", 1), ("sol3", 1), ("do4", 2)] * 2
+SCALA = [(nome, 1) per nome in ["do4", "re4", "mi4", "fa4", "sol4", "la4", "si4", "do5"]]
+BRANI = {
+    "1": ("Fra Martino", FRA_MARTINO, 140),
+    "2": ("Scala di do", SCALA, 120),
+}
+
+mentre Vero:
+    stampa()
+    per numero, (titolo, _, _) in BRANI.items():
+        stampa(f"{numero}) {titolo}")
+    stampa("3) Un beep")
+    stampa("4) Salva Fra Martino in un file .wav")
+    scelta = leggi_tastiera("Cosa vuoi fare? (invio per uscire) ")
+    se scelta == "":
+        interrompi
+    prova:
+        se scelta in BRANI:
+            titolo, note, tempo = BRANI[scelta]
+            stampa(f"Suono: {titolo}...")
+            suono.suona(note, tempo=tempo)
+        altrimenti_se scelta == "3":
+            suono.beep(880, 0.3)
+        altrimenti_se scelta == "4":
+            file = suono.crea_melodia("fra_martino.wav", FRA_MARTINO, tempo=140)
+            stampa(f"Salvato: {file} ({suono.durata_di(file):.1f} secondi)")
+        altrimenti:
+            stampa("Scelta non valida.")
+    eccetto suono.ErroreSuono come errore:
+        stampa("Non riesco a suonare:", errore)
+stampa("Ciao!")
+''')
+
 c = nuovo_esempio("rubrica_json", "Rubrica di contatti", "Una rubrica da console: aggiungi, cerca ed elenca i contatti. I dati restano salvati in un file JSON.",
                   "Intermedio", "Console", ["dizionari e liste", "file JSON", "funzioni", "menu con ciclo mentre"])
 scrivi(c, "principale.pit", '''

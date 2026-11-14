@@ -43,7 +43,7 @@
 <section class="hero" aria-labelledby="titolo">
   <div class="wrap">
     <div class="hero-t">
-      <span class="pill">Gratuito · Windows · versione <span data-versione>2.34</span></span>
+      <span class="pill">Gratuito · Windows · versione <span data-versione>2.36</span></span>
       <h1 id="titolo">Programma <em>in italiano.</em></h1>
       <p class="lead">pytonIta è un vero interprete Python con le parole chiave italiane. PitStudio è l'ambiente di sviluppo che lo accompagna: editor, finestre disegnate col mouse, programmazione a mattonelle, debugger, database e un assistente AI. Si installa con un solo file.</p>
       <div class="azioni">
@@ -208,6 +208,95 @@
           <img class="solo-chiaro" loading="lazy" src="img/s-lezioni-chiaro.png" width="820" height="660" alt="La finestra delle lezioni in tema chiaro">
         </button></div>
     </div>
+  </div>
+</section>
+
+<section id="multimedia">
+  <div class="wrap">
+    <p class="kick">Multimedia</p>
+    <h2>Applicazioni con audio e video, in italiano</h2>
+    <p class="sub">pytonIta comanda <strong>ffmpeg</strong> e <strong>VLC</strong> con parole italiane: converti, taglia e guarda dentro i file, riproduci un video in una finestra tua. Con questi due pezzi si costruiscono lettori, convertitori, archivi di filmati e strumenti di montaggio veri.</p>
+
+    <div class="caratt">
+      <div class="t">
+        <h3>ffmpeg, a catena</h3>
+        <p>La libreria <code>ffmpeg</code> avvolge ffmpeg e ffprobe e ne espone <em>tutto</em> come funzioni, proprietà e oggetti. Un comando si legge come una frase, e ciò che manca si raggiunge con le opzioni e i filtri di ffmpeg stessi.</p>
+        <ul class="v">
+          <li>Un metodo per ogni opzione più usata e per i filtri più comuni; qualunque altro filtro con <code>.video.nome(...)</code></li>
+          <li>Avanzamento, elaborazioni in sottofondo che si possono fermare, errori chiari con la riga di comando</li>
+          <li>Cataloghi di filtri, codec e formati letti dalla tua copia di ffmpeg, con le opzioni di ciascuno</li>
+          <li>Ricette già fatte: GIF, taglio, unione, logo sul video, miniature, silenzi, forma d'onda</li>
+        </ul>
+        <pre aria-label="Esempio di codice pytonIta con ffmpeg"><code><span class="k">importa</span> ffmpeg
+
+(ffmpeg.apri(<span class="s">"film.mp4"</span>, inizio=10, durata=5)
+    .ridimensiona(larghezza=640)
+    .velocita(2)
+    .codec_video(<span class="s">"libx264"</span>).qualita(23)
+    .salva(<span class="s">"scena.mp4"</span>))
+
+film = ffmpeg.sonda(<span class="s">"film.mp4"</span>)
+<span class="f">stampa</span>(film.durata, film.risoluzione)</code></pre>
+      </div>
+      <div class="fin"><div class="bar"><i></i><i></i><i></i><span>Esplora ffmpeg</span></div>
+        <button class="zoom" type="button" aria-label="Ingrandisci lo screenshot">
+          <img class="solo-scuro" loading="lazy" src="img/s-esplora-scuro.png" width="980" height="620" alt="La finestra «Esplora ffmpeg»: l'elenco dei filtri a sinistra e, a destra, le opzioni del filtro «scale» con un esempio di codice">
+          <img class="solo-chiaro" loading="lazy" src="img/s-esplora-chiaro.png" width="980" height="620" alt="La finestra «Esplora ffmpeg» in tema chiaro">
+        </button></div>
+    </div>
+
+    <div class="caratt inv">
+      <div class="t">
+        <h3>Un lettore dentro la tua finestra</h3>
+        <p>Il modulo <code>lettore</code> comanda VLC: il video si disegna in un riquadro della tua applicazione e i clic arrivano al tuo programma, quindi si può costruire un lettore su misura. Gli stessi comandi sono pensati per tutti i motori: <strong>mpv</strong> arriverà come alternativa da scegliere.</p>
+        <ul class="v">
+          <li>Apri, pausa, posizione, volume, velocità, tracce audio, sottotitoli, istantanee</li>
+          <li>Eventi (fine, errore) e <code>attendi_fine()</code>; un <code>PannelloLettore</code> pronto, coi controlli</li>
+          <li>Il motore si sceglie e si ricorda; se manca, installazione guidata con winget solo dopo il tuo consenso</li>
+        </ul>
+        <pre aria-label="Esempio di codice pytonIta con il lettore"><code><span class="k">importa</span> lettore
+
+p = lettore.Lettore()               <span class="c"># VLC, o mpv quando lo sceglierai</span>
+p.apri(<span class="s">"canzone.mp3"</span>)
+p.volume = 60
+p.posizione = 90                    <span class="c"># vai al secondo 90</span>
+p.attendi_fine()</code></pre>
+      </div>
+      <div class="fin"><div class="bar"><i></i><i></i><i></i><span>Lettore audio e video</span></div>
+        <button class="zoom" type="button" aria-label="Ingrandisci lo screenshot">
+          <img class="solo-scuro" loading="lazy" src="img/s-lettore-scuro.png" width="860" height="600" alt="Il lettore di PitStudio con un video in riproduzione, la barra del tempo, il volume e i menu delle tracce">
+          <img class="solo-chiaro" loading="lazy" src="img/s-lettore-chiaro.png" width="860" height="600" alt="Il lettore di PitStudio in tema chiaro">
+        </button></div>
+    </div>
+
+    <div class="caratt">
+      <div class="t">
+        <h3>Guarda dentro ogni file</h3>
+        <p>Da PitStudio, <strong>Strumenti → Informazioni su un file</strong> mostra formato, durata, flussi, tag e capitoli di un file audio o video, con una miniatura. La stessa cosa è a disposizione dei programmi: <code>ffmpeg.sonda("film.mp4")</code>.</p>
+        <ul class="v">
+          <li>Codec, risoluzione, fotogrammi al secondo, canali, lingua delle tracce</li>
+          <li>Copia il riassunto o il JSON completo di ffprobe</li>
+          <li>Per l'audio, la forma d'onda al posto della miniatura</li>
+        </ul>
+      </div>
+      <div class="fin"><div class="bar"><i></i><i></i><i></i><span>Informazioni su un file</span></div>
+        <button class="zoom" type="button" aria-label="Ingrandisci lo screenshot">
+          <img class="solo-scuro" loading="lazy" src="img/s-file-scuro.png" width="820" height="600" alt="La finestra delle informazioni su un video: miniatura, flussi video e audio, tag">
+          <img class="solo-chiaro" loading="lazy" src="img/s-file-chiaro.png" width="820" height="600" alt="La finestra delle informazioni su un video, in tema chiaro">
+        </button></div>
+    </div>
+
+    <h3 class="piccolo" style="margin:36px 0 14px">Cosa si può costruire</h3>
+    <div class="grid g3">
+      <div class="card"><h3>Un convertitore</h3><p>Da qualunque formato a qualunque altro, con barra di avanzamento: <code>ffmpeg.converti</code>, <code>ffmpeg.riduci</code>, <code>ffmpeg.estrai_audio</code>.</p></div>
+      <div class="card"><h3>Un piccolo montaggio</h3><p>Taglia, unisci, metti un logo o una scritta, cambia la velocità, aggiungi dissolvenze: <code>taglia</code>, <code>concatena</code>, <code>filigrana</code>, <code>.testo(...)</code>.</p></div>
+      <div class="card"><h3>Un archivio di filmati</h3><p>Sfoglia una cartella, leggi durata e risoluzione di ogni file e crea il foglio di miniature con <code>sonda</code> e <code>foglio_di_miniature</code>.</p></div>
+      <div class="card"><h3>Un lettore su misura</h3><p>Playlist, sottotitoli, velocità, istantanee: il riquadro del lettore è un widget come gli altri, nella tua finestra.</p></div>
+      <div class="card"><h3>Strumenti per l'audio</h3><p>Normalizza il volume, trova e togli i silenzi, disegna la forma d'onda: <code>normalizza_volume</code>, <code>rileva_silenzi</code>, <code>onda_audio</code>.</p></div>
+      <div class="card"><h3>Anche da pubblicare</h3><p>I programmi si esportano come Python normale: <code>ffmpeg.py</code> e <code>lettore.py</code> viaggiano con il progetto.</p></div>
+    </div>
+
+    <p class="sub" style="margin-top:26px"><strong>Cosa serve.</strong> ffmpeg e VLC non sono inclusi in PitStudio: sono programmi a parte, con le loro licenze. PitStudio li cerca sul computer. ffmpeg si scarica con un clic dal menu <em>Strumenti</em>, solo dopo il tuo consenso (circa 115 MB, con controllo dell'impronta SHA-256); VLC si installa con <code>winget install VideoLAN.VLC</code> o con il pulsante nella finestra del lettore. Oggi il download automatico di ffmpeg e il video dentro una finestra sono pensati per Windows.</p>
   </div>
 </section>
 

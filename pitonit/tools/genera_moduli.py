@@ -94,7 +94,23 @@ def auto_alias(s, curati_it, curati_en):
     return nomi, tipi
 
 
+def genera_propria(nome, s):
+    """Modulo scritto a mano, senza alias: codice Python autonomo (si copia tale e quale quando il progetto
+    viene esportato come Python). `_orig` e' la libreria standard su cui si appoggia."""
+    if s.get('fonte'):                    # il codice sta in tools/moduli_propri/<fonte>: si copia tale e quale
+        with open(os.path.join(os.path.dirname(DIZ), 'moduli_propri', s['fonte']), encoding='utf-8') as f:
+            return f.read()
+    return "\n".join([
+        f'"""{s.get("doc", "Modulo italiano di pytonIta.")} (generato da tools/genera_moduli.py)."""',
+        f'import {s["orig"]} as _orig',
+        s['extra'].rstrip(),
+        '',
+    ])
+
+
 def genera(nome, s):
+    if s.get('propria'):
+        return genera_propria(nome, s)
     righe = [
         f'"""Modulo italiano per `{s["orig"]}` (generato da tools/genera_moduli.py).',
         '',
@@ -168,7 +184,7 @@ def main():
                 os.remove(vecchio)
         with open(percorso(nome, nome in pacchetti), 'w', encoding='utf-8', newline='\n') as f:
             f.write(genera(nome, s))
-    mappa = {s['orig']: k for k, s in tutti.items()}
+    mappa = {s['orig']: k for k, s in tutti.items() if not s.get('propria')}
     with open(os.path.join(LIB, '_mappa_moduli.py'), 'w', encoding='utf-8', newline='\n') as f:
         f.write('"""Generato da tools/genera_moduli.py: modulo originale -> modulo italiano."""\n')
         f.write(f'MAPPA = {mappa!r}\n')

@@ -275,6 +275,16 @@
   "gruppo": "Riferimento"
  },
  {
+  "id": "ffmpeg",
+  "titolo": "ffmpeg: audio e video",
+  "gruppo": "Riferimento"
+ },
+ {
+  "id": "lettore",
+  "titolo": "Lettore audio e video",
+  "gruppo": "Riferimento"
+ },
+ {
   "id": "impostazioni",
   "titolo": "Impostazioni",
   "gruppo": "Riferimento"

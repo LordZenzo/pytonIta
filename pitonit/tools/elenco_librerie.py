@@ -11,6 +11,8 @@ for f in sorted(os.listdir(DIZ)):
     if f.endswith('.py') and not f.startswith('_'):
         m = importlib.import_module(f[:-3])
         for k, v in m.MODULI.items():
+            if v.get('propria'):          # moduli scritti a mano (suono): non sono alias di una libreria
+                continue
             n = len(D(v.get('nomi', '')))
             t = sum(len(D(x)) for x in v.get('tipi', {}).values())
             auto = 0

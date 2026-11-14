@@ -36,6 +36,7 @@ differenze
 enumerazioni
 esecutori
 espressioni_regolari
+ffmpeg
 file_temporanei
 flussi
 foglio_tk
@@ -68,10 +69,12 @@ interfaccia.testo_scorrevole
 interfaccia.trascina
 ispezione
 iteratori
+lettore
 localizzazione
 matematica
 matematica_complessa
 mucchio
+multimedia
 multiprocesso
 numerico
 numerico.algebra_lineare
@@ -132,6 +135,7 @@ stampa_bella
 statistica
 stringhe
 struttura_binaria
+suono
 tabelle
 tabelle_csv
 tartaruga

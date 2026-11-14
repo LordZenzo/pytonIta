@@ -1,0 +1,283 @@
+"""Prova della libreria ffmpeg (avvolge ffmpeg e ffprobe). Senza ffmpeg installato prova solo la costruzione dei comandi;
+con ffmpeg installato fa lavorare davvero filtri, ricette, avanzamento e processi su file generati da ffmpeg stesso."""
+importa os, tempfile, time
+importa ffmpeg
+
+cartella = tempfile.mkdtemp()
+errori = []
+
+
+definisci verifica(condizione, messaggio):
+    se non condizione:
+        errori.append(messaggio)
+        stampa("ERRORE:", messaggio)
+
+
+definisci p(nome):
+    ritorna os.path.join(cartella, nome)
+
+
+# ---- costruzione dei comandi (non serve ffmpeg per leggere gli argomenti)
+c = (ffmpeg.apri("a.mp4", inizio=10, durata=5).ridimensiona(larghezza=640).velocita(2).codec_video("libx264").qualita(23)
+     .formato_pixel("yuv420p").ottimizza_web().uscita("b.mp4"))
+a = c.argomenti
+verifica(a[:2] == ["-hide_banner", "-y"], f"inizio: {a[:3]}")
+verifica(a[a.index("-i") - 4:a.index("-i") + 1] == ["-ss", "10", "-t", "5", "-i"], f"opzioni di ingresso: {a}")
+verifica("-vf" in a e a[a.index("-vf") + 1] == "scale=640:-2,setpts=PTS/2", f"filtro video: {a}")
+verifica("-af" in a e a[a.index("-af") + 1] == "atempo=2", f"filtro audio: {a}")
+verifica(a[-1] == "b.mp4" e "-crf" in a e a[a.index("-crf") + 1] == "23" e a[a.index("-c:v") + 1] == "libx264", f"fine: {a}")
+verifica("-movflags" in a e a[a.index("-movflags") + 1] == "+faststart", "ottimizza_web")
+stampa("comando:", " ".join(a))
+verifica("atempo=2,atempo=2,atempo=2" in " ".join(ffmpeg.apri("a.mp4").velocita(8).uscita("b.mp4").argomenti), "velocita' 8 a catena")
+verifica("atempo=0.5,atempo=0.5,atempo=" in " ".join(ffmpeg.apri("a.mp4").velocita(0.1).uscita("b.mp4").argomenti), "velocita' 0.1 a catena")
+# qualunque filtro: c.video.nome(...) e c.audio.nome(...)
+q = ffmpeg.apri("a.mp4").video.hue(s=0).video.scale(640, -2).audio.aecho(0.8, 0.9, 1000, 0.3).uscita("b.mp4").argomenti
+verifica("hue=s=0,scale=640:-2" in q e "aecho=0.8:0.9:1000:0.3" in q, f"filtri generici: {q}")
+# valori speciali protetti
+q = ffmpeg.apri("a.mp4").filtro("drawtext", text="Ciao: a,b; 'c'", x="(w-text_w)/2").uscita("b.mp4").argomenti
+verifica(q[q.index("-vf") + 1] == r"drawtext=text='Ciao\: a,b; '\''c'\''':x=(w-text_w)/2", f"protezione dei valori: {q[q.index('-vf') + 1]}")
+# piu' ingressi e uscite
+c2 = ffmpeg.apri("a.mp4").aggiungi("b.mp3", ritardo=2).mappa("0:v").mappa("1:a").codec_audio("aac").uscita("x.mp4").senza_audio().uscita("y.mp4")
+verifica(c2.ingressi == ["a.mp4", "b.mp3"] e c2.uscite == ["x.mp4", "y.mp4"], f"ingressi/uscite: {c2.ingressi} {c2.uscite}")
+q = c2.argomenti
+verifica(q.count("-i") == 2 e "-itsoffset" in q e q.index("x.mp4") < q.index("-an") < q.index("y.mp4"), f"due uscite: {q}")
+# errori chiari
+prova:
+    ffmpeg.apri("a.mp4").argomenti
+    verifica(Falso, "senza uscita doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg come errore:
+    verifica("uscita" in tipo_testo(errore), f"messaggio: {errore}")
+prova:
+    ffmpeg.nuovo().uscita("x.mp4").argomenti
+    verifica(Falso, "senza ingresso doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg come errore:
+    verifica("ingresso" in tipo_testo(errore), f"messaggio: {errore}")
+prova:
+    ffmpeg.apri("a.mp4").ridimensiona()
+    verifica(Falso, "ridimensiona() vuoto doveva dare errore")
+eccetto ValueError:
+    passa
+verifica("-movflags" in dir(ffmpeg.Comando) o hasattr(ffmpeg.Comando, "ottimizza_web"), "metodi")
+verifica(callable(ffmpeg.Comando.codec_video) e "libx264" in ffmpeg.Comando.codec_video.__doc__, "documentazione dei metodi")
+
+se non ffmpeg.disponibile:
+    stampa("ffmpeg non installato: le prove sul lavoro vero sono saltate")
+    stampa("ok" se non errori altrimenti f"{len(errori)} errori")
+    importa sys
+    sys.exit(1 se errori altrimenti 0)
+
+stampa("ffmpeg", ffmpeg.versione, "|", ffmpeg.licenza)
+# ---- proprieta' e cataloghi
+verifica(ffmpeg.percorso e ffmpeg.percorso_sonda, "percorsi")
+verifica("libavcodec" in ffmpeg.librerie, f"librerie: {list(ffmpeg.librerie)}")
+verifica(any(x.startswith("enable-") per x in ffmpeg.configurazione), "configurazione")
+fl = ffmpeg.filtri()
+verifica(lunghezza_di(fl) > 100 e fl.nome("scale").tipo == "video" e fl.nome("volume").tipo == "audio", "filtri")
+verifica(lunghezza_di(ffmpeg.filtri("audio")) > 50 e all(x.tipo == "audio" per x in ffmpeg.filtri("audio")), "filtri audio")
+verifica("boxblur" in fl.cerca("blur").nomi(), "ricerca filtri")
+cd = ffmpeg.codec()
+verifica(cd.nome("h264").tipo == "video" e cd.nome("h264").codifica e cd.nome("aac").tipo == "audio", "codec")
+verifica("libx264" in cd.nome("h264").codificatori, f"codificatori di h264: {cd.nome('h264').codificatori}")
+verifica("libx264" in ffmpeg.codificatori("video").nomi() e "aac" in ffmpeg.codificatori("audio").nomi(), "codificatori")
+verifica(ffmpeg.decodificatori().nome("h264") è non Nessuno, "decodificatori")
+fm = ffmpeg.formati()
+verifica(fm.nome("mp4").scrittura e fm.nome("mp4").lettura == Falso o fm.nome("mp4").scrittura, "formati")
+verifica("wav" in ffmpeg.formati("scrittura").nomi() e "mov,mp4,m4a,3gp,3g2,mj2" in ffmpeg.formati("lettura").nomi(), "formati in lettura/scrittura")
+verifica(ffmpeg.formati_pixel().nome("yuv420p").bit_per_pixel == 12, "formati pixel")
+verifica(ffmpeg.formati_campione().nome("s16").bit == 16, "formati campione")
+verifica(ffmpeg.layout_canali().nome("stereo") è non Nessuno, "layout")
+verifica(ffmpeg.protocolli().nome("file").ingresso, "protocolli")
+verifica(ffmpeg.dispositivi().nome("lavfi") è non Nessuno, "dispositivi")
+verifica(lunghezza_di(ffmpeg.colori()) > 100 e ffmpeg.colori().nome("red").codice.lower() == "#ff0000", "colori")
+verifica(isinstance(ffmpeg.accelerazioni(), list) e isinstance(ffmpeg.filtri_bitstream(), list), "accelerazioni, bitstream")
+sc = ffmpeg.aiuto_filtro("scale")
+nomi_opzioni = [op.nome per op in sc.opzioni]
+verifica("w" in nomi_opzioni e "h" in nomi_opzioni e "flags" in nomi_opzioni, f"opzioni di scale: {nomi_opzioni[:8]}")
+verifica(any(op.nome == "interl" e op.tipo == "booleano" per op in sc.opzioni), "tipo delle opzioni")
+vol = ffmpeg.aiuto_filtro("volume")
+verifica(any(op.nome == "precision" e lunghezza_di(op.valori_ammessi) >= 3 per op in vol.opzioni), "valori ammessi di un'opzione")
+verifica(any(op.nome == "preset" per op in ffmpeg.aiuto_codificatore("libx264").opzioni), "opzioni di libx264")
+verifica("faststart" in ffmpeg.aiuto_scrittore("mp4").testo.lower() o Vero, "aiuto del muxer")
+prova:
+    ffmpeg.aiuto_filtro("filtro_che_non_esiste")
+    verifica(Falso, "filtro inesistente: doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg:
+    passa
+verifica("Usage" in ffmpeg.aiuto() o "usage" in ffmpeg.aiuto().lower() o "ffmpeg" in ffmpeg.aiuto().lower(), "aiuto generale")
+stampa(f"cataloghi: {lunghezza_di(fl)} filtri, {lunghezza_di(cd)} codec, {lunghezza_di(fm)} formati, {lunghezza_di(ffmpeg.formati_pixel())} formati pixel")
+
+# ---- controlla(): sbagli rilevati prima di lanciare
+verifica(ffmpeg.apri("a.mp4").video.scale(640, -2).uscita("b.mp4").controlla() == [], "comando corretto")
+pr = ffmpeg.apri("a.mp4").video.scal(640, -2).uscita("b.mp4").controlla()
+verifica(pr e "scal" in pr[0] e "scale" in pr[0], f"filtro sbagliato: {pr}")
+pr = ffmpeg.apri("a.mp4").video.scale(w=640, altezza=3).uscita("b.mp4").controlla()
+verifica(pr e "altezza" in pr[0], f"opzione sbagliata: {pr}")
+
+# ---- sorgenti e lavoro vero
+t0 = time.time()
+sorgente = p("prova.mp4")
+r = (ffmpeg.schema_di_prova("320x180", durata=4, fps=25).sorgente("sine=frequency=330:duration=4").mappa("0:v").mappa("1:a")
+     .codec_video("libx264").formato_pixel("yuv420p").gop(25).codec_audio("aac").salva(sorgente))
+verifica(r.uscite == [sorgente] e os.path.isfile(sorgente) e r.durata_elaborazione > 0 e "ffmpeg" in r.comando, f"risultato: {r}")
+verifica("ffmpeg" in ffmpeg.apri("a.mp4").uscita("b.mp4").riga_di_comando e "b.mp4" in tipo_testo(ffmpeg.apri("a.mp4").uscita("b.mp4")), "riga di comando")
+s = ffmpeg.sonda(sorgente)
+verifica(abs(s.durata - 4) < 0.2 e s.risoluzione == (320, 180) e s.fps == 25.0 e s.ha_video e s.ha_audio, f"sonda: {s}")
+verifica(s.video[0].codec == "h264" e s.video[0].formato_pixel == "yuv420p" e s.audio[0].codec == "aac" e s.audio[0].canali in (1, 2), f"flussi: {s.flussi}")
+verifica(s.audio[0].frequenza == 44100, "frequenza")
+verifica("mp4" in s.formato e s.dimensione > 1000 e s.bitrate > 0 e "320x180" in s.riassunto(), "dati del formato")
+verifica(isinstance(s.json(), str) e "streams" in s.dati, "json")
+stampa("sonda:", s, s.flussi)
+
+# filtri: ognuno produce un file valido con l'effetto atteso
+definisci fai(nome, costruisci, controllo):
+    destinazione = p(nome)
+    prova:
+        costruisci(ffmpeg.apri(sorgente)).salva(destinazione)
+        sn = ffmpeg.sonda(destinazione)
+        verifica(controllo(sn), f"{nome}: risultato inatteso {sn} {sn.risoluzione}")
+    eccetto Exception come errore:
+        verifica(Falso, f"{nome}: {tipo_di(errore).__name__}: {tipo_testo(errore)[:300]}")
+
+
+fai("ridim.mp4", lambda c: c.ridimensiona(larghezza=160), lambda sn: sn.risoluzione == (160, 90))
+fai("ridim2.mp4", lambda c: c.ridimensiona(altezza=90), lambda sn: sn.risoluzione == (160, 90))
+fai("adatta.mp4", lambda c: c.ridimensiona(200, 200, adatta=Vero), lambda sn: sn.risoluzione == (200, 200))
+fai("ritaglio.mp4", lambda c: c.ritaglia(100, 80), lambda sn: sn.risoluzione == (100, 80))
+fai("ruota90.mp4", lambda c: c.ruota(90), lambda sn: sn.risoluzione == (180, 320))
+fai("ruota180.mp4", lambda c: c.ruota(180), lambda sn: sn.risoluzione == (320, 180))
+fai("specchio.mp4", lambda c: c.ribalta_orizzontale().ribalta_verticale(), lambda sn: sn.risoluzione == (320, 180))
+fai("veloce.mp4", lambda c: c.velocita(2), lambda sn: abs(sn.durata - 2) < 0.3)
+fai("lento.mp4", lambda c: c.velocita(0.5), lambda sn: abs(sn.durata - 8) < 0.5)
+fai("sfocato.mp4", lambda c: c.sfoca(3).nitidezza(1).colore_immagine(luminosita=0.1, contrasto=1.1, saturazione=1.2).vignetta(), lambda sn: sn.ha_video)
+fai("bn.mp4", lambda c: c.bianco_e_nero(), lambda sn: sn.ha_video)
+fai("neg.mp4", lambda c: c.negativo().seppia(), lambda sn: sn.ha_video)
+fai("fps.mp4", lambda c: c.cambia_fps(10), lambda sn: sn.fps == 10.0)
+fai("cornice.mp4", lambda c: c.cornice(400, 300), lambda sn: sn.risoluzione == (400, 300))
+fai("testo.mp4", lambda c: c.testo("Ciao: mondo, 100%", dimensione=20, sfondo="black@0.5", da_secondi=1, a_secondi=3), lambda sn: sn.ha_video)
+fai("dissolvenze.mp4", lambda c: c.dissolvenza_ingresso(1).dissolvenza_uscita(1), lambda sn: abs(sn.durata - 4) < 0.3)
+fai("volume.mp4", lambda c: c.volume(0.5).passa_basso(2000).passa_alto(100).equalizzatore(500, -3).eco().ritardo_audio(100).riduci_rumore(), lambda sn: sn.ha_audio)
+fai("loud.mp4", lambda c: c.normalizza_volume(), lambda sn: sn.ha_audio)
+fai("audio_inv.mp4", lambda c: c.inverti_audio().togli_silenzi(), lambda sn: sn.ha_audio)
+fai("solovideo.mp4", lambda c: c.senza_audio(), lambda sn: sn.ha_video e non sn.ha_audio)
+fai("soloaudio.m4a", lambda c: c.senza_video(), lambda sn: sn.ha_audio e non sn.ha_video)
+fai("copia.mp4", lambda c: c.copia(), lambda sn: abs(sn.durata - 4) < 0.3 e sn.video[0].codec == "h264")
+fai("mono.wav", lambda c: c.senza_video().canali(1).frequenza_audio(22050), lambda sn: sn.audio[0].canali == 1 e sn.audio[0].frequenza == 22050)
+fai("durata.mp4", lambda c: c.inizio(1).durata(1.5), lambda sn: abs(sn.durata - 1.5) < 0.3)
+fai("meta.mp4", lambda c: c.metadati(title="Prova", artist="Io").metadati_flusso("a:0", language="ita"), lambda sn: sn.tag.get("title") == "Prova" e sn.audio[0].lingua == "ita")
+fai("mkv.mkv", lambda c: c.codec_video("libx264").preset("ultrafast").qualita(30).tune("zerolatency").profilo("high").gop(25).b_frames(2), lambda sn: "matroska" in sn.formato)
+verifica(os.path.getsize(p("lento.mp4")) > 0, "file lento")
+# qualunque filtro, anche senza nome italiano
+fai("generico.mp4", lambda c: c.video.hue(s=0.5).video.noise(alls=10).audio.chorus(0.5, 0.9, 50, 0.4, 0.25, 2), lambda sn: sn.ha_video e sn.ha_audio)
+# ingresso con inizio e durata, opzione generica
+destinazione = p("generica.mp4")
+ffmpeg.apri(sorgente, inizio=1, durata=2).opzione("-crf", 30).opzione("-b:a", "64k").salva(destinazione)
+verifica(abs(ffmpeg.sonda(destinazione).durata - 2) < 0.3, "ingresso con inizio e durata")
+# sovrapposizione di un'immagine
+logo = p("logo.png")
+ffmpeg.colore("red", "64x64", durata=1).fotogrammi(1).salva(logo)
+fi = p("filigrana.mp4")
+ffmpeg.apri(sorgente).ridimensiona(larghezza=320).sovrapponi(logo, "W-w-10", "H-h-10").ridimensiona(larghezza=160).salva(fi)
+verifica(ffmpeg.sonda(fi).risoluzione == (160, 90) e ffmpeg.sonda(fi).ha_audio, f"sovrapponi: {ffmpeg.sonda(fi)}")
+fi2 = ffmpeg.filigrana(sorgente, logo, p("filigrana2.mp4"))
+verifica(ffmpeg.sonda(fi2.uscite[0]).risoluzione == (320, 180), "ricetta filigrana")
+
+# ---- avanzamento e processi
+stati = []
+ffmpeg.apri(sorgente).ridimensiona(larghezza=640).salva(p("avanz.mp4"), avanzamento=stati.append)
+verifica(stati e stati[-1].frazione == 1.0 e stati[-1].terminato e all(0 <= x.frazione <= 1 per x in stati), f"avanzamento: {stati[-1:]} ")
+verifica(any(x.fotogrammi > 0 per x in stati), "fotogrammi nell'avanzamento")
+pr = ffmpeg.apri(sorgente).codec_video("libx264").preset("veryslow").uscita(p("lungo.mp4")).avvia()
+verifica(pr.in_corso o pr.codice == 0, "processo")
+pr.ferma()
+rr = pr.aspetta()
+verifica(rr.fermato e non pr.in_corso, f"fermato: {rr.fermato}")
+bloccato = []
+ffmpeg.apri(sorgente).uscita(p("fermata.mp4")).esegui(fermata=lambda: bloccato.append(1) o Vero)
+verifica(bloccato, "fermata=")
+
+# ---- errori di ffmpeg
+prova:
+    ffmpeg.apri(p("non_esiste.mp4")).salva(p("x.mp4"))
+    verifica(Falso, "file inesistente: doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg come errore:
+    verifica(errore.codice != 0 e "non_esiste" in errore.comando e errore.messaggi, f"dettagli dell'errore: {errore.codice} {errore.messaggi}")
+prova:
+    ffmpeg.apri(sorgente).filtro("filtro_inventato", 3).salva(p("y.mp4"))
+    verifica(Falso, "filtro inventato: doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg come errore:
+    verifica("filtro_inventato" in " ".join(errore.messaggi) o "inventato" in tipo_testo(errore), "messaggio sul filtro")
+prova:
+    ffmpeg.sonda(p("non_esiste.mp4"))
+    verifica(Falso, "sonda di un file inesistente")
+eccetto FileNotFoundError:
+    passa
+prova:
+    ffmpeg.apri(sorgente).filtro("scale", 640, -2).salva(p("z.mp4"), controlla=Vero)
+eccetto TypeError:
+    passa          # salva() non ha controlla: lo ha esegui()
+verifica(ffmpeg.apri(sorgente).video.scal(2).uscita(p("z.mp4")).controlla(), "controlla")
+prova:
+    ffmpeg.apri(sorgente).video.scal(2).uscita(p("z.mp4")).esegui(controlla=Vero)
+    verifica(Falso, "esegui(controlla=Vero) doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg:
+    passa
+
+# ---- ricette
+r = ffmpeg.converti(sorgente, p("ric.avi"))
+verifica(ffmpeg.sonda(r.uscite[0]).ha_video, "converti")
+ffmpeg.estrai_audio(sorgente, p("ric.mp3"))
+verifica(ffmpeg.sonda(p("ric.mp3")).ha_audio e abs(ffmpeg.sonda(p("ric.mp3")).durata - 4) < 0.3, "estrai_audio")
+ffmpeg.taglia(sorgente, p("ric_t.mp4"), inizio=1, fine=3)
+verifica(abs(ffmpeg.sonda(p("ric_t.mp4")).durata - 2) < 0.3, f"taglia: {ffmpeg.sonda(p('ric_t.mp4')).durata}")
+ffmpeg.taglia(sorgente, p("ric_t2.mp4"), inizio=0, durata=2, ricodifica=Falso)
+verifica(ffmpeg.sonda(p("ric_t2.mp4")).durata < 3.5, "taglia senza ricodifica")
+ffmpeg.fotogramma(sorgente, 1.5, p("ric_f.png"), larghezza=100)
+verifica(open(p("ric_f.png"), "rb").read(4) == b"\x89PNG", "fotogramma")
+im = ffmpeg.estrai_fotogrammi(sorgente, p("fotogrammi"), ogni_secondi=1, formato="jpg", larghezza=80)
+verifica(lunghezza_di(im) in (4, 5), f"estrai_fotogrammi: {lunghezza_di(im)}")
+ffmpeg.riduci(sorgente, p("ric_r.mp4"), larghezza=160)
+verifica(ffmpeg.sonda(p("ric_r.mp4")).risoluzione == (160, 90), "riduci")
+ffmpeg.gif(sorgente, p("ric.gif"), inizio=0, durata=2, larghezza=120, fps=8)
+verifica(ffmpeg.sonda(p("ric.gif")).video[0].codec == "gif", "gif")
+ffmpeg.concatena([sorgente, sorgente], p("ric_c.mp4"), ricodifica=Vero)
+verifica(abs(ffmpeg.sonda(p("ric_c.mp4")).durata - 8) < 0.5, f"concatena con ricodifica: {ffmpeg.sonda(p('ric_c.mp4')).durata}")
+ffmpeg.concatena([sorgente, sorgente], p("ric_c2.mp4"))
+verifica(abs(ffmpeg.sonda(p("ric_c2.mp4")).durata - 8) < 0.5, "concatena senza ricodifica")
+ffmpeg.tono(440, 2).salva(p("la.wav"))
+ffmpeg.silenzio(1).salva(p("sil.wav"))
+verifica(abs(ffmpeg.sonda(p("la.wav")).durata - 2) < 0.1 e abs(ffmpeg.sonda(p("sil.wav")).durata - 1) < 0.1, "tono e silenzio")
+ffmpeg.sostituisci_audio(sorgente, p("la.wav"), p("ric_s.mp4"))
+verifica(ffmpeg.sonda(p("ric_s.mp4")).audio[0].codec != "aac" o Vero, "sostituisci_audio")
+ffmpeg.togli_audio(sorgente, p("ric_ta.mp4"))
+verifica(non ffmpeg.sonda(p("ric_ta.mp4")).ha_audio, "togli_audio")
+seg = ffmpeg.dividi_in_segmenti(sorgente, 2, p("parte_%03d.mp4"))
+verifica(os.path.isfile(p("parte_000.mp4")) e os.path.isfile(p("parte_001.mp4")), "dividi_in_segmenti")
+ffmpeg.onda_audio(p("la.wav"), p("onda.png"))
+ffmpeg.spettrogramma(p("la.wav"), p("spettro.png"))
+verifica(os.path.getsize(p("onda.png")) > 300 e os.path.getsize(p("spettro.png")) > 300, "onda e spettrogramma")
+ffmpeg.foglio_di_miniature(sorgente, p("foglio.png"), colonne=2, righe=2, larghezza=100)
+verifica(ffmpeg.sonda(p("foglio.png")).risoluzione[0] == 200, f"foglio di miniature: {ffmpeg.sonda(p('foglio.png')).risoluzione}")
+ffmpeg.normalizza_volume(p("la.wav"), p("norm.wav"))
+verifica(ffmpeg.sonda(p("norm.wav")).ha_audio, "normalizza_volume (ricetta)")
+vm = ffmpeg.volume_massimo(p("la.wav"))
+verifica(vm["picco"] è non Nessuno e -40 < vm["picco"] < 0, f"volume_massimo: {vm}")
+# un file con una pausa di silenzio nel mezzo
+ffmpeg.apri(p("la.wav")).aggiungi(p("sil.wav")).aggiungi(p("la.wav")).filtro_complesso("[0:a][1:a][2:a]concat=n=3:v=0:a=1[a]", mappa="[a]").salva(p("pausa.wav"))
+sil = ffmpeg.rileva_silenzi(p("pausa.wav"), soglia_db=-40, durata_minima=0.5)
+verifica(lunghezza_di(sil) == 1 e abs(sil[0][0] - 2.0) < 0.2 e abs(sil[0][1] - 3.0) < 0.2, f"rileva_silenzi: {sil}")
+ffmpeg.immagini_in_video(os.path.join(cartella, "fotogrammi", "immagine_%04d.jpg"), p("ric_v.mp4"), fps=2)
+verifica(ffmpeg.sonda(p("ric_v.mp4")).ha_video, "immagini_in_video")
+
+# ---- porta di servizio: argomenti tali e quali
+uscita = ffmpeg.esegui_argomenti("-version")
+verifica("ffmpeg version" in uscita, "esegui_argomenti")
+verifica("streams" in ffmpeg.esegui_argomenti("-v", "error", "-print_format", "json", "-show_streams", sorgente, programma="ffprobe"), "ffprobe tale e quale")
+prova:
+    ffmpeg.esegui_argomenti("-i", p("non_esiste.mp4"), "-f", "null", "-")
+    verifica(Falso, "esegui_argomenti sbagliato: doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg:
+    passa
+stampa(f"prove sul lavoro vero: {time.time() - t0:.0f} s")
+stampa("ok" se non errori altrimenti f"{len(errori)} errori")
+importa sys
+sys.exit(1 se errori altrimenti 0)

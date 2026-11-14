@@ -34,6 +34,25 @@
     dlg.showModal();
   });
 
+  /* ---- le due versioni (scuro/chiaro) di uno screenshot si caricano insieme, appena la figura e' vicina ----
+     (il browser non carica da solo l'immagine ritagliata: senza questo, il primo passaggio del mouse mostrerebbe un vuoto) */
+  var figure = document.querySelectorAll(".fin button.zoom");
+  if (figure.length && "IntersectionObserver" in window) {
+    var osserva = new IntersectionObserver(function (voci) {
+      voci.forEach(function (v) {
+        if (!v.isIntersecting) return;
+        v.target.querySelectorAll("img[loading=lazy]").forEach(function (im) { im.loading = "eager"; });
+        osserva.unobserve(v.target);
+      });
+    }, { rootMargin: "600px 0px" });
+    figure.forEach(function (f) { osserva.observe(f); });
+  }
+  window.addEventListener("load", function () {          // in ogni caso, a pagina finita si caricano anche le immagini rimaste
+    setTimeout(function () {
+      document.querySelectorAll(".fin img[loading=lazy]").forEach(function (im) { im.loading = "eager"; });
+    }, 1500);
+  });
+
   /* ---- selettore «con / senza assistente» ---- */
   document.querySelectorAll(".fin .sel button").forEach(function (b) {
     b.addEventListener("click", function () {

@@ -1,0 +1,14 @@
+{
+  "id": "melodie",
+  "titolo": "Suoni e melodie",
+  "descrizione": "Scegli un brano e ascoltalo: il programma crea le note con il modulo suono. Puoi anche salvarlo in un file .wav.",
+  "livello": "Principiante",
+  "categoria": "Console",
+  "impara": [
+    "modulo suono",
+    "liste di tuple",
+    "dizionari",
+    "file .wav"
+  ],
+  "principale": "principale.pit"
+}

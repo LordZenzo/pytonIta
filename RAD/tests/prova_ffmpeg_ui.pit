@@ -1,0 +1,115 @@
+"""Finestra «ffmpeg» (Strumenti): con ffmpeg assente propone il download, chiede il consenso, mostra l'avanzamento e aggiorna la situazione.
+Il download è finto: nessun accesso a Internet."""
+importa sys, os, tempfile, time
+radice_test = tempfile.mkdtemp()
+os.environ["USERPROFILE"] = radice_test
+os.environ["HOME"] = radice_test
+qui = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(qui))
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.ffmpeg_ui importa DialogoFfmpeg
+importa multimedia
+
+avvisi = []
+messagebox.showwarning = lambda titolo, testo_, **k: avvisi.append(testo_)
+errori = []
+
+
+definisci verifica(condizione, messaggio):
+    se non condizione:
+        errori.append(messaggio)
+        stampa("ERRORE:", messaggio)
+
+
+definisci aspetta(secondi, condizione=Nessuno):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione e condizione():
+            ritorna Vero
+        time.sleep(0.02)
+    ritorna Falso
+
+
+cfg = Configurazione(os.path.join(radice_test, "config.json"))
+radice = tk.Tk()
+radice.geometry("1000x700+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+
+# la voce di menu esiste e apre la finestra
+barra = radice.nametowidget(radice.cget("menu"))
+voci = []
+per i in intervallo_di(barra.index("end") + 1):
+    se barra.type(i) == "cascade" e barra.entrycget(i, "label") == "Strumenti":
+        sotto = radice.nametowidget(barra.entrycget(i, "menu"))
+        voci = [sotto.entrycget(j, "label") per j in intervallo_di(sotto.index("end") + 1) se sotto.type(j) == "command"]
+verifica("ffmpeg: audio e video…" in voci, f"manca la voce di menu: {voci}")
+
+# ffmpeg assente: la finestra lo dice e offre il download
+presente = {"percorso": Nessuno}
+multimedia.trova_ffmpeg = lambda programma="ffmpeg": presente["percorso"]
+multimedia.versione_ffmpeg = lambda: "ffmpeg version finta 1.0"
+chiamate = []
+domande = []
+
+
+definisci scarica_finto(avanzamento=Nessuno, **k):
+    chiamate.append("scarica")
+    per fatti in (10, 50, 100):
+        avanzamento(fatti * 1048576, 100 * 1048576)
+        time.sleep(0.2)
+    presente["percorso"] = "C:/finto/bin/ffmpeg.exe"
+    ritorna presente["percorso"]
+
+
+finestra = DialogoFfmpeg(radice, app.colori, scarica=scarica_finto, conferma=lambda testo_: domande.append(testo_) o Falso)
+radice.update()
+verifica("non è installato" in finestra.situazione.cget("text"), "doveva dire che ffmpeg manca")
+verifica(finestra.scarica.cget("state") == "normal", "il pulsante Scarica doveva essere attivo")
+# senza consenso non scarica
+finestra.scarica.invoke()
+radice.update()
+verifica(len(domande) == 1 e "115 MB" in domande[0] e multimedia.CARTELLA_FFMPEG in domande[0] e "SHA-256" in domande[0], f"testo del consenso: {domande}")
+verifica(chiamate == [], "senza il tuo consenso non doveva scaricare")
+# con il consenso scarica e aggiorna
+finestra._conferma = lambda testo_: Vero
+finestra.scarica.invoke()
+aspetta(1.0, lambda: finestra._scaricando e finestra._avanzamento[0] > 0)
+verifica(finestra.scarica.cget("state") == "disabled", "durante il download il pulsante deve essere disattivato")
+verifica(finestra.chiudi.cget("text") == "Annulla", "durante il download il pulsante diventa Annulla")
+aspetta(4, lambda: non finestra._scaricando)
+verifica(chiamate == ["scarica"], f"download non partito: {chiamate}")
+verifica("è pronto" in finestra.situazione.cget("text"), f"dopo il download: {finestra.situazione.cget('text')}")
+verifica("C:/finto/bin/ffmpeg.exe" in finestra.dettagli.cget("text") e "finta 1.0" in finestra.dettagli.cget("text"), "mancano percorso e versione")
+verifica(finestra.chiudi.cget("text") == "Chiudi", "alla fine il pulsante torna Chiudi")
+finestra.destroy()
+
+# ffmpeg già presente: niente da scaricare
+finestra = DialogoFfmpeg(radice, app.colori, scarica=scarica_finto)
+radice.update()
+verifica("è pronto" in finestra.situazione.cget("text") e finestra.scarica.cget("state") == "disabled", "con ffmpeg presente non serve scaricare")
+finestra.destroy()
+
+# download che fallisce: avvisa e lascia riprovare
+presente["percorso"] = Nessuno
+
+
+definisci scarica_rotto(**k):
+    solleva multimedia.ErroreMultimedia("rete assente")
+
+
+finestra = DialogoFfmpeg(radice, app.colori, scarica=scarica_rotto, conferma=lambda testo_: Vero)
+radice.update()
+finestra.scarica.invoke()
+aspetta(3, lambda: non finestra._scaricando)
+radice.update()
+verifica(avvisi e "rete assente" in avvisi[0], f"doveva avvisare: {avvisi}")
+verifica("non riuscito" in finestra.stato.cget("text") e finestra.scarica.cget("state") == "normal", "dopo l'errore si deve poter riprovare")
+finestra.destroy()
+radice.destroy()
+stampa("ok" se non errori altrimenti f"{len(errori)} errori")
+sys.exit(1 se errori altrimenti 0)

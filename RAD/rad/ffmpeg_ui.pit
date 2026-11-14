@@ -1,0 +1,110 @@
+"""Finestra «ffmpeg»: dice se ffmpeg c'è (serve al modulo multimedia) e, se manca, lo scarica solo dopo il tuo consenso."""
+importa tkinter come tk
+da tkinter importa ttk, messagebox
+
+da rad.dialoghi importa DialogoBase
+da rad importa esecuzione
+da rad.piattaforma importa FONT_UI, semi
+importa multimedia
+
+
+classe DialogoFfmpeg(DialogoBase):
+    """Mostra dove si trova ffmpeg e la sua versione; «Scarica ffmpeg» lo scarica dal sito ufficiale in ~/.rad/ffmpeg (circa 115 MB)."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, scarica=Nessuno, conferma=Nessuno):
+        DialogoBase.__init__(se_stesso, genitore, "ffmpeg: audio e video", colori, 580, 340)
+        se_stesso._scarica_fn = scarica o multimedia.scarica_ffmpeg
+        se_stesso._conferma = conferma o (lambda testo_: messagebox.askyesno("Scarica ffmpeg", testo_, parent=se_stesso))
+        se_stesso._interrompi = Falso
+        se_stesso._scaricando = Falso
+        se_stesso._avanzamento = (0, 0)
+        c = colori
+        tk.Label(se_stesso, text="ffmpeg: audio e video", font=semi(14), anchor="w",
+                 background=c["pannello"], foreground=c["primo_piano"]).pack(fill="x", padx=18, pady=(16, 0))
+        tk.Label(se_stesso, wraplength=540, justify="left", anchor="w", background=c["pannello"], foreground=c["tenue"],
+                 text="Il modulo «multimedia» usa ffmpeg per convertire, tagliare e guardare dentro i file audio e video, "
+                      "e il modulo «suono» per suonare anche mp3 e ogg. ffmpeg non è incluso in PitStudio.").pack(fill="x", padx=18, pady=(2, 10))
+        se_stesso.situazione = tk.Label(se_stesso, wraplength=540, justify="left", anchor="w", background=c["pannello"],
+                                        foreground=c["primo_piano"], font=(FONT_UI, 10))
+        se_stesso.situazione.pack(fill="x", padx=18)
+        se_stesso.dettagli = tk.Label(se_stesso, wraplength=540, justify="left", anchor="w", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.dettagli.pack(fill="x", padx=18, pady=(2, 0))
+        se_stesso.barra_avanzamento = ttk.Progressbar(se_stesso, mode="determinate", maximum=100)
+        se_stesso.barra_avanzamento.pack(fill="x", padx=18, pady=(14, 0))
+        se_stesso.stato = tk.Label(se_stesso, text="", anchor="w", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.stato.pack(fill="x", padx=18)
+        pulsanti = tk.Frame(se_stesso, background=c["pannello"])
+        pulsanti.pack(side="bottom", fill="x", padx=14, pady=12)
+        se_stesso.chiudi = tk.Button(pulsanti, text="Chiudi", command=se_stesso._chiudi, background=c["pulsante"],
+                                     foreground=c["primo_piano"], relief="flat", padx=12)
+        se_stesso.chiudi.pack(side="right", padx=4)
+        se_stesso.scarica = tk.Button(pulsanti, text="Scarica ffmpeg", command=se_stesso._scarica, background=c["accento"],
+                                      foreground="#ffffff", relief="flat", padx=12)
+        se_stesso.scarica.pack(side="right", padx=4)
+        se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
+        se_stesso.aggiorna_situazione()
+
+    definisci aggiorna_situazione(se_stesso):
+        percorso = multimedia.trova_ffmpeg()
+        se percorso:
+            se_stesso.situazione.configure(text="ffmpeg è pronto.", foreground=se_stesso.colori["ok"])
+            se_stesso.dettagli.configure(text=f"{percorso}\n{multimedia.versione_ffmpeg() o ''}")
+            se_stesso.scarica.configure(state="disabled", text="Scarica ffmpeg")
+        altrimenti:
+            se_stesso.situazione.configure(text="ffmpeg non è installato.", foreground=se_stesso.colori["avviso"])
+            se_stesso.dettagli.configure(text="Puoi scaricarlo da qui (circa 115 MB, dal sito ufficiale, nella cartella .rad della tua cartella utente) "
+                                              "oppure installarlo tu (Windows: winget install ffmpeg).")
+            se_stesso.scarica.configure(state="normal")
+
+    definisci _chiudi(se_stesso):
+        se_stesso._interrompi = Vero
+        se_stesso.destroy()
+
+    definisci _scarica(se_stesso):
+        se non se_stesso._conferma(f"Scarico ffmpeg (circa 115 MB) da {multimedia.URL_FFMPEG.split('/')[2]}, il sito di build di Windows "
+                                   f"collegato da ffmpeg.org?\n\nLo salvo in:\n{multimedia.CARTELLA_FFMPEG}\n"
+                                   "e controllo l'impronta SHA-256 del file prima di usarlo."):
+            ritorna
+        se_stesso._scaricando = Vero
+        se_stesso._interrompi = Falso
+        se_stesso.scarica.configure(state="disabled")
+        se_stesso.chiudi.configure(text="Annulla")
+
+        definisci lavoro():
+            ritorna se_stesso._scarica_fn(avanzamento=se_stesso._segna, interrompi=lambda: se_stesso._interrompi)
+
+        esecuzione.in_secondo_piano(se_stesso, lavoro, se_stesso._finito)
+        se_stesso._aggiorna_barra()
+
+    definisci _segna(se_stesso, fatti, totale):
+        se_stesso._avanzamento = (fatti, totale)
+
+    definisci _aggiorna_barra(se_stesso):
+        se non se_stesso._scaricando:
+            ritorna
+        fatti, totale = se_stesso._avanzamento
+        prova:
+            se totale:
+                se_stesso.barra_avanzamento.configure(value=100 * fatti / totale)
+                se_stesso.stato.configure(text=f"Scaricati {fatti / 1048576:.0f} di {totale / 1048576:.0f} MB")
+            se_stesso.after(150, se_stesso._aggiorna_barra)
+        eccetto tk.TclError:
+            passa
+
+    definisci _finito(se_stesso, riuscito, risultato):
+        se_stesso._scaricando = Falso
+        prova:
+            se non riuscito:
+                se_stesso.barra_avanzamento.configure(value=0)
+                se_stesso.chiudi.configure(text="Chiudi")
+                se_stesso.stato.configure(text="Download interrotto." se se_stesso._interrompi altrimenti "Download non riuscito.")
+                se non se_stesso._interrompi:
+                    messagebox.showwarning("ffmpeg", tipo_testo(risultato), parent=se_stesso)
+                se_stesso.aggiorna_situazione()
+                ritorna
+            se_stesso.barra_avanzamento.configure(value=100)
+            se_stesso.stato.configure(text="Scaricato.")
+            se_stesso.chiudi.configure(text="Chiudi")
+            se_stesso.aggiorna_situazione()
+        eccetto tk.TclError:
+            passa

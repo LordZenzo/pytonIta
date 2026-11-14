@@ -409,6 +409,10 @@ classe Applicazione:
         strumenti.add_command(label="Chiedi all'AI di correggere l'ultimo errore", command=se_stesso.ai_correggi)
         strumenti.add_command(label="Apri Claude Code nel progetto (con il tuo abbonamento)…", command=se_stesso.apri_claude_code)
         strumenti.add_command(label="Collega altri agenti (MCP)…", command=se_stesso.collega_agenti_mcp)
+        strumenti.add_command(label="ffmpeg: audio e video…", command=se_stesso.finestra_ffmpeg)
+        strumenti.add_command(label="Esplora ffmpeg (filtri, codec, formati)…", command=se_stesso.esplora_ffmpeg)
+        strumenti.add_command(label="Informazioni su un file audio o video…", command=se_stesso.informazioni_file)
+        strumenti.add_command(label="Lettore audio e video…", command=se_stesso.apri_lettore)
         strumenti.add_command(label="Annulla l'ultima modifica dell'assistente", command=se_stesso.annulla_ultima_ai)
         strumenti.add_command(label="Cronologia delle modifiche dell'assistente…", command=se_stesso.cronologia_ai)
         strumenti.add_command(label="Statistiche dell'assistente (token, codice valido)…", command=se_stesso.statistiche_ai)
@@ -2178,6 +2182,47 @@ classe Applicazione:
             ritorna
         dialoghi.DialogoCerca(se_stesso.radice, se_stesso.colori, se_stesso.progetto,
                               lambda p, riga: se_stesso.apri_file(p, riga)).mostra()
+
+    definisci esplora_ffmpeg(se_stesso):
+        """Strumenti → Esplora ffmpeg: filtri, codec e formati della build installata, con opzioni ed esempi (una sola finestra)."""
+        da rad.media_ui importa FinestraEsplora
+        f = getattr(se_stesso, "_finestra_esplora", Nessuno)
+        se f è Nessuno o non f.winfo_exists():
+            f = FinestraEsplora(se_stesso)
+            se_stesso._finestra_esplora = f
+        f.deiconify()
+        f.lift()
+        ritorna f
+
+    definisci apri_lettore(se_stesso, percorso=Nessuno):
+        """Strumenti → Lettore audio e video: riproduce un file con il motore scelto (VLC oggi). Una sola finestra."""
+        da rad.media_ui importa FinestraLettore
+        f = getattr(se_stesso, "_finestra_lettore", Nessuno)
+        se f è Nessuno o non f.winfo_exists():
+            f = FinestraLettore(se_stesso, percorso)
+            se_stesso._finestra_lettore = f
+        altrimenti_se percorso:
+            f.apri(percorso)
+        f.deiconify()
+        f.lift()
+        ritorna f
+
+    definisci informazioni_file(se_stesso, percorso=Nessuno):
+        """Strumenti → Informazioni su un file: cosa c'è dentro un file audio o video (flussi, tag, miniatura)."""
+        se percorso è Nessuno:
+            iniziale = se_stesso.progetto.cartella se se_stesso.progetto altrimenti os.path.expanduser("~")
+            percorso = filedialog.askopenfilename(parent=se_stesso.radice, title="Scegli un file audio o video", initialdir=iniziale,
+                                                  filetypes=[("Audio e video", "*.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv *.m4v *.mpg *.mp3 *.wav *.ogg *.flac *.m4a *.aac *.opus *.wma"),
+                                                             ("Tutti i file", "*.*")])
+            se non percorso:
+                ritorna Nessuno
+        da rad.media_ui importa FinestraSonda
+        ritorna FinestraSonda(se_stesso, percorso)
+
+    definisci finestra_ffmpeg(se_stesso):
+        """Strumenti → ffmpeg: dice se c'è e, con il tuo consenso, lo scarica (serve al modulo multimedia)."""
+        da rad.ffmpeg_ui importa DialogoFfmpeg
+        DialogoFfmpeg(se_stesso.radice, se_stesso.colori).mostra()
 
     definisci apri_manuale(se_stesso):
         p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "manuale.md")

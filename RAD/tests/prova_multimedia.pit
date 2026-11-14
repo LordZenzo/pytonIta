@@ -1,0 +1,152 @@
+"""Prova del modulo multimedia. Con ffmpeg installato prova davvero conversioni, tagli e fotogrammi su file generati;
+il download è provato con un finto sito locale (nessun accesso a Internet)."""
+importa os, tempfile, hashlib, zipfile, threading, http.server, functools
+importa multimedia
+importa suono
+
+cartella = tempfile.mkdtemp()
+ffmpeg = multimedia.trova_ffmpeg()
+stampa("ffmpeg trovato:", bool(ffmpeg))
+
+# ---- ricerca di ffmpeg: la variabile PITONIT_FFMPEG vince
+finta = os.path.join(cartella, "finta", "bin")
+os.makedirs(finta)
+per nome in ("ffmpeg.exe", "ffprobe.exe"):
+    open(os.path.join(finta, nome), "wb").write(b"MZ")
+vecchio = os.environ.get("PITONIT_FFMPEG")
+os.environ["PITONIT_FFMPEG"] = os.path.join(cartella, "finta")
+asserisci multimedia.trova_ffmpeg() == os.path.join(cartella, "finta", "bin", "ffmpeg.exe"), multimedia.trova_ffmpeg()
+asserisci multimedia.trova_ffmpeg("ffprobe") == os.path.join(cartella, "finta", "bin", "ffprobe.exe")
+os.environ["PITONIT_FFMPEG"] = os.path.join(finta, "ffmpeg.exe")
+asserisci multimedia.trova_ffmpeg() == os.path.join(finta, "ffmpeg.exe")
+se vecchio è Nessuno:
+    elimina os.environ["PITONIT_FFMPEG"]
+altrimenti:
+    os.environ["PITONIT_FFMPEG"] = vecchio
+stampa("PITONIT_FFMPEG: ok")
+
+# ---- messaggio chiaro se ffmpeg manca
+originale = multimedia.trova_ffmpeg
+multimedia.trova_ffmpeg = lambda programma="ffmpeg": Nessuno
+open(os.path.join(cartella, "a.wav"), "wb").write(b"RIFF")
+prova:
+    multimedia.converti(os.path.join(cartella, "a.wav"), os.path.join(cartella, "b.mp3"))
+    asserisci Falso, "doveva dire che ffmpeg manca"
+eccetto multimedia.FfmpegNonTrovato come errore:
+    asserisci "scarica_ffmpeg" in tipo_testo(errore) e "winget" in tipo_testo(errore)
+    stampa("ffmpeg mancante:", tipo_testo(errore)[:40])
+asserisci multimedia.versione_ffmpeg() è Nessuno
+multimedia.trova_ffmpeg = originale
+
+# ---- download con un finto sito locale
+sito = os.path.join(cartella, "sito")
+os.makedirs(sito)
+archivio = os.path.join(sito, "ffmpeg-finto.zip")
+con zipfile.ZipFile(archivio, "w") come z:
+    z.writestr("ffmpeg-9.9-essentials_build/bin/ffmpeg.exe", b"MZ finto ffmpeg")
+    z.writestr("ffmpeg-9.9-essentials_build/bin/ffprobe.exe", b"MZ finto ffprobe")
+    z.writestr("ffmpeg-9.9-essentials_build/bin/ffplay.exe", b"MZ non serve")
+    z.writestr("ffmpeg-9.9-essentials_build/doc/LEGGIMI.txt", b"non serve")
+impronta = hashlib.sha256(open(archivio, "rb").read()).hexdigest()
+open(archivio + ".sha256", "w").write(impronta + "\n")
+
+
+classe Muto(http.server.SimpleHTTPRequestHandler):
+    definisci log_message(se_stesso, *argomenti):
+        passa
+
+
+gestore = functools.partial(Muto, directory=sito)
+server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), gestore)
+threading.Thread(target=server.serve_forever, daemon=Vero).start()
+url = f"http://127.0.0.1:{server.server_address[1]}/ffmpeg-finto.zip"
+se os.name == "nt":
+    segnati = []
+    dest = os.path.join(cartella, "scaricato")
+    risultato = multimedia.scarica_ffmpeg(url=url, cartella=dest, avanzamento=lambda fatti, totale: segnati.append((fatti, totale)))
+    asserisci risultato == os.path.join(dest, "bin", "ffmpeg.exe")
+    asserisci sorted(os.listdir(os.path.join(dest, "bin"))) == ["ffmpeg.exe", "ffprobe.exe"], os.listdir(os.path.join(dest, "bin"))
+    asserisci segnati e segnati[-1][0] == segnati[-1][1] > 0
+    asserisci non any(f.endswith(".parte") per f in os.listdir(dest))
+    stampa("download:", sorted(os.listdir(os.path.join(dest, "bin"))), "avanzamento:", segnati[-1])
+    # impronta sbagliata: rifiutato e senza residui
+    prova:
+        multimedia.scarica_ffmpeg(url=url, cartella=os.path.join(cartella, "x"), sha256="0" * 64)
+        asserisci Falso, "doveva rifiutare l'impronta sbagliata"
+    eccetto multimedia.ErroreMultimedia come errore:
+        asserisci "impronta" in tipo_testo(errore)
+        asserisci non os.path.exists(os.path.join(cartella, "x", "bin", "ffmpeg.exe"))
+        stampa("impronta sbagliata rifiutata")
+    # annullato a metà
+    prova:
+        multimedia.scarica_ffmpeg(url=url, cartella=os.path.join(cartella, "y"), interrompi=lambda: Vero)
+        asserisci Falso, "doveva fermarsi"
+    eccetto multimedia.ErroreMultimedia come errore:
+        asserisci "interrotto" in tipo_testo(errore)
+        asserisci non os.path.exists(os.path.join(cartella, "y", "scaricamento.zip.parte"))
+        stampa("download interrotto: ok")
+server.shutdown()
+
+# ---- con ffmpeg vero
+se ffmpeg:
+    tono = suono.crea_tono(os.path.join(cartella, "tono.wav"), 440, 1.0)
+    i = multimedia.info(tono)
+    asserisci abs(i["durata"] - 1.0) < 0.05 e i["audio"][0]["canali"] == 1 e i["audio"][0]["frequenza"] == 44100 e non i["video"], i
+    stampa("info wav:", i["formato"], round(i["durata"], 2), i["audio"][0])
+    mp3 = multimedia.converti(tono, os.path.join(cartella, "tono.mp3"))
+    asserisci os.path.isfile(mp3) e abs(multimedia.durata_di(mp3) - 1.0) < 0.2
+    stampa("wav -> mp3:", round(multimedia.durata_di(mp3), 2), "s")
+    segnati = []
+    ogg = multimedia.converti(mp3, os.path.join(cartella, "tono.ogg"), avanzamento=segnati.append)
+    asserisci os.path.isfile(ogg) e segnati e segnati[-1] == 1.0 e all(0 <= x <= 1 per x in segnati)
+    stampa("avanzamento della conversione: da", segnati[0], "a", segnati[-1])
+    # un video generato da ffmpeg stesso: 3 secondi, 160x120, con audio
+    video = os.path.join(cartella, "prova.mp4")
+    multimedia._esegui(["-f", "lavfi", "-i", "testsrc=duration=3:size=160x120:rate=10", "-f", "lavfi", "-i", "sine=frequency=330:duration=3",
+                        "-shortest", "-pix_fmt", "yuv420p", video])
+    v = multimedia.info(video)
+    asserisci v["video"][0]["larghezza"] == 160 e v["video"][0]["altezza"] == 120 e v["video"][0]["fps"] == 10.0 e v["audio"], v
+    stampa("info video:", v["formato"][:8], v["video"][0], v["audio"][0]["codec"])
+    colonna = multimedia.estrai_audio(video, os.path.join(cartella, "colonna.wav"))
+    asserisci abs(multimedia.durata_di(colonna) - 3.0) < 0.2 e non multimedia.info(colonna)["video"]
+    pezzo = multimedia.taglia(video, os.path.join(cartella, "pezzo.mp4"), inizio=1, fine=2)
+    asserisci abs(multimedia.durata_di(pezzo) - 1.0) < 0.3, multimedia.durata_di(pezzo)
+    stampa("taglia 1s-2s:", round(multimedia.durata_di(pezzo), 2), "s")
+    foto = multimedia.fotogramma(video, 1.5, os.path.join(cartella, "foto.png"))
+    asserisci os.path.getsize(foto) > 500 e open(foto, "rb").read(8) == b"\x89PNG\r\n\x1a\n"
+    piccolo = multimedia.riduci(video, os.path.join(cartella, "piccolo.mp4"), larghezza=80)
+    asserisci multimedia.info(piccolo)["video"][0]["larghezza"] == 80
+    prova:
+        multimedia.converti(video, os.path.join(cartella, "male.xyz"))
+        asserisci Falso, "formato inesistente: doveva dare errore"
+    eccetto multimedia.ErroreMultimedia come errore:
+        stampa("formato sconosciuto:", tipo_testo(errore)[:60])
+    prova:
+        multimedia.info(os.path.join(cartella, "non_esiste.mp4"))
+        asserisci Falso
+    eccetto FileNotFoundError:
+        passa
+    prova:
+        multimedia.taglia(video, os.path.join(cartella, "z.mp4"), inizio=2, fine=1)
+        asserisci Falso
+    eccetto ValueError:
+        passa
+    # suono: i formati diversi da .wav passano da ffmpeg
+    chiamate = []
+
+    classe FintoWinsound:
+        SND_FILENAME, SND_NODEFAULT, SND_ASYNC, SND_LOOP, SND_PURGE = 0x20000, 2, 1, 8, 0x40
+
+        definisci PlaySound(se_stesso, nome, flag):
+            chiamate.append(nome)
+
+    originale_ws = suono._ws
+    suono._ws = FintoWinsound()
+    suono.riproduci(mp3)
+    suono._ws = originale_ws
+    asserisci chiamate e chiamate[0].endswith(".wav") e os.path.isfile(chiamate[0]) e chiamate[0] != mp3, chiamate
+    asserisci abs(suono.durata_di(mp3) - 1.0) < 0.2
+    stampa("suono.riproduci(mp3) passa da un .wav temporaneo")
+altrimenti:
+    stampa("ffmpeg non installato: le prove con file vere sono saltate")
+stampa("ok")

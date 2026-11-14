@@ -1,0 +1,601 @@
+"""Finestre per la libreria ffmpeg: «Esplora ffmpeg» (filtri, codec, formati… della build installata, con le opzioni di ciascuno
+e un esempio di codice da copiare) e «Informazioni su un file» (cosa c'è dentro un file audio o video: flussi, tag, miniatura)."""
+importa os
+importa tempfile
+importa tkinter come tk
+da tkinter importa ttk, filedialog, messagebox
+
+da rad importa esecuzione
+da rad.piattaforma importa FONT_UI, FONT_MONO, semi, apri come apri_file, mostra_in_gestore_file
+da rad.stile importa suggerisci
+importa ffmpeg
+importa lettore
+
+
+# cosa si puo' sfogliare: (etichetta, funzione che da' l'elenco, colonne (campo, intestazione, larghezza))
+CATEGORIE = [
+    ("Filtri video", lambda: ffmpeg.filtri("video"), "filtro_v"),
+    ("Filtri audio", lambda: ffmpeg.filtri("audio"), "filtro_a"),
+    ("Codec", lambda: ffmpeg.codec(), "codec"),
+    ("Codificatori video", lambda: ffmpeg.codificatori("video"), "codificatore_v"),
+    ("Codificatori audio", lambda: ffmpeg.codificatori("audio"), "codificatore_a"),
+    ("Decodificatori", lambda: ffmpeg.decodificatori(), "decodificatore"),
+    ("Formati (contenitori)", lambda: ffmpeg.formati(), "formato"),
+    ("Formati dei pixel", lambda: ffmpeg.formati_pixel(), "pixel"),
+    ("Formati dei campioni audio", lambda: ffmpeg.formati_campione(), "campione"),
+    ("Layout dei canali", lambda: ffmpeg.layout_canali(), "layout"),
+    ("Protocolli", lambda: ffmpeg.protocolli(), "protocollo"),
+    ("Dispositivi", lambda: ffmpeg.dispositivi(), "dispositivo"),
+    ("Colori", lambda: ffmpeg.colori(), "colore"),
+]
+
+
+definisci descrizione_voce(voce):
+    """La seconda colonna dell'elenco."""
+    per campo in ("descrizione", "codice"):
+        se campo in voce e voce[campo]:
+            ritorna tipo_testo(voce[campo])
+    se "bit_per_pixel" in voce:
+        ritorna f"{voce['componenti']} componenti, {voce['bit_per_pixel']} bit per pixel"
+    se "bit" in voce:
+        ritorna f"{voce['bit']} bit"
+    se "ingresso" in voce:
+        ritorna ", ".join(x per x, attivo in (("ingresso", voce.get("ingresso")), ("uscita", voce.get("uscita"))) se attivo)
+    ritorna ""
+
+
+definisci esempio_per(genere, voce, opzioni=()):
+    """Un esempio di codice con la voce scelta, pronto da incollare in un programma."""
+    nome = voce["nome"].split(",")[0]
+    base = 'ffmpeg.apri("ingresso.mp4")'
+    se genere in ("filtro_v", "filtro_a"):
+        lato = "video" se genere == "filtro_v" altrimenti "audio"
+        scelte = [x per x in opzioni se x.get("predefinito") è non Nessuno][:2] o list(opzioni)[:1]
+        argomenti = ", ".join(f"{x['nome']}={valore_esempio(x)}" per x in scelte)
+        ritorna f'importa ffmpeg\n\n{base}.{lato}.{nome}({argomenti}).salva("uscita.mp4")\n'
+    se genere in ("codificatore_v", "decodificatore"):
+        ritorna f'importa ffmpeg\n\n{base}.codec_video("{nome}").salva("uscita.mp4")\n'
+    se genere == "codificatore_a":
+        ritorna f'importa ffmpeg\n\n{base}.codec_audio("{nome}").salva("uscita.mka")\n'
+    se genere == "codec":
+        coder = voce.get("codificatori", [])
+        se coder:
+            metodo = "codec_audio" se voce.get("tipo") == "audio" altrimenti "codec_video"
+            ritorna f'importa ffmpeg\n\n{base}.{metodo}("{coder[0]}").salva("uscita.mkv")\n'
+        ritorna "# Questo codec si puo' solo decodificare (leggere), non scrivere.\n"
+    se genere == "formato":
+        ritorna f'importa ffmpeg\n\n{base}.formato("{nome}").salva("uscita.{nome}")\n'
+    se genere == "pixel":
+        ritorna f'importa ffmpeg\n\n{base}.formato_pixel("{nome}").salva("uscita.mp4")\n'
+    se genere == "campione":
+        ritorna f'importa ffmpeg\n\n{base}.senza_video().formato_campione("{nome}").salva("uscita.wav")\n'
+    se genere == "layout":
+        ritorna f'importa ffmpeg\n\n{base}.senza_video().layout_canali("{nome}").salva("uscita.wav")\n'
+    se genere == "protocollo":
+        ritorna f'importa ffmpeg\n\nstampa(ffmpeg.sonda("{nome}://indirizzo/del/file.mp4"))\n'
+    se genere == "dispositivo":
+        ritorna f'importa ffmpeg\n\nffmpeg.nuovo().aggiungi("sorgente", formato="{nome}", durata=5).salva("registrazione.mp4")\n'
+    se genere == "colore":
+        ritorna f'importa ffmpeg\n\nffmpeg.colore("{nome}", "640x360", durata=3).salva("sfondo.mp4")\n'
+    ritorna ""
+
+
+definisci valore_esempio(opzione):
+    """Un valore plausibile per mostrare l'opzione in un esempio."""
+    predefinito = opzione.get("predefinito")
+    tipo = opzione.get("tipo_ffmpeg")
+    se tipo in ("int", "int64", "uint64", "float", "double"):
+        ritorna predefinito se (predefinito è non Nessuno e predefinito.lstrip("-").replace(".", "", 1).isdigit()) altrimenti (opzione.get("minimo") o "1")
+    se tipo == "boolean":
+        ritorna "Vero" se predefinito != "true" altrimenti "Falso"
+    se opzione.get("valori_ammessi"):
+        ritorna '"' + opzione["valori_ammessi"][0]["nome"] + '"'
+    ritorna '"' + tipo_testo(predefinito se predefinito è non Nessuno altrimenti "...") + '"'
+
+
+classe FinestraEsplora(tk.Toplevel):
+    """Si sceglie cosa guardare (filtri, codec, formati…), si cerca, e a destra compaiono le opzioni e un esempio di codice."""
+
+    definisci __inizializza__(se_stesso, app):
+        tk.Toplevel.__init__(se_stesso, app.radice)
+        se_stesso.app = app
+        se_stesso.title("Esplora ffmpeg")
+        se_stesso.geometry("980x620")
+        se_stesso.minsize(720, 420)
+        c = app.colori
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.grid_columnconfigure(0, weight=2)
+        se_stesso.grid_columnconfigure(1, weight=3)
+        se_stesso.grid_rowconfigure(2, weight=1)
+        se_stesso.avviso = tk.Label(se_stesso, anchor="w", justify="left", background=c["pannello"], foreground=c["avviso"], wraplength=900)
+        se_stesso.avviso.grid(row=0, column=0, columnspan=2, sticky="we", padx=12, pady=(10, 0))
+        alto = tk.Frame(se_stesso, background=c["pannello"])
+        alto.grid(row=1, column=0, sticky="we", padx=(12, 6), pady=8)
+        alto.grid_columnconfigure(1, weight=1)
+        se_stesso.var_genere = tk.StringVar(value=CATEGORIE[0][0])
+        se_stesso.scelta = ttk.Combobox(alto, textvariable=se_stesso.var_genere, values=[x[0] per x in CATEGORIE], state="readonly", width=24)
+        se_stesso.scelta.grid(row=0, column=0, padx=(0, 6))
+        se_stesso.scelta.bind("<<ComboboxSelected>>", lambda evento: se_stesso.riempi())
+        se_stesso.var_cerca = tk.StringVar()
+        se_stesso.campo = tk.Entry(alto, textvariable=se_stesso.var_cerca, relief="flat", font=(FONT_UI, 10), background=c["campo"],
+                                   foreground=c["primo_piano"], insertbackground=c["primo_piano"])
+        se_stesso.campo.grid(row=0, column=1, sticky="we", ipady=3)
+        se_stesso.var_cerca.trace_add("write", lambda *a: se_stesso.riempi())
+        suggerisci(se_stesso.campo, "Cerca per nome o per descrizione")
+        se_stesso.contatore = tk.Label(se_stesso, anchor="w", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.contatore.grid(row=3, column=0, sticky="we", padx=(12, 6), pady=(2, 10))
+        se_stesso.elenco = ttk.Treeview(se_stesso, columns=("descrizione",), show="tree headings", selectmode="browse")
+        se_stesso.elenco.heading("#0", text="Nome")
+        se_stesso.elenco.heading("descrizione", text="Cosa è")
+        se_stesso.elenco.column("#0", width=170, stretch=Falso)
+        se_stesso.elenco.column("descrizione", width=300)
+        se_stesso.elenco.grid(row=2, column=0, sticky="nsew", padx=(12, 0))
+        barra = ttk.Scrollbar(se_stesso, orient="vertical", command=se_stesso.elenco.yview)
+        se_stesso.elenco.configure(yscrollcommand=barra.set)
+        barra.grid(row=2, column=0, sticky="nse")
+        se_stesso.elenco.bind("<<TreeviewSelect>>", se_stesso._selezione)
+        destra = tk.Frame(se_stesso, background=c["pannello"])
+        destra.grid(row=1, column=1, rowspan=3, sticky="nsew", padx=(6, 12), pady=8)
+        destra.grid_columnconfigure(0, weight=1)
+        destra.grid_rowconfigure(1, weight=1)
+        se_stesso.titolo = tk.Label(destra, anchor="w", font=semi(14), background=c["pannello"], foreground=c["primo_piano"])
+        se_stesso.titolo.grid(row=0, column=0, sticky="we")
+        se_stesso.dettagli = tk.Text(destra, wrap="word", relief="flat", font=(FONT_UI, 10), background=c["campo"], foreground=c["primo_piano"],
+                                     highlightthickness=1, highlightbackground=c["bordo"], padx=10, pady=8, state="disabled")
+        se_stesso.dettagli.grid(row=1, column=0, sticky="nsew", pady=6)
+        barra2 = ttk.Scrollbar(destra, orient="vertical", command=se_stesso.dettagli.yview)
+        se_stesso.dettagli.configure(yscrollcommand=barra2.set)
+        barra2.grid(row=1, column=1, sticky="ns", pady=6)
+        se_stesso.dettagli.tag_configure("titolo", font=semi(10), foreground=c["accento"], spacing1=8)
+        se_stesso.dettagli.tag_configure("tenue", foreground=c["tenue"])
+        se_stesso.dettagli.tag_configure("codice", font=(FONT_MONO, 10), background=c["pannello"], lmargin1=8, lmargin2=8, spacing1=2, spacing3=2)
+        se_stesso.dettagli.tag_configure("nome_opzione", font=(FONT_MONO, 10, "bold"))
+        pulsanti = tk.Frame(destra, background=c["pannello"])
+        pulsanti.grid(row=2, column=0, columnspan=2, sticky="we")
+        se_stesso.b_esempio = se_stesso._pulsante(pulsanti, "Copia l'esempio", se_stesso.copia_esempio, Vero)
+        se_stesso.b_nome = se_stesso._pulsante(pulsanti, "Copia il nome", se_stesso.copia_nome)
+        se_stesso._pulsante(pulsanti, "Informazioni su un file…", se_stesso.apri_file_info)
+        se_stesso._pulsante(pulsanti, "Aggiorna", se_stesso.ricarica)
+        se_stesso._voce = Nessuno
+        se_stesso._esempio = ""
+        se_stesso._tutte = []
+        se_stesso._nodi = {}
+        se_stesso.riempi()
+
+    definisci _pulsante(se_stesso, genitore, testo_, comando, principale=Falso):
+        c = se_stesso.colori
+        b = tk.Button(genitore, text=testo_, command=comando, relief="flat", padx=10, pady=3, font=(FONT_UI, 9),
+                      background=c["accento"] se principale altrimenti c["pulsante"], foreground="#ffffff" se principale altrimenti c["primo_piano"])
+        b.pack(side="left", padx=(0, 6))
+        ritorna b
+
+    definisci _genere(se_stesso):
+        etichetta = se_stesso.var_genere.get()
+        per voce_categoria in CATEGORIE:
+            se voce_categoria[0] == etichetta:
+                ritorna voce_categoria
+        ritorna CATEGORIE[0]
+
+    definisci riempi(se_stesso):
+        """Riscrive l'elenco secondo la categoria e la ricerca."""
+        se_stesso.elenco.delete(*se_stesso.elenco.get_children())
+        se_stesso._nodi = {}
+        se non ffmpeg.disponibile:
+            se_stesso.avviso.configure(text="ffmpeg non è installato: l'elenco è vuoto. Usa Strumenti → ffmpeg: audio e video… per scaricarlo.")
+            se_stesso.contatore.configure(text="")
+            se_stesso._mostra_voce(Nessuno)
+            ritorna
+        se_stesso.avviso.configure(text="")
+        etichetta, funzione, genere = se_stesso._genere()
+        prova:
+            tutte = funzione()
+        eccetto Exception come errore:
+            se_stesso.avviso.configure(text=f"Non riesco a leggere l'elenco: {errore}")
+            ritorna
+        q = se_stesso.var_cerca.get().strip().lower()
+        mostrate = [v per v in tutte se non q o q in v["nome"].lower() o q in descrizione_voce(v).lower()]
+        per voce in mostrate[:3000]:
+            nodo = se_stesso.elenco.insert("", "end", text=voce["nome"], values=(descrizione_voce(voce),))
+            se_stesso._nodi[nodo] = voce
+        se_stesso.contatore.configure(text=f"{lunghezza_di(mostrate)} di {lunghezza_di(tutte)}" + (" (mostro i primi 3000)" se lunghezza_di(mostrate) > 3000 altrimenti ""))
+        figli = se_stesso.elenco.get_children()
+        se figli:
+            se_stesso.elenco.selection_set(figli[0])
+        altrimenti:
+            se_stesso._mostra_voce(Nessuno)
+
+    definisci _selezione(se_stesso, evento=Nessuno):
+        scelta = se_stesso.elenco.selection()
+        se_stesso._mostra_voce(se_stesso._nodi.get(scelta[0]) se scelta altrimenti Nessuno)
+
+    definisci _scrivi(se_stesso, testo_, etichetta=Nessuno):
+        se_stesso.dettagli.insert("end", testo_, etichetta) se etichetta altrimenti se_stesso.dettagli.insert("end", testo_)
+
+    definisci _mostra_voce(se_stesso, voce):
+        se_stesso._voce = voce
+        se_stesso._esempio = ""
+        t = se_stesso.dettagli
+        t.configure(state="normal")
+        t.delete("1.0", "end")
+        se voce è Nessuno:
+            se_stesso.titolo.configure(text="")
+            t.configure(state="disabled")
+            ritorna
+        etichetta, funzione, genere = se_stesso._genere()
+        se_stesso.titolo.configure(text=voce["nome"])
+        se voce.get("descrizione"):
+            se_stesso._scrivi(tipo_testo(voce["descrizione"]) + "\n", "tenue")
+        se_stesso._righe_proprieta(voce)
+        opzioni = []
+        aiuto = Nessuno
+        prova:
+            se genere in ("filtro_v", "filtro_a"):
+                aiuto = ffmpeg.aiuto_filtro(voce["nome"])
+            altrimenti_se genere in ("codificatore_v", "codificatore_a"):
+                aiuto = ffmpeg.aiuto_codificatore(voce["nome"])
+            altrimenti_se genere == "decodificatore":
+                aiuto = ffmpeg.aiuto_decodificatore(voce["nome"])
+            altrimenti_se genere == "formato" e voce.get("scrittura"):
+                aiuto = ffmpeg.aiuto_scrittore(voce["nome"].split(",")[0])
+            altrimenti_se genere == "formato":
+                aiuto = ffmpeg.aiuto_lettore(voce["nome"].split(",")[0])
+        eccetto Exception:
+            aiuto = Nessuno
+        se aiuto e aiuto.opzioni:
+            opzioni = aiuto.opzioni
+            se_stesso._scrivi("\nOpzioni\n", "titolo")
+            per opzione in opzioni:
+                se_stesso._scrivi(opzione["nome"], "nome_opzione")
+                dettaglio = f"  ({opzione['tipo']}"
+                se opzione.get("predefinito"):
+                    dettaglio += f", predefinito {opzione['predefinito']}"
+                se opzione.get("minimo") è non Nessuno:
+                    dettaglio += f", da {opzione['minimo']} a {opzione['massimo']}"
+                se_stesso._scrivi(dettaglio + ")\n", "tenue")
+                se opzione.get("descrizione"):
+                    se_stesso._scrivi("    " + opzione["descrizione"] + "\n")
+                se opzione.get("valori_ammessi"):
+                    se_stesso._scrivi("    valori: " + ", ".join(x["nome"] per x in opzione["valori_ammessi"][:14])
+                                      + (" …" se lunghezza_di(opzione["valori_ammessi"]) > 14 altrimenti "") + "\n", "tenue")
+        altrimenti_se aiuto è non Nessuno e genere in ("filtro_v", "filtro_a"):
+            se_stesso._scrivi("\nQuesto filtro non ha opzioni.\n", "tenue")
+        se_stesso._esempio = esempio_per(genere, voce, opzioni)
+        se se_stesso._esempio:
+            se_stesso._scrivi("\nEsempio\n", "titolo")
+            se_stesso._scrivi(se_stesso._esempio, "codice")
+        t.configure(state="disabled")
+        t.yview_moveto(0)
+
+    definisci _righe_proprieta(se_stesso, voce):
+        """Le proprieta' semplici (tipo, lettura, scrittura, ...) in una riga."""
+        pezzi = []
+        per campo, testo_ in (("tipo", "tipo"), ("codifica", "si può scrivere"), ("decodifica", "si può leggere"), ("lettura", "lettura"),
+                              ("scrittura", "scrittura"), ("timeline", "timeline"), ("hardware", "usa la scheda video"),
+                              ("con_perdita", "con perdita"), ("senza_perdita", "senza perdita"), ("sperimentale", "sperimentale")):
+            valore = voce.get(campo)
+            se valore è Vero:
+                pezzi.append(testo_)
+            altrimenti_se campo == "tipo" e valore:
+                pezzi.append(f"tipo: {valore}")
+        se voce.get("codificatori"):
+            pezzi.append("codificatori: " + ", ".join(voce["codificatori"]))
+        se voce.get("decodificatori"):
+            pezzi.append("decodificatori: " + ", ".join(voce["decodificatori"]))
+        se pezzi:
+            se_stesso._scrivi(" · ".join(pezzi) + "\n", "tenue")
+
+    definisci copia_esempio(se_stesso):
+        se se_stesso._esempio:
+            se_stesso.clipboard_clear()
+            se_stesso.clipboard_append(se_stesso._esempio)
+
+    definisci copia_nome(se_stesso):
+        se se_stesso._voce:
+            se_stesso.clipboard_clear()
+            se_stesso.clipboard_append(se_stesso._voce["nome"].split(",")[0])
+
+    definisci apri_file_info(se_stesso):
+        se_stesso.app.informazioni_file()
+
+    definisci ricarica(se_stesso):
+        """Rilegge i cataloghi (dopo aver cambiato ffmpeg)."""
+        ffmpeg.svuota_cache()
+        se_stesso.riempi()
+
+
+classe FinestraSonda(tk.Toplevel):
+    """Cosa c'è dentro un file audio o video: formato, durata, flussi, tag, capitoli e una miniatura (o la forma d'onda)."""
+
+    definisci __inizializza__(se_stesso, app, percorso):
+        tk.Toplevel.__init__(se_stesso, app.radice)
+        se_stesso.app = app
+        se_stesso.percorso = percorso
+        se_stesso.title("Informazioni: " + os.path.basename(percorso))
+        se_stesso.geometry("820x620")
+        se_stesso.minsize(640, 420)
+        c = app.colori
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        se_stesso.grid_columnconfigure(0, weight=1)
+        se_stesso.grid_rowconfigure(2, weight=1)
+        se_stesso._immagine = Nessuno
+        se_stesso._temp = tempfile.mkdtemp()
+        se_stesso.sonda = Nessuno
+        se_stesso.titolo = tk.Label(se_stesso, text=os.path.basename(percorso), anchor="w", font=semi(14), background=c["pannello"], foreground=c["primo_piano"])
+        se_stesso.titolo.grid(row=0, column=0, sticky="we", padx=14, pady=(12, 0))
+        se_stesso.sommario = tk.Label(se_stesso, anchor="w", justify="left", background=c["pannello"], foreground=c["tenue"], wraplength=760)
+        se_stesso.sommario.grid(row=1, column=0, sticky="we", padx=14, pady=(0, 8))
+        corpo = tk.Frame(se_stesso, background=c["pannello"])
+        corpo.grid(row=2, column=0, sticky="nsew", padx=14)
+        corpo.grid_columnconfigure(0, weight=1)
+        corpo.grid_rowconfigure(1, weight=1)
+        se_stesso.anteprima = tk.Label(corpo, background=c["campo"], foreground=c["tenue"], text="…", height=8)
+        se_stesso.anteprima.grid(row=0, column=0, sticky="we", pady=(0, 8))
+        se_stesso.flussi = ttk.Treeview(corpo, columns=("tipo", "codec", "dettagli", "lingua"), show="headings", selectmode="browse", height=3)
+        per chiave, titolo_, larghezza in (("tipo", "Flusso", 90), ("codec", "Codec", 110), ("dettagli", "Dettagli", 380), ("lingua", "Lingua", 70)):
+            se_stesso.flussi.heading(chiave, text=titolo_)
+            se_stesso.flussi.column(chiave, width=larghezza, stretch=(chiave == "dettagli"))
+        se_stesso.flussi.grid(row=1, column=0, sticky="nsew")
+        se_stesso.altro = tk.Text(corpo, wrap="word", height=3, relief="flat", font=(FONT_UI, 9), background=c["campo"], foreground=c["primo_piano"],
+                                  highlightthickness=1, highlightbackground=c["bordo"], padx=8, pady=6, state="disabled")
+        se_stesso.altro.grid(row=2, column=0, sticky="we", pady=(8, 0))
+        pulsanti = tk.Frame(se_stesso, background=c["pannello"])
+        pulsanti.grid(row=3, column=0, sticky="we", padx=14, pady=10)
+        per testo_, comando in (("Copia il riassunto", se_stesso.copia_riassunto), ("Copia il JSON completo", se_stesso.copia_json),
+                                ("Riproduci", lambda: se_stesso.app.apri_lettore(se_stesso.percorso)),
+                                ("Mostra nella cartella", lambda: mostra_in_gestore_file(se_stesso.percorso)),
+                                ("Esplora ffmpeg…", se_stesso.app.esplora_ffmpeg)):
+            tk.Button(pulsanti, text=testo_, command=comando, relief="flat", padx=10, pady=3, font=(FONT_UI, 9), background=c["pulsante"],
+                      foreground=c["primo_piano"]).pack(side="left", padx=(0, 6))
+        se_stesso.carica()
+
+    definisci carica(se_stesso):
+        se non ffmpeg.disponibile:
+            se_stesso.sommario.configure(text="ffmpeg non è installato: usa Strumenti → ffmpeg: audio e video… per scaricarlo.", foreground=se_stesso.colori["avviso"])
+            ritorna
+        prova:
+            s = ffmpeg.sonda(se_stesso.percorso)
+        eccetto Exception come errore:
+            se_stesso.sommario.configure(text=f"Non riesco a leggere il file: {errore}", foreground=se_stesso.colori["avviso"])
+            ritorna
+        se_stesso.sonda = s
+        dimensione = f"{s.dimensione / 1048576:.2f} MB" se s.dimensione >= 1048576 altrimenti f"{s.dimensione / 1024:.1f} KB"
+        durata = ore_minuti(s.durata)
+        estensione = os.path.splitext(se_stesso.percorso)[1].lstrip(".").lower()
+        nomi_formato = s.formato.split(",")
+        pezzi = [estensione se estensione in nomi_formato altrimenti nomi_formato[0], durata, dimensione]
+        se s.bitrate:
+            pezzi.append(f"{s.bitrate / 1000:.0f} kbit/s")
+        se s.risoluzione:
+            pezzi.append(f"{s.risoluzione[0]}×{s.risoluzione[1]}" + (f" a {s.fps:g} fps" se s.fps altrimenti ""))
+        se_stesso.sommario.configure(text="  ·  ".join(pezzi), foreground=se_stesso.colori["tenue"])
+        se_stesso.flussi.configure(height=max(2, min(lunghezza_di(s.flussi), 7)))
+        per flusso in s.flussi:
+            se_stesso.flussi.insert("", "end", values=(f"{flusso.indice}: {flusso.tipo}", flusso.get("codec") o "", dettaglio_flusso(flusso), "" se flusso.lingua in (Nessuno, "und") altrimenti flusso.lingua))
+        t = se_stesso.altro
+        t.configure(state="normal")
+        t.delete("1.0", "end")
+        se s.tag:
+            t.insert("end", "Tag:  " + "   ".join(f"{k}: {v}" per k, v in s.tag.items() se k.lower() non in ("encoder", "major_brand", "minor_version", "compatible_brands")) + "\n")
+        se s.capitoli:
+            t.insert("end", "Capitoli:  " + "   ".join(f"{ore_minuti(x.inizio)} {x.titolo o ''}" per x in s.capitoli[:12]) + "\n")
+        se non s.tag e non s.capitoli:
+            t.insert("end", "Nessun tag né capitoli.")
+        t.configure(state="disabled")
+        se_stesso._cerca_anteprima(s)
+
+    definisci _cerca_anteprima(se_stesso, s):
+        se s.ha_video:
+            tempo = min(max(s.durata * 0.1, 0.0), max(s.durata - 0.1, 0.0))
+            file = os.path.join(se_stesso._temp, "anteprima.png")
+            lavoro = lambda: ffmpeg.fotogramma(se_stesso.percorso, tempo, file, larghezza=560) e file
+        altrimenti_se s.ha_audio:
+            file = os.path.join(se_stesso._temp, "onda.png")
+            lavoro = lambda: ffmpeg.onda_audio(se_stesso.percorso, file, "560x110", colore="#4f8cff") e file
+        altrimenti:
+            ritorna
+        esecuzione.in_secondo_piano(se_stesso, lavoro, se_stesso._anteprima_pronta)
+
+    definisci _anteprima_pronta(se_stesso, riuscito, risultato):
+        se non riuscito:
+            se_stesso.anteprima.configure(text="(nessuna anteprima)")
+            ritorna
+        prova:
+            da PIL importa Image, ImageTk
+            immagine = Image.open(risultato)
+            immagine.load()
+            se_stesso._immagine = ImageTk.PhotoImage(immagine)
+            se_stesso.anteprima.configure(image=se_stesso._immagine, text="", height=immagine.height)
+        eccetto Exception:
+            se_stesso.anteprima.configure(text="(nessuna anteprima)")
+
+    definisci copia_riassunto(se_stesso):
+        se se_stesso.sonda:
+            se_stesso.clipboard_clear()
+            se_stesso.clipboard_append(se_stesso.sonda.riassunto())
+
+    definisci copia_json(se_stesso):
+        se se_stesso.sonda:
+            se_stesso.clipboard_clear()
+            se_stesso.clipboard_append(se_stesso.sonda.json())
+
+
+definisci ore_minuti(secondi):
+    """123.4 -> '2:03' ; 3725 -> '1:02:05'."""
+    totale = int(round(secondi))
+    ore, resto = divmod(totale, 3600)
+    minuti, sec = divmod(resto, 60)
+    ritorna f"{ore}:{minuti:02d}:{sec:02d}" se ore altrimenti f"{minuti}:{sec:02d}"
+
+
+definisci dettaglio_flusso(flusso):
+    se flusso.tipo == "video":
+        ritorna f"{flusso.larghezza}×{flusso.altezza}, {flusso.fps:g} fps, {flusso.get('formato_pixel') o ''}".rstrip(", ")
+    se flusso.tipo == "audio":
+        ritorna f"{flusso.canali} canali ({flusso.get('layout') o '?'}), {flusso.frequenza} Hz"
+    ritorna flusso.titolo o ""
+
+
+classe FinestraLettore(tk.Toplevel):
+    """Il lettore audio e video di PitStudio: un motore a scelta (VLC oggi, mpv in arrivo) con gli stessi comandi per tutti."""
+
+    definisci __inizializza__(se_stesso, app, percorso=Nessuno, conferma=Nessuno, installa=Nessuno, opzioni_motore=Nessuno):
+        tk.Toplevel.__init__(se_stesso, app.radice)
+        se_stesso.app = app
+        se_stesso._opzioni_motore = opzioni_motore
+        se_stesso.title("Lettore audio e video")
+        se_stesso.geometry("860x600")
+        se_stesso.minsize(560, 380)
+        c = app.colori
+        se_stesso.colori = c
+        se_stesso.configure(background=c["pannello"])
+        se_stesso._conferma = conferma o (lambda testo_: messagebox.askyesno("Installa", testo_, parent=se_stesso))
+        se_stesso._installa = installa o lettore.installa_motore
+        se_stesso.pannello = Nessuno
+        se_stesso._percorso = Nessuno
+        se_stesso._intero = Falso
+        se_stesso.barra = tk.Frame(se_stesso, background=c["pannello"])
+        se_stesso.barra.pack(fill="x", padx=10, pady=(8, 0))
+        tk.Label(se_stesso.barra, text="Motore:", background=c["pannello"], foreground=c["tenue"]).pack(side="left")
+        se_stesso.var_motore = tk.StringVar()
+        se_stesso.scelta = ttk.Combobox(se_stesso.barra, textvariable=se_stesso.var_motore, state="readonly", width=22)
+        se_stesso.scelta.pack(side="left", padx=(4, 10))
+        se_stesso.scelta.bind("<<ComboboxSelected>>", se_stesso._cambia_motore)
+        suggerisci(se_stesso.scelta, "Il programma che riproduce: gli stessi comandi valgono per tutti")
+        se_stesso.b_apri = tk.Button(se_stesso.barra, text="Apri un file…", command=se_stesso.scegli_file, relief="flat", padx=10, pady=2,
+                                     background=c["accento"], foreground="#ffffff")
+        se_stesso.b_apri.pack(side="left")
+        se_stesso.b_installa = tk.Button(se_stesso.barra, text="Installa VLC…", command=se_stesso.installa_vlc, relief="flat", padx=10, pady=2,
+                                         background=c["pulsante"], foreground=c["primo_piano"])
+        se_stesso.nota = tk.Label(se_stesso.barra, text="", anchor="e", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.nota.pack(side="right", fill="x", expand=Vero)
+        se_stesso.corpo = tk.Frame(se_stesso, background=c["pannello"])
+        se_stesso.corpo.pack(fill="both", expand=Vero, padx=10, pady=8)
+        se_stesso.bind("<space>", lambda evento: se_stesso._tasto(lambda p: p.commuta()))
+        se_stesso.bind("<Left>", lambda evento: se_stesso._tasto(lambda p: p.lettore.salta(-5)))
+        se_stesso.bind("<Right>", lambda evento: se_stesso._tasto(lambda p: p.lettore.salta(5)))
+        se_stesso.bind("<Up>", lambda evento: se_stesso._tasto(lambda p: se_stesso._volume(5)))
+        se_stesso.bind("<Down>", lambda evento: se_stesso._tasto(lambda p: se_stesso._volume(-5)))
+        se_stesso.bind("<m>", lambda evento: se_stesso._tasto(lambda p: p.b_muto.invoke()))
+        se_stesso.bind("<f>", lambda evento: se_stesso.schermo_intero())
+        se_stesso.bind("<Escape>", lambda evento: se_stesso.schermo_intero(Falso))
+        se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
+        se_stesso._riempi_motori()
+        se_stesso.crea_pannello(se_stesso._motore_corrente())
+        se percorso:
+            se_stesso.apri(percorso)
+
+    definisci _riempi_motori(se_stesso):
+        se_stesso._elenco = lettore.motori()
+        se_stesso.scelta.configure(values=[se_stesso._etichetta(m) per m in se_stesso._elenco])
+        corrente = lettore.motore_predefinito(solo_nome=Vero)
+        per m in se_stesso._elenco:
+            se m.nome == corrente:
+                se_stesso.var_motore.set(se_stesso._etichetta(m))
+                ritorna
+        se_stesso.var_motore.set(se_stesso._etichetta(se_stesso._elenco[0]))
+
+    definisci _etichetta(se_stesso, motore):
+        se non motore.implementato:
+            ritorna f"{motore.nome} (in arrivo)"
+        ritorna motore.nome se motore.disponibile altrimenti f"{motore.nome} (non installato)"
+
+    definisci _motore_corrente(se_stesso):
+        per m in se_stesso._elenco:
+            se se_stesso._etichetta(m) == se_stesso.var_motore.get():
+                ritorna m
+        ritorna Nessuno
+
+    definisci crea_pannello(se_stesso, motore):
+        """Mette nella finestra il riquadro del lettore col motore scelto (o spiega cosa manca)."""
+        se se_stesso.pannello è non Nessuno:
+            se_stesso.pannello.destroy()
+            se_stesso.pannello = Nessuno
+        per figlio in se_stesso.corpo.winfo_children():
+            figlio.destroy()
+        se_stesso.b_installa.pack_forget()
+        se motore è Nessuno o non motore.implementato:
+            se_stesso.nota.configure(text="Questo motore non è ancora disponibile.")
+            ritorna
+        se non motore.disponibile:
+            se_stesso.nota.configure(text=f"{motore.nome} non è installato.")
+            se motore.nome == "vlc":
+                se_stesso.b_installa.pack(side="left", padx=(8, 0))
+            tk.Label(se_stesso.corpo, text=f"{motore.nome} non è installato.\n\n{motore.installazione}", justify="left", wraplength=700,
+                     background=se_stesso.colori["pannello"], foreground=se_stesso.colori["tenue"]).pack(anchor="w", pady=20)
+            ritorna
+        se_stesso.nota.configure(text="")
+        se_stesso.pannello = lettore.PannelloLettore(se_stesso.corpo, motore=motore.nome, colori=se_stesso.colori, opzioni=se_stesso._opzioni_motore)
+        se_stesso.pannello.su_doppio_clic = se_stesso.schermo_intero
+        se_stesso.pannello.pack(fill="both", expand=Vero)
+        se_stesso.update_idletasks()
+
+    definisci _cambia_motore(se_stesso, evento=Nessuno):
+        motore = se_stesso._motore_corrente()
+        se motore è non Nessuno e motore.implementato e motore.disponibile:
+            lettore.imposta_motore_predefinito(motore.nome)
+        percorso = se_stesso._percorso
+        se_stesso.crea_pannello(motore)
+        se percorso e se_stesso.pannello è non Nessuno:
+            se_stesso.apri(percorso)
+
+    definisci scegli_file(se_stesso):
+        percorso = filedialog.askopenfilename(parent=se_stesso, title="Scegli un file audio o video",
+                                              filetypes=[("Audio e video", "*.mp4 *.mkv *.avi *.mov *.webm *.flv *.wmv *.m4v *.mpg *.mp3 *.wav *.ogg *.flac *.m4a *.aac *.opus *.wma"),
+                                                         ("Tutti i file", "*.*")])
+        se percorso:
+            se_stesso.apri(percorso)
+
+    definisci apri(se_stesso, percorso):
+        se se_stesso.pannello è Nessuno:
+            ritorna Falso
+        prova:
+            se_stesso.pannello.apri(percorso)
+        eccetto Exception come errore:
+            se_stesso.nota.configure(text=str(errore)[:90])
+            ritorna Falso
+        se_stesso._percorso = percorso
+        se_stesso.title("Lettore: " + os.path.basename(percorso))
+        ritorna Vero
+
+    definisci installa_vlc(se_stesso):
+        se non se_stesso._conferma("Installo VLC con winget (VideoLAN.VLC)?\n\nWindows ti chiederà il permesso di amministratore. "
+                                   "VLC è un programma a parte, con la sua licenza."):
+            ritorna
+        se_stesso.b_installa.configure(state="disabled")
+        se_stesso.nota.configure(text="Installazione in corso…")
+        esecuzione.in_secondo_piano(se_stesso, lambda: se_stesso._installa("vlc"), se_stesso._installato)
+
+    definisci _installato(se_stesso, riuscito, risultato):
+        se_stesso.b_installa.configure(state="normal")
+        se_stesso._riempi_motori()
+        se riuscito e risultato:
+            se_stesso.crea_pannello(se_stesso._motore_corrente())
+            ritorna
+        se_stesso.nota.configure(text="Installazione non riuscita: " + (tipo_testo(risultato)[:80] se non riuscito altrimenti "VLC non risulta installato"))
+
+    definisci _tasto(se_stesso, funzione):
+        se se_stesso.pannello è non Nessuno e se_stesso.pannello.lettore è non Nessuno:
+            prova:
+                funzione(se_stesso.pannello)
+            eccetto Exception:
+                passa
+
+    definisci _volume(se_stesso, differenza):
+        p = se_stesso.pannello
+        p.var_volume.set(max(0, min(100, p.var_volume.get() + differenza)))
+        p._volume(p.var_volume.get())
+
+    definisci schermo_intero(se_stesso, attivo=Nessuno):
+        se_stesso._intero = (non se_stesso._intero) se attivo è Nessuno altrimenti attivo
+        se_stesso.attributes("-fullscreen", se_stesso._intero)
+        se se_stesso._intero:
+            se_stesso.barra.pack_forget()
+        altrimenti:
+            se_stesso.barra.pack(fill="x", padx=10, pady=(8, 0), before=se_stesso.corpo)
+
+    definisci _chiudi(se_stesso):
+        se se_stesso.pannello è non Nessuno:
+            se_stesso.pannello.destroy()
+        se_stesso.destroy()

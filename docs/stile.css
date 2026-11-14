@@ -119,6 +119,8 @@ h3{font-size:1.18rem;margin:0 0 6px;letter-spacing:-.2px}
 .caratt.inv{grid-template-columns:1.25fr 1fr}
 .caratt.inv .t{order:2}
 .caratt p{color:var(--mut);margin:0 0 12px}
+.caratt>*{min-width:0}
+.caratt pre{margin:16px 0 0;max-width:100%}
 ul.v{margin:12px 0 0;padding:0;list-style:none}
 ul.v li{padding:5px 0 5px 28px;position:relative;color:var(--mut)}
 ul.v li::before{content:"";position:absolute;left:2px;top:.95em;width:14px;height:8px;border-left:2.5px solid var(--acc);border-bottom:2.5px solid var(--acc);transform:rotate(-45deg) translateY(-60%)}

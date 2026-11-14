@@ -1,0 +1,158 @@
+"""Le finestre per ffmpeg: «Esplora ffmpeg» (elenchi, ricerca, opzioni, esempio) e «Informazioni su un file» (flussi, tag, miniatura)."""
+importa sys, os, tempfile, time
+radice_test = tempfile.mkdtemp()
+os.environ["USERPROFILE"] = radice_test
+os.environ["HOME"] = radice_test
+qui = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(qui))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad importa media_ui
+importa ffmpeg
+
+errori = []
+
+
+definisci verifica(condizione, messaggio):
+    se non condizione:
+        errori.append(messaggio)
+        stampa("ERRORE:", messaggio)
+
+
+definisci aspetta(secondi, condizione=Nessuno):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione e condizione():
+            ritorna Vero
+        time.sleep(0.02)
+    ritorna Falso
+
+
+cfg = Configurazione(os.path.join(radice_test, "config.json"))
+radice = tk.Tk()
+radice.geometry("1000x700+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+
+# le voci di menu
+barra = radice.nametowidget(radice.cget("menu"))
+voci = []
+per i in intervallo_di(barra.index("end") + 1):
+    se barra.type(i) == "cascade" e barra.entrycget(i, "label") == "Strumenti":
+        sotto = radice.nametowidget(barra.entrycget(i, "menu"))
+        voci = [sotto.entrycget(j, "label") per j in intervallo_di(sotto.index("end") + 1) se sotto.type(j) == "command"]
+verifica(any(v.startswith("Esplora ffmpeg") per v in voci) e any(v.startswith("Informazioni su un file") per v in voci), f"voci di menu: {voci}")
+
+# esempi di codice
+verifica("importa ffmpeg" in media_ui.esempio_per("formato", {"nome": "mp4"}) e '.formato("mp4")' in media_ui.esempio_per("formato", {"nome": "mp4"}), "esempio formato")
+verifica("# Questo codec" in media_ui.esempio_per("codec", {"nome": "x", "codificatori": []}), "codec senza codificatore")
+verifica('.codec_audio("aac")' in media_ui.esempio_per("codec", {"nome": "aac", "tipo": "audio", "codificatori": ["aac"]}), "codec audio")
+verifica(media_ui.ore_minuti(123.4) == "2:03" e media_ui.ore_minuti(3725) == "1:02:05", "durata a parole")
+op = [{"nome": "w", "predefinito": Nessuno, "tipo_ffmpeg": "string", "valori_ammessi": []}, {"nome": "flags", "predefinito": "bicubic", "tipo_ffmpeg": "string", "valori_ammessi": []}]
+verifica('scale(flags="bicubic")' in media_ui.esempio_per("filtro_v", {"nome": "scale"}, op), f"esempio filtro: {media_ui.esempio_per('filtro_v', {'nome': 'scale'}, op)}")
+
+# senza ffmpeg: la finestra lo dice
+ffmpeg.disponibile = Falso
+f = app.esplora_ffmpeg()
+radice.update()
+verifica("non è installato" in f.avviso.cget("text") e non f.elenco.get_children(), "senza ffmpeg: avviso")
+elimina_attributo = ffmpeg.__dict__.pop("disponibile")
+f.destroy()
+
+se non ffmpeg.disponibile:
+    stampa("ffmpeg non installato: le prove sul lavoro vero sono saltate")
+    radice.destroy()
+    stampa("ok" se non errori altrimenti f"{len(errori)} errori")
+    sys.exit(1 se errori altrimenti 0)
+
+# ---- Esplora ffmpeg
+f = app.esplora_ffmpeg()
+radice.update()
+verifica(f è app.esplora_ffmpeg(), "una sola finestra")
+verifica(f.avviso.cget("text") == "" e lunghezza_di(f.elenco.get_children()) > 100, "elenco dei filtri video")
+verifica("di" in f.contatore.cget("text"), f"contatore: {f.contatore.cget('text')}")
+f.var_cerca.set("scale")
+radice.update()
+nomi = [f.elenco.item(x, "text") per x in f.elenco.get_children()]
+verifica("scale" in nomi e lunghezza_di(nomi) < 60, f"ricerca: {nomi[:5]}")
+f.elenco.selection_set([x per x in f.elenco.get_children() se f.elenco.item(x, "text") == "scale"][0])
+radice.update()
+testo_dettagli = f.dettagli.get("1.0", "end")
+verifica("Opzioni" in testo_dettagli e "force_original_aspect_ratio" in testo_dettagli e "Esempio" in testo_dettagli, "dettagli di scale")
+verifica("ffmpeg.apri(" in f._esempio e ".video.scale(" in f._esempio, f"esempio: {f._esempio}")
+verifica(f.titolo.cget("text") == "scale", "titolo")
+f.copia_esempio()
+verifica("ffmpeg.apri" in f.clipboard_get(), "copia l'esempio")
+f.copia_nome()
+verifica(f.clipboard_get() == "scale", "copia il nome")
+# un'altra categoria
+f.var_genere.set("Codificatori video")
+f.var_cerca.set("libx264")
+f.riempi()
+radice.update()
+nomi = [f.elenco.item(x, "text") per x in f.elenco.get_children()]
+verifica("libx264" in nomi, f"codificatori: {nomi}")
+f.elenco.selection_set(f.elenco.get_children()[0])
+radice.update()
+verifica("preset" in f.dettagli.get("1.0", "end") e '.codec_video("' in f._esempio, "opzioni di un codificatore")
+per categoria, _, _ in media_ui.CATEGORIE:
+    f.var_genere.set(categoria)
+    f.var_cerca.set("")
+    f.riempi()
+    radice.update()
+    verifica(lunghezza_di(f.elenco.get_children()) > 0, f"categoria vuota: {categoria}")
+    f.elenco.selection_set(f.elenco.get_children()[0])
+    radice.update()
+    verifica(f.titolo.cget("text") != "", f"nessun titolo in {categoria}")
+f.var_genere.set("Formati (contenitori)")
+f.var_cerca.set("mp4")
+f.riempi()
+radice.update()
+f.elenco.selection_set([x per x in f.elenco.get_children() se f.elenco.item(x, "text") == "mp4"][0])
+radice.update()
+verifica("scrittura" in f.dettagli.get("1.0", "end") e 'formato("mp4")' in f._esempio, "formato mp4")
+f.var_cerca.set("zzzzzzzz")
+radice.update()
+verifica(non f.elenco.get_children() e f.titolo.cget("text") == "", "nessun risultato")
+f.ricarica()
+f.destroy()
+
+# ---- Informazioni su un file
+video = os.path.join(radice_test, "prova.mp4")
+ffmpeg.schema_di_prova("320x180", durata=4).sorgente("sine=frequency=330:duration=4").mappa("0:v").mappa("1:a").codec_video("libx264") \
+    .formato_pixel("yuv420p").codec_audio("aac").metadati(title="Il mio video").salva(video)
+w = app.informazioni_file(video)
+radice.update()
+verifica("prova.mp4" in w.title(), "titolo della finestra")
+sommario = w.sommario.cget("text")
+verifica("0:04" in sommario e "320×180" in sommario e "25 fps" in sommario, f"sommario: {sommario}")
+righe = [w.flussi.item(x, "values") per x in w.flussi.get_children()]
+verifica(lunghezza_di(righe) == 2 e righe[0][0] == "0: video" e righe[0][1] == "h264" e "320×180" in righe[0][2], f"flussi: {righe}")
+verifica(righe[1][0] == "1: audio" e righe[1][1] == "aac" e "Hz" in righe[1][2], f"audio: {righe}")
+verifica("Il mio video" in w.altro.get("1.0", "end"), "tag")
+verifica(aspetta(10, lambda: w._immagine è non Nessuno), "miniatura del video")
+w.copia_riassunto()
+verifica("prova.mp4" in w.clipboard_get(), "copia riassunto")
+w.copia_json()
+verifica('"streams"' in w.clipboard_get(), "copia json")
+w.destroy()
+# solo audio: la forma d'onda
+audio = os.path.join(radice_test, "la.wav")
+ffmpeg.tono(440, 2).salva(audio)
+w = app.informazioni_file(audio)
+radice.update()
+verifica("0:02" in w.sommario.cget("text") e lunghezza_di(w.flussi.get_children()) == 1, f"audio: {w.sommario.cget('text')}")
+verifica(aspetta(10, lambda: w._immagine è non Nessuno), "forma d'onda")
+w.destroy()
+# un file che non e' multimediale
+brutto = os.path.join(radice_test, "testo.txt")
+open(brutto, "w").write("non sono un video")
+w = app.informazioni_file(brutto)
+radice.update()
+verifica("Non riesco a leggere" in w.sommario.cget("text"), f"file non multimediale: {w.sommario.cget('text')}")
+w.destroy()
+radice.destroy()
+stampa("ok" se non errori altrimenti f"{len(errori)} errori")
+sys.exit(1 se errori altrimenti 0)

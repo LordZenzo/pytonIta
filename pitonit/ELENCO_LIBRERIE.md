@@ -4,7 +4,7 @@
 |---|---|---|---|
 | `matematica` | `math` | 44 | 1 |
 | `casuale` | `random` | 14 | 1 |
-| `tempo` | `time` | 14 | 2 |
+| `tempo` | `time` | 15 | 2 |
 | `sistema` | `sys` | 20 | 13 |
 | `sistema_operativo` | `os` | 29 | 23 |
 | `sistema_operativo.percorso` | `os.path` | 22 | 0 |
@@ -115,7 +115,7 @@
 | `grafici.figura` | `matplotlib.figure` | 11 | 259 |
 | `foglio_tk` | `tksheet` | 9 | 781 |
 | `immagini` | `PIL.Image` | 23 | 79 |
-| `asincronia` | `asyncio` | 55 | 104 |
+| `asincronia` | `asyncio` | 56 | 104 |
 | `esecutori` | `concurrent.futures` | 21 | 7 |
 | `multiprocesso` | `multiprocessing` | 24 | 10 |
 | `cronometro` | `timeit` | 6 | 1 |
@@ -155,4 +155,4 @@
 | `parole_chiave` | `keyword` | 3 | 0 |
 | `gettext_traduzioni` | `gettext` | 2 | 4 |
 
-Totale alias: **8763**. Il nome originale resta sempre disponibile.
+Totale alias: **8765**. Il nome originale resta sempre disponibile.

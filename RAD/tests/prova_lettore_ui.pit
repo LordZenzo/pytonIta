@@ -1,0 +1,127 @@
+"""La finestra «Lettore audio e video» di PitStudio: scelta del motore, riproduzione, tasti, installazione guidata di VLC (finta) e
+messaggio quando VLC manca. Il suono e' spento (--no-audio)."""
+importa sys, os, tempfile, time
+radice_test = tempfile.mkdtemp()
+os.environ["USERPROFILE"] = radice_test
+os.environ["HOME"] = radice_test
+qui = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(qui))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.media_ui importa FinestraLettore
+importa lettore
+importa suono
+
+lettore.CONFIGURAZIONE = os.path.join(radice_test, "lettore.json")
+errori = []
+
+
+definisci verifica(condizione, messaggio):
+    se non condizione:
+        errori.append(messaggio)
+        stampa("ERRORE:", messaggio)
+
+
+definisci aspetta(secondi, condizione=Nessuno):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione e condizione():
+            ritorna Vero
+        time.sleep(0.03)
+    ritorna Falso
+
+
+cfg = Configurazione(os.path.join(radice_test, "config.json"))
+radice = tk.Tk()
+radice.geometry("1000x700+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+
+barra = radice.nametowidget(radice.cget("menu"))
+voci = []
+per i in intervallo_di(barra.index("end") + 1):
+    se barra.type(i) == "cascade" e barra.entrycget(i, "label") == "Strumenti":
+        sotto = radice.nametowidget(barra.entrycget(i, "menu"))
+        voci = [sotto.entrycget(j, "label") per j in intervallo_di(sotto.index("end") + 1) se sotto.type(j) == "command"]
+verifica(any(v.startswith("Lettore audio e video") per v in voci), f"voce di menu: {voci}")
+
+# ---- VLC manca: la finestra lo spiega e propone di installarlo (finto)
+vero_cartella = lettore._cartella_vlc
+lettore._cartella_vlc = lambda: Nessuno
+installazioni = []
+consensi = []
+f = FinestraLettore(app, conferma=lambda testo_: consensi.append(testo_) o Falso, installa=lambda nome: installazioni.append(nome) o Falso)
+radice.update()
+verifica(f.pannello è Nessuno e "non installato" in f.var_motore.get(), f"senza VLC: {f.var_motore.get()}")
+verifica("non è installato" in f.nota.cget("text") e f.b_installa.winfo_ismapped(), "senza VLC: pulsante per installarlo")
+f.b_installa.invoke()
+verifica(lunghezza_di(consensi) == 1 e "winget" in consensi[0] e "amministratore" in consensi[0] e installazioni == [], f"senza il consenso non installa: {consensi} {installazioni}")
+f._conferma = lambda testo_: Vero
+f.b_installa.invoke()
+aspetta(3, lambda: installazioni)
+verifica(installazioni == ["vlc"], f"installazione dopo il consenso: {installazioni}")
+f.destroy()
+lettore._cartella_vlc = vero_cartella
+
+se non lettore.motori_disponibili():
+    stampa("VLC non installato: il resto e' saltato")
+    radice.destroy()
+    stampa("ok" se non errori altrimenti f"{len(errori)} errori")
+    sys.exit(1 se errori altrimenti 0)
+
+# ---- con VLC
+tono = suono.crea_tono(os.path.join(radice_test, "tono.wav"), 440, 4.0)
+f = app.apri_lettore(Nessuno)
+radice.update()
+verifica(f è app.apri_lettore(Nessuno), "una sola finestra")
+f.destroy()
+f = FinestraLettore(app, tono, opzioni_motore=["--no-audio"])
+radice.update()
+verifica(f.pannello è non Nessuno e f.pannello.lettore è non Nessuno, "il riquadro del lettore")
+verifica(aspetta(6, lambda: f.pannello.lettore.stato == "in_riproduzione"), f"non parte: {f.pannello.lettore.stato}")
+verifica("tono.wav" in f.title(), f"titolo: {f.title()}")
+etichette = f.scelta.cget("values")
+verifica(any(nome == "vlc" per nome in etichette) e any("mpv" in nome e "in arrivo" in nome per nome in etichette), f"motori nell'elenco: {etichette}")
+# tasti
+f.event_generate("<space>")
+f.focus_force()
+f.update()
+f._tasto(lambda p: p.commuta())
+verifica(aspetta(4, lambda: f.pannello.lettore.stato == "in_pausa"), f"barra spaziatrice: {f.pannello.lettore.stato}")
+f._tasto(lambda p: p.commuta())
+verifica(aspetta(4, lambda: f.pannello.lettore.stato == "in_riproduzione"), "di nuovo in riproduzione")
+prima = f.pannello.lettore.posizione
+f._tasto(lambda p: p.lettore.salta(1.5))
+verifica(aspetta(3, lambda: f.pannello.lettore.posizione > prima + 1.0), "freccia destra")
+f._volume(-30)
+verifica(aspetta(3, lambda: f.pannello.lettore.volume <= 55), f"volume: {f.pannello.lettore.volume}")
+f._tasto(lambda p: p.b_muto.invoke())
+verifica(aspetta(3, lambda: f.pannello.lettore.muto), "muto")
+f.schermo_intero(Vero)
+radice.update()
+verifica(f._intero e non f.barra.winfo_ismapped(), "schermo intero nasconde la barra")
+f.schermo_intero(Falso)
+radice.update()
+verifica(non f._intero e f.barra.winfo_ismapped(), "esce dallo schermo intero")
+# scelta di mpv (ancora non c'e'): lo dice e non rompe il lettore
+f.var_motore.set([nome per nome in etichette se "mpv" in nome][0])
+f._cambia_motore()
+radice.update()
+verifica(f.pannello è Nessuno e "non è ancora disponibile" in f.nota.cget("text"), f"scelta di mpv: {f.nota.cget('text')}")
+f.var_motore.set("vlc")
+f._cambia_motore()
+radice.update()
+verifica(f.pannello è non Nessuno e aspetta(6, lambda: f.pannello.lettore.stato == "in_riproduzione"), "si torna a vlc e il file riparte")
+verifica(os.path.isfile(lettore.CONFIGURAZIONE) e "vlc" in open(lettore.CONFIGURAZIONE).read(), "la scelta del motore si ricorda")
+# dalla finestra delle informazioni
+w = app.informazioni_file(tono)
+radice.update()
+verifica(any(("Riproduci" in b.cget("text")) per b in w.winfo_children()[-1].winfo_children()), "pulsante Riproduci nelle informazioni")
+w.destroy()
+f._chiudi()
+radice.update()
+radice.destroy()
+stampa("ok" se non errori altrimenti f"{len(errori)} errori")
+sys.exit(1 se errori altrimenti 0)

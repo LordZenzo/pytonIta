@@ -1,0 +1,258 @@
+"""Prova del modulo lettore (VLC). Senza VLC installato prova solo la scelta del motore e i messaggi d'errore;
+con VLC prova davvero la riproduzione (senza audio: opzione --no-audio), la posizione, il volume, gli eventi e il riquadro tkinter."""
+importa os, sys, tempfile, time
+importa lettore
+importa suono
+
+errori = []
+cartella = tempfile.mkdtemp()
+lettore.CONFIGURAZIONE = os.path.join(cartella, "lettore.json")
+os.environ.pop("PITONIT_LETTORE", Nessuno)
+
+
+definisci verifica(condizione, messaggio):
+    se non condizione:
+        errori.append(messaggio)
+        stampa("ERRORE:", messaggio)
+
+
+definisci aspetta(condizione, secondi=6.0):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        se condizione():
+            ritorna Vero
+        time.sleep(0.05)
+    ritorna Falso
+
+
+# ---- il catalogo dei motori e la scelta
+elenco = lettore.motori()
+nomi = [m.nome per m in elenco]
+verifica("vlc" in nomi e "mpv" in nomi, f"motori: {nomi}")
+vlc = [m per m in elenco se m.nome == "vlc"][0]
+mpv = [m per m in elenco se m.nome == "mpv"][0]
+verifica(vlc.implementato e vlc.installazione e vlc.sito.startswith("https://"), "voce di vlc")
+verifica(non mpv.implementato e non mpv.disponibile e "mpv" in mpv.installazione.lower(), "mpv e' ancora in arrivo")
+prova:
+    lettore.Lettore(motore="mpv")
+    verifica(Falso, "mpv non c'e' ancora: doveva dare errore")
+eccetto lettore.MotoreNonTrovato come errore:
+    verifica("in arrivo" in tipo_testo(errore), f"messaggio su mpv: {errore}")
+prova:
+    lettore.Lettore(motore="inventato")
+    verifica(Falso, "motore inventato: doveva dare errore")
+eccetto lettore.MotoreNonTrovato:
+    passa
+prova:
+    lettore.imposta_motore_predefinito("inventato")
+    verifica(Falso, "imposta un motore sconosciuto: doveva dare errore")
+eccetto lettore.ErroreLettore:
+    passa
+lettore.imposta_motore_predefinito("vlc")
+verifica(os.path.isfile(lettore.CONFIGURAZIONE), "la scelta si ricorda")
+os.environ["PITONIT_LETTORE"] = "vlc"
+verifica(lettore.motore_predefinito(solo_nome=Vero) in ("vlc", Nessuno), "variabile PITONIT_LETTORE")
+os.environ.pop("PITONIT_LETTORE")
+lettore.imposta_motore_predefinito("auto")
+
+# ---- installazione con winget (finto: non si installa niente)
+righe = []
+
+
+classe FintoProcesso:
+    definisci __inizializza__(se_stesso, *a, **k):
+        se_stesso.stdout = iter(["Trovato VLC media player\n", "Installazione riuscita\n"])
+
+    definisci wait(se_stesso):
+        ritorna 0
+
+
+vero_popen = lettore._subprocess.Popen
+lettore._subprocess.Popen = FintoProcesso
+prova:
+    riuscito = lettore.installa_motore("vlc", avanzamento=righe.append) se os.name == "nt" altrimenti Nessuno
+infine:
+    lettore._subprocess.Popen = vero_popen
+se os.name == "nt":
+    verifica(righe == ["Trovato VLC media player", "Installazione riuscita"], f"righe di winget: {righe}")
+prova:
+    lettore.installa_motore("mpv")
+    verifica(Falso, "mpv: doveva dire che non si sa installare da qui")
+eccetto lettore.ErroreLettore:
+    passa
+
+se non lettore.motori_disponibili():
+    stampa("VLC non installato: le prove di riproduzione sono saltate")
+    stampa("ok" se non errori altrimenti f"{len(errori)} errori")
+    sys.exit(1 se errori altrimenti 0)
+
+# ---- riproduzione vera (senza audio)
+tono = suono.crea_tono(os.path.join(cartella, "tono.wav"), 440, 3.0)
+p = lettore.Lettore(opzioni=["--no-audio"])
+verifica(p.motore == "vlc" e p.stato == "fermo", f"stato iniziale: {p}")
+prova:
+    p.riproduci()
+    verifica(Falso, "senza file doveva dare errore")
+eccetto lettore.ErroreLettore:
+    passa
+prova:
+    p.apri(os.path.join(cartella, "non_esiste.wav"))
+    verifica(Falso, "file inesistente: doveva dare errore")
+eccetto FileNotFoundError:
+    passa
+eventi = []
+p.quando("avvio", lambda lett: eventi.append("avvio")).quando("pausa", lambda lett: eventi.append("pausa")).quando("fine", lambda lett: eventi.append("fine"))
+p.apri(tono)
+verifica(aspetta(lambda: p.controlla() == "in_riproduzione"), f"non parte: {p.stato}")
+verifica(aspetta(lambda: p.durata > 2.5), f"durata: {p.durata}")
+verifica(abs(p.durata - 3.0) < 0.3, f"durata: {p.durata}")
+time.sleep(0.6)
+verifica(p.posizione > 0.2, f"la posizione non avanza: {p.posizione}")
+verifica(0 < p.frazione < 1, f"frazione: {p.frazione}")
+p.pausa()
+verifica(aspetta(lambda: p.controlla() == "in_pausa"), f"pausa: {p.stato}")
+ferma_a = p.posizione
+time.sleep(0.5)
+verifica(abs(p.posizione - ferma_a) < 0.15, "in pausa il tempo non deve avanzare")
+p.riprendi()
+verifica(aspetta(lambda: p.controlla() == "in_riproduzione"), "riprendi")
+p.commuta()
+verifica(aspetta(lambda: p.controlla() == "in_pausa"), "commuta in pausa")
+p.commuta()
+verifica(aspetta(lambda: p.controlla() == "in_riproduzione"), "commuta in riproduzione")
+p.posizione = 2.0
+verifica(aspetta(lambda: p.posizione >= 1.9), f"posizione assegnata: {p.posizione}")
+p.salta(-1.0)
+verifica(aspetta(lambda: p.posizione < 1.9), "salta indietro")
+p.frazione = 0.1
+verifica(aspetta(lambda: p.posizione < 1.0), "frazione assegnata")
+p.volume = 40
+verifica(aspetta(lambda: p.volume == 40), f"volume: {p.volume}")
+p.muto = Vero
+verifica(aspetta(lambda: p.muto), "muto")
+p.muto = Falso
+p.velocita = 2.0
+verifica(aspetta(lambda: abs(p.velocita - 2.0) < 0.05), f"velocita: {p.velocita}")
+p.velocita = 1.0
+verifica(isinstance(p.tracce_audio, list) e isinstance(p.tracce_sottotitoli, list), "elenchi di tracce")
+verifica(p.dimensioni == (0, 0) o p.dimensioni[0] == 0, f"un audio non ha dimensioni: {p.dimensioni}")
+p.ferma()
+verifica(aspetta(lambda: p.stato == "fermo"), f"ferma: {p.stato}")
+p.riproduci()
+verifica(aspetta(lambda: p.stato == "in_riproduzione"), "riparte dopo ferma")
+p.posizione = 2.8
+verifica(aspetta(lambda: p.controlla() == "finito", 6), f"fine del file: {p.stato}")
+verifica("avvio" in eventi e "pausa" in eventi e "fine" in eventi, f"eventi: {eventi}")
+verifica(p.attendi_fine(2) è Vero, "attendi_fine su un file finito")
+p.chiudi()
+# una scorciatoia e attendi_fine su un file breve
+breve = suono.crea_tono(os.path.join(cartella, "breve.wav"), 880, 0.6)
+con lettore.Lettore(opzioni=["--no-audio"]) come q:
+    q.apri(breve)
+    verifica(q.attendi_fine(8), "attendi_fine")
+
+# ---- video in un riquadro tkinter (se c'e' ffmpeg per fabbricare il file)
+importa ffmpeg
+se ffmpeg.disponibile:
+    importa tkinter come tk
+    video = os.path.join(cartella, "prova.mp4")
+    ffmpeg.schema_di_prova("320x180", durata=20).sorgente("sine=frequency=330:duration=20").mappa("0:v").mappa("1:a").codec_video("libx264") \
+        .formato_pixel("yuv420p").codec_audio("aac").salva(video)
+    radice = tk.Tk()
+    radice.geometry("700x520+40+40")
+    pannello = lettore.PannelloLettore(radice, opzioni=["--no-audio"])
+    pannello.pack(fill="both", expand=Vero)
+    radice.update()
+    pannello.apri(video)
+    fine = time.time() + 8
+    mentre time.time() < fine e pannello.lettore.stato != "in_riproduzione":
+        radice.update()
+        time.sleep(0.05)
+    verifica(pannello.lettore.stato == "in_riproduzione", f"il riquadro non parte: {pannello.lettore.stato}")
+    t0 = time.time()
+    mentre time.time() - t0 < 1.0:
+        radice.update()
+        time.sleep(0.03)
+    verifica(pannello.lettore.dimensioni == (320, 180), f"dimensioni del video: {pannello.lettore.dimensioni}")
+    verifica(pannello.b_play.cget("text") == "⏸" e pannello.etichetta_tempo.cget("text") != "0:00 / 0:00", f"controlli: {pannello.b_play.cget('text')} {pannello.etichetta_tempo.cget('text')}")
+    fine = time.time() + 4
+    mentre time.time() < fine e pannello.var_tempo.get() <= 0:
+        radice.update()
+        time.sleep(0.05)
+    verifica(pannello.var_tempo.get() > 0, "barra del tempo")
+    foto = pannello.istantanea(os.path.join(cartella, "scatto.png"))
+    verifica(foto e open(foto, "rb").read(4) == b"\x89PNG", "istantanea")
+    # ---- clic veri sul video (solo se la nostra finestra e' davvero sopra a quel punto dello schermo)
+    se os.name == "nt":
+        importa ctypes
+        da ctypes importa wintypes
+        user32 = ctypes.windll.user32
+        user32.WindowFromPoint.argtypes = [wintypes.POINT]
+        user32.WindowFromPoint.restype = wintypes.HWND
+        user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
+        user32.GetAncestor.restype = wintypes.HWND
+        radice.attributes("-topmost", Vero)
+        radice.lift()
+        radice.update()
+        t0 = time.time()
+        mentre time.time() - t0 < 0.5:
+            radice.update()
+            time.sleep(0.03)
+        px = pannello.video.winfo_rootx() + 150
+        py = pannello.video.winfo_rooty() + 100
+        sopra = user32.GetAncestor(user32.WindowFromPoint(wintypes.POINT(px, py)), 2)
+        nostra = user32.GetAncestor(wintypes.HWND(radice.winfo_id()), 2)
+        se sopra != nostra:
+            stampa("la finestra di prova non e' in primo piano: i clic veri sono saltati")
+        altrimenti:
+            vecchio_punto = wintypes.POINT()
+            user32.GetCursorPos(ctypes.byref(vecchio_punto))
+
+            definisci clic_vero(attesa=0.7):
+                t1 = time.time()
+                mentre time.time() - t1 < attesa:
+                    radice.update()
+                    time.sleep(0.02)
+                user32.SetCursorPos(px, py)
+                t1 = time.time()
+                mentre time.time() - t1 < 0.15:
+                    radice.update()
+                    time.sleep(0.02)
+                user32.mouse_event(0x0002, 0, 0, 0, 0)
+                user32.mouse_event(0x0004, 0, 0, 0, 0)
+
+            prova:
+                verifica(pannello.lettore.stato == "in_riproduzione", "prima del clic sta suonando")
+                clic_vero()
+                verifica(aspetta(lambda: (radice.update() o Vero) e pannello.lettore.stato == "in_pausa"), f"un clic sul video mette in pausa: {pannello.lettore.stato}")
+                clic_vero()
+                verifica(aspetta(lambda: (radice.update() o Vero) e pannello.lettore.stato == "in_riproduzione"), f"un altro clic fa ripartire: {pannello.lettore.stato}")
+                doppi = []
+                pannello.su_doppio_clic = lambda: doppi.append(1)
+                clic_vero()
+                clic_vero(0.05)
+                t1 = time.time()
+                mentre time.time() - t1 < 0.9:
+                    radice.update()
+                    time.sleep(0.03)
+                verifica(doppi == [1], f"il doppio clic chiama su_doppio_clic: {doppi}")
+                verifica(pannello.lettore.stato == "in_riproduzione", f"il doppio clic non cambia lo stato: {pannello.lettore.stato}")
+            infine:
+                user32.SetCursorPos(vecchio_punto.x, vecchio_punto.y)
+                radice.attributes("-topmost", Falso)
+    pannello.commuta()
+    t0 = time.time()
+    mentre time.time() - t0 < 0.8:
+        radice.update()
+        time.sleep(0.03)
+    verifica(pannello.lettore.stato == "in_pausa" e pannello.b_play.cget("text") == "▶", f"pausa dal riquadro: {pannello.lettore.stato}")
+    pannello.var_velocita.set("2")
+    pannello._velocita()
+    verifica(aspetta(lambda: abs(pannello.lettore.velocita - 2.0) < 0.05), "velocita' dal riquadro")
+    pannello._riempi_audio()
+    verifica(pannello._menu_audio.index("end") è non Nessuno, "menu delle tracce audio")
+    radice.destroy()
+altrimenti:
+    stampa("ffmpeg non installato: il riquadro tkinter non e' stato provato")
+stampa("ok" se non errori altrimenti f"{len(errori)} errori")
+sys.exit(1 se errori altrimenti 0)
