@@ -71,16 +71,12 @@ h1 em{font-style:normal;color:var(--acc)}
 .fin img{display:block;width:100%;height:auto}
 .fin button.zoom{all:unset;display:grid;position:relative;overflow:hidden;cursor:zoom-in;width:100%}
 .fin button.zoom:focus-visible{outline:3px solid var(--acc);outline-offset:-3px}
-/* Le due versioni dello screenshot sono sovrapposte: quella del tema attuale sta sotto,
-   l'altra sopra, ritagliata. Al passaggio del mouse si scopre da sinistra a destra. */
+/* Le due versioni dello screenshot sono sovrapposte: sotto sempre lo scuro (indipendente dal tema
+   della pagina), sopra il chiaro, ritagliato. Al passaggio del mouse il chiaro si scopre da sinistra
+   a destra; quando il mouse esce si ritira e torna lo scuro. */
 .solo-scuro,.solo-chiaro{display:block;grid-area:1/1;transition:clip-path .9s cubic-bezier(.65,0,.35,1)}
 .solo-scuro{z-index:1}
 .solo-chiaro{z-index:2;clip-path:inset(0 100% 0 0)}
-@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .solo-scuro{z-index:2;clip-path:inset(0 100% 0 0)}:root:not([data-theme="dark"]) .solo-chiaro{z-index:1;clip-path:none}}
-:root[data-theme="light"] .solo-scuro{z-index:2;clip-path:inset(0 100% 0 0)}
-:root[data-theme="light"] .solo-chiaro{z-index:1;clip-path:none}
-:root[data-theme="dark"] .solo-scuro{z-index:1;clip-path:none}
-:root[data-theme="dark"] .solo-chiaro{z-index:2;clip-path:inset(0 100% 0 0)}
 .fin button.zoom:hover img.solo-scuro,.fin button.zoom:hover img.solo-chiaro,
 .fin button.zoom:focus-visible img.solo-scuro,.fin button.zoom:focus-visible img.solo-chiaro{clip-path:inset(0 0 0 0)}
 .fin button.zoom::after{content:"";position:absolute;z-index:3;top:0;bottom:0;left:0;width:3px;background:var(--acc);box-shadow:0 0 16px var(--acc);opacity:0;pointer-events:none}
