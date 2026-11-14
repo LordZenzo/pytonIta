@@ -52,11 +52,13 @@
       </div>
       <p class="nota">Senza Python installato · senza diritti di amministratore · si toglie con un clic</p>
     </div>
-    <div class="vetrina fin" role="group" aria-label="PitStudio: l'editor">
-      <div class="bar"><i></i><i></i><i></i><span>PitStudio</span></div>
+    <div class="vetrina fin" data-vista="con" role="group" aria-label="PitStudio: l'editor">
+      <div class="bar"><i></i><i></i><i></i><span>PitStudio</span><div class="sel" role="group" aria-label="Mostra"><button type="button" data-v="con" aria-pressed="true">Con assistente</button><button type="button" data-v="senza" aria-pressed="false">Senza</button></div></div>
       <button class="zoom" type="button" aria-label="Ingrandisci lo screenshot">
-        <img class="solo-scuro" src="img/s-editor-scuro.png" width="1400" height="840" alt="L'editor di PitStudio: codice pytonIta colorato, suggerimenti mentre si scrive e la chat dell'assistente">
-        <img class="solo-chiaro" src="img/s-editor-chiaro.png" width="1400" height="840" alt="L'editor di PitStudio in tema chiaro">
+        <img class="solo-scuro v-con" src="img/s-editor-scuro-con.png" width="1400" height="840" alt="L'editor di PitStudio: codice pytonIta colorato e, a destra, la chat dell'assistente che propone un metodo">
+          <img class="solo-scuro v-senza" src="img/s-editor-scuro-senza.png" width="1400" height="840" alt="L'editor di PitStudio a tutta larghezza: codice colorato, console e pannello dei file">
+          <img class="solo-chiaro v-con" src="img/s-editor-chiaro-con.png" width="1400" height="840" alt="L'editor di PitStudio: codice pytonIta colorato e, a destra, la chat dell'assistente che propone un metodo (tema chiaro)">
+          <img class="solo-chiaro v-senza" src="img/s-editor-chiaro-senza.png" width="1400" height="840" alt="L'editor di PitStudio a tutta larghezza: codice colorato, console e pannello dei file (tema chiaro)">
       </button>
     </div>
   </div>
@@ -114,10 +116,12 @@
           <li>Modelli pronti: accesso, anagrafica con database, impostazioni, ricerca</li>
         </ul>
       </div>
-      <div class="fin"><div class="bar"><i></i><i></i><i></i><span>Progettista</span></div>
+      <div class="fin" data-vista="con"><div class="bar"><i></i><i></i><i></i><span>Progettista</span><div class="sel" role="group" aria-label="Mostra"><button type="button" data-v="con" aria-pressed="true">Con assistente</button><button type="button" data-v="senza" aria-pressed="false">Senza</button></div></div>
         <button class="zoom" type="button" aria-label="Ingrandisci lo screenshot">
-          <img class="solo-scuro" loading="lazy" src="img/s-progettista-scuro.png" width="1400" height="840" alt="Il progettista di finestre con la struttura ad albero dei componenti e il pannello delle proprietà">
-          <img class="solo-chiaro" loading="lazy" src="img/s-progettista-chiaro.png" width="1400" height="840" alt="Il progettista di finestre in tema chiaro">
+          <img class="solo-scuro v-con" loading="lazy" src="img/s-progettista-scuro-con.png" width="1400" height="840" alt="Il progettista di finestre con la struttura ad albero dei componenti e l'assistente che aggiunge un pulsante">
+          <img class="solo-scuro v-senza" loading="lazy" src="img/s-progettista-scuro-senza.png" width="1400" height="840" alt="Il progettista di finestre con la struttura ad albero dei componenti e il pannello delle proprietà">
+          <img class="solo-chiaro v-con" loading="lazy" src="img/s-progettista-chiaro-con.png" width="1400" height="840" alt="Il progettista di finestre con la struttura ad albero dei componenti e l'assistente che aggiunge un pulsante (tema chiaro)">
+          <img class="solo-chiaro v-senza" loading="lazy" src="img/s-progettista-chiaro-senza.png" width="1400" height="840" alt="Il progettista di finestre con la struttura ad albero dei componenti e il pannello delle proprietà (tema chiaro)">
         </button></div>
     </div>
 
@@ -145,10 +149,12 @@
           <li>Punti di arresto condizionali, logpoint e fermate quando una variabile cambia</li>
         </ul>
       </div>
-      <div class="fin"><div class="bar"><i></i><i></i><i></i><span>Debugger</span></div>
+      <div class="fin" data-vista="con"><div class="bar"><i></i><i></i><i></i><span>Debugger</span><div class="sel" role="group" aria-label="Mostra"><button type="button" data-v="con" aria-pressed="true">Con assistente</button><button type="button" data-v="senza" aria-pressed="false">Senza</button></div></div>
         <button class="zoom" type="button" aria-label="Ingrandisci lo screenshot">
-          <img class="solo-scuro" loading="lazy" src="img/s-debugger-scuro.png" width="1400" height="840" alt="Il debugger con il disegno della memoria: due nomi puntano alla stessa lista">
-          <img class="solo-chiaro" loading="lazy" src="img/s-debugger-chiaro.png" width="1400" height="840" alt="Il debugger in tema chiaro">
+          <img class="solo-scuro v-con" loading="lazy" src="img/s-debugger-scuro-con.png" width="1400" height="840" alt="Il debugger con il disegno della memoria e l'assistente che spiega perché due nomi cambiano insieme">
+          <img class="solo-scuro v-senza" loading="lazy" src="img/s-debugger-scuro-senza.png" width="1400" height="840" alt="Il debugger con il disegno della memoria: due nomi puntano alla stessa lista">
+          <img class="solo-chiaro v-con" loading="lazy" src="img/s-debugger-chiaro-con.png" width="1400" height="840" alt="Il debugger con il disegno della memoria e l'assistente che spiega perché due nomi cambiano insieme (tema chiaro)">
+          <img class="solo-chiaro v-senza" loading="lazy" src="img/s-debugger-chiaro-senza.png" width="1400" height="840" alt="Il debugger con il disegno della memoria: due nomi puntano alla stessa lista (tema chiaro)">
         </button></div>
     </div>
 

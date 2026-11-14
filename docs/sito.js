@@ -24,11 +24,20 @@
   document.addEventListener("click", function (e) {
     var b = e.target.closest("button.zoom");
     if (!b || !dlg.showModal) return;
-    var img = b.querySelector("img");
+    var img = [].filter.call(b.querySelectorAll("img"), function (x) { return x.offsetParent !== null; })[0] || b.querySelector("img");
     var im = dlg.querySelector("img");
     im.src = img.currentSrc || img.src;
     im.alt = img.alt;
     dlg.showModal();
+  });
+
+  /* ---- selettore «con / senza assistente» ---- */
+  document.querySelectorAll(".fin .sel button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var f = b.closest(".fin");
+      f.setAttribute("data-vista", b.getAttribute("data-v"));
+      f.querySelectorAll(".sel button").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+    });
   });
 
   /* ---- dati dell'ultima versione (pagina di download) ---- */

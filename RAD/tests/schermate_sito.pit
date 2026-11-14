@@ -18,7 +18,8 @@ temp = tempfile.mkdtemp(dir="C:/Progetti")
 cfg = Configurazione(os.path.join(temp, "config.json"))
 cfg.imposta("tema", tema_scelto, notifica=Falso)
 radice = tk.Tk()
-radice.geometry("1440x880+20+20")
+radice.geometry(f"{min(1840, radice.winfo_screenwidth() - 40)}x{min(1000, radice.winfo_screenheight() - 100)}+10+10")
+radice.attributes("-topmost", Vero)
 app = Applicazione(radice, cfg)
 app._proponi_aggiornamento_1x = lambda *a, **k: Nessuno       # niente finestre modali durante lo scatto
 app._proponi_aggiornamento_moduli = lambda *a, **k: Nessuno
@@ -34,6 +35,8 @@ definisci aspetta(secondi=0.6, condizione=Nessuno):
 
 
 definisci foto(nome, widget=Nessuno):
+    (widget o radice).attributes("-topmost", Vero)
+    (widget o radice).lift()
     aspetta(0.5)
     w = widget o radice
     x, y = w.winfo_rootx(), w.winfo_rooty()
@@ -50,10 +53,49 @@ definisci copia_esempio(nome):
 
 definisci nascondi_chat():
     prova:
+        app.corpo.sash_place(0, 270, 0)
+    eccetto Exception:
+        passa
+    prova:
         app.corpo.forget(app.chat)
     eccetto Exception:
         passa
-    aspetta(0.3)
+    aspetta(0.4)
+
+
+definisci restringi_chat():
+    prova:
+        app.corpo.sash_place(0, 175, 0)
+        app.corpo.sash_place(1, 1075, 0)
+    eccetto Exception:
+        passa
+    aspetta(0.6)
+
+
+definisci mostra_chat():
+    se tipo_testo(app.chat) non in [tipo_testo(x) per x in app.corpo.panes()]:
+        app.mostra_chat()
+    aspetta(0.4)
+
+
+definisci conversazione(domanda, risposta, strumento=Nessuno):
+    """Una conversazione d'esempio nella chat (non serve nessuna chiave: si scrive direttamente il testo)."""
+    app.chat._scrivi("Tu" + chr(10), "etichetta_utente")
+    app.chat._scrivi(domanda + chr(10), "utente")
+    app.chat._scrivi("Assistente" + chr(10), "etichetta_ai")
+    se strumento:
+        app.chat._gestisci("strumento", {"nome": strumento[0], "parametri": {}})
+        app.chat._gestisci("risultato", {"nome": strumento[0], "testo": strumento[1], "errore": Falso, "secondi": 0.04})
+    app.chat._gestisci("testo", risposta)
+    aspetta(0.4)
+
+
+definisci ancora_suggerimenti():
+    ed.t.focus_force()
+    ed.t.mark_set("insert", "end-1c")
+    aspetta(0.2)
+    ed.suggerisci(forza=Vero)
+    aspetta(0.4)
 
 
 # 1. editor con suggerimenti e assistente
@@ -85,34 +127,48 @@ app.apri_progetto(cart)
 aspetta(0.5)
 ed = app.apri_file(os.path.join(cart, "util.pit"))
 ed.vai_a(18, 20)
-ed.t.insert("end", "\npersona = Persona('Anna', 30)\nper")
+ed.t.insert("end", "\npersona = Persona('Anna', 30)\npersona.sal")
 ed.t.mark_set("insert", "end-1c")
 aspetta(0.3)
 ed.suggerisci(forza=Vero)
-app.chat._scrivi("Tu\n", "etichetta_utente")
-app.chat._scrivi("Aggiungi un pulsante Esci alla finestra principale\n", "utente")
-app.chat._scrivi("Assistente\n", "etichetta_ai")
-app.chat._gestisci("testo", "Aggiungo il pulsante con il **progettista**. Poi collego il gestore:\n```pit\ndefinisci al_clic_esci(se_stesso, evento=Nessuno):\n    se_stesso.radice.distruggi()\n```")
-app.console.scrivi("▶ principale.pit\n", "info")
-app.console.scrivi("Ciao dal progettista\n", "out")
-foto(f"editor_{tema_scelto}.png")
+conversazione("Nella classe Persona voglio un metodo che dica se è maggiorenne. Me lo scrivi?",
+              "Ecco il metodo, da aggiungere a `Persona`:\n```pit\ndefinisci maggiorenne(se_stesso):\n    ritorna se_stesso.eta >= 18\n```\nHo controllato la sintassi: è corretta. Vuoi che lo provi?",
+              ("leggi_file", "util.pit letto (18 righe)"))
+app.console.scrivi("▶ util.pit\n", "info")
+app.console.scrivi("Ciao Anna, sei maggiorenne\n", "out")
+ancora_suggerimenti()
+foto(f"editor_{tema_scelto}_con.png")
+nascondi_chat()
+ancora_suggerimenti()
+foto(f"editor_{tema_scelto}_senza.png")
 ed.chiudi_suggerimenti()
+mostra_chat()
 ed.modificato = Falso
 ed.t.edit_modified(Falso)
 app.chiudi_tutte_le_schede()
 
 stampa("passo 2"); # 2. progettista con la struttura ad albero
 cart2 = copia_esempio("rubrica_database")
-nascondi_chat()
 app.apri_progetto(cart2)
 aspetta(0.6)
 w = app.apri_file(os.path.join(cart2, "mascheracontatti.form.json"))
+conversazione("Aggiungi in fondo alla maschera un pulsante «Esci» che chiude la finestra.",
+              "Fatto: ho aggiunto `pulsante_esci` accanto agli altri e collegato il gestore, che chiude la finestra. Puoi vederlo nel **progettista**; se non ti piace la posizione, spostalo o chiedimi di cambiarla.",
+              ("imposta_form", "finestra salvata: mascheracontatti.form.json"))
 prova:
-    app.centro.sash_place(0, 0, 790)
+    app.centro.sash_place(0, 0, 860)
 eccetto Exception:
     passa
 aspetta(0.8)
-foto(f"progettista_{tema_scelto}.png")
+restringi_chat()
+foto(f"progettista_{tema_scelto}_con.png")
+nascondi_chat()
+prova:
+    app.centro.sash_place(0, 0, 860)
+eccetto Exception:
+    passa
+aspetta(0.8)
+foto(f"progettista_{tema_scelto}_senza.png")
 app.chiudi_tutte_le_schede()
 
 stampa("passo 3"); # 3. gestore di database
@@ -130,6 +186,7 @@ p3 = Progetto(cart3)
 p3.crea_file("alias.pit", "voti = [7, 8, 9]\ncopia = voti\ncopia.append(10)\npersona = {\"nome\": \"Anna\", \"voti\": voti}\nstampa(persona)\n")
 p3.manifesto["principale"] = "alias.pit"
 p3.salva_manifesto()
+mostra_chat()
 app.apri_progetto(cart3)
 app.apri_file(os.path.join(cart3, "alias.pit"))
 aspetta(0.5)
@@ -143,14 +200,17 @@ per _ in range(4):
         aspetta(1.0)
 aspetta(0.5)
 aspetta(0.8)
-foto(f"debugger_{tema_scelto}.png")
+mostra_chat()
+conversazione("Perché quando aggiungo 10 a «copia» cambia anche «voti»?",
+              "Guarda il disegno della **memoria**: `voti` e `copia` sono due nomi per la *stessa* lista, quindi una modifica fatta da uno si vede dall'altro. Per averne due indipendenti usa `voti.copy()`.")
+restringi_chat()
+foto(f"debugger_{tema_scelto}_con.png")
+nascondi_chat()
+foto(f"debugger_{tema_scelto}_senza.png")
 app.debug.comando("continua")
 aspetta(1.0)
 app.chiudi_tutte_le_schede()
 
-stampa("passo 5"); # 5. pannelli Test / Git
-app.mostra_pannello_sinistro("progetto")
-foto(f"interfaccia_{tema_scelto}.png")
 
 stampa("passo 6"); # 6. finestra d'avvio
 app.progetto = Nessuno
