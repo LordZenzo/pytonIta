@@ -29,14 +29,14 @@ Viene installato in `%LOCALAPPDATA%\Programs\pytonIta`, con le voci nel menu Sta
 - `pitonit/` — la patch di CPython (`patch/pitonit.patch`), gli strumenti (traduttori `py2pit` e `pit2py`, dizionari delle librerie), esempi e documentazione dell'interprete
 - `RAD/` — PitStudio (sorgenti `.pit`, guida, test)
 - `installatore/` — la costruzione dell'installatore
-- `docs/` — la pagina web del progetto
+- `docs/` — il sito del progetto (GitHub Pages)
 
 ## Domande e contatti
 
 - Domande e idee: [Discussions](https://github.com/LordZenzo/pytonIta/discussions)
 - Errori e problemi: [Issues](https://github.com/LordZenzo/pytonIta/issues)
 - Senza GitHub: pytonita.progetto@gmail.com
-- Pagina web: https://lordzenzo.github.io/pytonIta/
+- Pagina web (funzioni, screenshot, download): https://lordzenzo.github.io/pytonIta/
 
 ## Licenza
 

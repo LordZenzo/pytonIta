@@ -1,0 +1,171 @@
+"""Screenshot per la pagina web del progetto (docs/img). Uso: pitonit schermate_sito.pit [cartella di uscita] [tema]
+Ritaglia sempre la finestra, non lo schermo: i risultati sono puliti e ripetibili."""
+importa sys, os, tempfile, time, shutil, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da PIL importa ImageGrab
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+ESEMPI = os.path.join(QUI, "..", "esempi")
+uscita = sys.argv[1] se lunghezza_di(sys.argv) > 1 altrimenti tempfile.gettempdir()
+tema_scelto = sys.argv[2] se lunghezza_di(sys.argv) > 2 altrimenti "scuro"
+os.makedirs(uscita, exist_ok=Vero)
+os.makedirs("C:/Progetti", exist_ok=Vero)
+temp = tempfile.mkdtemp(dir="C:/Progetti")
+cfg = Configurazione(os.path.join(temp, "config.json"))
+cfg.imposta("tema", tema_scelto, notifica=Falso)
+radice = tk.Tk()
+radice.geometry("1440x880+20+20")
+app = Applicazione(radice, cfg)
+app._proponi_aggiornamento_1x = lambda *a, **k: Nessuno       # niente finestre modali durante lo scatto
+app._proponi_aggiornamento_moduli = lambda *a, **k: Nessuno
+
+
+definisci aspetta(secondi=0.6, condizione=Nessuno):
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se condizione e condizione():
+            interrompi
+        time.sleep(0.03)
+
+
+definisci foto(nome, widget=Nessuno):
+    aspetta(0.5)
+    w = widget o radice
+    x, y = w.winfo_rootx(), w.winfo_rooty()
+    img = ImageGrab.grab(bbox=(x, y, x + w.winfo_width(), y + w.winfo_height()))
+    img.save(os.path.join(uscita, nome))
+    stampa("salvata", nome, img.size)
+
+
+definisci copia_esempio(nome):
+    dest = os.path.join(temp, nome)
+    shutil.copytree(os.path.join(ESEMPI, nome), dest)
+    ritorna dest
+
+
+definisci nascondi_chat():
+    prova:
+        app.corpo.forget(app.chat)
+    eccetto Exception:
+        passa
+    aspetta(0.3)
+
+
+# 1. editor con suggerimenti e assistente
+cart = os.path.join(temp, "Anagrafica")
+Progetto.nuovo(cart, "Anagrafica", "finestra")
+p = Progetto(cart)
+p.crea_file("util.pit", '''"""Funzioni di utilita."""
+importa json
+
+
+definisci carica_dati(percorso):
+    con open(percorso, encoding="utf-8") come f:
+        ritorna json.load(f)
+
+
+classe Persona:
+    definisci __inizializza__(se_stesso, nome, eta):
+        se_stesso.nome = nome
+        se_stesso.eta = eta
+
+    definisci saluta(se_stesso):
+        # un commento
+        se se_stesso.eta >= 18:
+            stampa(f"Ciao {se_stesso.nome}, sei maggiorenne")
+        altrimenti:
+            stampa("Ciao piccolo", se_stesso.nome)
+''')
+app.apri_progetto(cart)
+aspetta(0.5)
+ed = app.apri_file(os.path.join(cart, "util.pit"))
+ed.vai_a(18, 20)
+ed.t.insert("end", "\npersona = Persona('Anna', 30)\nper")
+ed.t.mark_set("insert", "end-1c")
+aspetta(0.3)
+ed.suggerisci(forza=Vero)
+app.chat._scrivi("Tu\n", "etichetta_utente")
+app.chat._scrivi("Aggiungi un pulsante Esci alla finestra principale\n", "utente")
+app.chat._scrivi("Assistente\n", "etichetta_ai")
+app.chat._gestisci("testo", "Aggiungo il pulsante con il **progettista**. Poi collego il gestore:\n```pit\ndefinisci al_clic_esci(se_stesso, evento=Nessuno):\n    se_stesso.radice.distruggi()\n```")
+app.console.scrivi("▶ principale.pit\n", "info")
+app.console.scrivi("Ciao dal progettista\n", "out")
+foto(f"editor_{tema_scelto}.png")
+ed.chiudi_suggerimenti()
+ed.modificato = Falso
+ed.t.edit_modified(Falso)
+app.chiudi_tutte_le_schede()
+
+stampa("passo 2"); # 2. progettista con la struttura ad albero
+cart2 = copia_esempio("rubrica_database")
+nascondi_chat()
+app.apri_progetto(cart2)
+aspetta(0.6)
+w = app.apri_file(os.path.join(cart2, "mascheracontatti.form.json"))
+prova:
+    app.centro.sash_place(0, 0, 790)
+eccetto Exception:
+    passa
+aspetta(0.8)
+foto(f"progettista_{tema_scelto}.png")
+app.chiudi_tutte_le_schede()
+
+stampa("passo 3"); # 3. gestore di database
+w = app.apri_file(os.path.join(cart2, "rubrica.db"))
+aspetta(0.8)
+w.elenco.selection_set("contatti")
+aspetta(0.8)
+foto(f"database_{tema_scelto}.png")
+app.chiudi_tutte_le_schede()
+
+stampa("passo 4"); # 4. debugger con la memoria
+cart3 = os.path.join(temp, "Memoria")
+Progetto.nuovo(cart3, "Memoria", "vuoto")
+p3 = Progetto(cart3)
+p3.crea_file("alias.pit", "voti = [7, 8, 9]\ncopia = voti\ncopia.append(10)\npersona = {\"nome\": \"Anna\", \"voti\": voti}\nstampa(persona)\n")
+p3.manifesto["principale"] = "alias.pit"
+p3.salva_manifesto()
+app.apri_progetto(cart3)
+app.apri_file(os.path.join(cart3, "alias.pit"))
+aspetta(0.5)
+app.debug_avvia(inizio=Vero)
+aspetta(8, lambda: app.debug.fermo)
+app.debug.pannello.var_memoria.set(Vero)
+app.debug.pannello.commuta_memoria()
+per _ in range(4):
+    se app.debug.fermo:
+        app.debug.comando("passo")
+        aspetta(1.0)
+aspetta(0.5)
+aspetta(0.8)
+foto(f"debugger_{tema_scelto}.png")
+app.debug.comando("continua")
+aspetta(1.0)
+app.chiudi_tutte_le_schede()
+
+stampa("passo 5"); # 5. pannelli Test / Git
+app.mostra_pannello_sinistro("progetto")
+foto(f"interfaccia_{tema_scelto}.png")
+
+stampa("passo 6"); # 6. finestra d'avvio
+app.progetto = Nessuno
+cfg.dati["recenti"] = [cart, cart2]
+da rad.avvio importa DialogoAvvio
+dlg = DialogoAvvio(radice, app.colori, cfg.ottieni("recenti", []), Nessuno, Vero)
+dlg.geometry("+300+160")
+dlg.update()
+foto(f"avvio_{tema_scelto}.png", dlg)
+dlg.destroy()
+
+stampa("passo 7"); # 7. lezioni
+f = app.apri_lezioni()
+f.geometry("+160+80")
+aspetta(1.0)
+foto(f"lezioni_{tema_scelto}.png", f)
+f.destroy()
+radice.destroy()
