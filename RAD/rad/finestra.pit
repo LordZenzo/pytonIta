@@ -305,6 +305,7 @@ classe Applicazione:
         file = tk.Menu(barra, tearoff=0)
         file.add_command(label="Finestra di avvio…", command=lambda: se_stesso.mostra_avvio())
         file.add_command(label="Nuovo progetto…", command=se_stesso.nuovo_progetto)
+        file.add_command(label="Galleria di esempi…", command=lambda: se_stesso.apri_galleria())
         file.add_command(label="Apri progetto…", command=se_stesso.apri_progetto, accelerator="Ctrl+O")
         se_stesso.menu_recenti = tk.Menu(file, tearoff=0)
         file.add_cascade(label="Progetti recenti", menu=se_stesso.menu_recenti)

@@ -21,7 +21,9 @@ definisci p(nome):
 c = (ffmpeg.apri("a.mp4", inizio=10, durata=5).ridimensiona(larghezza=640).velocita(2).codec_video("libx264").qualita(23)
      .formato_pixel("yuv420p").ottimizza_web().uscita("b.mp4"))
 a = c.argomenti
-verifica(a[:2] == ["-hide_banner", "-y"], f"inizio: {a[:3]}")
+verifica(a[:2] == ["-hide_banner", "-n"], f"per impostazione predefinita non si sovrascrive: {a[:3]}")
+verifica(ffmpeg.apri("a.mp4").sovrascrivi().uscita("b.mp4").argomenti[:2] == ["-hide_banner", "-y"], "con .sovrascrivi() si sovrascrive")
+verifica(ffmpeg.apri("a.mp4").sovrascrivi().non_sovrascrivere().uscita("b.mp4").argomenti[1] == "-n", "non_sovrascrivere()")
 verifica(a[a.index("-i") - 4:a.index("-i") + 1] == ["-ss", "10", "-t", "5", "-i"], f"opzioni di ingresso: {a}")
 verifica("-vf" in a e a[a.index("-vf") + 1] == "scale=640:-2,setpts=PTS/2", f"filtro video: {a}")
 verifica("-af" in a e a[a.index("-af") + 1] == "atempo=2", f"filtro audio: {a}")
@@ -196,6 +198,57 @@ ffmpeg.apri(sorgente).uscita(p("fermata.mp4")).esegui(fermata=lambda: bloccato.a
 verifica(bloccato, "fermata=")
 
 # ---- errori di ffmpeg
+# ---- sovrascrivere e' una scelta: per impostazione predefinita un file di uscita che esiste gia' non si tocca
+esistente = p("esistente.mp4")
+open(esistente, "wb").write(b"da non perdere")
+prova:
+    ffmpeg.apri(sorgente).ridimensiona(larghezza=100).salva(esistente)
+    verifica(Falso, "file di uscita gia' esistente: doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg come errore:
+    verifica("esiste gia" in tipo_testo(errore) e "sovrascrivi" in tipo_testo(errore), f"messaggio: {errore}")
+verifica(open(esistente, "rb").read() == b"da non perdere", "il file esistente deve restare com'era")
+ffmpeg.apri(sorgente).ridimensiona(larghezza=100).sovrascrivi().salva(esistente)
+verifica(ffmpeg.sonda(esistente).risoluzione == (100, 56), f"con .sovrascrivi() lo sostituisce: {ffmpeg.sonda(esistente).risoluzione}")
+ffmpeg.apri(sorgente).ridimensiona(larghezza=120).salva(esistente, sovrascrivi=Vero)
+verifica(ffmpeg.sonda(esistente).risoluzione[0] == 120, "salva(..., sovrascrivi=Vero)")
+prova:
+    ffmpeg.apri(sorgente).ridimensiona(larghezza=100).non_sovrascrivere().salva(esistente, sovrascrivi=Falso)
+    verifica(Falso, "sovrascrivi=Falso: doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg:
+    passa
+# le ricette: stessa regola, con sovrascrivi=Vero per cambiarla
+prova:
+    ffmpeg.riduci(sorgente, esistente, larghezza=80)
+    verifica(Falso, "ricetta su file esistente: doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg:
+    passa
+ffmpeg.riduci(sorgente, esistente, larghezza=80, sovrascrivi=Vero)
+verifica(ffmpeg.sonda(esistente).risoluzione[0] == 80, "ricetta con sovrascrivi=Vero")
+# l'impostazione generale riporta il comportamento di prima
+ffmpeg.sovrascrivi_per_impostazione = Vero
+prova:
+    ffmpeg.apri(sorgente).ridimensiona(larghezza=60).salva(esistente)
+    verifica(ffmpeg.sonda(esistente).risoluzione[0] == 60, "sovrascrivi_per_impostazione")
+infine:
+    ffmpeg.sovrascrivi_per_impostazione = Falso
+# un modello di nomi (img_%03d.png) non si controlla: e' ffmpeg a rispettare -n
+verifica(ffmpeg.apri(sorgente).miniature_ogni(1).uscita(p("modello_%03d.png")).argomenti[1] == "-n", "modello di nomi")
+# l'uscita non puo' essere il file di ingresso (nemmeno scritto in modo diverso): l'originale resta intatto
+originale = p("originale.mp4")
+open(originale, "wb").write(b"contenuto da non perdere")
+per nome_uscita in (originale, originale.replace("\\", "/").upper(), os.path.join(os.path.dirname(originale), ".", "originale.mp4")):
+    prova:
+        ffmpeg.apri(originale).ridimensiona(larghezza=100).salva(nome_uscita)
+        verifica(Falso, f"uscita uguale all'ingresso ({nome_uscita}): doveva dare errore")
+    eccetto ffmpeg.ErroreFfmpeg come errore:
+        verifica("lo stesso" in tipo_testo(errore), f"messaggio: {errore}")
+verifica(open(originale, "rb").read() == b"contenuto da non perdere", "il file originale deve restare intatto")
+prova:
+    ffmpeg.apri(sorgente).salva(os.path.join(cartella, "cartella_che_non_esiste", "x.mp4"))
+    verifica(Falso, "cartella di uscita inesistente: doveva dare errore")
+eccetto ffmpeg.ErroreFfmpeg come errore:
+    verifica("cartella di destinazione non esiste" in tipo_testo(errore) e "cartella_che_non_esiste" in tipo_testo(errore), f"messaggio: {errore}")
+    verifica(non os.path.exists(os.path.join(cartella, "cartella_che_non_esiste")), "non deve creare la cartella da solo")
 prova:
     ffmpeg.apri(p("non_esiste.mp4")).salva(p("x.mp4"))
     verifica(Falso, "file inesistente: doveva dare errore")

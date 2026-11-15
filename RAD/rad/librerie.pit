@@ -122,11 +122,15 @@ CATALOGO = {
     "registro": ("Programmazione", "Registro degli eventi (logging) con livelli."),
     "argomenti": ("Programmazione", "Argomenti della riga di comando con aiuto automatico."),
     "opzioni_riga_comando": ("Programmazione", "Opzioni della riga di comando (getopt)."),
+    "suono": ("Audio e video", "Suoni, beep e melodie scritte a parole; suona i file .wav (e gli altri formati, con ffmpeg)."),
+    "multimedia": ("Audio e video", "Conversioni, tagli e informazioni sui file audio e video con ffmpeg; scarica ffmpeg se manca."),
+    "ffmpeg": ("Audio e video", "ffmpeg e ffprobe comandati a catena: filtri, codec, sonda dei file, avanzamento, ricette (richiede ffmpeg)."),
+    "lettore": ("Audio e video", "Riproduce audio e video con VLC (mpv in arrivo), anche dentro una finestra tkinter (richiede VLC)."),
     "test_unitari": ("Test", "unittest: scrivere ed eseguire test automatici."),
     "test_documentazione": ("Test", "Test scritti negli esempi della documentazione."),
 }
 
-ORDINE_CATEGORIE = ["Finestre", "Calcolo", "Scienza e dati", "Immagini e documenti", "Data e ora", "Testo", "Dati e file",
+ORDINE_CATEGORIE = ["Finestre", "Calcolo", "Scienza e dati", "Immagini e documenti", "Audio e video", "Data e ora", "Testo", "Dati e file",
                     "Sistema", "Rete", "Parallelismo", "Strutture dati", "Programmazione", "Sicurezza", "Test", "Altre"]
 
 
@@ -315,7 +319,8 @@ classe PannelloLibrerie(tk.Frame):
                 altrimenti:
                     marca = "" se presente altrimenti "  ⚠"
                 tag = () se presente o stato_ == "nuova" altrimenti ("assente",)
-                se_stesso.albero.insert(nodo, "end", iid="lib:" + nome_it, text=f"{simbolo}  {nome_it}{marca}  —  {descr}", tags=tag)
+                versione = online.testo_versione(nome_it, stato_, se_stesso.online.get(nome_it, {}).get("versione"))
+                se_stesso.albero.insert(nodo, "end", iid="lib:" + nome_it, text=f"{simbolo}  {nome_it}" + (f" ({versione})" se versione altrimenti "") + f"{marca}  —  {descr}", tags=tag)
         se_stesso.contatore.configure(text=f"{lunghezza_di(spuntate)} attive")
         se scelta e se_stesso.albero.exists(scelta[0]):
             se_stesso.albero.selection_set(scelta[0])      # dopo aver ricostruito la lista la voce resta selezionata
@@ -428,7 +433,7 @@ classe PannelloLibrerie(tk.Frame):
         voce = [v per v in se_stesso.tutte se v[0] == nome_it]
         se voce:
             _, cat, descr, orig = voce[0]
-            testo_ = f"{nome_it}  (= {orig})\n{descr}"
+            testo_ = (f"{nome_it}  (= {orig})" se orig != nome_it altrimenti nome_it) + f"\n{descr}"
             stato_ = se_stesso.stati.get(nome_it)
             se stato_ == "nuova":
                 testo_ += f"\n✚ Libreria online (versione {se_stesso.online[nome_it]['versione']}): premi «Installa / Aggiorna»."
@@ -576,7 +581,7 @@ classe PannelloLibrerie(tk.Frame):
         c = getattr(se_stesso, "_colori", Nessuno)
         sfondo = c["chat_strumento"] se c altrimenti "#ffffe0"
         primo = c["primo_piano"] se c altrimenti "#000000"
-        tk.Label(w, text=f"{iid[4:]}  (= {orig})\n{descr}", justify="left", background=sfondo, foreground=primo, borderwidth=1,
+        tk.Label(w, text=(f"{iid[4:]}  (= {orig})" se orig != iid[4:] altrimenti iid[4:]) + f"\n{descr}", justify="left", background=sfondo, foreground=primo, borderwidth=1,
                  relief="solid", padx=8, pady=5, font=(FONT_UI, 9)).pack()
         w.update_idletasks()
         px, py = posizione_fumetto(se_stesso, w.winfo_reqwidth(), w.winfo_reqheight())

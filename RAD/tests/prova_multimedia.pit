@@ -5,6 +5,11 @@ importa multimedia
 importa suono
 
 cartella = tempfile.mkdtemp()
+
+
+definisci verifica(condizione, messaggio):
+    asserisci condizione, messaggio
+
 ffmpeg = multimedia.trova_ffmpeg()
 stampa("ffmpeg trovato:", bool(ffmpeg))
 
@@ -50,6 +55,18 @@ con zipfile.ZipFile(archivio, "w") come z:
 impronta = hashlib.sha256(open(archivio, "rb").read()).hexdigest()
 open(archivio + ".sha256", "w").write(impronta + "\n")
 
+elenco_impronte = []
+per nome_archivio, contenuto in (("ffmpeg-n8.0-latest-win64-gpl-8.0.zip", b"MZ otto punto zero"), ("ffmpeg-n8.1-latest-win64-gpl-8.1.zip", b"MZ otto punto uno"),
+                                 ("ffmpeg-master-latest-win64-gpl.zip", b"MZ master"), ("ffmpeg-n8.2-latest-win64-lgpl-8.2.zip", b"MZ lgpl non serve")):
+    percorso_zip = os.path.join(sito, nome_archivio)
+    cartella_interna = nome_archivio[:-4]
+    con zipfile.ZipFile(percorso_zip, "w") come z:
+        z.writestr(cartella_interna + "/bin/ffmpeg.exe", contenuto)
+        z.writestr(cartella_interna + "/bin/ffprobe.exe", b"MZ sonda " + contenuto)
+        z.writestr(cartella_interna + "/bin/ffplay.exe", b"non serve")
+    elenco_impronte.append(hashlib.sha256(open(percorso_zip, "rb").read()).hexdigest() + "  " + nome_archivio)
+open(os.path.join(sito, "checksums.sha256"), "w").write("\n".join(elenco_impronte) + "\n")
+
 
 classe Muto(http.server.SimpleHTTPRequestHandler):
     definisci log_message(se_stesso, *argomenti):
@@ -85,6 +102,37 @@ se os.name == "nt":
         asserisci "interrotto" in tipo_testo(errore)
         asserisci non os.path.exists(os.path.join(cartella, "y", "scaricamento.zip.parte"))
         stampa("download interrotto: ok")
+    # ---- le due versioni: essenziale e completa
+    verifica([v["chiave"] per v in multimedia.varianti_ffmpeg()] == ["essenziale", "completa"], "varianti_ffmpeg")
+    verifica(all(v["dimensione_mb"] > 0 e v["descrizione"] e v["sito"].startswith("https://") per v in multimedia.varianti_ffmpeg()), "dati delle varianti")
+    verifica(multimedia._chiave_variante("full") == "completa" e multimedia._chiave_variante("Essentials") == "essenziale", "nomi inglesi accettati")
+    prova:
+        multimedia._chiave_variante("enorme")
+        verifica(Falso, "variante sconosciuta: doveva dare errore")
+    eccetto multimedia.ErroreMultimedia come errore:
+        verifica("essenziale" in tipo_testo(errore) e "completa" in tipo_testo(errore), f"messaggio: {errore}")
+    verifica(multimedia.variante_installata(os.path.join(cartella, "mai_scaricato")) è Nessuno, "nessuna variante scaricata")
+    verifica(multimedia.variante_installata(dest)["variante"] == "personalizzata", f"scaricata con url=: {multimedia.variante_installata(dest)}")
+    # la completa: sceglie l'ultima serie stabile gpl (8.1, non 8.0, non lgpl, non master)
+    vero_base = multimedia.URL_BASE_COMPLETA
+    multimedia.URL_BASE_COMPLETA = f"http://127.0.0.1:{server.server_address[1]}/"
+    prova:
+        indirizzo, firma = multimedia._risolvi_variante("completa")
+        verifica(indirizzo.endswith("/ffmpeg-n8.1-latest-win64-gpl-8.1.zip") e lunghezza_di(firma) == 64, f"serie stabile piu' recente: {indirizzo}")
+        cartella_v = os.path.join(cartella, "varianti")
+        # prima l'essenziale (con l'archivio finto di prima), poi la completa la sostituisce
+        multimedia.URL_FFMPEG = url
+        multimedia.scarica_ffmpeg(cartella=cartella_v, variante="essenziale")
+        verifica(open(os.path.join(cartella_v, "bin", "ffmpeg.exe"), "rb").read() == b"MZ finto ffmpeg", "essenziale scaricata")
+        verifica(multimedia.variante_installata(cartella_v)["variante"] == "essenziale", "variante essenziale registrata")
+        percorso_nuovo = multimedia.scarica_ffmpeg(cartella=cartella_v, variante="full")
+        verifica(open(percorso_nuovo, "rb").read() == b"MZ otto punto uno", "la completa sostituisce l'essenziale")
+        verifica(open(os.path.join(cartella_v, "bin", "ffprobe.exe"), "rb").read() == b"MZ sonda MZ otto punto uno", "anche ffprobe e' sostituito")
+        verifica(multimedia.variante_installata(cartella_v)["variante"] == "completa", "variante completa registrata")
+        verifica(sorted(os.listdir(os.path.join(cartella_v, "bin"))) == ["ffmpeg.exe", "ffprobe.exe"], f"nessun file temporaneo: {os.listdir(os.path.join(cartella_v, 'bin'))}")
+        stampa("varianti:", multimedia.variante_installata(cartella_v))
+    infine:
+        multimedia.URL_BASE_COMPLETA = vero_base
 server.shutdown()
 
 # ---- con ffmpeg vero
@@ -109,6 +157,18 @@ se ffmpeg:
     stampa("info video:", v["formato"][:8], v["video"][0], v["audio"][0]["codec"])
     colonna = multimedia.estrai_audio(video, os.path.join(cartella, "colonna.wav"))
     asserisci abs(multimedia.durata_di(colonna) - 3.0) < 0.2 e non multimedia.info(colonna)["video"]
+    # sovrascrivere e' una scelta: un file gia' esistente non si tocca, e l'originale non si perde mai
+    prova:
+        multimedia.converti(video, os.path.join(cartella, "colonna.wav"))
+        verifica(Falso, "destinazione gia' esistente: doveva dare errore")
+    eccetto multimedia.ErroreMultimedia come errore:
+        verifica("esiste gia" in tipo_testo(errore) e "sovrascrivi" in tipo_testo(errore), f"messaggio: {errore}")
+    multimedia.converti(video, os.path.join(cartella, "colonna.wav"), sovrascrivi=Vero)
+    prova:
+        multimedia.converti(video, video.upper().replace("\\", "/"), sovrascrivi=Vero)
+        verifica(Falso, "destinazione uguale all'originale: doveva dare errore")
+    eccetto multimedia.ErroreMultimedia come errore:
+        verifica("originale" in tipo_testo(errore), f"messaggio: {errore}")
     pezzo = multimedia.taglia(video, os.path.join(cartella, "pezzo.mp4"), inizio=1, fine=2)
     asserisci abs(multimedia.durata_di(pezzo) - 1.0) < 0.3, multimedia.durata_di(pezzo)
     stampa("taglia 1s-2s:", round(multimedia.durata_di(pezzo), 2), "s")

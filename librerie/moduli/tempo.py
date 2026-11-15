@@ -11,7 +11,7 @@ def __getattr__(nome):
     return getattr(_orig, nome)
 
 pausa = _ott(_orig, 'sleep')
-aspetta = pausa          # nome vecchio, ancora valido
+aspetta = _ott(_orig, 'sleep')
 adesso = _ott(_orig, 'time')
 orario_locale = _ott(_orig, 'localtime')
 orario_utc = _ott(_orig, 'gmtime')

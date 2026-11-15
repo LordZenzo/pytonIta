@@ -45,9 +45,14 @@ definisci _builtin_italiani():
 definisci _moduli_italiani():
     prova:
         da _mappa_moduli importa MAPPA
-        ritorna sorted(set(MAPPA.values()))
     eccetto ImportError:
         ritorna []
+    propri = []
+    prova:
+        da _mappa_moduli importa PROPRI come propri        # moduli scritti a mano (suono, multimedia, ffmpeg, lettore)
+    eccetto ImportError:
+        passa
+    ritorna sorted(set(MAPPA.values()) | set(propri))
 
 
 # --- Python classico (file .py): parole e frammenti inglesi

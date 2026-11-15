@@ -14,11 +14,13 @@ importa ffmpeg
 
 ## Prima di cominciare: serve ffmpeg
 
-ffmpeg non è incluso in PitStudio (pesa 100 MB e ha una licenza propria). La libreria lo cerca da sola: nel `PATH`, nella variabile `PITONIT_FFMPEG` e nella cartella `.rad\ffmpeg` della tua cartella utente. Se non c'è:
+ffmpeg non è incluso in PitStudio (pesa 100-200 MB e ha una licenza propria). La libreria lo cerca da sola: nel `PATH`, nella variabile `PITONIT_FFMPEG` e nella cartella `.rad\ffmpeg` della tua cartella utente. Se non c'è:
 
-- **Strumenti → ffmpeg: audio e video…** spiega cosa succede e, solo dopo il tuo consenso, lo scarica dal sito ufficiale (controllando l'impronta SHA-256 del file);
-- oppure `multimedia.scarica_ffmpeg()` da un programma;
-- oppure lo installi tu (Windows: `winget install ffmpeg`).
+- **Strumenti → ffmpeg: audio e video…** spiega cosa succede e, solo dopo il tuo consenso, lo scarica (controllando l'impronta SHA-256 del file). Puoi scegliere tra due versioni:
+  - **Essenziale** (circa 115 MB): quello che serve quasi sempre, cioè H.264, H.265, VP9, AAC, MP3, Opus, GIF e circa 530 filtri;
+  - **Completa** (circa 200 MB): l'ultima versione stabile con più librerie (di solito AV1, filtri per la scheda video e altri formati). Se ne scarichi un'altra dopo, sostituisce la prima;
+- oppure `multimedia.scarica_ffmpeg()` da un programma (`variante="essenziale"` o `variante="completa"`; `multimedia.variante_installata()` dice quale hai);
+- oppure lo installi tu (Windows: `winget install ffmpeg`): se ffmpeg è già nel `PATH`, PitStudio usa quello.
 
 ```pit sintassi
 importa ffmpeg
@@ -313,6 +315,7 @@ stampa(ffmpeg.rileva_silenzi("lezione.mp3"))          # [(12.3, 14.8), (40.1, 42
 
 ## Da sapere
 
+- **File di uscita, con prudenza**: la cartella deve esistere (la libreria non la crea e te lo dice). **Un file di uscita che esiste già non viene sostituito**: ricevi un errore che lo dice, e il file resta com'era. Per sostituirlo scegli tu: `.sovrascrivi()` su un comando, `salva("x.mp4", sovrascrivi=Vero)`, `sovrascrivi=Vero` nelle ricette (`ffmpeg.riduci(..., sovrascrivi=Vero)`), oppure per tutto il programma `ffmpeg.sovrascrivi_per_impostazione = Vero`. Il file di uscita **non può mai essere lo stesso di quello in ingresso**, comunque lo scrivi (maiuscole, barre, `./`): la libreria si rifiuta, perché l'originale andrebbe perso. Lo stesso vale per `multimedia.converti(..., sovrascrivi=True)` e le altre funzioni di `multimedia`.
 - **Il nome del file di uscita decide il formato** (`.mp4`, `.mp3`, `.gif`, `.png`…), a meno di `.formato("...")`.
 - **Con `copia()` non si ricodifica**: è istantaneo e senza perdita, ma i tagli sono precisi solo ai fotogrammi chiave.
 - **Il testo sul video** (`.testo(...)`) usa un font di Windows (Arial) se non indichi `font="file.ttf"`; l'apice dritto `'` viene scritto come `’`, perché manda in crash ffmpeg.

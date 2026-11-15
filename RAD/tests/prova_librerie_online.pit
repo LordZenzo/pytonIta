@@ -51,6 +51,11 @@ verifica(non lo.e_scaricata(nomi["casuale"], utente), "casuale non è ancora sca
 lo.installa(nomi["casuale"], origine, utente)
 verifica(lo.stato(nomi["casuale"], utente, runtime) == "aggiornata", "dopo installa deve essere aggiornata")
 verifica(lo.e_scaricata(nomi["casuale"], utente), "casuale ora è scaricata")
+incluse = os.path.join(radice, "versioni_incluse.json")
+open(incluse, "w", encoding="utf-8").write('{"casuale": "1.0", "matematica": "1.3"}')
+verifica(lo.versione_locale("casuale", utente, incluse) == nomi["casuale"]["versione"], f"dopo installa la versione e' quella scaricata: {lo.versione_locale('casuale', utente, incluse)}")
+verifica(lo.versione_locale("matematica", utente, incluse) == "1.3", "una libreria non scaricata ha la versione inclusa")
+verifica(lo.versione_locale("sconosciuta", utente, incluse) è Nessuno, "libreria senza versione nota")
 verifica(lo.file_attivo("casuale.py", utente, runtime).startswith(utente), "la copia scaricata deve vincere")
 
 # un pacchetto va intero
@@ -61,6 +66,12 @@ verifica(lo.stato(pacchetto, utente, runtime) == "aggiornata", "pacchetto deve e
 
 # ripristina
 tolti = lo.ripristina(nomi["casuale"], utente)
+verifica(lo.versione_locale("casuale", utente, incluse) == "1.0", "dopo ripristina si torna alla versione inclusa")
+verifica(lo.testo_versione("matematica", "aggiornata", "1.3", utente, incluse) == "1.3", "testo di una libreria aggiornata")
+verifica(lo.testo_versione("casuale", "aggiornabile", "1.4", utente, incluse) == "1.0 → 1.4", f"testo di una libreria con aggiornamento: {lo.testo_versione('casuale', 'aggiornabile', '1.4', utente, incluse)}")
+verifica(lo.testo_versione("calendario", "nuova", "2.0", utente, incluse) == "2.0", "testo di una libreria solo online")
+verifica(lo.testo_versione("sconosciuta", "aggiornata", Nessuno, utente, incluse) == "", "nessuna versione, nessun testo")
+verifica(lo.testo_versione("sconosciuta", "aggiornabile", "1.2", utente, incluse) == "? → 1.2", "aggiornamento con versione locale ignota")
 verifica(tolti == 1, f"ripristina doveva togliere 1 file, ne ha tolti {tolti}")
 verifica(lo.stato(nomi["casuale"], utente, runtime) == "aggiornabile", "dopo ripristina torna la vecchia")
 lo.ripristina(pacchetto, utente)

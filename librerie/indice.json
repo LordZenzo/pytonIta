@@ -496,6 +496,19 @@
    ]
   },
   {
+   "nome": "ffmpeg",
+   "versione": "1.0",
+   "categoria": "Audio e video",
+   "descrizione": "ffmpeg e ffprobe comandati a catena: filtri, codec, sonda dei file, avanzamento, ricette (richiede ffmpeg).",
+   "originale": "ffmpeg",
+   "file": [
+    {
+     "percorso": "ffmpeg.py",
+     "sha256": "a5c06eaa0e421596c3f9c8f723f58625307fb8a53bf7885ed91025c0245d235e"
+    }
+   ]
+  },
+  {
    "nome": "file_temporanei",
    "versione": "1.0",
    "categoria": "Sistema",
@@ -804,6 +817,19 @@
    ]
   },
   {
+   "nome": "lettore",
+   "versione": "1.0",
+   "categoria": "Audio e video",
+   "descrizione": "Riproduce audio e video con VLC (mpv in arrivo), anche dentro una finestra tkinter (richiede VLC).",
+   "originale": "lettore",
+   "file": [
+    {
+     "percorso": "lettore.py",
+     "sha256": "d499e5346d39a8a49825abd07e0077cdb1f888c73c627ae68f74c7864ce21539"
+    }
+   ]
+  },
+  {
    "nome": "localizzazione",
    "versione": "1.0",
    "categoria": "Testo",
@@ -852,6 +878,19 @@
     {
      "percorso": "mucchio.py",
      "sha256": "a9380a4f8201d63aa1160e85b2b2e02fbfde6f5840c861062a48d4941ec6e09d"
+    }
+   ]
+  },
+  {
+   "nome": "multimedia",
+   "versione": "1.0",
+   "categoria": "Audio e video",
+   "descrizione": "Conversioni, tagli e informazioni sui file audio e video con ffmpeg; scarica ffmpeg se manca.",
+   "originale": "multimedia",
+   "file": [
+    {
+     "percorso": "multimedia.py",
+     "sha256": "bb800af514c5526902874dbec161ea3fae7737d8fca3a78d22c1f236b8ebedd3"
     }
    ]
   },
@@ -1366,6 +1405,19 @@
    ]
   },
   {
+   "nome": "suono",
+   "versione": "1.0",
+   "categoria": "Audio e video",
+   "descrizione": "Suoni, beep e melodie scritte a parole; suona i file .wav (e gli altri formati, con ffmpeg).",
+   "originale": "suono",
+   "file": [
+    {
+     "percorso": "suono.py",
+     "sha256": "dbbc09082c4a91b419f4b7fcba6a495d6aa5242190c167b1a86f2ea24b408c9a"
+    }
+   ]
+  },
+  {
    "nome": "tabelle",
    "versione": "1.0",
    "categoria": "Scienza e dati",
@@ -1406,14 +1458,14 @@
   },
   {
    "nome": "tempo",
-   "versione": "1.1",
+   "versione": "1.2",
    "categoria": "Data e ora",
    "descrizione": "Orologio, pause e misure di tempo.",
    "originale": "time",
    "file": [
     {
      "percorso": "tempo.py",
-     "sha256": "04fe4a479d15b12882c7d749e698ad0e309231db5973e75e18b3c2c6d21c4e84"
+     "sha256": "8d0c8d6956bbe1e11a92226be86747b6793fd2f6d3537f90a60776f70e3217c4"
     }
    ]
   },

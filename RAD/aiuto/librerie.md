@@ -50,7 +50,7 @@ Le note si scrivono come `do4`, `fa#3`, `sib4` (il numero è l'ottava: `la4` = 4
 
 ## Il modulo `multimedia` (audio e video con ffmpeg)
 
-`multimedia` usa **ffmpeg** per convertire, tagliare e guardare dentro i file audio e video. ffmpeg non è incluso in PitStudio: il modulo lo cerca da solo (nel PATH, nella variabile `PITONIT_FFMPEG` o nella cartella `.radfmpeg` della tua cartella utente). Se manca, scegli **Strumenti → ffmpeg: audio e video…**: la finestra ti dice cosa succede e, solo dopo il tuo consenso, lo scarica (circa 115 MB, dal sito ufficiale) controllando l'impronta SHA-256 del file. Dal programma: `multimedia.scarica_ffmpeg()`. Oppure installalo tu con `winget install ffmpeg`.
+`multimedia` usa **ffmpeg** per convertire, tagliare e guardare dentro i file audio e video. ffmpeg non è incluso in PitStudio: il modulo lo cerca da solo (nel PATH, nella variabile `PITONIT_FFMPEG` o nella cartella `.radfmpeg` della tua cartella utente). Se manca, scegli **Strumenti → ffmpeg: audio e video…**: la finestra ti dice cosa succede e, solo dopo il tuo consenso, lo scarica controllando l'impronta SHA-256 del file: puoi scegliere la versione essenziale (circa 115 MB) o quella completa (circa 200 MB, con più librerie). Dal programma: `multimedia.scarica_ffmpeg()`. Oppure installalo tu con `winget install ffmpeg`.
 
 ```pit sintassi
 importa multimedia
@@ -59,6 +59,7 @@ dati = multimedia.info("film.mp4")                 # durata, formato, video e au
 stampa(dati["durata"], dati["video"][0]["larghezza"])
 
 multimedia.converti("canzone.wav", "canzone.mp3")  # il formato lo decide l'estensione
+# se il file di destinazione esiste già: errore, a meno di sovrascrivi=True
 multimedia.estrai_audio("film.mp4", "colonna.mp3")
 multimedia.taglia("film.mp4", "scena.mp4", inizio=10, fine=25)   # in secondi
 multimedia.fotogramma("film.mp4", 12.5, "copertina.png")

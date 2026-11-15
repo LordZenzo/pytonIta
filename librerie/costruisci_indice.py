@@ -40,7 +40,8 @@ def nomi_italiani(lib):
     sys.path.insert(0, lib)
     import _mappa_moduli
     sys.path.pop(0)
-    return sorted({v.split(".")[0] for v in _mappa_moduli.MAPPA.values()}), _mappa_moduli.MAPPA
+    propri = set(getattr(_mappa_moduli, "PROPRI", []))          # moduli scritti a mano (suono, multimedia, ffmpeg, lettore)
+    return sorted({v.split(".")[0] for v in _mappa_moduli.MAPPA.values()} | propri), _mappa_moduli.MAPPA
 
 
 def file_di(lib, nome):
@@ -94,6 +95,9 @@ def main():
                      "originale": originali.get(nome, nome), "file": file_})
     json.dump({"formato": FORMATO, "librerie": voci}, open(INDICE, "w", encoding="utf-8", newline="\n"),
               ensure_ascii=False, indent=1)
+    versioni = {v["nome"]: v["versione"] for v in voci}
+    with open(os.path.join(RADICE, "RAD", "rad", "versioni_librerie.json"), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(versioni, f, ensure_ascii=False, indent=1, sort_keys=True)       # PitStudio la mostra accanto al nome, anche senza rete
     print("librerie:", len(voci), "file:", sum(len(v["file"]) for v in voci), "mancanti:", mancanti)
 
 

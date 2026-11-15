@@ -19,6 +19,8 @@ altra opzione con `.opzione("-nome", valore)`, qualunque filtro con `.video.nome
 grafi complessi con `.filtro_complesso(...)` e, per tutto il resto, `ffmpeg.esegui_argomenti(...)`.
 """
 import collections as _collezioni
+import contextvars as _contesto
+import functools as _funzioni
 import datetime as _data
 import difflib as _difflib
 import json as _json
@@ -32,6 +34,24 @@ import time as _tempo_modulo
 
 from multimedia import (trova_ffmpeg, scarica_ffmpeg, FfmpegNonTrovato, ErroreMultimedia, URL_FFMPEG,
                         CARTELLA_FFMPEG, _richiedi, _SENZA_FINESTRA)
+
+
+# Sovrascrivere un file di uscita che esiste gia' e' una scelta da fare apposta: per impostazione predefinita la libreria si rifiuta.
+# Si cambia per un comando (.sovrascrivi()), per una ricetta (sovrascrivi=Vero) o per tutti (ffmpeg.sovrascrivi_per_impostazione = True).
+sovrascrivi_per_impostazione = False
+_sovrascrivi_ricetta = _contesto.ContextVar("sovrascrivi_ricetta", default=False)
+
+
+def _ricetta(funzione):
+    """Le ricette accettano anche `sovrascrivi=Vero`: vale per i comandi che costruiscono al loro interno."""
+    @_funzioni.wraps(funzione)
+    def avvolta(*argomenti, sovrascrivi=False, **opzioni):
+        segno = _sovrascrivi_ricetta.set(bool(sovrascrivi))
+        try:
+            return funzione(*argomenti, **opzioni)
+        finally:
+            _sovrascrivi_ricetta.reset(segno)
+    return avvolta
 
 
 class ErroreFfmpeg(ErroreMultimedia):
@@ -690,6 +710,7 @@ class Comando:
         self._corrente = _Uscita()
         self._complesso = []        # grafi scritti a mano
         self._grezzo = None         # lista di argomenti tali e quali (porta di servizio)
+        self._sovrascrivi = _sovrascrivi_ricetta.get()
         self.video = _Filtri(self, "v")
         self.audio = _Filtri(self, "a")
 
@@ -714,13 +735,25 @@ class Comando:
         """quiet, panic, fatal, error, warning, info, verbose, debug, trace."""
         return self.impostazioni_globali("-loglevel", livello)
 
+    def sovrascrivi(self, attivo=True):
+        """Permette di sostituire i file di uscita che esistono gia' (per impostazione predefinita la libreria si rifiuta)."""
+        self._sovrascrivi = bool(attivo)
+        return self
+
     def senza_conferme(self):
-        return self.impostazioni_globali("-y")
+        """Come sovrascrivi(): i file di uscita gia' esistenti vengono sostituiti senza chiedere."""
+        return self.sovrascrivi(True)
 
     def non_sovrascrivere(self):
-        """Se il file di uscita esiste gia', ffmpeg si ferma."""
-        self._globali = [g for g in self._globali if g != "-y"] + ["-n"]
-        return self
+        """Se il file di uscita esiste gia', ci si ferma (e' il comportamento predefinito)."""
+        return self.sovrascrivi(False)
+
+    def _puo_sovrascrivere(self):
+        if "-y" in self._globali:
+            return True
+        if "-n" in self._globali:
+            return False
+        return self._sovrascrivi or sovrascrivi_per_impostazione
 
     # ---- opzioni di uscita (generiche)
     def opzione(self, nome, valore=None, flusso=None):
@@ -788,8 +821,10 @@ class Comando:
         self._corrente = _Uscita()
         return self
 
-    def salva(self, file, avanzamento=None, fermata=None, controlla=False, **opzioni):
+    def salva(self, file, avanzamento=None, fermata=None, controlla=False, sovrascrivi=None, **opzioni):
         """uscita(file) e poi esegui(): il modo piu' corto per finire. Ritorna il Risultato."""
+        if sovrascrivi is not None:
+            self.sovrascrivi(sovrascrivi)
         return self.uscita(file, **opzioni).esegui(avanzamento=avanzamento, fermata=fermata, controlla=controlla)
 
     @property
@@ -838,7 +873,7 @@ class Comando:
         uscite = list(self._uscite)
         if not uscite:
             raise ErroreFfmpeg("Manca l'uscita: usa .uscita('file') oppure .salva('file').")
-        argomenti = ["-hide_banner"] + (["-y"] if "-n" not in self._globali and "-y" not in self._globali else []) + list(self._globali)
+        argomenti = ["-hide_banner"] + ([] if ("-y" in self._globali or "-n" in self._globali) else ["-y" if self._puo_sovrascrivere() else "-n"]) + list(self._globali)
         for opzioni, file in self._ingressi:
             argomenti += opzioni + ["-i", file]
         if self._complesso:
@@ -914,8 +949,44 @@ class Comando:
                             problemi.append(f"{nome}: opzione sconosciuta {m.group(1)!r}" + (f" (forse {', '.join(vicini)}?)" if vicini else ""))
         return problemi
 
+    def _controlla_destinazioni(self):
+        """Prima di partire: la cartella di ogni file di uscita deve esistere (ffmpeg da solo direbbe solo «No such file or directory»)."""
+        if self._grezzo is not None:
+            return
+        for u in self._uscite:
+            f = u.file
+            if f is None or f == "-" or "://" in f or f.startswith("pipe:"):
+                continue
+            cartella = _os.path.dirname(_os.path.abspath(f))
+            if not _os.path.isdir(cartella):
+                raise ErroreFfmpeg(f"La cartella di destinazione non esiste: {cartella} (file di uscita: {f}). Creala, oppure cambia il percorso.")
+        # un file di uscita non puo' essere uno dei file di ingresso: il film originale andrebbe perso
+        ingressi = [f for opzioni, f in self._ingressi if "lavfi" not in opzioni and "://" not in f]
+        for u in self._uscite:
+            if u.file is None or u.file == "-" or "://" in u.file or u.file.startswith("pipe:"):
+                continue
+            for f in ingressi:
+                uguali = _os.path.normcase(_os.path.abspath(u.file)) == _os.path.normcase(_os.path.abspath(f))
+                if not uguali and _os.path.exists(u.file) and _os.path.exists(f):
+                    try:
+                        uguali = _os.path.samefile(u.file, f)
+                    except OSError:
+                        uguali = False
+                if uguali:
+                    raise ErroreFfmpeg(f"Il file di uscita e' lo stesso di quello in ingresso: {u.file}. Scegli un altro nome, "
+                                       "altrimenti il file originale andrebbe perso.")
+        if not self._puo_sovrascrivere():
+            for u in self._uscite:
+                f = u.file
+                if f is None or f == "-" or "://" in f or f.startswith("pipe:") or "%" in f:      # con un modello (img_%03d.png) non si controlla
+                    continue
+                if _os.path.exists(f):
+                    raise ErroreFfmpeg(f"Il file di uscita esiste gia': {f}. Per sostituirlo usa .sovrascrivi() (nelle ricette: sovrascrivi=Vero); "
+                                       "altrimenti scegli un altro nome.")
+
     def avvia(self, avanzamento=None):
         """Lancia ffmpeg in sottofondo e ritorna subito un Processo (con .aspetta(), .ferma(), .avanzamento, .in_corso)."""
+        self._controlla_destinazioni()
         return Processo(self, avanzamento)
 
     def esegui(self, avanzamento=None, fermata=None, controlla=False):
@@ -1449,16 +1520,19 @@ def _nuovo_file(percorso):
     return _os.path.abspath(percorso)
 
 
+@_ricetta
 def converti(origine, destinazione, avanzamento=None, **opzioni):
     """Converte un file nel formato dell'estensione di `destinazione`. Opzioni in piu' = quelle di uscita (codec_video='libx264', qualita=23, ...)."""
     return apri(origine).salva(_nuovo_file(destinazione), avanzamento=avanzamento, **opzioni)
 
 
+@_ricetta
 def estrai_audio(video, destinazione, avanzamento=None, **opzioni):
     """Salva solo l'audio ('film.mp4' -> 'colonna.mp3')."""
     return apri(video).senza_video().salva(_nuovo_file(destinazione), avanzamento=avanzamento, **opzioni)
 
 
+@_ricetta
 def taglia(origine, destinazione, inizio=0, fine=None, durata=None, ricodifica=True, avanzamento=None):
     """Salva il pezzo tra `inizio` e `fine` (o lungo `durata`), in secondi. Con ricodifica=False e' istantaneo ma preciso solo ai fotogrammi chiave."""
     opzioni = {"inizio": inizio}
@@ -1472,6 +1546,7 @@ def taglia(origine, destinazione, inizio=0, fine=None, durata=None, ricodifica=T
     return c.salva(_nuovo_file(destinazione), avanzamento=avanzamento)
 
 
+@_ricetta
 def fotogramma(video, tempo, destinazione, larghezza=None):
     """Salva come immagine il fotogramma al secondo `tempo`."""
     c = apri(video, inizio=tempo).fotogrammi(1)
@@ -1480,6 +1555,7 @@ def fotogramma(video, tempo, destinazione, larghezza=None):
     return c.salva(_nuovo_file(destinazione))
 
 
+@_ricetta
 def estrai_fotogrammi(video, cartella, ogni_secondi=1.0, formato="png", larghezza=None, avanzamento=None):
     """Salva un'immagine ogni `ogni_secondi` secondi in `cartella` (immagine_0001.png, ...). Ritorna la lista dei file."""
     _os.makedirs(cartella, exist_ok=True)
@@ -1488,12 +1564,14 @@ def estrai_fotogrammi(video, cartella, ogni_secondi=1.0, formato="png", larghezz
     return sorted(_os.path.join(cartella, f) for f in _os.listdir(cartella) if f.startswith("immagine_") and f.endswith("." + formato))
 
 
+@_ricetta
 def riduci(video, destinazione, larghezza=640, qualita=26, avanzamento=None):
     """Video piu' piccolo (larghezza in pixel, qualita' x264: piu' alto = piu' leggero)."""
     return apri(video).ridimensiona(larghezza=larghezza).codec_video("libx264").qualita(qualita).formato_pixel("yuv420p") \
         .ottimizza_web().salva(_nuovo_file(destinazione), avanzamento=avanzamento)
 
 
+@_ricetta
 def gif(video, destinazione, inizio=0, durata=None, larghezza=480, fps=12, avanzamento=None):
     """Una GIF animata di buona qualita' (con tavolozza di colori ottimizzata)."""
     c = apri(video, inizio=inizio, **({"durata": durata} if durata else {}))
@@ -1501,6 +1579,7 @@ def gif(video, destinazione, inizio=0, durata=None, larghezza=480, fps=12, avanz
     return c.salva(_nuovo_file(destinazione), avanzamento=avanzamento)
 
 
+@_ricetta
 def concatena(file, destinazione, ricodifica=False, avanzamento=None):
     """Unisce piu' file uno dopo l'altro. Senza ricodifica i file devono avere gli stessi codec e parametri; con ricodifica=True vanno bene tutti."""
     file = [_os.path.abspath(str(f)) for f in file]
@@ -1522,28 +1601,33 @@ def concatena(file, destinazione, ricodifica=False, avanzamento=None):
     return c.salva(_nuovo_file(destinazione), avanzamento=avanzamento)
 
 
+@_ricetta
 def sostituisci_audio(video, audio, destinazione, avanzamento=None):
     """Il video con un altro audio (il video non si ricodifica)."""
     return Comando().aggiungi(video).aggiungi(audio).mappa("0:v:0").mappa("1:a:0").copia().il_piu_corto() \
         .salva(_nuovo_file(destinazione), avanzamento=avanzamento)
 
 
+@_ricetta
 def togli_audio(video, destinazione, avanzamento=None):
     """Il video senza audio (senza ricodificarlo)."""
     return apri(video).senza_audio().copia().salva(_nuovo_file(destinazione), avanzamento=avanzamento)
 
 
+@_ricetta
 def filigrana(video, immagine, destinazione, x="W-w-10", y="H-h-10", avanzamento=None):
     """Mette un logo sopra il video (di default in basso a destra)."""
     return apri(video).sovrapponi(immagine, x, y).salva(_nuovo_file(destinazione), avanzamento=avanzamento)
 
 
+@_ricetta
 def dividi_in_segmenti(file, durata_segmento, modello, avanzamento=None):
     """Taglia un file in pezzi lunghi `durata_segmento` secondi senza ricodificare: modello='parte_%03d.mp4'."""
     return apri(file).copia().formato("segment").opzione("-segment_time", durata_segmento).opzione("-reset_timestamps", 1) \
         .salva(_nuovo_file(modello), avanzamento=avanzamento)
 
 
+@_ricetta
 def onda_audio(file, destinazione, dimensioni="1200x300", colore="#2a7de1"):
     """Un'immagine con la forma d'onda dell'audio."""
     c = apri(file)
@@ -1551,6 +1635,7 @@ def onda_audio(file, destinazione, dimensioni="1200x300", colore="#2a7de1"):
     return c.salva(_nuovo_file(destinazione))
 
 
+@_ricetta
 def spettrogramma(file, destinazione, dimensioni="1200x500"):
     """Un'immagine con lo spettro dell'audio."""
     c = apri(file)
@@ -1558,6 +1643,7 @@ def spettrogramma(file, destinazione, dimensioni="1200x500"):
     return c.salva(_nuovo_file(destinazione))
 
 
+@_ricetta
 def foglio_di_miniature(video, destinazione, colonne=4, righe=4, larghezza=320):
     """Un'unica immagine con tante miniature del video (colonne x righe), a intervalli uguali."""
     totale = Sonda(video).durata
@@ -1566,6 +1652,7 @@ def foglio_di_miniature(video, destinazione, colonne=4, righe=4, larghezza=320):
     return c.salva(_nuovo_file(destinazione))
 
 
+@_ricetta
 def normalizza_volume(file, destinazione, obiettivo=-16.0, avanzamento=None):
     """Volume costante con la normalizzazione EBU R128 (loudnorm); il video non si ricodifica."""
     return apri(file).normalizza_volume(obiettivo).codec_video("copy").salva(_nuovo_file(destinazione), avanzamento=avanzamento)
@@ -1590,6 +1677,7 @@ def volume_massimo(file):
     return {"medio": float(medio.group(1)) if medio else None, "picco": float(picco.group(1)) if picco else None}
 
 
+@_ricetta
 def immagini_in_video(modello, destinazione, fps=25, audio=None, avanzamento=None):
     """Una sequenza di immagini (modello='img_%04d.png') diventa un video."""
     c = apri(modello, fps=fps)
@@ -1598,6 +1686,7 @@ def immagini_in_video(modello, destinazione, fps=25, audio=None, avanzamento=Non
     return c.codec_video("libx264").formato_pixel("yuv420p").salva(_nuovo_file(destinazione), avanzamento=avanzamento)
 
 
+@_ricetta
 def cattura_schermo(destinazione, durata=5, fps=20, avanzamento=None):
     """Registra lo schermo di Windows (gdigrab) per `durata` secondi."""
     if _os.name != "nt":

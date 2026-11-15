@@ -18,6 +18,16 @@ app.apri_progetto(cart)
 radice.update()
 pl = app.pannello_librerie
 stampa("librerie nell'elenco:", lunghezza_di(pl.tutte))
+# i moduli scritti a mano (suono, multimedia, ffmpeg, lettore) stanno nell'elenco, nella loro categoria
+propri = {v[0]: v[1] per v in pl.tutte se v[0] in ("suono", "multimedia", "ffmpeg", "lettore")}
+asserisci propri == {"suono": "Audio e video", "multimedia": "Audio e video", "ffmpeg": "Audio e video", "lettore": "Audio e video"}, propri
+asserisci all(m in parole.MODULI_PRIMO_LIVELLO per m in propri), "completamento di importa"
+# accanto al nome, tra parentesi, la versione della libreria
+pl.riempi()
+testo_ffmpeg = pl.albero.item("lib:ffmpeg", "text")
+asserisci "ffmpeg (1." in testo_ffmpeg, testo_ffmpeg
+testo_matematica = pl.albero.item("lib:matematica", "text")
+asserisci "matematica (1." in testo_matematica, testo_matematica
 app.mostra_pannello_sinistro("librerie")
 radice.update()
 pl.attiva("matematica")

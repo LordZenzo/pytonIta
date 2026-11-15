@@ -18,6 +18,8 @@ ORIGINE_PREDEFINITA = "https://raw.githubusercontent.com/LordZenzo/pytonIta/main
 VARIABILE_ORIGINE = "PITSTUDIO_LIBRERIE_ORIGINE"       # per provare: un'altra origine (anche una cartella locale, file:///…)
 CARTELLA_UTENTE = os.path.join(config.CARTELLA, "librerie")
 FILE_CACHE = os.path.join(CARTELLA_UTENTE, "indice_cache.json")
+FILE_VERSIONI = os.path.join(CARTELLA_UTENTE, "versioni.json")                                           # versioni delle copie scaricate
+FILE_VERSIONI_INCLUSE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "versioni_librerie.json")   # versioni delle librerie incluse
 FORMATO = 1
 MASSIMO_FILE = 4_000_000
 
@@ -125,6 +127,33 @@ definisci file_attivo(relativo, cartella_utente=Nessuno, runtime=Nessuno):
     ritorna Nessuno
 
 
+definisci _leggi_versioni(percorso):
+    prova:
+        con open(percorso, encoding="utf-8") come f:
+            dati = json.load(f)
+        ritorna dati se isinstance(dati, dict) altrimenti {}
+    eccetto (OSError, ValueError):
+        ritorna {}
+
+
+definisci versione_locale(nome, cartella_utente=Nessuno, file_incluse=Nessuno):
+    """La versione della libreria che pitonit userebbe: quella della copia scaricata se c'e', altrimenti quella inclusa nell'installazione
+    (oppure None se non la conosciamo, ad esempio per una libreria che non e' nell'indice)."""
+    cartella_utente = cartella_utente o CARTELLA_UTENTE
+    scaricate = _leggi_versioni(os.path.join(cartella_utente, "versioni.json"))
+    se nome in scaricate:
+        ritorna scaricate[nome]
+    ritorna _leggi_versioni(file_incluse o FILE_VERSIONI_INCLUSE).get(nome)
+
+
+definisci testo_versione(nome, stato_, versione_online, cartella_utente=Nessuno, file_incluse=Nessuno):
+    """Il testo da mettere tra parentesi accanto al nome: «1.1», «1.1 → 1.2» se c'e' un aggiornamento, «1.0» per una libreria solo online."""
+    locale = versione_locale(nome, cartella_utente, file_incluse)
+    se stato_ == "aggiornabile" e versione_online:
+        ritorna f"{locale o '?'} → {versione_online}"
+    ritorna locale o versione_online o ""
+
+
 STATI = ("aggiornata", "aggiornabile", "nuova")
 
 
@@ -182,6 +211,10 @@ definisci installa(voce, base=Nessuno, cartella_utente=Nessuno):
         os.replace(provvisorio, destinazione)
         scritti.append(destinazione)
     metti_in_percorso(cartella_utente)
+    versioni = _leggi_versioni(os.path.join(cartella_utente, "versioni.json"))
+    versioni[voce["nome"]] = voce["versione"]
+    con open(os.path.join(cartella_utente, "versioni.json"), "w", encoding="utf-8") come f:
+        json.dump(versioni, f, indent=1, ensure_ascii=Falso)
     ritorna scritti
 
 
@@ -200,4 +233,10 @@ definisci ripristina(voce, cartella_utente=Nessuno):
                     os.rmdir(cartella)
             eccetto OSError:
                 passa
+    percorso_versioni = os.path.join(cartella_utente, "versioni.json")
+    versioni = _leggi_versioni(percorso_versioni)
+    se voce["nome"] in versioni:
+        elimina versioni[voce["nome"]]
+        con open(percorso_versioni, "w", encoding="utf-8") come f:
+            json.dump(versioni, f, indent=1, ensure_ascii=Falso)
     ritorna tolti

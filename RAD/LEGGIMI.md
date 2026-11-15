@@ -16,6 +16,15 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.37
+
+- **Pannello Librerie: la versione accanto al nome.** Ogni libreria mostra la sua versione tra parentesi, per esempio `ffmpeg (1.0)`; se online ce n'è una più recente, `(1.1 → 1.2)`. Le versioni incluse nell'installazione stanno in `RAD/rad/versioni_librerie.json` (lo scrive `librerie/costruisci_indice.py`) e quelle scaricate dal pannello vengono ricordate in `~/.rad/librerie/versioni.json`.
+- **I moduli multimediali nel pannello e nel completamento.** `suono`, `multimedia`, `ffmpeg` e `lettore` (scritti a mano, non alias di una libreria) ora compaiono nel pannello Librerie, nella categoria nuova **Audio e video**, e nel completamento di `importa`; sono anche nell'indice online (versione 1.0) e si aggiornano come le altre librerie. In 2.36 mancavano.
+- **Galleria di esempi** anche nel menu **File**, oltre a Aiuto e alla schermata iniziale.
+- **Errori chiari**: `ffmpeg` dice quando la cartella di destinazione non esiste.
+- **Scrittura prudente dei file.** Per impostazione predefinita le librerie `ffmpeg` e `multimedia` non sostituiscono un file di uscita che esiste già (errore chiaro, il file resta com'era) e non lasciano mai che l'uscita sia lo stesso file dell'ingresso, comunque venga scritto il percorso. Per sostituire: `.sovrascrivi()`, `salva(..., sovrascrivi=Vero)`, `sovrascrivi=Vero` nelle ricette e in `multimedia`, o `ffmpeg.sovrascrivi_per_impostazione = True`. Un errore dice anche se la cartella di destinazione non esiste. **Cambia il comportamento della 2.36**, che sostituiva senza chiedere.
+- **ffmpeg: due versioni a scelta.** La finestra *Strumenti → ffmpeg: audio e video…* e `multimedia.scarica_ffmpeg(variante=...)` permettono di scaricare la versione **essenziale** (circa 115 MB, da gyan.dev) o la **completa** (circa 200 MB, l'ultima versione stabile compilata da BtbN, con più librerie). Quella scelta sostituisce la precedente; `multimedia.variante_installata()` dice quale è installata. Se ffmpeg è già nel `PATH`, PitStudio usa quello e la finestra lo dice.
+
 ## Novità della 2.36
 
 - **Il modulo `suono`**: suona i file `.wav` (`suono.riproduci`, in sottofondo con `attendi=Falso`, `suono.ferma`), fa dei beep, crea toni e melodie da note scritte a parole (`suono.suona([("do4", 1), ("mi4", 1)])`, `suono.crea_melodia`) e dice la durata di un file. Su Windows usa `winsound`. È scritto a mano, non è un alias: se esporti il progetto come Python, `suono.py` viene copiato accanto al programma.

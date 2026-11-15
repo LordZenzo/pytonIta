@@ -1,4 +1,5 @@
 """Finestra «ffmpeg»: dice se ffmpeg c'è (serve al modulo multimedia) e, se manca, lo scarica solo dopo il tuo consenso."""
+importa os
 importa tkinter come tk
 da tkinter importa ttk, messagebox
 
@@ -12,7 +13,7 @@ classe DialogoFfmpeg(DialogoBase):
     """Mostra dove si trova ffmpeg e la sua versione; «Scarica ffmpeg» lo scarica dal sito ufficiale in ~/.rad/ffmpeg (circa 115 MB)."""
 
     definisci __inizializza__(se_stesso, genitore, colori, scarica=Nessuno, conferma=Nessuno):
-        DialogoBase.__init__(se_stesso, genitore, "ffmpeg: audio e video", colori, 580, 340)
+        DialogoBase.__init__(se_stesso, genitore, "ffmpeg: audio e video", colori, 580, 430)
         se_stesso._scarica_fn = scarica o multimedia.scarica_ffmpeg
         se_stesso._conferma = conferma o (lambda testo_: messagebox.askyesno("Scarica ffmpeg", testo_, parent=se_stesso))
         se_stesso._interrompi = Falso
@@ -29,6 +30,17 @@ classe DialogoFfmpeg(DialogoBase):
         se_stesso.situazione.pack(fill="x", padx=18)
         se_stesso.dettagli = tk.Label(se_stesso, wraplength=540, justify="left", anchor="w", background=c["pannello"], foreground=c["tenue"])
         se_stesso.dettagli.pack(fill="x", padx=18, pady=(2, 0))
+        riga_versione = tk.Frame(se_stesso, background=c["pannello"])
+        riga_versione.pack(fill="x", padx=18, pady=(12, 0))
+        tk.Label(riga_versione, text="Versione da scaricare:", background=c["pannello"], foreground=c["primo_piano"]).pack(side="left")
+        se_stesso._varianti = multimedia.varianti_ffmpeg()
+        se_stesso.var_variante = tk.StringVar(value=se_stesso._etichetta_variante(se_stesso._varianti[0]))
+        se_stesso.scelta_variante = ttk.Combobox(riga_versione, textvariable=se_stesso.var_variante, state="readonly", width=30,
+                                                 values=[se_stesso._etichetta_variante(v) per v in se_stesso._varianti])
+        se_stesso.scelta_variante.pack(side="left", padx=8)
+        se_stesso.scelta_variante.bind("<<ComboboxSelected>>", lambda evento: se_stesso.aggiorna_situazione())
+        se_stesso.descrizione_variante = tk.Label(se_stesso, wraplength=540, justify="left", anchor="w", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.descrizione_variante.pack(fill="x", padx=18, pady=(2, 0))
         se_stesso.barra_avanzamento = ttk.Progressbar(se_stesso, mode="determinate", maximum=100)
         se_stesso.barra_avanzamento.pack(fill="x", padx=18, pady=(14, 0))
         se_stesso.stato = tk.Label(se_stesso, text="", anchor="w", background=c["pannello"], foreground=c["tenue"])
@@ -44,26 +56,53 @@ classe DialogoFfmpeg(DialogoBase):
         se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
         se_stesso.aggiorna_situazione()
 
+    definisci _etichetta_variante(se_stesso, variante):
+        ritorna f"{variante['nome']} (circa {variante['dimensione_mb']} MB)"
+
+    definisci _variante_scelta(se_stesso):
+        """Il dizionario della versione scelta nel menu."""
+        per v in se_stesso._varianti:
+            se se_stesso._etichetta_variante(v) == se_stesso.var_variante.get():
+                ritorna v
+        ritorna se_stesso._varianti[0]
+
     definisci aggiorna_situazione(se_stesso):
+        scelta = se_stesso._variante_scelta()
+        se_stesso.descrizione_variante.configure(text=scelta["descrizione"])
         percorso = multimedia.trova_ffmpeg()
+        nostro = Falso
+        se percorso:
+            nostro = os.path.normcase(os.path.abspath(percorso)) == os.path.normcase(os.path.abspath(os.path.join(multimedia.CARTELLA_FFMPEG, "bin", "ffmpeg.exe")))
+        installata = multimedia.variante_installata() se nostro altrimenti Nessuno
         se percorso:
             se_stesso.situazione.configure(text="ffmpeg è pronto.", foreground=se_stesso.colori["ok"])
-            se_stesso.dettagli.configure(text=f"{percorso}\n{multimedia.versione_ffmpeg() o ''}")
-            se_stesso.scarica.configure(state="disabled", text="Scarica ffmpeg")
+            nota = ""
+            se nostro:
+                nome_installata = (installata o {}).get("variante", "")
+                nota = f"\nÈ quello scaricato da PitStudio (versione {nome_installata})." se nome_installata altrimenti "\nÈ quello scaricato da PitStudio."
+            altrimenti:
+                nota = "\nÈ una copia già installata sul computer: PitStudio usa quella, quindi qui non serve scaricare."
+            se_stesso.dettagli.configure(text=f"{percorso}\n{multimedia.versione_ffmpeg() o ''}{nota}")
+            se nostro e (installata è Nessuno o installata.get("variante") != scelta["chiave"]):
+                se_stesso.scarica.configure(state="normal", text=f"Sostituisci con la versione {scelta['nome'].lower()}")
+            altrimenti:
+                se_stesso.scarica.configure(state="disabled", text="Scarica ffmpeg")
         altrimenti:
             se_stesso.situazione.configure(text="ffmpeg non è installato.", foreground=se_stesso.colori["avviso"])
-            se_stesso.dettagli.configure(text="Puoi scaricarlo da qui (circa 115 MB, dal sito ufficiale, nella cartella .rad della tua cartella utente) "
-                                              "oppure installarlo tu (Windows: winget install ffmpeg).")
-            se_stesso.scarica.configure(state="normal")
+            se_stesso.dettagli.configure(text="Scegli la versione e scaricala da qui (dal sito di chi la compila, nella cartella .rad della tua cartella utente) "
+                                              "oppure installala tu (Windows: winget install ffmpeg).")
+            se_stesso.scarica.configure(state="normal", text="Scarica ffmpeg")
 
     definisci _chiudi(se_stesso):
         se_stesso._interrompi = Vero
         se_stesso.destroy()
 
     definisci _scarica(se_stesso):
-        se non se_stesso._conferma(f"Scarico ffmpeg (circa 115 MB) da {multimedia.URL_FFMPEG.split('/')[2]}, il sito di build di Windows "
-                                   f"collegato da ffmpeg.org?\n\nLo salvo in:\n{multimedia.CARTELLA_FFMPEG}\n"
-                                   "e controllo l'impronta SHA-256 del file prima di usarlo."):
+        scelta = se_stesso._variante_scelta()
+        sostituisce = "\n\nSostituisce la versione di ffmpeg già scaricata da PitStudio." se "Sostituisci" in se_stesso.scarica.cget("text") altrimenti ""
+        se non se_stesso._conferma(f"Scarico la versione {scelta['nome'].lower()} di ffmpeg (circa {scelta['dimensione_mb']} MB) da:\n{scelta['sito']}\n"
+                                   f"(un sito di build di Windows segnalato da ffmpeg.org).\n\nLo salvo in:\n{multimedia.CARTELLA_FFMPEG}\n"
+                                   f"e controllo l'impronta SHA-256 del file prima di usarlo.{sostituisce}"):
             ritorna
         se_stesso._scaricando = Vero
         se_stesso._interrompi = Falso
@@ -71,7 +110,7 @@ classe DialogoFfmpeg(DialogoBase):
         se_stesso.chiudi.configure(text="Annulla")
 
         definisci lavoro():
-            ritorna se_stesso._scarica_fn(avanzamento=se_stesso._segna, interrompi=lambda: se_stesso._interrompi)
+            ritorna se_stesso._scarica_fn(avanzamento=se_stesso._segna, interrompi=lambda: se_stesso._interrompi, variante=scelta["chiave"])
 
         esecuzione.in_secondo_piano(se_stesso, lavoro, se_stesso._finito)
         se_stesso._aggiorna_barra()

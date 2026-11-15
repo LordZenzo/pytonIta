@@ -45,6 +45,15 @@ per i in intervallo_di(barra.index("end") + 1):
         voci = [sotto.entrycget(j, "label") per j in intervallo_di(sotto.index("end") + 1) se sotto.type(j) == "command"]
 verifica(any(v.startswith("Esplora ffmpeg") per v in voci) e any(v.startswith("Informazioni su un file") per v in voci), f"voci di menu: {voci}")
 
+# la galleria di esempi sta nel menu File e nel menu Aiuto
+etichette_menu = {}
+per i in intervallo_di(barra.index("end") + 1):
+    se barra.type(i) == "cascade":
+        sotto_menu = radice.nametowidget(barra.entrycget(i, "menu"))
+        etichette_menu[barra.entrycget(i, "label")] = [sotto_menu.entrycget(j, "label") per j in intervallo_di(sotto_menu.index("end") + 1) se sotto_menu.type(j) == "command"]
+verifica("Galleria di esempi…" in etichette_menu.get("File", []), f"menu File: {etichette_menu.get('File')}")
+verifica("Galleria di esempi…" in etichette_menu.get("Aiuto", []), "menu Aiuto")
+
 # esempi di codice
 verifica("importa ffmpeg" in media_ui.esempio_per("formato", {"nome": "mp4"}) e '.formato("mp4")' in media_ui.esempio_per("formato", {"nome": "mp4"}), "esempio formato")
 verifica("# Questo codec" in media_ui.esempio_per("codec", {"nome": "x", "codificatori": []}), "codec senza codificatore")
