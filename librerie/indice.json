@@ -818,14 +818,14 @@
   },
   {
    "nome": "lettore",
-   "versione": "1.0",
+   "versione": "1.2",
    "categoria": "Audio e video",
    "descrizione": "Riproduce audio e video con VLC (mpv in arrivo), anche dentro una finestra tkinter (richiede VLC).",
    "originale": "lettore",
    "file": [
     {
      "percorso": "lettore.py",
-     "sha256": "d499e5346d39a8a49825abd07e0077cdb1f888c73c627ae68f74c7864ce21539"
+     "sha256": "a30a7ee650c3294d62bd81e37b26cb9d31d2ce7173dcf21d74becfdbb4771985"
     }
    ]
   },
@@ -883,14 +883,14 @@
   },
   {
    "nome": "multimedia",
-   "versione": "1.0",
+   "versione": "1.2",
    "categoria": "Audio e video",
    "descrizione": "Conversioni, tagli e informazioni sui file audio e video con ffmpeg; scarica ffmpeg se manca.",
    "originale": "multimedia",
    "file": [
     {
      "percorso": "multimedia.py",
-     "sha256": "bb800af514c5526902874dbec161ea3fae7737d8fca3a78d22c1f236b8ebedd3"
+     "sha256": "35a456044c0f8045062932b856186633c216ab22b6bec59cb7c690840d6d5500"
     }
    ]
   },
@@ -1406,14 +1406,14 @@
   },
   {
    "nome": "suono",
-   "versione": "1.0",
+   "versione": "1.1",
    "categoria": "Audio e video",
    "descrizione": "Suoni, beep e melodie scritte a parole; suona i file .wav (e gli altri formati, con ffmpeg).",
    "originale": "suono",
    "file": [
     {
      "percorso": "suono.py",
-     "sha256": "dbbc09082c4a91b419f4b7fcba6a495d6aa5242190c167b1a86f2ea24b408c9a"
+     "sha256": "adf82af80194cace1c2438b5f57fb3111dfa3e107ba4335a842dca38c9474c58"
     }
    ]
   },

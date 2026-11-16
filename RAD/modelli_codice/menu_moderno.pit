@@ -1,0 +1,976 @@
+"""Menu per le finestre di tkinter: barra dei menu, menu contestuale e menu moderno (disegnato nella finestra, con hamburger).
+
+Ogni voce è un dizionario con più valori (si scrive in JSON, nel progettista c'è l'editor ad albero):
+    testo, gestore, scorciatoia, icona, tipo ("voce", "spunta", "opzione", "separatore"), spuntata, gruppo, attiva, nome, voci (le sotto-voci, a qualsiasi profondità).
+Il gestore è il nome di un metodo della finestra («nuovo_clic») oppure «@Finestra» per aprirne un'altra.
+
+    importa menu_moderno
+    barra = menu_moderno.barra(radice, definizione, se_stesso)                 # barra dei menu nativa
+    contestuale = menu_moderno.contestuale(widget, definizione, se_stesso)     # tasto destro su un componente
+    moderno = menu_moderno.MenuModerno(riquadro, definizione, se_stesso, orientamento="verticale", modalita="esteso", titolo="Menu")
+
+Questo file è stato creato da PitStudio (componenti BarraMenu, MenuContestuale e MenuModerno) e si può usare anche con finestre scritte a mano.
+"""
+VERSIONE_MODULO = 2
+importa json
+importa os
+importa sys
+importa tkinter come tk
+
+TIPI_VOCE = ("voce", "spunta", "opzione", "separatore")
+_TEMI = {
+    "chiaro": {"sfondo": "#f4f6f9", "scheda": "#ffffff", "testo": "#1f2933", "tenue": "#66727f", "bordo": "#cfd6df", "accento": "#2563eb",
+               "su_accento": "#ffffff", "selezione": "#dbe7ff", "disattivo": "#9aa5b1"},
+    "scuro": {"sfondo": "#1d2027", "scheda": "#292d36", "testo": "#e8ecf1", "tenue": "#98a2b0", "bordo": "#3b414d", "accento": "#4c9aff",
+              "su_accento": "#0b1220", "selezione": "#33507a", "disattivo": "#667080"},
+}
+CARATTERE = ("Segoe UI", 10)
+CARATTERE_ICONA = ("Segoe UI Symbol", 11)
+
+
+definisci colori_del_tema(nome):
+    """I colori di un tema: quelli di aspetto.py se c'è, altrimenti «chiaro» e «scuro» incorporati."""
+    prova:
+        importa aspetto
+        ritorna dict(aspetto.colori_del_tema(nome))
+    eccetto Exception:
+        ritorna dict(_TEMI.get(nome, _TEMI["chiaro"]))
+
+
+# ---------------------------------------------------------------- la definizione
+definisci _nodo(origine):
+    figli = [_nodo(f) per f in (origine.get("voci") o []) se isinstance(f, dict)]
+    tipo_voce = origine.get("tipo") o "voce"
+    testo_ = str(origine.get("testo", ""))
+    se testo_.strip() == "-":
+        tipo_voce = "separatore"
+    se tipo_voce non in TIPI_VOCE:
+        tipo_voce = "voce"
+    ritorna {"testo": testo_, "gestore": str(origine.get("gestore") o ""), "scorciatoia": str(origine.get("scorciatoia") o ""),
+             "icona": str(origine.get("icona") o ""), "tipo": tipo_voce, "spuntata": bool(origine.get("spuntata", Falso)),
+             "gruppo": str(origine.get("gruppo") o ""), "attiva": bool(origine.get("attiva", Vero)), "nome": str(origine.get("nome") o ""), "voci": figli}
+
+
+definisci normalizza(definizione):
+    """Dalla definizione (testo JSON, lista di dizionari o dizionario con «voci») alla lista di nodi completi."""
+    se isinstance(definizione, str):
+        se non definizione.strip():
+            ritorna []
+        definizione = json.loads(definizione)
+    se isinstance(definizione, dict):
+        definizione = definizione.get("voci", [])
+    ritorna [_nodo(n) per n in (definizione o []) se isinstance(n, dict)]
+
+
+definisci foglie(nodi, percorso=()):
+    """Tutte le voci che eseguono qualcosa, a qualsiasi profondità: [(percorso dei testi, nodo)]. Serve alla ricerca dei comandi."""
+    trovate = []
+    per nodo in nodi:
+        se nodo["tipo"] == "separatore":
+            continua
+        qui = percorso + (nodo["testo"],)
+        se nodo["voci"]:
+            trovate.extend(foglie(nodo["voci"], qui))
+        altrimenti:
+            trovate.append((qui, nodo))
+    ritorna trovate
+
+
+_NOMI_TASTI = {"canc": "Delete", "del": "Delete", "invio": "Return", "enter": "Return", "esc": "Escape", "spazio": "space", "su": "Up", "giu": "Down",
+               "giù": "Down", "sinistra": "Left", "destra": "Right", "tab": "Tab", "inizio": "Home", "fine": "End", "pgsu": "Prior", "pggiu": "Next",
+               "ins": "Insert", "backspace": "BackSpace"}
+_MODIFICATORI = {"ctrl": "Control", "control": "Control", "ctr": "Control", "maiusc": "Shift", "shift": "Shift", "alt": "Alt", "cmd": "Command",
+                 "command": "Command"}
+
+
+definisci sequenza_tasti(scorciatoia):
+    """«Ctrl+Maiusc+S» → «<Control-Shift-S>»; Nessuno se non si capisce."""
+    parti = [p.strip() per p in (scorciatoia o "").replace(" ", "").split("+") se p.strip()]
+    se non parti:
+        ritorna Nessuno
+    modificatori = []
+    per m in parti[:-1]:
+        nome = _MODIFICATORI.get(m.lower())
+        se nome è Nessuno:
+            ritorna Nessuno
+        modificatori.append(nome)
+    tasto = parti[-1]
+    chiave = _NOMI_TASTI.get(tasto.lower())
+    se chiave è Nessuno:
+        se lunghezza_di(tasto) == 1:
+            chiave = tasto.upper() se "Shift" in modificatori altrimenti tasto.lower()
+        altrimenti_se tasto[0] in "Ff" e tasto[1:].isdigit():
+            chiave = tasto.upper()
+        altrimenti:
+            ritorna Nessuno
+    ritorna "<" + "-".join(modificatori + [chiave]) + ">"
+
+
+# ---------------------------------------------------------------- la parte comune
+classe _Stato:
+    """Voci, spunte e opzioni, azioni collegate: quello che hanno in comune tutti i tipi di menu."""
+
+    definisci _avvia_stato(se_stesso, definizione, finestra):
+        se_stesso.nodi = normalizza(definizione)
+        se_stesso.finestra = finestra
+        se_stesso._collegate = {}
+        se_stesso._per_nome = {}
+        se_stesso._per_testo = {}
+        se_stesso._gruppi = {}
+        se_stesso._indicizza(se_stesso.nodi)
+
+    definisci _indicizza(se_stesso, nodi):
+        per nodo in nodi:
+            se nodo["tipo"] == "separatore":
+                continua
+            se nodo["nome"]:
+                se_stesso._per_nome.setdefault(nodo["nome"], nodo)
+            se_stesso._per_testo.setdefault(nodo["testo"], nodo)
+            se nodo["tipo"] == "opzione":
+                nodo["gruppo"] = nodo["gruppo"] o ("g%d" % id(nodi))
+                se_stesso._gruppi.setdefault(nodo["gruppo"], []).append(nodo)
+            se_stesso._indicizza(nodo["voci"])
+
+    definisci _trova(se_stesso, nome):
+        nodo = se_stesso._per_nome.get(nome) o se_stesso._per_testo.get(nome)
+        se nodo è Nessuno:
+            solleva KeyError(f"voce di menu sconosciuta: {nome}")
+        ritorna nodo
+
+    definisci _funzione(se_stesso, nodo):
+        chiave = nodo["nome"] o nodo["testo"]
+        se chiave in se_stesso._collegate:
+            ritorna se_stesso._collegate[chiave]
+        gestore = nodo["gestore"]
+        se non gestore:
+            ritorna Nessuno
+        se gestore.startswith("@"):
+            ritorna getattr(se_stesso.finestra, "_apri_" + gestore[1:].strip(), Nessuno)
+        ritorna getattr(se_stesso.finestra, gestore, Nessuno)
+
+    definisci _attivo(se_stesso, nodo):
+        se getattr(se_stesso, "anteprima", Falso):          # nel progettista non ci sono ancora i gestori: contano solo i valori della voce
+            ritorna nodo["attiva"]
+        ritorna nodo["attiva"] e (nodo["tipo"] != "voce" o nodo["voci"] != [] o bool(se_stesso._funzione(nodo)))
+
+    definisci _chiama(se_stesso, nodo):
+        funzione = se_stesso._funzione(nodo)
+        se funzione:
+            funzione()
+
+    definisci _scegli(se_stesso, nodo):
+        per fratello in se_stesso._gruppi.get(nodo["gruppo"], []):
+            fratello["spuntata"] = fratello è nodo
+
+    # ---- uso dal programma
+    definisci collega(se_stesso, nome, funzione):
+        """Collega una funzione a una voce (per nome o per testo), al posto del gestore scritto nella definizione."""
+        nodo = se_stesso._trova(nome)
+        se_stesso._collegate[nodo["nome"] o nodo["testo"]] = funzione
+        se_stesso._aggiorna_nodo(nodo)
+
+    definisci spuntata(se_stesso, nome):
+        ritorna se_stesso._trova(nome)["spuntata"]
+
+    definisci imposta_spunta(se_stesso, nome, valore=Vero):
+        """Spunta o toglie la spunta (per le voci «spunta»); per una «opzione» la sceglie e toglie le altre del gruppo."""
+        nodo = se_stesso._trova(nome)
+        se nodo["tipo"] == "opzione":
+            se valore:
+                se_stesso._scegli(nodo)
+        altrimenti:
+            nodo["spuntata"] = bool(valore)
+        se_stesso._aggiorna_tutto()
+
+    definisci attiva(se_stesso, nome, valore=Vero):
+        """Abilita o disabilita una voce."""
+        nodo = se_stesso._trova(nome)
+        nodo["attiva"] = bool(valore)
+        se_stesso._aggiorna_nodo(nodo)
+
+    definisci imposta_testo(se_stesso, nome, testo_):
+        nodo = se_stesso._trova(nome)
+        nodo["testo"] = testo_
+        se_stesso._aggiorna_nodo(nodo)
+
+    definisci esegui(se_stesso, nome):
+        """Fa come se la voce fosse stata scelta."""
+        se_stesso._scatta(se_stesso._trova(nome))
+
+    definisci elenco_comandi(se_stesso):
+        """[(percorso, nodo)] di tutte le voci eseguibili: per una ricerca dei comandi."""
+        ritorna foglie(se_stesso.nodi)
+
+    # ---- scorciatoie da tastiera
+    definisci _lega_scorciatoie(se_stesso, finestra_tk, nodi=Nessuno):
+        per nodo in (se_stesso.nodi se nodi è Nessuno altrimenti nodi):
+            sequenza = sequenza_tasti(nodo["scorciatoia"])
+            se sequenza e nodo["tipo"] != "separatore" e non nodo["voci"]:
+                finestra_tk.bind(sequenza, lambda evento, n=nodo: se_stesso._da_tastiera(n), add="+")
+            se nodo["voci"]:
+                se_stesso._lega_scorciatoie(finestra_tk, nodo["voci"])
+
+    definisci _da_tastiera(se_stesso, nodo):
+        se se_stesso._attivo(nodo):
+            se_stesso._scatta(nodo)
+        ritorna "break"
+
+    definisci _immagine(se_stesso, percorso):
+        """Una PhotoImage se l'icona è un file immagine che esiste (png, gif), altrimenti Nessuno. Il percorso relativo si cerca anche accanto a questo
+        modulo (la cartella del progetto). Sul tema scuro, se accanto a «nome.png» c'è «nome_chiaro.png» (come nelle icone di PitStudio) si usa quello."""
+        se non percorso:
+            ritorna Nessuno
+        candidati = [percorso]
+        se non os.path.isabs(percorso):
+            candidati.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), percorso))
+        per candidato in candidati:
+            se getattr(se_stesso, "_scuro", Falso) e candidato.lower().endswith(".png") e os.path.isfile(candidato[:-4] + "_chiaro.png"):
+                candidato = candidato[:-4] + "_chiaro.png"
+            se os.path.isfile(candidato):
+                cache = se_stesso.__dict__.setdefault("_cache_immagini", {})
+                se candidato non in cache:
+                    prova:
+                        cache[candidato] = tk.PhotoImage(file=candidato)
+                    eccetto tk.TclError:
+                        cache[candidato] = Nessuno
+                ritorna cache[candidato]
+        ritorna Nessuno
+
+
+# ---------------------------------------------------------------- menu nativo (barra e contestuale)
+classe MenuNativo(_Stato):
+    """Barra dei menu o menu contestuale veri del sistema, con sotto-menu a qualsiasi profondità, spunte, opzioni, scorciatoie e icone."""
+
+    definisci __inizializza__(se_stesso, radice, definizione, finestra=Nessuno, contestuale=Falso, su=Nessuno):
+        se_stesso._avvia_stato(definizione, finestra)
+        se_stesso.radice = radice
+        se_stesso._immagini = []
+        se_stesso._variabili = {}          # id(nodo) -> (menu, indice, variabile)
+        se_stesso._var_gruppi = {}
+        se_stesso.menu = tk.Menu(radice, tearoff=0)
+        se_stesso._costruisci(se_stesso.menu, se_stesso.nodi)
+        se_stesso._lega_scorciatoie(radice.winfo_toplevel())
+        se contestuale:
+            bersaglio = su o radice
+            tasti = ["<Button-3>", "<Shift-F10>", "<App>"]
+            se sys.platform == "darwin":
+                tasti.append("<Button-2>")
+            per tasto in tasti:
+                prova:
+                    bersaglio.bind(tasto, se_stesso._mostra, add="+")
+                eccetto tk.TclError:
+                    passa
+        altrimenti:
+            radice.config(menu=se_stesso.menu)
+
+    definisci _costruisci(se_stesso, menu, nodi):
+        per nodo in nodi:
+            se nodo["tipo"] == "separatore":
+                menu.add_separator()
+                continua
+            opzioni = {"label": nodo["testo"]}
+            se nodo["scorciatoia"]:
+                opzioni["accelerator"] = nodo["scorciatoia"]
+            immagine = se_stesso._immagine(nodo["icona"])
+            se immagine:
+                opzioni["image"] = immagine
+                opzioni["compound"] = "left"
+            se non se_stesso._attivo(nodo):
+                opzioni["state"] = "disabled"
+            se nodo["voci"]:
+                sotto = tk.Menu(menu, tearoff=0)
+                se_stesso._costruisci(sotto, nodo["voci"])
+                menu.add_cascade(menu=sotto, **opzioni)
+                se_stesso._variabili[id(nodo)] = (menu, menu.index("end"), Nessuno)
+                continua
+            comando = lambda n=nodo: se_stesso._clic(n)
+            se nodo["tipo"] == "spunta":
+                variabile = tk.BooleanVar(value=nodo["spuntata"])
+                menu.add_checkbutton(variable=variabile, command=comando, **opzioni)
+            altrimenti_se nodo["tipo"] == "opzione":
+                variabile = se_stesso._var_gruppi.get(nodo["gruppo"])
+                se variabile è Nessuno:
+                    variabile = tk.StringVar(value="")
+                    se_stesso._var_gruppi[nodo["gruppo"]] = variabile
+                valore = nodo["nome"] o nodo["testo"]
+                se nodo["spuntata"]:
+                    variabile.set(valore)
+                menu.add_radiobutton(variable=variabile, value=valore, command=comando, **opzioni)
+            altrimenti:
+                variabile = Nessuno
+                menu.add_command(command=comando, **opzioni)
+            se_stesso._variabili[id(nodo)] = (menu, menu.index("end"), variabile)
+
+    definisci _clic(se_stesso, nodo):
+        voce = se_stesso._variabili.get(id(nodo))
+        se nodo["tipo"] == "spunta" e voce e voce[2] è non Nessuno:
+            nodo["spuntata"] = bool(voce[2].get())
+        altrimenti_se nodo["tipo"] == "opzione":
+            se_stesso._scegli(nodo)
+        se_stesso._chiama(nodo)
+
+    definisci _scatta(se_stesso, nodo):
+        """Come un clic su una voce: sul menu nativo si usa invoke, che aggiorna anche spunte e opzioni."""
+        voce = se_stesso._variabili.get(id(nodo))
+        se voce e nodo["tipo"] in ("spunta", "opzione"):
+            voce[0].invoke(voce[1])
+        altrimenti:
+            se_stesso._chiama(nodo)
+
+    definisci _aggiorna_nodo(se_stesso, nodo):
+        voce = se_stesso._variabili.get(id(nodo))
+        se voce è Nessuno:
+            ritorna
+        menu, indice, variabile = voce
+        menu.entryconfigure(indice, label=nodo["testo"], state="normal" se se_stesso._attivo(nodo) altrimenti "disabled")
+
+    definisci _aggiorna_tutto(se_stesso):
+        per gruppo, variabile in se_stesso._var_gruppi.items():
+            scelto = ""
+            per nodo in se_stesso._gruppi.get(gruppo, []):
+                se nodo["spuntata"]:
+                    scelto = nodo["nome"] o nodo["testo"]
+            variabile.set(scelto)
+        per codice, (menu, indice, variabile) in se_stesso._variabili.items():
+            se isinstance(variabile, tk.BooleanVar):
+                per nodo in se_stesso._tutti(se_stesso.nodi):
+                    se id(nodo) == codice:
+                        variabile.set(nodo["spuntata"])
+
+    definisci _tutti(se_stesso, nodi):
+        elenco = []
+        per nodo in nodi:
+            elenco.append(nodo)
+            elenco.extend(se_stesso._tutti(nodo["voci"]))
+        ritorna elenco
+
+    definisci _mostra(se_stesso, evento):
+        se evento.keysym in ("F10", "App"):
+            x = evento.widget.winfo_rootx() + 10
+            y = evento.widget.winfo_rooty() + 10
+        altrimenti:
+            x, y = evento.x_root, evento.y_root
+        prova:
+            se_stesso.menu.tk_popup(x, y)
+        infine:
+            se_stesso.menu.grab_release()
+        ritorna "break"
+
+    definisci mostra_in(se_stesso, x, y):
+        """Apre il menu contestuale in un punto dello schermo."""
+        prova:
+            se_stesso.menu.tk_popup(x, y)
+        infine:
+            se_stesso.menu.grab_release()
+
+
+definisci barra(radice, definizione, finestra=Nessuno):
+    """Mette una barra dei menu nella finestra."""
+    ritorna MenuNativo(radice, definizione, finestra)
+
+
+definisci contestuale(widget, definizione, finestra=Nessuno):
+    """Un menu che si apre con il tasto destro (o Maiusc+F10) sul componente."""
+    ritorna MenuNativo(widget.winfo_toplevel(), definizione, finestra, contestuale=Vero, su=widget)
+
+
+# ---------------------------------------------------------------- menu moderno
+classe _Contenitore:
+    """Le righe di un elenco (il menu stesso o una cascata) e quella evidenziata dalla tastiera."""
+
+    definisci __inizializza__(se_stesso):
+        se_stesso.righe = []
+        se_stesso.sel = -1
+
+
+classe _Cascata(tk.Toplevel):
+    """Il sotto-menu che si apre di lato o sotto una voce; ne possono essere aperte quante servono (una dentro l'altra)."""
+
+    definisci __inizializza__(se_stesso, menu, nodi, livello):
+        tk.Toplevel.__init__(se_stesso, menu, background=menu.c["bordo"])
+        se_stesso.overrideredirect(Vero)
+        prova:
+            se_stesso.attributes("-topmost", Vero)
+        eccetto tk.TclError:
+            passa
+        se_stesso.livello = livello
+        se_stesso.nodi = nodi
+        se_stesso.cont = _Contenitore()
+        interno = tk.Frame(se_stesso, background=menu.c["scheda"])
+        interno.pack(padx=1, pady=1, fill="both", expand=Vero)
+        tk.Frame(interno, width=menu.larghezza_cascata, height=1, background=menu.c["scheda"]).pack()
+        per nodo in nodi:
+            menu._riga(se_stesso.cont, interno, nodo, "aletta", livello)
+
+
+classe MenuModerno(tk.Frame, _Stato):
+    """Un menu disegnato nella finestra: verticale (come una barra laterale) o orizzontale, con il pulsante hamburger che lo riduce a icone o lo chiude.
+
+    orientamento: «verticale» o «orizzontale».   modalita: lo stato iniziale, «esteso», «compatto» (solo icone) o «chiuso» (solo hamburger).
+    Verticale esteso: le voci con sotto-voci si aprono sul posto (a fisarmonica); compatto e orizzontale: si aprono a cascata, a qualsiasi profondità.
+    collassa_sotto: se la finestra è più stretta di tanti pixel il menu si riduce da solo (0 = mai).
+    Tastiera: frecce, Invio, Esc. Con ricerca=Vero un campo in cima filtra i comandi (Ctrl+K lo seleziona).
+    """
+
+    definisci __inizializza__(se_stesso, genitore, definizione, finestra=Nessuno, orientamento="verticale", modalita="esteso", hamburger=Vero,
+                              titolo="", ricerca=Falso, collassa_sotto=0, tema="chiaro", larghezza=220, larghezza_compatta=48, altezza_riga=34,
+                              colori=Nessuno, anteprima=Falso, rientro=18, **opzioni):
+        se_stesso._avvia_stato(definizione, finestra)
+        c = colori_del_tema(tema se tema in ("chiaro", "scuro", "verde", "viola") altrimenti "chiaro")
+        se colori:
+            c.update(colori)
+        se_stesso.c = c
+        prova:
+            r_, g_, b_ = (int(c["scheda"].lstrip("#")[i:i + 2], 16) per i in (0, 2, 4))
+            se_stesso._scuro = 0.299 * r_ + 0.587 * g_ + 0.114 * b_ < 128
+        eccetto (ValueError, IndexError):
+            se_stesso._scuro = Falso
+        tk.Frame.__init__(se_stesso, genitore, background=c["scheda"], highlightthickness=1, highlightbackground=c["bordo"], takefocus=1, **opzioni)
+        se_stesso.anteprima = anteprima          # nel progettista: si disegna soltanto, senza clic, tasti né scorciatoie
+        se_stesso.orizzontale = orientamento == "orizzontale"
+        se_stesso.hamburger = hamburger
+        se_stesso.titolo = titolo
+        se_stesso.con_ricerca = ricerca
+        se_stesso.collassa_sotto = int(collassa_sotto o 0)
+        se_stesso.larghezza_estesa = int(larghezza)
+        se_stesso.larghezza_compatta = int(larghezza_compatta)
+        se_stesso.larghezza_cascata = max(190, int(larghezza) - 20)
+        se_stesso.altezza_riga = int(altezza_riga)
+        se_stesso.rientro = int(rientro)          # pixel in più per ogni livello di sotto-voci (menu verticale esteso)
+        se_stesso.stato = modalita se modalita in ("esteso", "compatto", "chiuso") altrimenti "esteso"
+        se_stesso._stato_utente = se_stesso.stato
+        se_stesso._modalita_ridotta = "chiuso" se modalita == "chiuso" altrimenti "compatto"
+        se_stesso._automatico = Falso
+        se_stesso.al_stato = Nessuno           # funzione(stato) chiamata quando il menu cambia stato (per adattare il resto della finestra)
+        se_stesso.corrente = Nessuno           # la voce «paginata» in evidenza (l'ultima scelta tra le voci semplici)
+        se_stesso._immagini = []
+        se_stesso._aperti = set()              # id dei nodi aperti a fisarmonica
+        se_stesso._cascate = []
+        se_stesso._cont = _Contenitore()
+        se_stesso._testo_ricerca = tk.StringVar(value="")
+        se_stesso._pianifica_sotto = Nessuno
+        se_stesso.pack_propagate(Falso)
+        se_stesso.grid_propagate(Falso)
+        se_stesso._ridisegna()
+        se anteprima:
+            ritorna
+        se_stesso._lega_scorciatoie(se_stesso.winfo_toplevel())
+        radice = se_stesso.winfo_toplevel()
+        radice.bind("<Button-1>", se_stesso._clic_fuori, add="+")
+        radice.bind("<Configure>", se_stesso._finestra_cambia, add="+")
+        se_stesso.bind("<Destroy>", se_stesso._alla_chiusura, add="+")
+        per tasto in ("<Up>", "<Down>", "<Left>", "<Right>", "<Return>", "<space>", "<Escape>"):
+            se_stesso.bind(tasto, se_stesso._tasto)
+        se ricerca:
+            radice.bind("<Control-k>", se_stesso._vai_a_ricerca, add="+")
+
+    # ---- stato e misura
+    definisci _larghezza_ora(se_stesso):
+        ritorna se_stesso.larghezza_estesa se se_stesso.stato == "esteso" altrimenti se_stesso.larghezza_compatta
+
+    definisci _applica_misura(se_stesso):
+        se se_stesso.orizzontale:
+            ritorna
+        misura = se_stesso._larghezza_ora()
+        se se_stesso.winfo_manager() == "place":
+            se_stesso.place_configure(width=misura)
+        altrimenti:
+            se_stesso.configure(width=misura)
+
+    definisci imposta_stato(se_stesso, stato, da_utente=Vero):
+        """«esteso», «compatto» o «chiuso»."""
+        se stato non in ("esteso", "compatto", "chiuso"):
+            solleva ValueError("stato sconosciuto: scegli tra esteso, compatto e chiuso")
+        se da_utente:
+            se_stesso._stato_utente = stato
+            se stato != "esteso":
+                se_stesso._modalita_ridotta = stato
+        se_stesso._chiudi_cascate()
+        se_stesso.stato = stato
+        se_stesso._ridisegna()
+        se se_stesso.al_stato:
+            se_stesso.al_stato(stato)
+
+    definisci alterna(se_stesso):
+        """Come il pulsante hamburger: da esteso si riduce, altrimenti si apre."""
+        se se_stesso.stato == "esteso":
+            se_stesso.imposta_stato(se_stesso._modalita_ridotta)
+        altrimenti:
+            se_stesso.imposta_stato("esteso")
+
+    definisci apri(se_stesso):
+        se_stesso.imposta_stato("esteso")
+
+    definisci chiudi(se_stesso):
+        se_stesso.imposta_stato(se_stesso._modalita_ridotta)
+
+    definisci _finestra_cambia(se_stesso, evento):
+        prova:
+            se evento.widget è non se_stesso.winfo_toplevel():
+                ritorna
+        eccetto tk.TclError:            # il menu non c'è più (la finestra resta, il legame no)
+            ritorna
+        se_stesso._chiudi_cascate()
+        se non se_stesso.collassa_sotto:
+            ritorna
+        stretta = evento.width < se_stesso.collassa_sotto
+        se stretta e se_stesso.stato == "esteso" e non se_stesso._automatico:
+            se_stesso._automatico = Vero
+            se_stesso.imposta_stato(se_stesso._modalita_ridotta, da_utente=Falso)
+        altrimenti_se non stretta e se_stesso._automatico:
+            se_stesso._automatico = Falso
+            se_stesso.imposta_stato(se_stesso._stato_utente, da_utente=Falso)
+
+    definisci _alla_chiusura(se_stesso, evento):
+        se evento.widget è se_stesso:
+            se_stesso._chiudi_cascate()
+
+    # ---- disegno
+    definisci _ridisegna(se_stesso):
+        se_stesso._chiudi_cascate()
+        per figlio in se_stesso.winfo_children():
+            figlio.destroy()
+        se_stesso._cont = _Contenitore()
+        c = se_stesso.c
+        se_stesso.configure(background=c["scheda"])
+        se_stesso._applica_misura()
+        ridotto = se_stesso.stato != "esteso"
+        se se_stesso.orizzontale:
+            se_stesso._disegna_orizzontale(ridotto)
+        altrimenti:
+            se_stesso._disegna_verticale(ridotto)
+
+    definisci _pulsante_hamburger(se_stesso, padre, lato):
+        pulsante = tk.Label(padre, text="☰", font=("Segoe UI Symbol", 13), background=se_stesso.c["scheda"], foreground=se_stesso.c["testo"], cursor="hand2",
+                            width=3 se non se_stesso.orizzontale altrimenti 3)
+        pulsante.pack(side=lato, ipady=max(2, (se_stesso.altezza_riga - 22) // 2))
+        pulsante.bind("<Button-1>", se_stesso._clic_hamburger)
+        pulsante.bind("<Enter>", lambda evento: pulsante.configure(background=se_stesso.c["selezione"]))
+        pulsante.bind("<Leave>", lambda evento: pulsante.configure(background=se_stesso.c["scheda"]))
+        ritorna pulsante
+
+    definisci _clic_hamburger(se_stesso, evento=Nessuno):
+        se se_stesso.anteprima:
+            ritorna
+        se_stesso.focus_set()
+        se se_stesso.orizzontale e se_stesso.stato == "chiuso":
+            se_stesso._chiudi_cascate()
+            se_stesso._apri_cascata(se_stesso.nodi, 1, se_stesso.winfo_rootx(), se_stesso.winfo_rooty() + se_stesso.winfo_height())
+            ritorna
+        se_stesso.alterna()
+
+    definisci _disegna_verticale(se_stesso, ridotto):
+        c = se_stesso.c
+        intestazione = tk.Frame(se_stesso, background=c["scheda"])
+        intestazione.pack(fill="x")
+        se se_stesso.hamburger:
+            se_stesso._pulsante_hamburger(intestazione, "left")
+        se se_stesso.titolo e non ridotto:
+            tk.Label(intestazione, text=se_stesso.titolo, font=(CARATTERE[0], 11, "bold"), background=c["scheda"], foreground=c["testo"], anchor="w").pack(
+                side="left", padx=4, fill="x", expand=Vero)
+        se se_stesso.stato == "chiuso":
+            ritorna
+        se se_stesso.con_ricerca e non ridotto:
+            campo = tk.Entry(se_stesso, textvariable=se_stesso._testo_ricerca, relief="flat", background=c["sfondo"], foreground=c["testo"],
+                             insertbackground=c["testo"], highlightthickness=1, highlightbackground=c["bordo"], highlightcolor=c["accento"], font=CARATTERE)
+            campo.pack(fill="x", padx=8, pady=(2, 6), ipady=3)
+            campo.bind("<KeyRelease>", lambda evento: se_stesso._aggiorna_elenco(), add="+")
+            campo.bind("<Down>", se_stesso._dalla_ricerca, add="+")
+            campo.bind("<Return>", lambda evento: se_stesso._primo_risultato(), add="+")
+            se_stesso._campo_ricerca = campo
+        # le voci stanno in un riquadro più alto della vista: con la rotella (o le frecce) si scorre
+        se_stesso._vista = tk.Frame(se_stesso, background=c["scheda"])
+        se_stesso._vista.pack(fill="both", expand=Vero)
+        se_stesso._corpo = tk.Frame(se_stesso._vista, background=c["scheda"])
+        se_stesso._corpo.place(x=0, y=0, relwidth=1)
+        se_stesso._scorrimento = 0
+        se_stesso._riempi_corpo()
+
+    definisci _disegna_orizzontale(se_stesso, ridotto):
+        c = se_stesso.c
+        se se_stesso.hamburger:
+            se_stesso._pulsante_hamburger(se_stesso, "left")
+        se se_stesso.titolo e se_stesso.stato == "esteso":
+            tk.Label(se_stesso, text=se_stesso.titolo, font=(CARATTERE[0], 11, "bold"), background=c["scheda"], foreground=c["testo"]).pack(side="left", padx=(4, 12))
+        se se_stesso.stato == "chiuso":
+            ritorna
+        se_stesso._corpo = se_stesso
+        per nodo in se_stesso.nodi:
+            se nodo["tipo"] != "separatore":
+                se_stesso._riga(se_stesso._cont, se_stesso, nodo, "orizzontale", 0)
+
+    definisci _aggiorna_elenco(se_stesso):
+        sel = se_stesso._cont.sel
+        per figlio in se_stesso._corpo.winfo_children():
+            figlio.destroy()
+        se_stesso._cont = _Contenitore()
+        se_stesso._riempi_corpo()
+        se 0 <= sel < lunghezza_di(se_stesso._cont.righe):          # la riga evidenziata dalla tastiera resta quella
+            se_stesso._cont.sel = sel
+            se_stesso._colora(se_stesso._cont.righe[sel], Vero)
+        se_stesso._scorri(0)
+
+    definisci _scorri(se_stesso, spostamento):
+        """Sposta di qualche pixel le voci del menu verticale (e non oltre i bordi)."""
+        se se_stesso.orizzontale o se_stesso.stato == "chiuso" o non hasattr(se_stesso, "_vista"):
+            ritorna
+        se_stesso.update_idletasks()
+        massimo = max(0, se_stesso._corpo.winfo_reqheight() - se_stesso._vista.winfo_height())
+        se_stesso._scorrimento = max(0, min(massimo, se_stesso._scorrimento + spostamento))
+        se_stesso._corpo.place_configure(y=-se_stesso._scorrimento)
+
+    definisci _rotella(se_stesso, evento):
+        se se_stesso.anteprima:
+            ritorna
+        su = getattr(evento, "num", 0) == 4 o getattr(evento, "delta", 0) > 0
+        se_stesso._scorri((-3 se su altrimenti 3) * se_stesso.altezza_riga)
+
+    definisci _mostra_riga(se_stesso, riga):
+        """Scorre il menu finché la riga evidenziata dalla tastiera si vede tutta."""
+        se non hasattr(se_stesso, "_vista") o se_stesso.orizzontale:
+            ritorna
+        se_stesso.update_idletasks()
+        alto = riga.winfo_y() - se_stesso._scorrimento
+        basso = alto + riga.winfo_height()
+        se alto < 0:
+            se_stesso._scorri(alto)
+        altrimenti_se basso > se_stesso._vista.winfo_height():
+            se_stesso._scorri(basso - se_stesso._vista.winfo_height())
+
+    definisci _riempi_corpo(se_stesso):
+        testo_ = se_stesso._testo_ricerca.get().strip().lower() se se_stesso.con_ricerca altrimenti ""
+        se testo_ e se_stesso.stato == "esteso":
+            parole = testo_.split()
+            per percorso, nodo in foglie(se_stesso.nodi):
+                chiave = " ".join(percorso).lower()
+                se all(p in chiave per p in parole):
+                    se_stesso._riga(se_stesso._cont, se_stesso._corpo, nodo, "elenco", 0, percorso=" › ".join(percorso))
+            ritorna
+        se_stesso._righe_elenco(se_stesso.nodi, se_stesso._corpo, 0)
+
+    definisci _righe_elenco(se_stesso, nodi, padre, rientro):
+        per nodo in nodi:
+            se_stesso._riga(se_stesso._cont, padre, nodo, "elenco", 0, rientro)
+            se nodo["voci"] e se_stesso.stato == "esteso" e id(nodo) in se_stesso._aperti:
+                se_stesso._righe_elenco(nodo["voci"], padre, rientro + 1)
+
+    definisci _glifo(se_stesso, nodo, ridotto):
+        """Cosa mostrare nella colonna delle icone: spunta, opzione, immagine o carattere dell'icona; senza icona, la prima lettera (menu compatto)."""
+        se nodo["tipo"] == "spunta" e nodo["spuntata"]:
+            ritorna "✓", Nessuno
+        se nodo["tipo"] == "opzione" e nodo["spuntata"]:
+            ritorna "●", Nessuno
+        se nodo["icona"]:
+            immagine = se_stesso._immagine(nodo["icona"])
+            se immagine:
+                ritorna "", immagine
+            ritorna nodo["icona"], Nessuno
+        se ridotto e nodo["testo"]:
+            ritorna nodo["testo"][0].upper(), Nessuno
+        ritorna "", Nessuno
+
+    definisci _riga(se_stesso, cont, padre, nodo, modo, livello, rientro=0, percorso=""):
+        """Una voce: modo «elenco» (verticale), «orizzontale» (barra) o «aletta» (dentro una cascata)."""
+        c = se_stesso.c
+        ridotto = se_stesso.stato != "esteso"
+        se nodo["tipo"] == "separatore":
+            se modo == "orizzontale":
+                tk.Frame(padre, width=1, background=c["bordo"]).pack(side="left", fill="y", pady=6, padx=2)
+            altrimenti:
+                tk.Frame(padre, height=1, background=c["bordo"]).pack(fill="x", padx=8, pady=3)
+            ritorna Nessuno
+        attivo = se_stesso._attivo(nodo)
+        scelta = nodo è se_stesso.corrente e nodo["tipo"] == "voce"
+        sfondo = c["selezione"] se scelta altrimenti c["scheda"]
+        primo = c["testo"] se attivo altrimenti c["disattivo"]
+        riga = tk.Frame(padre, background=sfondo, cursor="hand2" se attivo altrimenti "arrow")
+        riga.nodo = nodo
+        riga.modo = modo
+        riga.livello = livello
+        riga.attivo = attivo
+        riga.scelta = scelta
+        verticale_pieno = modo != "orizzontale"
+        se verticale_pieno:
+            riga.pack(fill="x")
+        altrimenti:
+            riga.pack(side="left")
+        ipad = max(2, (se_stesso.altezza_riga - 20) // 2)
+        glifo, immagine = se_stesso._glifo(nodo, ridotto e modo == "elenco" o modo == "orizzontale" e ridotto)
+        parti = []
+        mostra_icona = modo == "aletta" o modo == "elenco" o ridotto o glifo != "" o immagine è non Nessuno
+        se mostra_icona e (modo != "orizzontale" o ridotto o glifo != "" o immagine è non Nessuno):
+            icona = tk.Label(riga, text=glifo, image=immagine, font=CARATTERE_ICONA, background=sfondo, foreground=c["accento"] se (nodo["tipo"] in ("spunta", "opzione")) altrimenti primo,
+                             width=3 se immagine è Nessuno altrimenti 0)
+            icona.pack(side="left", ipady=ipad, padx=((rientro * se_stesso.rientro) se modo == "elenco" altrimenti 0, 0))
+            parti.append(icona)
+        se non (ridotto e modo != "aletta"):
+            testo_ = percorso o nodo["testo"]
+            etichetta = tk.Label(riga, text=testo_, anchor="w", font=CARATTERE, background=sfondo, foreground=primo, padx=8 se modo == "orizzontale" altrimenti 2)
+            etichetta.pack(side="left", fill="x" se verticale_pieno altrimenti "none", expand=verticale_pieno, ipady=ipad)
+            parti.append(etichetta)
+            destra = ""
+            se nodo["voci"]:
+                se modo == "elenco" e se_stesso.stato == "esteso":
+                    destra = "⌄" se id(nodo) in se_stesso._aperti altrimenti "›"
+                altrimenti_se modo == "aletta":
+                    destra = "›"
+            altrimenti_se nodo["scorciatoia"] e modo != "orizzontale":
+                destra = nodo["scorciatoia"]
+            se destra:
+                etichetta_destra = tk.Label(riga, text=destra, font=(CARATTERE[0], 9), background=sfondo, foreground=c["tenue"], padx=10)
+                etichetta_destra.pack(side="right", ipady=ipad)
+                parti.append(etichetta_destra)
+        altrimenti_se nodo["voci"] e modo == "elenco":
+            # menu compatto: un piccolo segno dice che la voce ha un sotto-menu
+            segno = tk.Label(riga, text="›", font=(CARATTERE[0], 8), background=sfondo, foreground=c["tenue"])
+            segno.pack(side="right")
+            parti.append(segno)
+        riga.parti = parti
+        cont.righe.append(riga)
+        per w in [riga] + parti:
+            se modo == "elenco":
+                per rotella in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
+                    w.bind(rotella, se_stesso._rotella)
+            w.bind("<Enter>", lambda evento, r=riga, cn=cont: se_stesso._entra(r, cn))
+            w.bind("<Leave>", lambda evento, r=riga: se_stesso._esce(r))
+            w.bind("<Button-1>", lambda evento, r=riga: se_stesso._clic_riga(r))
+        ritorna riga
+
+    definisci _colora(se_stesso, riga, evidenzia):
+        c = se_stesso.c
+        sfondo = c["selezione"] se (evidenzia o riga.scelta) altrimenti c["scheda"]
+        riga.configure(background=sfondo)
+        per w in riga.parti:
+            w.configure(background=sfondo)
+
+    definisci _entra(se_stesso, riga, cont):
+        se non riga.attivo o se_stesso.anteprima:
+            ritorna
+        cont.sel = cont.righe.index(riga) se riga in cont.righe altrimenti -1
+        per altra in cont.righe:
+            se altra.winfo_exists():
+                se_stesso._colora(altra, altra è riga)
+        se_stesso._annulla_pianificata()
+        nodo = riga.nodo
+        # nelle cascate (e nel menu a icone) il sotto-menu si apre al passaggio del mouse; nella barra, solo se un menu è già aperto
+        apre_da_solo = riga.modo == "aletta" o (riga.modo == "elenco" e se_stesso.stato != "esteso") o (riga.modo == "orizzontale" e lunghezza_di(se_stesso._cascate) > 0)
+        se apre_da_solo:
+            se nodo["voci"]:
+                se_stesso._pianifica_sotto = se_stesso.after(130, lambda: se_stesso._apri_sotto(riga))
+            altrimenti:
+                se_stesso._pianifica_sotto = se_stesso.after(130, lambda: se_stesso._chiudi_cascate(riga.livello + 1))
+
+    definisci _esce(se_stesso, riga):
+        se non riga.winfo_exists():
+            ritorna
+        prova:
+            sotto = riga.winfo_containing(riga.winfo_pointerx(), riga.winfo_pointery())
+        eccetto (KeyError, tk.TclError):
+            sotto = Nessuno
+        se sotto è Nessuno o (sotto è non riga e sotto non in riga.parti):
+            se_stesso._colora(riga, Falso)
+
+    definisci _annulla_pianificata(se_stesso):
+        se se_stesso._pianifica_sotto è non Nessuno:
+            prova:
+                se_stesso.after_cancel(se_stesso._pianifica_sotto)
+            eccetto tk.TclError:
+                passa
+            se_stesso._pianifica_sotto = Nessuno
+
+    # ---- cascate
+    definisci _apri_sotto(se_stesso, riga):
+        se non riga.winfo_exists() o non riga.nodo["voci"]:
+            ritorna
+        se_stesso._chiudi_cascate(riga.livello + 1)
+        se riga.modo == "orizzontale":
+            x, y = riga.winfo_rootx(), riga.winfo_rooty() + riga.winfo_height()
+        altrimenti:
+            x, y = riga.winfo_rootx() + riga.winfo_width() - 2, riga.winfo_rooty()
+        ritorna se_stesso._apri_cascata(riga.nodo["voci"], riga.livello + 1, x, y, lato_riga=riga)
+
+    definisci _apri_cascata(se_stesso, nodi, livello, x, y, lato_riga=Nessuno):
+        se_stesso._chiudi_cascate(livello)
+        cascata = _Cascata(se_stesso, nodi, livello)
+        cascata.update_idletasks()
+        larghezza, altezza = cascata.winfo_reqwidth(), cascata.winfo_reqheight()
+        schermo_l, schermo_a = se_stesso.winfo_screenwidth(), se_stesso.winfo_screenheight()
+        se x + larghezza > schermo_l:
+            x = (lato_riga.winfo_rootx() - larghezza + 2) se (lato_riga è non Nessuno e lato_riga.modo != "orizzontale") altrimenti max(0, schermo_l - larghezza)
+        se y + altezza > schermo_a:
+            y = max(0, schermo_a - altezza)
+        cascata.geometry(f"{larghezza}x{altezza}+{max(0, x)}+{max(0, y)}")
+        se_stesso._cascate.append(cascata)
+        ritorna cascata
+
+    definisci _chiudi_cascate(se_stesso, da_livello=1):
+        se_stesso._annulla_pianificata()
+        restanti = []
+        per cascata in se_stesso._cascate:
+            se cascata.livello >= da_livello:
+                prova:
+                    cascata.destroy()
+                eccetto tk.TclError:
+                    passa
+            altrimenti:
+                restanti.append(cascata)
+        se_stesso._cascate = restanti
+
+    definisci chiudi_cascate(se_stesso):
+        se_stesso._chiudi_cascate(1)
+
+    definisci _clic_fuori(se_stesso, evento):
+        se non se_stesso._cascate o non se_stesso.winfo_exists():
+            ritorna
+        w = evento.widget
+        mio = Falso
+        mentre w è non Nessuno:
+            se w è se_stesso o w in se_stesso._cascate:
+                mio = Vero
+                interrompi
+            w = getattr(w, "master", Nessuno)
+        se non mio:
+            se_stesso._chiudi_cascate(1)
+
+    # ---- scelta di una voce
+    definisci _clic_riga(se_stesso, riga):
+        se non riga.attivo o se_stesso.anteprima:
+            ritorna
+        se_stesso.focus_set()
+        nodo = riga.nodo
+        se nodo["voci"]:
+            se riga.modo == "elenco" e se_stesso.stato == "esteso":
+                se id(nodo) in se_stesso._aperti:
+                    se_stesso._aperti.discard(id(nodo))
+                altrimenti:
+                    se_stesso._aperti.add(id(nodo))
+                se_stesso._aggiorna_elenco()
+            altrimenti_se any(cs.livello == riga.livello + 1 e cs.nodi è nodo["voci"] per cs in se_stesso._cascate):
+                se_stesso._chiudi_cascate(riga.livello + 1)
+            altrimenti:
+                se_stesso._apri_sotto(riga)
+            ritorna
+        se_stesso._scatta(nodo)
+
+    definisci _scatta(se_stesso, nodo):
+        se non se_stesso._attivo(nodo):
+            ritorna
+        se nodo["tipo"] == "spunta":
+            nodo["spuntata"] = non nodo["spuntata"]
+        altrimenti_se nodo["tipo"] == "opzione":
+            se_stesso._scegli(nodo)
+        altrimenti:
+            se_stesso.corrente = nodo
+        se_stesso._chiudi_cascate(1)
+        se_stesso._ridisegna()
+        se_stesso._chiama(nodo)
+
+    definisci seleziona(se_stesso, nome):
+        """Evidenzia una voce come «pagina attuale» (di un menu di navigazione)."""
+        se_stesso.corrente = se_stesso._trova(nome) se nome altrimenti Nessuno
+        se_stesso._ridisegna()
+
+    definisci espandi(se_stesso, nome, aperto=Vero):
+        """Apre o chiude a fisarmonica una voce con sotto-voci (menu verticale esteso)."""
+        nodo = se_stesso._trova(nome)
+        se aperto:
+            se_stesso._aperti.add(id(nodo))
+        altrimenti:
+            se_stesso._aperti.discard(id(nodo))
+        se_stesso._ridisegna()
+
+    definisci cerca(se_stesso, testo_):
+        """Filtra i comandi (serve ricerca=Vero e il menu esteso)."""
+        se_stesso._testo_ricerca.set(testo_)
+        se se_stesso.con_ricerca e se_stesso.stato == "esteso" e non se_stesso.orizzontale:
+            se_stesso._aggiorna_elenco()
+
+    definisci _vai_a_ricerca(se_stesso, evento=Nessuno):
+        se se_stesso.stato != "esteso":
+            se_stesso.apri()
+        campo = getattr(se_stesso, "_campo_ricerca", Nessuno)
+        se campo:
+            campo.focus_set()
+            campo.selection_range(0, "end")
+        ritorna "break"
+
+    definisci _dalla_ricerca(se_stesso, evento):
+        se_stesso.focus_set()
+        se_stesso._muovi(se_stesso._cont, 1)
+        ritorna "break"
+
+    definisci _primo_risultato(se_stesso):
+        se se_stesso._cont.righe:
+            se_stesso._clic_riga(se_stesso._cont.righe[0])
+
+    definisci _aggiorna_nodo(se_stesso, nodo):
+        se_stesso._ridisegna()
+
+    definisci _aggiorna_tutto(se_stesso):
+        se_stesso._ridisegna()
+
+    # ---- tastiera
+    definisci _contenitore_attivo(se_stesso):
+        se se_stesso._cascate:
+            ritorna se_stesso._cascate[-1].cont
+        ritorna se_stesso._cont
+
+    definisci _muovi(se_stesso, cont, passo):
+        righe = [r per r in cont.righe se r.winfo_exists() e r.attivo]
+        se non righe:
+            ritorna
+        se cont.sel < 0 o cont.sel >= lunghezza_di(cont.righe):
+            corrente = -1
+        altrimenti:
+            corrente = righe.index(cont.righe[cont.sel]) se cont.righe[cont.sel] in righe altrimenti -1
+        nuova = righe[(corrente + passo) % lunghezza_di(righe)] se corrente >= 0 altrimenti righe[0 se passo > 0 altrimenti -1]
+        per altra in cont.righe:
+            se altra.winfo_exists():
+                se_stesso._colora(altra, altra è nuova)
+        cont.sel = cont.righe.index(nuova)
+        se cont è se_stesso._cont:
+            se_stesso._mostra_riga(nuova)
+
+    definisci _tasto(se_stesso, evento):
+        cont = se_stesso._contenitore_attivo()
+        tasto = evento.keysym
+        riga = cont.righe[cont.sel] se 0 <= cont.sel < lunghezza_di(cont.righe) altrimenti Nessuno
+        # nella barra orizzontale (nessuna cascata) sinistra/destra scorrono le voci e su/giù aprono il menu
+        in_barra = se_stesso.orizzontale e non se_stesso._cascate
+        se tasto == "Escape":
+            se_stesso._chiudi_cascate(1)
+        altrimenti_se tasto in ("Down", "Up") e non in_barra:
+            se_stesso._muovi(cont, 1 se tasto == "Down" altrimenti -1)
+        altrimenti_se in_barra e tasto in ("Right", "Left"):
+            se_stesso._muovi(cont, 1 se tasto == "Right" altrimenti -1)
+        altrimenti_se in_barra e tasto in ("Down", "Return", "space"):
+            se riga è Nessuno:
+                se_stesso._muovi(cont, 1)
+                riga = cont.righe[cont.sel] se cont.sel >= 0 altrimenti Nessuno
+            se riga è non Nessuno:
+                se_stesso._clic_riga(riga)
+                se se_stesso._cascate:
+                    se_stesso._muovi(se_stesso._cascate[-1].cont, 1)
+        altrimenti_se tasto == "Right":
+            se riga è non Nessuno e riga.nodo["voci"]:
+                se riga.modo == "elenco" e se_stesso.stato == "esteso":
+                    se id(riga.nodo) non in se_stesso._aperti:
+                        se_stesso._clic_riga(riga)
+                altrimenti:
+                    se_stesso._apri_sotto(riga)
+                    se se_stesso._cascate:
+                        se_stesso._muovi(se_stesso._cascate[-1].cont, 1)
+        altrimenti_se tasto == "Left":
+            se se_stesso._cascate:
+                se_stesso._chiudi_cascate(se_stesso._cascate[-1].livello)
+            altrimenti_se riga è non Nessuno e riga.modo == "elenco" e id(riga.nodo) in se_stesso._aperti:
+                se_stesso._clic_riga(riga)
+        altrimenti_se tasto in ("Return", "space"):
+            se riga è non Nessuno:
+                se_stesso._clic_riga(riga)
+        ritorna "break"
+
+
+definisci moderno(genitore, definizione, finestra=Nessuno, **opzioni):
+    """Crea un MenuModerno (vedi la classe per le opzioni)."""
+    ritorna MenuModerno(genitore, definizione, finestra, **opzioni)

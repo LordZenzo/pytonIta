@@ -1,0 +1,295 @@
+"""Prova del modulo menu_moderno: definizione JSON, barra nativa, menu contestuale e menu moderno (verticale, orizzontale, compatto, cascate, tastiera)."""
+importa json, os, sys
+importa tkinter come tk
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(QUI), "modelli_codice"))
+importa menu_moderno
+
+esiti = []
+
+
+definisci controlla(nome, condizione, dettaglio=""):
+    esiti.append((nome, bool(condizione)))
+    stampa(("ok     " se condizione altrimenti "ERRORE ") + nome, "" se condizione altrimenti dettaglio)
+
+
+classe Finestra:
+    definisci __inizializza__(se_stesso):
+        se_stesso.chiamate = []
+
+    definisci nuovo_clic(se_stesso):
+        se_stesso.chiamate.append("nuovo")
+
+    definisci salva_clic(se_stesso):
+        se_stesso.chiamate.append("salva")
+
+    definisci recente_clic(se_stesso):
+        se_stesso.chiamate.append("recente")
+
+    definisci profondo_clic(se_stesso):
+        se_stesso.chiamate.append("profondo")
+
+    definisci _apri_Altra(se_stesso):
+        se_stesso.chiamate.append("altra")
+
+    definisci vista_clic(se_stesso):
+        se_stesso.chiamate.append("vista")
+
+
+DEFINIZIONE = json.dumps([
+    {"testo": "File", "icona": "📁", "voci": [
+        {"testo": "Nuovo", "nome": "nuovo", "gestore": "nuovo_clic", "scorciatoia": "Ctrl+N", "icona": "＋"},
+        {"testo": "Recenti", "voci": [
+            {"testo": "Uno", "gestore": "recente_clic"},
+            {"testo": "Altri", "voci": [{"testo": "Profondo", "nome": "profondo", "gestore": "profondo_clic", "scorciatoia": "Ctrl+Maiusc+P"}]},
+        ]},
+        {"testo": "-"},
+        {"testo": "Salva", "nome": "salva", "gestore": "salva_clic", "attiva": Falso},
+    ]},
+    {"testo": "Vista", "voci": [
+        {"testo": "Barra di stato", "nome": "stato", "tipo": "spunta", "spuntata": Vero, "gestore": "vista_clic"},
+        {"testo": "Piccolo", "nome": "piccolo", "tipo": "opzione", "gruppo": "zoom", "spuntata": Vero},
+        {"testo": "Grande", "nome": "grande", "tipo": "opzione", "gruppo": "zoom"},
+    ]},
+    {"testo": "Altra", "gestore": "@Altra", "icona": "↗"},
+])
+
+# ---- la definizione
+nodi = menu_moderno.normalizza(DEFINIZIONE)
+controlla("normalizza: tre voci in cima", lunghezza_di(nodi) == 3 e nodi[0]["voci"][1]["voci"][1]["voci"][0]["nome"] == "profondo")
+controlla("normalizza: valori predefiniti", nodi[0]["voci"][0]["tipo"] == "voce" e nodi[0]["voci"][0]["attiva"] è Vero e nodi[2]["voci"] == [])
+controlla("normalizza: «-» è un separatore", nodi[0]["voci"][2]["tipo"] == "separatore")
+controlla("normalizza: lista vuota e testo vuoto", menu_moderno.normalizza("") == [] e menu_moderno.normalizza("[]") == [])
+controlla("foglie: percorsi", ("File", "Recenti", "Altri", "Profondo") in [p per p, _ in menu_moderno.foglie(nodi)])
+controlla("sequenza tasti", menu_moderno.sequenza_tasti("Ctrl+Maiusc+P") == "<Control-Shift-P>" e menu_moderno.sequenza_tasti("Ctrl+s") == "<Control-s>"
+          e menu_moderno.sequenza_tasti("F5") == "<F5>" e menu_moderno.sequenza_tasti("Ctrl+Canc") == "<Control-Delete>" e menu_moderno.sequenza_tasti("Boh+X") è Nessuno)
+
+radice = tk.Tk()
+radice.geometry("900x500+40+40")
+f = Finestra()
+
+# ---- barra nativa
+barra = menu_moderno.barra(radice, DEFINIZIONE, f)
+radice.update()
+controlla("barra nativa: creata e collegata alla finestra", radice.cget("menu") != "")
+controlla("barra: sotto-menu a tre livelli", barra.menu.index("end") == 2)
+barra.esegui("nuovo")
+barra.esegui("profondo")
+barra.esegui("Altra")
+controlla("barra: i gestori vengono chiamati (anche @Finestra)", f.chiamate == ["nuovo", "profondo", "altra"], f.chiamate)
+controlla("barra: voce senza gestore resta disattivata, attiva=Falso disattiva", barra._variabili[id(barra._trova("salva"))][0].entrycget(barra._variabili[id(barra._trova("salva"))][1], "state") == "disabled")
+barra.attiva("salva", Vero)
+controlla("barra: attiva() abilita una voce", barra._variabili[id(barra._trova("salva"))][0].entrycget(barra._variabili[id(barra._trova("salva"))][1], "state") == "normal")
+f.chiamate.clear()
+barra.esegui("stato")
+controlla("barra: spunta si toglie con un clic e il gestore parte", barra.spuntata("stato") è Falso e f.chiamate == ["vista"], (barra.spuntata("stato"), f.chiamate))
+barra.imposta_spunta("stato", Vero)
+controlla("barra: imposta_spunta", barra.spuntata("stato") è Vero)
+barra.esegui("grande")
+controlla("barra: opzione sceglie una e toglie l'altra", barra.spuntata("grande") è Vero e barra.spuntata("piccolo") è Falso)
+barra.imposta_spunta("piccolo")
+controlla("barra: imposta_spunta su un'opzione", barra.spuntata("piccolo") è Vero e barra.spuntata("grande") è Falso)
+f.chiamate.clear()
+radice.event_generate("<Control-n>")
+radice.update()
+controlla("barra: scorciatoia da tastiera (Ctrl+N)", f.chiamate == ["nuovo"], f.chiamate)
+f.chiamate.clear()
+radice.event_generate("<Control-Shift-P>")
+radice.update()
+controlla("barra: scorciatoia con due modificatori", f.chiamate == ["profondo"], f.chiamate)
+barra.collega("salva", lambda: f.chiamate.append("collegato"))
+barra.esegui("salva")
+controlla("barra: collega() una funzione a una voce", "collegato" in f.chiamate)
+prova:
+    barra.spuntata("inesistente")
+    controlla("voce sconosciuta", Falso)
+eccetto KeyError:
+    controlla("voce sconosciuta: KeyError", Vero)
+
+# ---- contestuale
+campo = tk.Entry(radice)
+campo.place(x=10, y=10, width=100)
+ctx = menu_moderno.contestuale(campo, [{"testo": "Taglia", "gestore": "nuovo_clic"}, {"testo": "Altro", "voci": [{"testo": "Sotto", "gestore": "salva_clic"}]}], f)
+controlla("contestuale: menu creato, la finestra non cambia barra", ctx.menu.index("end") == 1 e radice.cget("menu") == str(barra.menu))
+f.chiamate.clear()
+ctx.esegui("Taglia")
+controlla("contestuale: esegui", f.chiamate == ["nuovo"])
+controlla("contestuale: legato al tasto destro", "<Button-3>" in campo.bind())
+campo.destroy()
+
+# ---- moderno verticale
+quadro = tk.Frame(radice)
+quadro.place(x=0, y=0, width=300, height=480)
+f.chiamate.clear()
+m = menu_moderno.MenuModerno(quadro, DEFINIZIONE, f, titolo="Menu", ricerca=Vero, larghezza=240)
+m.place(x=0, y=0, width=240, height=480)
+radice.update()
+stati = []
+m.al_stato = stati.append
+controlla("moderno: esteso, larghezza 240", m.stato == "esteso" e m.winfo_width() == 240, (m.stato, m.winfo_width()))
+righe = m._cont.righe
+controlla("moderno: righe in cima visibili", lunghezza_di(righe) == 3, lunghezza_di(righe))
+m._clic_riga(righe[0])
+radice.update()
+controlla("moderno: clic su una voce con figli la apre a fisarmonica", lunghezza_di(m._cont.righe) == 3 + 3 e m._cont.righe[1].nodo["testo"] == "Nuovo", [r.nodo["testo"] per r in m._cont.righe])
+m.espandi("Recenti")
+m.espandi("Altri")
+radice.update()
+definisci rientro_di(nome):
+    riga_ = [r per r in m._cont.righe se r.nodo["testo"] == nome][0]
+    ritorna riga_.parti[0].winfo_x() - riga_.winfo_x()
+controlla("rientro: ogni livello di sotto-voci è più a destra", rientro_di("File") < rientro_di("Nuovo") < rientro_di("Uno") < rientro_di("Profondo"), [rientro_di(x) per x in ("File", "Nuovo", "Uno", "Profondo")])
+controlla("rientro: 18 pixel per livello", rientro_di("Nuovo") - rientro_di("File") == 18, rientro_di("Nuovo") - rientro_di("File"))
+m.rientro = 30
+m._aggiorna_elenco()
+radice.update()
+controlla("rientro: configurabile", rientro_di("Nuovo") - rientro_di("File") == 30 e rientro_di("Uno") - rientro_di("Nuovo") == 30, [rientro_di(x) per x in ("File", "Nuovo", "Uno")])
+m.rientro = 18
+m._aggiorna_elenco()
+radice.update()
+testi = [r.nodo["testo"] per r in m._cont.righe]
+controlla("moderno: fisarmonica a tre livelli", "Profondo" in testi, testi)
+m._clic_riga([r per r in m._cont.righe se r.nodo["nome"] == "profondo"][0])
+radice.update()
+controlla("moderno: clic su una voce chiama il gestore", f.chiamate == ["profondo"] e m.corrente["nome"] == "profondo", f.chiamate)
+f.chiamate.clear()
+m._clic_riga([r per r in m._cont.righe se r.nodo["nome"] == "stato"][0] se [r per r in m._cont.righe se r.nodo["nome"] == "stato"] altrimenti m._cont.righe[0])
+m.espandi("Vista")
+radice.update()
+m._clic_riga([r per r in m._cont.righe se r.nodo["nome"] == "stato"][0])
+controlla("moderno: la voce spunta si inverte", m.spuntata("stato") è Falso)
+m._clic_riga([r per r in m._cont.righe se r.nodo["nome"] == "grande"][0])
+controlla("moderno: l'opzione toglie le altre del gruppo", m.spuntata("grande") è Vero e m.spuntata("piccolo") è Falso)
+m.attiva("nuovo", Falso)
+f.chiamate.clear()
+m.esegui("nuovo")
+controlla("moderno: voce disattivata non scatta", f.chiamate == [])
+m.attiva("nuovo", Vero)
+m.imposta_testo("nuovo", "Nuovo file")
+controlla("moderno: imposta_testo", m._trova("nuovo")["testo"] == "Nuovo file")
+
+# ricerca dei comandi
+m.cerca("prof")
+radice.update()
+controlla("moderno: la ricerca filtra e mostra il percorso", lunghezza_di(m._cont.righe) == 1 e m._cont.righe[0].nodo["nome"] == "profondo", [r.nodo["testo"] per r in m._cont.righe])
+m.cerca("")
+radice.update()
+
+# molte voci: si scorre con la rotella e con le frecce
+m.destroy()
+molte = [{"testo": f"Voce {i}", "gestore": "nuovo_clic", "nome": f"v{i}"} per i in intervallo_di(30)]
+m3 = menu_moderno.MenuModerno(quadro, molte, f, titolo="Tante")
+m3.place(x=0, y=0, width=240, height=300)
+radice.update()
+controlla("scorrimento: parte dall'alto", m3._scorrimento == 0 e m3._corpo.winfo_y() == 0)
+m3._rotella(type("E", (), {"delta": -120, "num": 0})())
+radice.update()
+controlla("scorrimento: la rotella sposta le voci", m3._scorrimento > 0 e m3._corpo.winfo_y() == -m3._scorrimento, m3._scorrimento)
+m3._scorri(100000)
+radice.update()
+massimo = m3._corpo.winfo_reqheight() - m3._vista.winfo_height()
+controlla("scorrimento: si ferma in fondo", m3._scorrimento == massimo e massimo > 0, (m3._scorrimento, massimo))
+m3._scorri(-100000)
+m3.focus_force()
+m3._cont.sel = -1
+per _ in intervallo_di(12):
+    m3.event_generate("<Down>")
+radice.update()
+riga_sel = m3._cont.righe[m3._cont.sel]
+controlla("scorrimento: la freccia giù porta in vista la voce evidenziata", riga_sel.winfo_y() - m3._scorrimento >= 0 e riga_sel.winfo_y() - m3._scorrimento + riga_sel.winfo_height() <= m3._vista.winfo_height() + 1,
+          (riga_sel.winfo_y(), m3._scorrimento, m3._vista.winfo_height()))
+m3.destroy()
+m = menu_moderno.MenuModerno(quadro, DEFINIZIONE, f, titolo="Menu", ricerca=Vero, larghezza=240)
+m.place(x=0, y=0, width=240, height=480)
+radice.update()
+m.al_stato = stati.append
+
+# compatto, chiuso e hamburger
+m.alterna()
+radice.update()
+controlla("moderno: l'hamburger riduce a icone", m.stato == "compatto" e m.winfo_width() == 48 e stati[-1] == "compatto", (m.stato, m.winfo_width(), stati))
+m._entra(m._cont.righe[0], m._cont)
+radice.update()
+m._apri_sotto(m._cont.righe[0])
+radice.update()
+controlla("moderno: compatto, il sotto-menu si apre a cascata", lunghezza_di(m._cascate) == 1 e m._cascate[0].winfo_exists())
+casc = m._cascate[0]
+riga_rec = [r per r in casc.cont.righe se r.nodo["testo"] == "Recenti"][0]
+m._apri_sotto(riga_rec)
+radice.update()
+riga_altri = [r per r in m._cascate[1].cont.righe se r.nodo["testo"] == "Altri"][0]
+m._apri_sotto(riga_altri)
+radice.update()
+controlla("moderno: cascate una dentro l'altra a qualsiasi profondità", lunghezza_di(m._cascate) == 3, lunghezza_di(m._cascate))
+f.chiamate.clear()
+m._clic_riga(m._cascate[2].cont.righe[0])
+radice.update()
+controlla("moderno: la voce in una cascata chiama il gestore e chiude tutte", f.chiamate == ["profondo"] e lunghezza_di(m._cascate) == 0, (f.chiamate, lunghezza_di(m._cascate)))
+m.alterna()
+radice.update()
+controlla("moderno: l'hamburger riapre", m.stato == "esteso" e m.winfo_width() == 240)
+m.imposta_stato("chiuso")
+radice.update()
+controlla("moderno: chiuso, solo l'hamburger", m.stato == "chiuso" e lunghezza_di(m._cont.righe) == 0)
+m.imposta_stato("esteso")
+
+# tastiera
+m.focus_force()
+radice.update()
+m._cont.sel = -1
+m.event_generate("<Down>")
+m.event_generate("<Down>")
+radice.update()
+controlla("moderno: la freccia giù scorre le voci", m._cont.sel == 1, m._cont.sel)
+m.event_generate("<Up>")
+m.event_generate("<Right>")
+radice.update()
+controlla("moderno: freccia destra apre la voce con figli (fisarmonica)", id(m._cont.righe[0].nodo) in m._aperti)
+m.event_generate("<Left>")
+radice.update()
+controlla("moderno: freccia sinistra la richiude", id(m._cont.righe[0].nodo) non in m._aperti)
+
+# collassa da solo sotto una certa larghezza
+m.destroy()
+m2 = menu_moderno.MenuModerno(quadro, DEFINIZIONE, f, collassa_sotto=700)
+m2.place(x=0, y=0, width=240, height=480)
+radice.geometry("1000x500")
+radice.update()
+radice.geometry("600x500")
+radice.update()
+controlla("moderno: sotto la larghezza indicata si riduce da solo", m2.stato == "compatto", m2.stato)
+radice.geometry("1000x500")
+radice.update()
+controlla("moderno: e torna esteso quando c'è di nuovo spazio", m2.stato == "esteso", m2.stato)
+m2.destroy()
+
+# ---- moderno orizzontale
+barra_o = tk.Frame(radice, height=40)
+barra_o.place(x=0, y=0, width=900, height=40)
+mo = menu_moderno.MenuModerno(barra_o, DEFINIZIONE, f, orientamento="orizzontale", titolo="App", tema="scuro")
+mo.place(x=0, y=0, width=900, height=40)
+radice.update()
+controlla("orizzontale: voci in fila (3)", lunghezza_di(mo._cont.righe) == 3 e mo._cont.righe[0].winfo_x() < mo._cont.righe[1].winfo_x(), [r.winfo_x() per r in mo._cont.righe])
+mo._clic_riga(mo._cont.righe[0])
+radice.update()
+controlla("orizzontale: il clic apre il menu sotto la voce", lunghezza_di(mo._cascate) == 1 e mo._cascate[0].winfo_rooty() >= mo._cont.righe[0].winfo_rooty() + mo._cont.righe[0].winfo_height() - 3)
+mo._clic_riga(mo._cont.righe[0])
+radice.update()
+controlla("orizzontale: un secondo clic lo chiude", lunghezza_di(mo._cascate) == 0)
+mo.imposta_stato("chiuso")
+radice.update()
+mo._clic_hamburger()
+radice.update()
+controlla("orizzontale chiuso: l'hamburger apre l'elenco di tutte le voci", lunghezza_di(mo._cascate) == 1 e lunghezza_di(mo._cascate[0].cont.righe) == 3)
+mo.chiudi_cascate()
+mo.imposta_stato("compatto")
+radice.update()
+controlla("orizzontale compatto: voci ridotte a icone", mo.stato == "compatto" e lunghezza_di(mo._cont.righe) == 3)
+radice.event_generate("<Button-1>", x=700, y=400)
+mo.destroy()
+radice.destroy()
+
+fallite = [n per n, ok in esiti se non ok]
+stampa(f"\n{lunghezza_di(esiti) - lunghezza_di(fallite)}/{lunghezza_di(esiti)} controlli riusciti", "| FALLITI:" se fallite altrimenti "", fallite)
+sys.exit(1 se fallite altrimenti 0)

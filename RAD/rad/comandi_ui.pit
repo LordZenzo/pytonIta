@@ -1,0 +1,44 @@
+"""Un riquadro con comandi da copiare (per esempio «sudo apt install ffmpeg»): ogni comando sta in un campo di sola lettura, che si può selezionare,
+con un pulsante «Copia» che lo mette negli appunti. Si usa nelle finestre che spiegano come installare ffmpeg, VLC e mpv."""
+importa tkinter come tk
+
+da rad.piattaforma importa FONT_MONO, FONT_UI
+
+
+classe PannelloComandi(tk.Frame):
+    """voci: lista di dizionari {etichetta, comando, nota} (come li dà multimedia.comandi_installazione); colori: i colori di PitStudio."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, voci, larghezza_testo=540):
+        tk.Frame.__init__(se_stesso, genitore, background=colori["pannello"])
+        se_stesso.c = colori
+        se_stesso.campi = []
+        se_stesso.pulsanti = []
+        per voce in voci:
+            tk.Label(se_stesso, text=voce["etichetta"], font=(FONT_UI, 10, "bold"), anchor="w", background=colori["pannello"],
+                     foreground=colori["primo_piano"]).pack(fill="x", pady=(8, 0))
+            riga = tk.Frame(se_stesso, background=colori["pannello"])
+            riga.pack(fill="x")
+            campo = tk.Entry(riga, font=(FONT_MONO, 10), relief="flat", readonlybackground=colori.get("campo", colori["pannello"]), foreground=colori["primo_piano"],
+                             highlightthickness=1, highlightbackground=colori.get("bordo", colori["tenue"]), insertbackground=colori["primo_piano"])
+            campo.insert(0, voce["comando"])
+            campo.configure(state="readonly")
+            campo.pack(side="left", fill="x", expand=Vero, ipady=4)
+            campo.bind("<FocusIn>", lambda evento, w=campo: w.selection_range(0, "end"))
+            campo.bind("<Button-1>", lambda evento, w=campo: (w.focus_set(), w.selection_range(0, "end"), "break")[2])
+            b = tk.Button(riga, text="Copia", relief="flat", padx=12, background=colori["pulsante"], foreground=colori["primo_piano"])
+            b.configure(command=lambda cmd=voce["comando"], pulsante=b: se_stesso.copia(cmd, pulsante))
+            b.pack(side="left", padx=(6, 0))
+            se_stesso.campi.append(campo)
+            se_stesso.pulsanti.append(b)
+            se voce.get("nota"):
+                tk.Label(se_stesso, text=voce["nota"], wraplength=larghezza_testo, justify="left", anchor="w", background=colori["pannello"],
+                         foreground=colori["tenue"]).pack(fill="x")
+
+    definisci copia(se_stesso, comando, pulsante=Nessuno):
+        """Mette il comando negli appunti; il pulsante dice «Copiato» per un momento."""
+        se_stesso.clipboard_clear()
+        se_stesso.clipboard_append(comando)
+        se_stesso.update()                 # gli appunti restano anche se la finestra si chiude subito
+        se pulsante è non Nessuno:
+            pulsante.configure(text="Copiato ✓")
+            se_stesso.after(1500, lambda: pulsante.winfo_exists() e pulsante.configure(text="Copia"))

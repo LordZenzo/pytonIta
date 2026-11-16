@@ -12,6 +12,9 @@ da rad.config importa Configurazione
 da rad.finestra importa Applicazione
 da rad.ffmpeg_ui importa DialogoFfmpeg
 importa multimedia
+da rad importa piattaforma
+
+piattaforma.WINDOWS = Vero          # il flusso di Windows (download); quello degli altri sistemi si prova in fondo
 
 avvisi = []
 messagebox.showwarning = lambda titolo, testo_, **k: avvisi.append(testo_)
@@ -143,6 +146,32 @@ presente["percorso"] = "C:/ffmpeg/bin/ffmpeg.exe"
 finestra.aggiorna_situazione()
 verifica(finestra.scarica.cget("state") == "disabled" e "già installata sul computer" in finestra.dettagli.cget("text"), f"installato altrove: {finestra.dettagli.cget('text')}")
 finestra.destroy()
+
+# ---- altri sistemi (Linux, macOS): niente download, si spiega come installare ffmpeg con il gestore di pacchetti
+piattaforma.WINDOWS = Falso
+presente["percorso"] = Nessuno
+multimedia._gestore_pacchetti = lambda: "apt"
+finestra = DialogoFfmpeg(radice, app.colori, scarica=scarica_finto, conferma=lambda testo_: Vero)
+radice.update()
+verifica("non è installato" in finestra.situazione.cget("text"), "altri sistemi: ffmpeg mancante")
+pannello = finestra.cornice_comandi.winfo_children()[0]
+comandi = [tipo_testo(w.get()) per w in pannello.campi]
+verifica(comandi == ["sudo apt update && sudo apt install ffmpeg", "sudo apt update && sudo apt install --no-install-recommends ffmpeg"], f"altri sistemi: i comandi per ffmpeg completo ed essenziale: {comandi}")
+verifica(all(tipo_testo(w.cget("state")) == "readonly" per w in pannello.campi), "altri sistemi: i campi si possono selezionare e copiare")
+pannello.pulsanti[1].invoke()
+radice.update()
+verifica(radice.clipboard_get() == comandi[1] e pannello.pulsanti[1].cget("text") == "Copiato ✓", f"altri sistemi: «Copia» mette il comando negli appunti: {radice.clipboard_get()}")
+verifica(finestra.riga_versione.winfo_manager() == "" e finestra.scarica.winfo_manager() == "", "altri sistemi: niente scelta della versione né download")
+per gestore, atteso in (("dnf", "ffmpeg-free"), ("pacman", "ffmpeg-headless")):
+    multimedia._gestore_pacchetti = lambda g=gestore: g
+    verifica(any(atteso in v["comando"] per v in multimedia.comandi_installazione("ffmpeg")), f"comandi per {gestore}")
+multimedia._gestore_pacchetti = lambda: Nessuno
+verifica(lunghezza_di(multimedia.comandi_installazione("vlc")) >= 4 e "gestore" in multimedia.istruzioni_ffmpeg(), "gestore sconosciuto: i comandi di tutti")
+multimedia._gestore_pacchetti = lambda: "apt"
+verifica([v["comando"] per v in multimedia.comandi_installazione("mpv")] == ["sudo apt update && sudo apt install mpv"], "comando di mpv")
+verifica("Completo: sudo apt update && sudo apt install ffmpeg" in multimedia.istruzioni_ffmpeg() e "Essenziale:" in multimedia.istruzioni_ffmpeg(), "il messaggio di errore elenca completo ed essenziale")
+finestra.destroy()
+piattaforma.WINDOWS = Vero
 radice.destroy()
 stampa("ok" se non errori altrimenti f"{len(errori)} errori")
 sys.exit(1 se errori altrimenti 0)

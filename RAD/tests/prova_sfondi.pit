@@ -1,0 +1,351 @@
+"""Colori di sfondo e del testo di tutti i componenti: l'anteprima del progettista e il programma vero devono mostrare lo stesso colore; sfondo «trasparente»
+(etichette, caselle, opzioni, immagini prendono il colore di ciò che c'è dietro)."""
+importa sys, os, tempfile, importlib, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa ttk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile
+da rad importa form_modello, progettista
+da rad.form_modello importa Form, TIPI, proprieta_di, e_visivo, sfondo_effettivo
+
+esiti = []
+
+
+definisci controlla(nome, condizione, dettaglio=""):
+    esiti.append((nome, bool(condizione)))
+    stampa(("ok     " se condizione altrimenti "ERRORE ") + nome, "" se condizione altrimenti dettaglio)
+
+
+definisci colore(w, opzione):
+    prova:
+        ritorna str(w.cget(opzione))
+    eccetto tk.TclError:
+        ritorna ""
+
+
+# ---- 1. ogni componente con sfondo e testo scelti: anteprima e programma uguali
+cartella = tempfile.mkdtemp()
+f = Form("Colori", "Colori")
+f.larghezza, f.altezza = 900, 700
+tipi = [t per t in TIPI se e_visivo(t) e "sfondo" in proprieta_di(t) e t != "MenuModerno"]
+per i, t in enumera(tipi):
+    extra = {"colonne": ["A", "B"]} se t == "Albero" altrimenti {}
+    c = f.aggiungi(t, 10 + (i % 4) * 215, 10 + (i // 4) * 90, nome="c_" + t.lower(), sfondo="#ff0000", primo_piano="#0000ff", **extra)
+    c.larghezza, c.altezza = 200, 70
+form_modello.salva_form(f, cartella)
+sys.path.insert(0, cartella)
+modulo = importlib.import_module("colori")
+radice = tk.Tk()
+radice.geometry("+10+10")
+app = modulo.Colori(radice)
+radice.update()
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+r2 = tk.Tk()
+r2.geometry("+700+10")
+configura_stile(r2, col)
+p = progettista.Progettista(r2, os.path.join(cartella, "colori.form.json"), form_modello.carica_form(os.path.join(cartella, "colori.form.json")), col, cfg,
+                            type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella)})())
+p.pack(fill="both", expand=Vero)
+r2.update()
+stile = ttk.Style(radice)
+stile2 = ttk.Style(r2)
+per t in tipi:
+    n = "c_" + t.lower()
+    esec, prev = getattr(app, n), p.widget[n]
+    se t == "CasellaCombinata":
+        controlla(f"{t}: sfondo e testo (stile ttk)", stile.lookup(esec.cget("style"), "fieldbackground") == "#ff0000" e stile.lookup(esec.cget("style"), "foreground") == "#0000ff"
+                  e stile2.lookup(prev.cget("style"), "fieldbackground") == "#ff0000" e stile2.lookup(prev.cget("style"), "foreground") == "#0000ff",
+                  (esec.cget("style"), prev.cget("style")))
+        continua
+    se t == "BarraProgresso":
+        controlla(f"{t}: sfondo (stile ttk)", stile.lookup(esec.cget("style"), "troughcolor") == "#ff0000" e stile2.lookup(prev.cget("style"), "troughcolor") == "#ff0000")
+        continua
+    per opzione, atteso in (("background", "#ff0000"), ("foreground", "#0000ff")):
+        se colore(esec, opzione) == "" e t in ("Tela", "Riquadro", "Grafico"):
+            continua                                   # questi non hanno un colore del testo
+        controlla(f"{t}: {opzione} nel programma e nell'anteprima", colore(esec, opzione) == atteso e colore(prev, opzione) == atteso, (colore(esec, opzione), colore(prev, opzione)))
+r2.destroy()
+radice.destroy()
+
+# ---- 2. trasparente: ciò che c'è dietro
+g = Form("Dietro", "Dietro")
+g.larghezza, g.altezza = 500, 300
+g.sfondo = "#ffeecc"
+g.aggiungi("Etichetta", 10, 10, nome="e_libera", testo="a")
+g.aggiungi("CasellaSelezione", 10, 40, nome="c_libera", testo="b")
+g.aggiungi("PulsanteOpzione", 10, 70, nome="o_libera", testo="c")
+g.aggiungi("Pulsante", 10, 100, nome="pulsante", testo="p")
+g.aggiungi("Etichetta", 10, 130, nome="e_rossa", testo="r", sfondo="#ff0000")
+g.aggiungi("Etichetta", 10, 160, nome="e_trasparente", testo="t", sfondo="trasparente")
+g.aggiungi("Riquadro", 200, 10, nome="riquadro", larghezza=250, altezza=120, sfondo="#cceeff")
+g.aggiungi("Etichetta", 10, 10, nome="e_in_riquadro", testo="q", genitore="riquadro")
+g.aggiungi("Riquadro", 10, 50, nome="interno", larghezza=100, altezza=50, genitore="riquadro")
+g.aggiungi("CasellaSelezione", 5, 5, nome="c_in_interno", testo="z", genitore="interno")
+g.aggiungi("Riquadro", 200, 150, nome="riquadro_grigio", larghezza=200, altezza=100)
+g.aggiungi("Etichetta", 10, 10, nome="e_in_grigio", testo="g", genitore="riquadro_grigio")
+g.aggiungi("Immagine", 10, 200, nome="immagine", larghezza=50, altezza=50)
+efficace = lambda n: sfondo_effettivo(g, g.trova(n))
+controlla("trasparente: etichetta, casella, opzione e immagine prendono il colore della finestra",
+          all(efficace(n) == "#ffeecc" per n in ("e_libera", "c_libera", "o_libera", "e_trasparente", "immagine")), [efficace(n) per n in ("e_libera", "c_libera", "o_libera", "immagine")])
+controlla("trasparente: il pulsante no", efficace("pulsante") == "")
+controlla("trasparente: un colore scelto vince", efficace("e_rossa") == "#ff0000")
+controlla("trasparente: dentro un riquadro colorato vale il suo colore, anche in un riquadro dentro un riquadro", efficace("e_in_riquadro") == "#cceeff" e efficace("c_in_interno") == "#cceeff")
+controlla("trasparente: dentro un riquadro senza colore vale quello della finestra", efficace("e_in_grigio") == "#ffeecc")
+form_modello.salva_form(g, cartella)
+ui = form_modello.genera_ui_completa(g)
+controlla("codice: «trasparente» non compare mai come colore", "'trasparente'" non in ui)
+modulo_d = importlib.import_module("dietro")
+radice = tk.Tk()
+radice.geometry("+10+10")
+app_d = modulo_d.Dietro(radice)
+radice.update()
+controlla("in esecuzione: l'etichetta ha il colore della finestra", colore(app_d.e_libera, "background") == "#ffeecc" e colore(app_d.e_trasparente, "background") == "#ffeecc")
+controlla("in esecuzione: casella e opzione anche (e il colore sotto il mouse)", colore(app_d.c_libera, "background") == "#ffeecc" e colore(app_d.o_libera, "activebackground") == "#ffeecc")
+controlla("in esecuzione: in un riquadro colorato", colore(app_d.e_in_riquadro, "background") == "#cceeff" e colore(app_d.c_in_interno, "background") == "#cceeff")
+controlla("in esecuzione: l'etichetta rossa resta rossa e il pulsante resta grigio", colore(app_d.e_rossa, "background") == "#ff0000" e colore(app_d.pulsante, "background") != "#ffeecc")
+radice.destroy()
+
+# ---- 3. il progettista: anteprima e pulsante «trasparente»
+r3 = tk.Tk()
+r3.geometry("1300x760+10+10")
+configura_stile(r3, col)
+p3 = progettista.Progettista(r3, os.path.join(cartella, "dietro.form.json"), form_modello.carica_form(os.path.join(cartella, "dietro.form.json")), col, cfg,
+                             type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella)})())
+p3.pack(fill="both", expand=Vero)
+r3.update()
+controlla("progettista: l'anteprima dell'etichetta ha il colore della finestra", colore(p3.widget["e_libera"], "background") == "#ffeecc" e colore(p3.widget["c_in_interno"], "background") == "#cceeff")
+
+
+definisci pulsanti(w):
+    trovati = []
+    per figlio in w.winfo_children():
+        se figlio.winfo_class() == "Button":
+            trovati.append(figlio)
+        trovati.extend(pulsanti(figlio))
+    ritorna trovati
+
+
+p3.seleziona(["e_libera"])
+r3.update()
+testi = [b.cget("text") per b in pulsanti(p3.righe_ispettore)]
+controlla("progettista: l'etichetta ha il pulsante «trasparente» (◌)", "◌" in testi, testi)
+[b per b in pulsanti(p3.righe_ispettore) se b.cget("text") == "◌"][0].invoke()
+r3.update()
+controlla("progettista: premendolo il valore diventa «trasparente»", p3.form.trova("e_libera").valori["sfondo"] == "trasparente", p3.form.trova("e_libera").valori["sfondo"])
+p3.seleziona(["pulsante"])
+r3.update()
+controlla("progettista: il pulsante normale non ce l'ha", "◌" non in [b.cget("text") per b in pulsanti(p3.righe_ispettore)])
+r3.destroy()
+
+# ---- 4. l'etichetta trasparente lascia vedere quello che c'è sotto (un'immagine, un riquadro colorato)
+da PIL importa Image
+cartella4 = tempfile.mkdtemp()
+Image.new("RGB", (200, 100), (255, 0, 0)).save(os.path.join(cartella4, "rosso.png"))
+h = Form("Sotto", "Sotto")
+h.larghezza, h.altezza = 400, 300
+h.sfondo = "#ffeecc"
+h.aggiungi("Riquadro", 10, 150, nome="pannello", larghezza=200, altezza=60, sfondo="#00aa00")
+h.aggiungi("Immagine", 10, 10, nome="foto", larghezza=200, altezza=100, file="rosso.png")
+h.aggiungi("Etichetta", 30, 30, nome="titolo", testo="Titolo", larghezza=100, altezza=24, sfondo="trasparente", primo_piano="#0000ff", allineamento="sinistra", ancora="w")
+h.aggiungi("Etichetta", 30, 170, nome="sul_pannello", testo="Pannello", larghezza=100, altezza=24, sfondo="trasparente")
+h.aggiungi("Etichetta", 250, 10, nome="libera", testo="Libera", larghezza=100, altezza=24, sfondo="trasparente")
+base_t, strati_t = form_modello.strati_sotto(h, h.trova("titolo"))
+controlla("strati: sotto il titolo c'è l'immagine (e il colore della finestra)", base_t == "#ffeecc" e strati_t == [("immagine", -20, -20, 200, 100, "rosso.png")], (base_t, strati_t))
+controlla("strati: sotto l'etichetta sul pannello c'è il riquadro verde", form_modello.strati_sotto(h, h.trova("sul_pannello"))[1] == [("colore", -20, -20, 200, 60, "#00aa00")])
+controlla("strati: l'etichetta libera non ha niente sotto", form_modello.strati_sotto(h, h.trova("libera"))[1] == [])
+ui4 = form_modello.genera_ui_completa(h)
+controlla("codice: usa trasparenza.EtichettaTrasparente e la importa", "trasparenza.EtichettaTrasparente(radice" in ui4 e "importa trasparenza" in ui4)
+compile(ui4, "x", "exec", 0x10000)
+form_modello.salva_form(h, cartella4)
+controlla("il progetto riceve trasparenza.pit", "trasparenza.pit" in os.listdir(cartella4), sorted(os.listdir(cartella4)))
+sys.path.insert(0, cartella4)
+modulo4 = importlib.import_module("sotto")
+radice = tk.Tk()
+radice.geometry("+10+10")
+app4 = modulo4.Sotto(radice)
+radice.update()
+definisci aspetta_istantanea(etichetta, secondi=2.0):
+    """Su Windows con Pillow l'etichetta fa una fotografia di quello che ha sotto, poco dopo essere comparsa."""
+    t0 = time.time()
+    mentre time.time() - t0 < secondi:
+        radice.update()
+        se etichetta._istantanea è non Nessuno:
+            interrompi
+        time.sleep(0.02)
+
+
+tipi_titolo = [app4.titolo.type(i) per i in app4.titolo.find_all()]
+controlla("in esecuzione: l'etichetta trasparente ridisegna l'immagine che ha sotto e ci scrive sopra", tipi_titolo == ["image", "text"], tipi_titolo)
+controlla("in esecuzione: il testo, il colore e la scorciatoia come un'etichetta", app4.titolo.cget("text") == "Titolo" e app4.titolo.cget("foreground") == "#0000ff")
+app4.titolo.configura(testo="Nuovo titolo")
+radice.update()
+controlla("in esecuzione: configura(testo=…) cambia il testo", app4.titolo.cget("text") == "Nuovo titolo" e app4.titolo.itemcget(app4.titolo.find_all()[-1], "text") == "Nuovo titolo")
+aspetta_istantanea(app4.sul_pannello)
+tipi_pannello = [app4.sul_pannello.type(i) per i in app4.sul_pannello.find_all()]
+se app4.sul_pannello._istantanea è non Nessuno:
+    pixel = app4.sul_pannello._ritaglio.getpixel((50, 12))
+    controlla("in esecuzione: la fotografia di quello che c'è sotto mostra il riquadro verde", tipi_pannello == ["image", "text"] e pixel == (0, 170, 0), (tipi_pannello, pixel))
+altrimenti:
+    controlla("in esecuzione (senza fotografia): sul pannello c'è il rettangolo verde", tipi_pannello == ["rectangle", "text"] e app4.sul_pannello.itemcget(app4.sul_pannello.find_all()[0], "fill") == "#00aa00", tipi_pannello)
+aspetta_istantanea(app4.libera)
+controlla("in esecuzione: l'etichetta libera ha il colore della finestra", colore(app4.libera, "background") == "#ffeecc" e (app4.libera._istantanea è Nessuno o app4.libera._ritaglio.getpixel((5, 5)) == (255, 238, 204)))
+# ---- l'etichetta trasparente su un pulsante vero: si vede il pulsante, e i clic ci passano
+j = Form("Sopra", "Sopra")
+j.larghezza, j.altezza = 400, 200
+j.sfondo = "#ffeecc"
+j.aggiungi("Pulsante", 100, 50, nome="bottone", testo="Premi", larghezza=140, altezza=50, al_clic="premuto")
+j.aggiungi("Etichetta", 90, 60, nome="sopra", testo="Etichetta", larghezza=100, altezza=30, sfondo="trasparente", allineamento="centro", ancora="center")
+form_modello.salva_form(j, cartella4)
+logica = open(os.path.join(cartella4, "sopra.pit"), encoding="utf-8").read()
+logica = logica.replace("    definisci premuto(se_stesso, evento=Nessuno):\n        # bottone: Evento: clic\n        passa\n", "    definisci premuto(se_stesso, evento=Nessuno):\n        se_stesso.premuto_n = getattr(se_stesso, 'premuto_n', 0) + 1\n")
+open(os.path.join(cartella4, "sopra.pit"), "w", encoding="utf-8").write(logica)
+modulo_j = importlib.import_module("sopra")
+radice.destroy()
+radice = tk.Tk()
+radice.geometry("+10+10")
+app_j = modulo_j.Sopra(radice)
+radice.update()
+aspetta_istantanea(app_j.sopra)
+se app_j.sopra._istantanea è non Nessuno:
+    foto_j = app_j.sopra._ritaglio
+    colori_foto = {foto_j.getpixel((x, y)) per x in range(0, 100, 7) per y in range(0, 30, 5)}
+    controlla("in esecuzione: sotto l'etichetta si vede il pulsante vero, oltre al colore della finestra", (255, 238, 204) in colori_foto e any(c_ != (255, 238, 204) per c_ in colori_foto), sorted(colori_foto)[:6])
+    controlla("in esecuzione: dove c'è il pulsante la fotografia non è il colore della finestra", foto_j.getpixel((60, 15)) != (255, 238, 204), foto_j.getpixel((60, 15)))
+    x_sopra = app_j.sopra.winfo_rootx() + 50
+    y_sopra = app_j.sopra.winfo_rooty() + 15
+    app_j.sopra.event_generate("<ButtonPress-1>", x=50, y=15, rootx=x_sopra, rooty=y_sopra)
+    app_j.sopra.event_generate("<ButtonRelease-1>", x=50, y=15, rootx=x_sopra, rooty=y_sopra)
+    radice.update()
+    controlla("in esecuzione: il clic sull'etichetta arriva al pulsante sotto", getattr(app_j, "premuto_n", 0) == 1, getattr(app_j, "premuto_n", 0))
+altrimenti:
+    stampa("   (senza fotografia: controlli su pulsante e inoltro dei clic saltati)")
+radice.destroy()
+r5 = tk.Tk()
+r5.geometry("1300x760+10+10")
+configura_stile(r5, col)
+p5 = progettista.Progettista(r5, os.path.join(cartella4, "sotto.form.json"), form_modello.carica_form(os.path.join(cartella4, "sotto.form.json")), col, cfg,
+                             type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella4)})())
+p5.pack(fill="both", expand=Vero)
+r5.update()
+et = p5.widget["titolo"]
+controlla("progettista: anteprima con l'immagine sotto il testo", [et.type(i) per i in et.find_all()] == ["image", "text"], [et.type(i) per i in et.find_all()])
+c_foto = p5.form.trova("foto")
+c_foto.x = 400
+p5.widget["foto"].place_configure(x=400)
+r5.update()
+p5._registra()
+r5.update()
+t_attesa = time.time()
+mentre time.time() - t_attesa < 2.5 e (et._ritaglio è Nessuno o et._ritaglio.getpixel((5, 5)) == (255, 0, 0)):
+    r5.update()
+    time.sleep(0.02)
+p5.seleziona(["titolo"])
+r5.update()
+p5._registra()
+t_attesa = time.time()
+mentre time.time() - t_attesa < 1.0:
+    r5.update()
+    time.sleep(0.02)
+accento = col["accento"].lstrip("#")
+accento_rgb = tuple(int(accento[i:i + 2], 16) per i in (0, 2, 4))
+se et._ritaglio è non Nessuno:
+    blu = [q per q in et._ritaglio.getdata() se q == accento_rgb]
+    controlla("progettista: con l'etichetta selezionata il contorno blu non finisce nella fotografia", lunghezza_di(blu) == 0, lunghezza_di(blu))
+se et._istantanea è non Nessuno:
+    controlla("progettista: spostando l'immagine la fotografia sotto il testo non è più rossa", et._ritaglio.getpixel((5, 5)) != (255, 0, 0), et._ritaglio.getpixel((5, 5)))
+altrimenti:
+    controlla("progettista: spostando l'immagine l'etichetta si ridisegna senza", [et.type(i) per i in et.find_all()] == ["text"], [et.type(i) per i in et.find_all()])
+r5.destroy()
+
+# ---- casella e opzione trasparenti
+k = Form("Scelte", "Scelte")
+k.larghezza, k.altezza = 420, 260
+k.sfondo = "#ffeecc"
+k.aggiungi("Pulsante", 20, 20, nome="fondo", testo="Fondo", larghezza=200, altezza=120, sfondo="#3366cc")
+k.aggiungi("CasellaSelezione", 30, 30, nome="casella", testo="Ricorda", larghezza=140, altezza=24, sfondo="trasparente", primo_piano="#ffffff", al_clic="cambiata")
+k.aggiungi("CasellaSelezione", 30, 60, nome="casella_on", testo="Attiva", larghezza=140, altezza=24, sfondo="trasparente", selezionata=Vero)
+k.aggiungi("PulsanteOpzione", 30, 90, nome="rosso", testo="Rosso", larghezza=100, altezza=24, sfondo="trasparente", gruppo="colori", valore="rosso", selezionata=Vero, al_clic="scelto")
+k.aggiungi("PulsanteOpzione", 140, 90, nome="verde", testo="Verde", larghezza=100, altezza=24, sfondo="trasparente", gruppo="colori", valore="verde", al_clic="scelto")
+k.aggiungi("CasellaSelezione", 250, 30, nome="normale", testo="Normale", larghezza=120, altezza=24)
+k.aggiungi("CasellaSelezione", 250, 60, nome="spenta", testo="Spenta", larghezza=120, altezza=24, sfondo="trasparente", stato="disabilitato")
+ui6 = form_modello.genera_ui_completa(k)
+controlla("codice: casella e opzione trasparenti", "trasparenza.CasellaTrasparente(radice" in ui6 e "trasparenza.OpzioneTrasparente(radice" in ui6 e "'trasparente'" non in ui6)
+controlla("codice: la casella normale resta una casella normale", "tk.CasellaSelezione(radice, testo='Normale'" in ui6)
+compile(ui6, "x", "exec", 0x10000)
+controlla("indicatore: i colori della finestra classica", form_modello.indicatore_di(k) == ("#ffffff", "#333333", "#000000"))
+cartella6 = tempfile.mkdtemp()
+form_modello.salva_form(k, cartella6)
+logica = open(os.path.join(cartella6, "scelte.pit"), encoding="utf-8").read()
+logica = logica.replace('    definisci __inizializza__(se_stesso, radice):\n        se_stesso.costruisci_ui(radice)\n', '    definisci __inizializza__(se_stesso, radice):\n        se_stesso.chiamate = []\n        se_stesso.costruisci_ui(radice)\n')
+logica = logica.replace("    definisci cambiata(se_stesso, evento=Nessuno):\n        # casella: Evento: clic\n        passa\n", "    definisci cambiata(se_stesso, evento=Nessuno):\n        se_stesso.chiamate.append('cambiata')\n")
+logica = logica.replace("    definisci scelto(se_stesso, evento=Nessuno):\n        # rosso: Evento: clic\n        passa\n", "    definisci scelto(se_stesso, evento=Nessuno):\n        se_stesso.chiamate.append('scelto')\n")
+open(os.path.join(cartella6, "scelte.pit"), "w", encoding="utf-8").write(logica)
+sys.path.insert(0, cartella6)
+modulo6 = importlib.import_module("scelte")
+radice = tk.Tk()
+radice.geometry("+10+10")
+app6 = modulo6.Scelte(radice)
+radice.update()
+controlla("in esecuzione: casella e opzione sono i componenti trasparenti", app6.casella.__class__.__name__ == "CasellaTrasparente" e app6.rosso.__class__.__name__ == "OpzioneTrasparente")
+controlla("in esecuzione: lo stato iniziale viene dalle variabili", app6.casella._attiva() è Falso e app6.casella_on._attiva() è Vero e app6.rosso._attiva() è Vero e app6.verde._attiva() è Falso)
+aspetta_istantanea(app6.casella)
+se app6.casella._ritaglio è non Nessuno:
+    controlla("in esecuzione: sotto la casella si vede il pulsante azzurro (fotografia)", app6.casella._ritaglio.getpixel((100, 12)) == (51, 102, 204) o app6.casella._ritaglio.getpixel((100, 5)) == (51, 102, 204), app6.casella._ritaglio.getpixel((100, 12)))
+x_c, y_c = app6.casella.winfo_rootx() + 8, app6.casella.winfo_rooty() + 12
+app6.casella.event_generate("<ButtonPress-1>", x=8, y=12, rootx=x_c, rooty=y_c)
+app6.casella.event_generate("<ButtonRelease-1>", x=8, y=12, rootx=x_c, rooty=y_c)
+radice.update()
+controlla("in esecuzione: il clic spunta la casella, cambia la variabile e chiama il comando", app6.casella._attiva() è Vero e app6.var_casella.get() è Vero e "cambiata" in app6.chiamate, app6.chiamate)
+tipi_c = [app6.casella.type(i) per i in app6.casella.find_all()]
+controlla("in esecuzione: disegna lo sfondo, il quadratino, il segno e il testo", tipi_c[-4:] == ["rectangle", "line", "text"] o tipi_c[-3:] == ["rectangle", "line", "text"], tipi_c)
+app6.casella.focus_force()
+radice.update()
+app6.casella.event_generate("<space>")
+radice.update()
+controlla("in esecuzione: la barra spaziatrice la toglie", app6.casella._attiva() è Falso, app6.casella._attiva())
+app6.casella.select()
+controlla("in esecuzione: select() e le variabili restano d'accordo", app6.var_casella.get() è Vero)
+app6.var_casella.set(Falso)
+radice.update()
+controlla("in esecuzione: cambiando la variabile da codice la casella si aggiorna", app6.casella._attiva() è Falso e [app6.casella.type(i) per i in app6.casella.find_all()].count("line") == 0)
+app6.casella.invoca()
+app6.casella.inverti()
+controlla("in esecuzione: invoca() e inverti() (nomi italiani)", app6.casella._attiva() è Falso)
+app6.chiamate.clear()
+x_v, y_v = app6.verde.winfo_rootx() + 8, app6.verde.winfo_rooty() + 12
+app6.verde.event_generate("<ButtonPress-1>", x=8, y=12, rootx=x_v, rooty=y_v)
+app6.verde.event_generate("<ButtonRelease-1>", x=8, y=12, rootx=x_v, rooty=y_v)
+radice.update()
+controlla("in esecuzione: scegliere un'opzione toglie l'altra e chiama il comando", app6.var_colori.get() == "verde" e app6.verde._attiva() è Vero e app6.rosso._attiva() è Falso e app6.chiamate == ["scelto"], (app6.var_colori.get(), app6.chiamate))
+app6.rosso.seleziona()
+controlla("in esecuzione: seleziona() sull'opzione", app6.var_colori.get() == "rosso")
+app6.spenta.invoke()
+controlla("in esecuzione: una casella disabilitata non risponde", app6.spenta._attiva() è Falso)
+app6.casella.configura(testo="Ricordami")
+controlla("in esecuzione: configura(testo=…)", app6.casella.cget("text") == "Ricordami")
+radice.destroy()
+r7 = tk.Tk()
+r7.geometry("1300x760+10+10")
+configura_stile(r7, col)
+form_modello.salva_form(k, cartella6)
+p7 = progettista.Progettista(r7, os.path.join(cartella6, "scelte.form.json"), form_modello.carica_form(os.path.join(cartella6, "scelte.form.json")), col, cfg,
+                             type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella6)})())
+p7.pack(fill="both", expand=Vero)
+r7.update()
+controlla("progettista: anteprima di casella e opzione trasparenti", p7.widget["casella"].__class__.__name__ == "CasellaTrasparente" e p7.widget["rosso"].__class__.__name__ == "OpzioneTrasparente"
+          e p7.widget["rosso"]._attiva() è Vero e p7.widget["verde"]._attiva() è Falso e p7.widget["casella_on"]._attiva() è Vero)
+per nome_comp in ("casella", "rosso"):
+    p7.seleziona([nome_comp])
+    r7.update()
+    testi7 = [b.cget("text") per b in pulsanti(p7.righe_ispettore)]
+    controlla(f"progettista: {nome_comp} ha il pulsante «trasparente» (◌)", "◌" in testi7, testi7)
+p7.seleziona(["fondo"])
+r7.update()
+controlla("progettista: il pulsante normale non ce l'ha", "◌" non in [b.cget("text") per b in pulsanti(p7.righe_ispettore)])
+r7.destroy()
+
+fallite = [n per n, ok in esiti se non ok]
+stampa(f"\n{lunghezza_di(esiti) - lunghezza_di(fallite)}/{lunghezza_di(esiti)} controlli riusciti", "| FALLITI:" se fallite altrimenti "", fallite)
+sys.exit(1 se fallite altrimenti 0)

@@ -22,5 +22,13 @@
  "stampante": {
   "versione": 2,
   "impronta": "0ae28dc9f0a2ce82872449faca7d7757f422c7a26ed2abe9a964b6fa7d1459f7"
+ },
+ "menu_moderno": {
+  "versione": 2,
+  "impronta": "b00600b2e0398dc5d1aab552b22e573e5c72868976115d4dfdd8e4fb230a8c86"
+ },
+ "trasparenza": {
+  "versione": 3,
+  "impronta": "790c6c8064e2ae2b3ea7799fa0a2a12a591090794c1a0d2abf067e959ced3fc4"
  }
 }

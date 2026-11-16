@@ -14,16 +14,17 @@ ffmpeg = multimedia.trova_ffmpeg()
 stampa("ffmpeg trovato:", bool(ffmpeg))
 
 # ---- ricerca di ffmpeg: la variabile PITONIT_FFMPEG vince
+estensione = ".exe" se os.name == "nt" altrimenti ""
 finta = os.path.join(cartella, "finta", "bin")
 os.makedirs(finta)
-per nome in ("ffmpeg.exe", "ffprobe.exe"):
+per nome in ("ffmpeg" + estensione, "ffprobe" + estensione):
     open(os.path.join(finta, nome), "wb").write(b"MZ")
 vecchio = os.environ.get("PITONIT_FFMPEG")
 os.environ["PITONIT_FFMPEG"] = os.path.join(cartella, "finta")
-asserisci multimedia.trova_ffmpeg() == os.path.join(cartella, "finta", "bin", "ffmpeg.exe"), multimedia.trova_ffmpeg()
-asserisci multimedia.trova_ffmpeg("ffprobe") == os.path.join(cartella, "finta", "bin", "ffprobe.exe")
-os.environ["PITONIT_FFMPEG"] = os.path.join(finta, "ffmpeg.exe")
-asserisci multimedia.trova_ffmpeg() == os.path.join(finta, "ffmpeg.exe")
+asserisci multimedia.trova_ffmpeg() == os.path.join(cartella, "finta", "bin", "ffmpeg" + estensione), multimedia.trova_ffmpeg()
+asserisci multimedia.trova_ffmpeg("ffprobe") == os.path.join(cartella, "finta", "bin", "ffprobe" + estensione)
+os.environ["PITONIT_FFMPEG"] = os.path.join(finta, "ffmpeg" + estensione)
+asserisci multimedia.trova_ffmpeg() == os.path.join(finta, "ffmpeg" + estensione)
 se vecchio è Nessuno:
     elimina os.environ["PITONIT_FFMPEG"]
 altrimenti:
@@ -38,10 +39,14 @@ prova:
     multimedia.converti(os.path.join(cartella, "a.wav"), os.path.join(cartella, "b.mp3"))
     asserisci Falso, "doveva dire che ffmpeg manca"
 eccetto multimedia.FfmpegNonTrovato come errore:
-    asserisci "scarica_ffmpeg" in tipo_testo(errore) e "winget" in tipo_testo(errore)
+    se os.name == "nt":
+        asserisci "scarica_ffmpeg" in tipo_testo(errore) e "winget" in tipo_testo(errore)
+    altrimenti:
+        asserisci "ffmpeg non e' installato" in tipo_testo(errore) e ("apt" in tipo_testo(errore) o "brew" in tipo_testo(errore) o "gestore di pacchetti" in tipo_testo(errore)), tipo_testo(errore)
     stampa("ffmpeg mancante:", tipo_testo(errore)[:40])
 asserisci multimedia.versione_ffmpeg() è Nessuno
 multimedia.trova_ffmpeg = originale
+asserisci "ffmpeg" in multimedia.istruzioni_ffmpeg(), "istruzioni per installare ffmpeg"
 
 # ---- download con un finto sito locale
 sito = os.path.join(cartella, "sito")

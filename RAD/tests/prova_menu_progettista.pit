@@ -1,0 +1,267 @@
+"""Menu nel progettista: formato JSON a più valori (e vecchio testo a rientri), codice generato che gira davvero (anche esportato in Python), menu contestuale,
+menu moderno, anteprima nel progettista e finestra ad albero per modificare le voci."""
+importa sys, os, tempfile, importlib, subprocess, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad importa form_modello, progettista
+da rad.form_modello importa Form, nodi_menu, menu_in_json, voci_del_menu, finestre_aperte
+
+esiti = []
+
+
+definisci controlla(nome, condizione, dettaglio=""):
+    esiti.append((nome, bool(condizione)))
+    stampa(("ok     " se condizione altrimenti "ERRORE ") + nome, "" se condizione altrimenti dettaglio)
+
+
+# ---------------------------------------------------------------- il formato
+vecchio = "File\n  Nuovo = nuovo_clic\n  Recenti\n    Uno = uno_clic\n    Altri\n      Profondo = profondo_clic\n  -\n  Apri = @Seconda\n  Spenta\nAiuto\n  Info = info_clic"
+nodi = nodi_menu(vecchio)
+controlla("vecchio testo a rientri: i sotto-menu restano sotto-menu", nodi[0]["voci"][1]["voci"][1]["voci"][0]["gestore"] == "profondo_clic", nodi)
+controlla("vecchio testo: separatore, finestra, voce spenta", nodi[0]["voci"][2]["tipo"] == "separatore" e nodi[0]["voci"][3]["gestore"] == "@Seconda" e "gestore" non in nodi[0]["voci"][4])
+andata_ritorno = nodi_menu(menu_in_json(nodi))
+controlla("JSON: andata e ritorno senza perdite", andata_ritorno == nodi)
+valori = nodi_menu('[{"testo": "A", "tipo": "spunta", "spuntata": true, "scorciatoia": "Ctrl+A", "icona": "★", "attiva": false, "nome": "a", "gruppo": "g"}]')
+controlla("JSON: tutti i valori di una voce", valori[0] == {"testo": "A", "tipo": "spunta", "spuntata": Vero, "scorciatoia": "Ctrl+A", "icona": "★", "attiva": Falso, "nome": "a", "gruppo": "g"}, valori)
+controlla("JSON: una lista vuota e il testo vuoto", nodi_menu("[]") == [] e nodi_menu("") == [] e nodi_menu(Nessuno) == [])
+prova:
+    nodi_menu("[{rotto")
+    controlla("JSON non valido", Falso)
+eccetto ValueError come errore:
+    controlla("JSON non valido: ValueError con messaggio", "JSON" in tipo_testo(errore), tipo_testo(errore))
+controlla("voci_del_menu: tutte le voci a qualsiasi profondità", lunghezza_di(voci_del_menu(nodi)) == 11, lunghezza_di(voci_del_menu(nodi)))
+
+# ---------------------------------------------------------------- una finestra con i tre tipi di menu
+DEFINIZIONE = [
+    {"testo": "File", "voci": [
+        {"testo": "Nuovo", "gestore": "nuovo_clic", "scorciatoia": "Ctrl+N", "nome": "nuovo"},
+        {"testo": "Recenti", "voci": [{"testo": "Uno", "gestore": "uno_clic"}, {"testo": "Altri", "voci": [{"testo": "Profondo", "gestore": "profondo_clic", "nome": "profondo"}]}]},
+        {"testo": "-"},
+        {"testo": "Seconda", "gestore": "@Seconda"},
+    ]},
+    {"testo": "Vista", "voci": [{"testo": "Griglia", "tipo": "spunta", "spuntata": Vero, "nome": "griglia", "gestore": "griglia_clic"}]},
+]
+cartella = tempfile.mkdtemp()
+f = Form("Principale", "Principale")
+f.larghezza, f.altezza = 700, 420
+f.aggiungi("Elenco", 260, 40, nome="elenco", larghezza=200, altezza=200, elementi=["a", "b"])
+f.aggiungi("BarraMenu", 10, 380, nome="barraMenu1", voci=json.dumps(DEFINIZIONE))
+f.aggiungi("MenuContestuale", 130, 380, nome="menuCtx", su="elenco",
+           voci=json.dumps([{"testo": "Copia", "gestore": "copia_clic"}, {"testo": "Altro", "voci": [{"testo": "Sotto", "gestore": "sotto_clic"}]}]))
+f.aggiungi("MenuModerno", 0, 0, nome="menuLaterale", larghezza=200, altezza=380, titolo="App", ricerca=Vero,
+           voci=json.dumps([{"testo": "Home", "gestore": "home_clic", "icona": "⌂", "nome": "home"},
+                            {"testo": "Documenti", "icona": "▤", "voci": [{"testo": "Apri", "gestore": "apri_clic"}]}]))
+controlla("nessun problema nel form", f.problemi() == [], f.problemi())
+gestori = sorted({n per _, _, n in f.eventi()})
+controlla("gestori richiesti da tutti i menu, a qualsiasi profondità", gestori == ["apri_clic", "copia_clic", "griglia_clic", "home_clic", "nuovo_clic", "profondo_clic", "sotto_clic", "uno_clic"], gestori)
+controlla("finestre aperte dalle voci @Seconda", finestre_aperte(f) == ["Seconda"], finestre_aperte(f))
+ui = form_modello.genera_ui_completa(f)
+controlla("codice: importa il modulo e crea i tre menu", "importa menu_moderno" in ui e "menu_moderno.barra(" in ui e "menu_moderno.contestuale(se_stesso.elenco" in ui e "menu_moderno.MenuModerno(" in ui)
+controlla("codice: il menu contestuale viene dopo la creazione dell'elenco", ui.index("se_stesso.elenco = ") < ui.index("menu_moderno.contestuale("))
+compile(ui, "x", "exec", 0x10000)
+controlla("codice generato compilabile", Vero)
+f.aggiungi("MenuContestuale", 1, 1, nome="rotto", su="non_esiste", voci="[{")
+p_ = f.problemi()
+controlla("problemi: JSON non valido e componente mancante", any("JSON" in x e "rotto" in x per x in p_) e any("non_esiste" in x per x in p_), p_)
+f.rimuovi("rotto")
+f.aggiungi("BarraMenu", 1, 1, nome="doppia", voci=json.dumps([{"testo": "X", "nome": "uguale"}, {"testo": "Y", "nome": "uguale"}, {"testo": "Z", "gestore": "1non valido"}]))
+p_ = f.problemi()
+controlla("problemi: nomi di voce doppi e gestore non valido", any("uguale" in x per x in p_) e any("1non valido" in x per x in p_), p_)
+f.rimuovi("doppia")
+g = Form("Seconda", "Seconda")
+g.larghezza, g.altezza = 300, 160
+g.aggiungi("Etichetta", 10, 10, nome="saluto", testo="Seconda", larghezza=200)
+form_modello.salva_form(f, cartella)
+form_modello.salva_form(g, cartella)
+controlla("il progetto riceve menu_moderno.pit", "menu_moderno.pit" in os.listdir(cartella), sorted(os.listdir(cartella)))
+
+# la logica dell'utente: i gestori segnano cosa è stato chiamato
+logica = open(os.path.join(cartella, "principale.pit"), encoding="utf-8").read()
+logica = logica.replace('    definisci __inizializza__(se_stesso, radice):\n        se_stesso.costruisci_ui(radice)\n',
+                        '    definisci __inizializza__(se_stesso, radice):\n        se_stesso.chiamate = []\n        se_stesso.costruisci_ui(radice)\n')
+per nome_fn in ("nuovo_clic", "profondo_clic", "sotto_clic", "home_clic", "apri_clic", "griglia_clic", "copia_clic"):
+    punto = logica.index(f"    definisci {nome_fn}(")
+    fine = logica.index("        passa\n", punto) + lunghezza_di("        passa\n")
+    logica = logica[:punto] + f"    definisci {nome_fn}(se_stesso, evento=Nessuno):\n        se_stesso.chiamate.append({nome_fn[:-5]!r})\n" + logica[fine:]
+open(os.path.join(cartella, "principale.pit"), "w", encoding="utf-8").write(logica)
+
+sys.path.insert(0, cartella)
+messagebox.showwarning = lambda *a, **k: Nessuno
+modulo = importlib.import_module("principale")
+radice = tk.Tk()
+radice.geometry("700x440+20+20")
+app = modulo.Principale(radice)
+radice.update()
+controlla("in esecuzione: la barra nativa ha File e Vista", app.barraMenu1.menu.index("end") == 1)
+app.barraMenu1.esegui("profondo")
+app.barraMenu1.esegui("nuovo")
+controlla("in esecuzione: la voce a tre livelli chiama il gestore", app.chiamate == ["profondo", "nuovo"], app.chiamate)
+app.chiamate.clear()
+radice.focus_force()
+radice.update()
+radice.event_generate("<Control-n>")
+radice.update()
+controlla("in esecuzione: scorciatoia Ctrl+N", app.chiamate == ["nuovo"], app.chiamate)
+app.barraMenu1.esegui("griglia")
+controlla("in esecuzione: la voce con spunta si toglie e il gestore parte", app.barraMenu1.spuntata("griglia") è Falso e "griglia" in app.chiamate)
+controlla("in esecuzione: menu contestuale legato all'elenco", "<Button-3>" in app.elenco.bind() e app.menuCtx.menu.index("end") == 1)
+app.menuCtx.esegui("Sotto")
+controlla("in esecuzione: voce di un sotto-menu contestuale", "sotto" in app.chiamate)
+controlla("in esecuzione: menu moderno al suo posto", app.menuLaterale.winfo_width() == 200 e app.menuLaterale.winfo_height() == 380 e app.menuLaterale.stato == "esteso",
+         (app.menuLaterale.winfo_width(), app.menuLaterale.stato))
+app.menuLaterale._clic_riga(app.menuLaterale._cont.righe[0])
+controlla("in esecuzione: clic sulla voce del menu moderno", "home" in app.chiamate)
+app.menuLaterale.alterna()
+radice.update()
+controlla("in esecuzione: hamburger riduce la larghezza", app.menuLaterale.winfo_width() == 48, app.menuLaterale.winfo_width())
+prima = lunghezza_di([w per w in radice.winfo_children() se isinstance(w, tk.Toplevel)])
+app.barraMenu1.esegui("Seconda")
+radice.update()
+controlla("in esecuzione: «@Seconda» apre l'altra finestra", lunghezza_di([w per w in radice.winfo_children() se isinstance(w, tk.Toplevel)]) == prima + 1)
+radice.destroy()
+
+# ---------------------------------------------------------------- esportato in Python: senza pytonIta i menu funzionano
+da rad importa esporta_python
+dest = os.path.join(tempfile.mkdtemp(), "export")
+elemento = esporta_python.esporta(cartella, dest)
+controlla("esportazione senza errori", elemento["errori"] == [] e os.path.exists(os.path.join(dest, "menu_moderno.py")), (elemento["errori"], sorted(os.listdir(dest))))
+open(os.path.join(dest, "prova_py.py"), "w", encoding="utf-8").write("""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tkinter as tk
+import principale
+r = tk.Tk(); r.geometry('+20+20')
+app = principale.Principale(r)
+r.update()
+app.barraMenu1.esegui('profondo')
+app.menuLaterale.alterna(); r.update()
+app.menuLaterale.imposta_stato('esteso'); r.update()
+app.menuLaterale._clic_riga(app.menuLaterale._cont.righe[1]); r.update()
+print('python:', app.chiamate, app.menuLaterale.winfo_width(), len(app.menuLaterale._cont.righe))
+r.destroy()
+""")
+python_ = __import__("shutil").which("python") o __import__("shutil").which("py")
+se python_:
+    u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "prova_py.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=120,
+                       env=dict(os.environ, PYTHONUTF8="1"))
+    controlla("con Python normale i menu funzionano", u.returncode == 0 e "python: ['profondo'] 200 3" in u.stdout, (u.stdout.strip(), u.stderr.strip()[-300:]))
+
+# ---------------------------------------------------------------- il progettista: anteprima e finestra delle voci
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+radice2 = tk.Tk()
+radice2.geometry("1300x760+10+10")
+configura_stile(radice2, col)
+form_p = form_modello.carica_form(os.path.join(cartella, "principale.form.json"))
+p = progettista.Progettista(radice2, os.path.join(cartella, "principale.form.json"), form_p, col, cfg,
+                            type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella)})())
+p.pack(fill="both", expand=Vero)
+applica(radice2, col)
+radice2.update()
+anteprima = p.widget["menuLaterale"]
+controlla("progettista: anteprima del menu moderno", anteprima.__class__.__name__ == "MenuModerno" e anteprima.anteprima è Vero)
+# clic e trascinamento su una parte interna del menu (un'etichetta di una voce), come fa l'utente
+definisci parte():
+    radice2.update()
+    ritorna p.widget["menuLaterale"]._cont.righe[0].parti[-1]
+
+
+p.seleziona([])
+pezzo = parte()
+rx, ry = pezzo.winfo_rootx() + 3, pezzo.winfo_rooty() + 3
+pezzo.event_generate("<ButtonPress-1>", x=3, y=3, rootx=rx, rooty=ry)
+pezzo.event_generate("<B1-Motion>", x=40, y=30, rootx=rx + 37, rooty=ry + 27)
+pezzo.event_generate("<ButtonRelease-1>", x=40, y=30, rootx=rx + 37, rooty=ry + 27)
+radice2.update()
+c_menu = p.form.trova("menuLaterale")
+controlla("progettista: trascinando dall'interno il menu si sposta e resta selezionato", p.selezione_ == ["menuLaterale"] e (c_menu.x, c_menu.y) != (0, 0), (p.selezione_, c_menu.x, c_menu.y))
+p.annulla()
+radice2.update()
+radice2.event_generate("<Control-n>")
+radice2.update()
+controlla("progettista: l'anteprima non si prende le scorciatoie del programma", Vero)
+p.seleziona(["barraMenu1"])
+radice2.update()
+definisci tutte_etichette(w):
+    trovate = []
+    per figlio in w.winfo_children():
+        se figlio.winfo_class() == "Label":
+            trovate.append(figlio.cget("text"))
+        trovate.extend(tutte_etichette(figlio))
+    ritorna trovate
+
+
+etichette = tutte_etichette(p.righe_ispettore)
+controlla("progettista: l'ispettore riassume le voci del menu", any("File" in t e "voci" in t per t in etichette), etichette)
+
+d = progettista.DialogoMenu(radice2, col, menu_in_json(nodi_menu(vecchio)), ["Seconda", "Terza"])
+d.withdraw()
+radice2.update()
+controlla("dialogo: l'albero ha le voci a più livelli", d.albero.exists("0/1/1/0") e d.albero.item("0/1/1/0", "text") == "Profondo", d.albero.get_children())
+d._scegli_percorso([0, 0])
+radice2.update()
+controlla("dialogo: scegliere una voce riempie il modulo", d.var["testo"].get() == "Nuovo" e d.var["gestore"].get() == "nuovo_clic", d.var["testo"].get())
+d.var["scorciatoia"].set("Ctrl+N")
+d.var["icona"].set("＋")
+d.var["tipo"].set("spunta")
+d.var_spuntata.set(Vero)
+d._modificato("spuntata")
+d.var_attiva.set(Falso)
+d._modificato("attiva")
+n = d._nodo_di([0, 0])
+controlla("dialogo: i valori finiscono nella voce", n.get("scorciatoia") == "Ctrl+N" e n.get("tipo") == "spunta" e n.get("spuntata") è Vero e n.get("attiva") è Falso e n.get("icona") == "＋", n)
+d.var["tipo"].set("voce")
+d.var_attiva.set(Vero)
+d._modificato("attiva")
+controlla("dialogo: i valori predefiniti non si scrivono", "tipo" non in d._nodo_di([0, 0]) e "attiva" non in d._nodo_di([0, 0]), d._nodo_di([0, 0]))
+d.aggiungi_sotto()
+controlla("dialogo: sotto-voce dentro quella scelta", d._percorso == [0, 0, 0] e d._nodo_di([0, 0])["voci"][0]["testo"] == "Nuova voce", d._percorso)
+d.porta_fuori()
+controlla("dialogo: ◀ porta la voce un livello più in alto", d._percorso == [0, 1] e "voci" non in d._nodo_di([0, 0]), (d._percorso, d.nodi[0]["voci"][0]))
+d.porta_dentro()
+controlla("dialogo: ▶ la mette dentro la precedente", d._percorso == [0, 0, 0], d._percorso)
+d.duplica()
+controlla("dialogo: duplica", d._percorso == [0, 0, 1] e lunghezza_di(d._nodo_di([0, 0])["voci"]) == 2)
+d.sposta(-1)
+controlla("dialogo: sposta su", d._percorso == [0, 0, 0])
+d.rimuovi_voce()
+d.rimuovi_voce()
+controlla("dialogo: elimina e la voce resta senza sotto-voci", "voci" non in d._nodo_di([0, 0]) e d._percorso == [0, 0], (d._percorso, d.nodi[0]["voci"][0]))
+d.aggiungi_separatore()
+controlla("dialogo: separatore", d._nodo_di(d._percorso)["tipo"] == "separatore")
+d.schede.select(1)
+radice2.update()
+testo_json = d.testo_json.get("1.0", "end")
+controlla("dialogo: la scheda JSON mostra la definizione", "Profondo" in testo_json e "Ctrl+N" in testo_json)
+d.testo_json.delete("1.0", "end")
+d.testo_json.insert("1.0", json.dumps([{"testo": "Solo", "gestore": "solo_clic"}]))
+d.schede.select(0)
+radice2.update()
+controlla("dialogo: tornando all'albero si rilegge il JSON", lunghezza_di(d.nodi) == 1 e d.nodi[0]["testo"] == "Solo" e d.albero.exists("0"))
+errori = []
+messagebox.showerror = lambda *a, **k: errori.append(a)
+d.schede.select(1)
+radice2.update()
+d.testo_json.delete("1.0", "end")
+d.testo_json.insert("1.0", "[{sbagliato")
+d.schede.select(0)
+radice2.update()
+controlla("dialogo: il JSON sbagliato non si applica e dice l'errore", lunghezza_di(errori) == 1 e d.schede.index(d.schede.select()) == 1, errori)
+d.testo_json.delete("1.0", "end")
+d.testo_json.insert("1.0", json.dumps([{"testo": "Fine", "voci": [{"testo": "Dentro", "gestore": "dentro_clic"}]}]))
+d.conferma()
+controlla("dialogo: conferma restituisce il JSON", nodi_menu(d.risultato)[0]["voci"][0]["gestore"] == "dentro_clic", d.risultato)
+d2 = progettista.DialogoMenu(radice2, col, "[{rotto", [])
+d2.withdraw()
+radice2.update()
+controlla("dialogo: con un JSON sbagliato si apre sulla scheda JSON senza perdere il testo", d2.schede.index(d2.schede.select()) == 1 e "rotto" in d2.testo_json.get("1.0", "end"))
+d2.destroy()
+d.destroy()
+radice2.destroy()
+
+fallite = [n per n, ok in esiti se non ok]
+stampa(f"\n{lunghezza_di(esiti) - lunghezza_di(fallite)}/{lunghezza_di(esiti)} controlli riusciti", "| FALLITI:" se fallite altrimenti "", fallite)
+sys.exit(1 se fallite altrimenti 0)

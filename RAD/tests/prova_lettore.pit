@@ -202,8 +202,19 @@ se ffmpeg.disponibile:
         py = pannello.video.winfo_rooty() + 100
         sopra = user32.GetAncestor(user32.WindowFromPoint(wintypes.POINT(px, py)), 2)
         nostra = user32.GetAncestor(wintypes.HWND(radice.winfo_id()), 2)
-        se sopra != nostra:
-            stampa("la finestra di prova non e' in primo piano: i clic veri sono saltati")
+        # i clic veri arrivano solo se la finestra ha il primo piano: con un'altra finestra attiva (ad esempio la console di una macchina
+        # virtuale che cattura il mouse) il sistema li consegna altrove. In quel caso la prova si salta, dicendolo.
+        user32.GetForegroundWindow.restype = wintypes.HWND
+        user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+        radice.focus_force()
+        user32.SetForegroundWindow(wintypes.HWND(nostra))
+        t1 = time.time()
+        mentre time.time() - t1 < 0.4:
+            radice.update()
+            time.sleep(0.03)
+        primo_piano = user32.GetAncestor(user32.GetForegroundWindow(), 2)
+        se sopra != nostra o primo_piano != nostra:
+            stampa("la finestra di prova non ha il primo piano: i clic veri sono saltati")
         altrimenti:
             vecchio_punto = wintypes.POINT()
             user32.GetCursorPos(ctypes.byref(vecchio_punto))

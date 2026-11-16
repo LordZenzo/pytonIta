@@ -6,6 +6,9 @@ importa tkinter come tk
 da tkinter importa ttk, filedialog, messagebox
 
 da rad importa esecuzione
+da rad.comandi_ui importa PannelloComandi
+importa multimedia
+da rad importa piattaforma
 da rad.piattaforma importa FONT_UI, FONT_MONO, semi, apri come apri_file, mostra_in_gestore_file
 da rad.stile importa suggerisci
 importa ffmpeg
@@ -515,21 +518,37 @@ classe FinestraLettore(tk.Toplevel):
         per figlio in se_stesso.corpo.winfo_children():
             figlio.destroy()
         se_stesso.b_installa.pack_forget()
-        se motore è Nessuno o non motore.implementato:
+        se motore è Nessuno:
+            ritorna
+        se non motore.implementato:
             se_stesso.nota.configure(text="Questo motore non è ancora disponibile.")
+            se_stesso._mostra_comandi(motore, "Il lettore non usa ancora mpv; intanto puoi averlo pronto installandolo.")
             ritorna
         se non motore.disponibile:
             se_stesso.nota.configure(text=f"{motore.nome} non è installato.")
-            se motore.nome == "vlc":
+            se motore.nome == "vlc" e piattaforma.WINDOWS:          # winget c'e' solo su Windows: altrove si copia il comando e lo si lancia a mano
                 se_stesso.b_installa.pack(side="left", padx=(8, 0))
-            tk.Label(se_stesso.corpo, text=f"{motore.nome} non è installato.\n\n{motore.installazione}", justify="left", wraplength=700,
-                     background=se_stesso.colori["pannello"], foreground=se_stesso.colori["tenue"]).pack(anchor="w", pady=20)
+            se_stesso._mostra_comandi(motore, f"{motore.nome} non è installato.")
             ritorna
         se_stesso.nota.configure(text="")
         se_stesso.pannello = lettore.PannelloLettore(se_stesso.corpo, motore=motore.nome, colori=se_stesso.colori, opzioni=se_stesso._opzioni_motore)
         se_stesso.pannello.su_doppio_clic = se_stesso.schermo_intero
         se_stesso.pannello.pack(fill="both", expand=Vero)
         se_stesso.update_idletasks()
+
+    definisci _mostra_comandi(se_stesso, motore, frase):
+        """Spiega cosa manca e mostra i comandi da copiare (selezionabili, con il pulsante Copia) per installare il motore."""
+        c = se_stesso.colori
+        tk.Label(se_stesso.corpo, text=frase + "\nCopia il comando nel terminale (chiede la password di amministratore); poi riapri questa finestra.",
+                 justify="left", wraplength=700, anchor="w", background=c["pannello"], foreground=c["tenue"]).pack(fill="x", pady=(16, 0))
+        prova:
+            voci = multimedia.comandi_installazione(motore.nome)
+        eccetto Exception:
+            voci = []
+        se voci:
+            PannelloComandi(se_stesso.corpo, c, voci, larghezza_testo=700).pack(fill="x")
+        altrimenti:
+            tk.Label(se_stesso.corpo, text=motore.installazione, justify="left", wraplength=700, background=c["pannello"], foreground=c["tenue"]).pack(anchor="w")
 
     definisci _cambia_motore(se_stesso, evento=Nessuno):
         motore = se_stesso._motore_corrente()

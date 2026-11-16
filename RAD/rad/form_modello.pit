@@ -84,8 +84,34 @@ TIPI = {
                        proprieta={"orientamento": ("scelta:orizzontale,verticale", "orizzontale", "Orientamento")}),
 }
 # componenti senza aspetto: nel progettista compaiono come piccole etichette gialle, nel programma non si vedono
+MENU_PREDEFINITO = json.dumps([
+    {"testo": "File", "voci": [{"testo": "Nuovo", "gestore": "nuovo_clic", "scorciatoia": "Ctrl+N"}, {"testo": "Apri", "gestore": "apri_clic", "scorciatoia": "Ctrl+O"},
+                               {"testo": "-"}, {"testo": "Esci", "gestore": "esci_clic"}]},
+    {"testo": "Aiuto", "voci": [{"testo": "Informazioni", "gestore": "info_clic"}]}], ensure_ascii=Falso)
 TIPI["BarraMenu"] = dict(classe_tk="Menu", modulo="tk", larghezza=110, altezza=24, icona="☰", visivo=Falso,
-                         proprieta={"voci": ("menu", "File\n  Nuovo = nuovo_clic\n  Apri = apri_clic\n  -\n  Esci = esci_clic\nAiuto\n  Informazioni = info_clic", "Voci del menu")})
+                         proprieta={"voci": ("menu", MENU_PREDEFINITO, "Voci del menu")})
+# menu che si apre con il tasto destro su un componente (o sulla finestra); come la barra, nel progettista è una piccola etichetta gialla
+TIPI["MenuContestuale"] = dict(classe_tk="Menu", modulo="tk", larghezza=130, altezza=24, icona="⋮", visivo=Falso,
+                               proprieta={"su": ("componente:Pulsante,Etichetta,CampoTesto,AreaTesto,Elenco,CasellaCombinata,Albero,Tela,Riquadro,Schede,Immagine,Grafico", "", "Si apre col tasto destro su (vuoto = la finestra)"),
+                                          "voci": ("menu", json.dumps([{"testo": "Copia", "gestore": "copia_clic", "scorciatoia": "Ctrl+C"}, {"testo": "Incolla", "gestore": "incolla_clic", "scorciatoia": "Ctrl+V"},
+                                                                       {"testo": "-"}, {"testo": "Altro", "voci": [{"testo": "Proprietà…", "gestore": "proprieta_clic"}]}], ensure_ascii=Falso),
+                                                   "Voci del menu")})
+# menu disegnato nella finestra: barra laterale o orizzontale, con hamburger, compatto/esteso, cascate a qualsiasi profondità
+TIPI["MenuModerno"] = dict(classe_tk="MenuModerno", modulo="menu_moderno", larghezza=220, altezza=320, icona="☰",
+                           proprieta={"voci": ("menu", json.dumps([{"testo": "Home", "icona": "⌂", "gestore": "home_clic"},
+                                                                   {"testo": "Documenti", "icona": "▤", "voci": [{"testo": "Nuovo", "gestore": "nuovo_clic", "scorciatoia": "Ctrl+N"},
+                                                                                                              {"testo": "Recenti", "voci": [{"testo": "Ultimo", "gestore": "ultimo_clic"}]}]},
+                                                                   {"testo": "-"},
+                                                                   {"testo": "Impostazioni", "icona": "⚙", "gestore": "impostazioni_clic"}], ensure_ascii=Falso), "Voci del menu"),
+                                      "orientamento": ("scelta:verticale,orizzontale", "verticale", "Orientamento"),
+                                      "modalita": ("scelta:esteso,compatto,chiuso", "esteso", "Stato iniziale (esteso, solo icone, solo hamburger)"),
+                                      "hamburger": ("si_no", Vero, "Pulsante hamburger"),
+                                      "titolo": ("testo", "Menu", "Titolo"),
+                                      "ricerca": ("si_no", Falso, "Campo di ricerca dei comandi (Ctrl+K)"),
+                                      "collassa_sotto": ("numero", 0, "Si riduce da solo se la finestra è più stretta di (pixel, 0 = mai)"),
+                                      "larghezza_compatta": ("numero", 48, "Larghezza ridotta (pixel)"),
+                                      "altezza_riga": ("numero", 34, "Altezza delle voci (pixel)"),
+                                      "rientro": ("numero", 18, "Rientro delle sotto-voci (pixel per livello)")})
 TIPI["Timer"] = dict(classe_tk="", modulo="tk", larghezza=110, altezza=24, icona="⏱", visivo=Falso,
                      proprieta={"intervallo": ("numero", 1000, "Intervallo (millisecondi)"),
                                 "attivo": ("si_no", Vero, "Parte da solo"),
@@ -183,11 +209,14 @@ per _tipo, _serve_campo in COLLEGABILI.items():
         TIPI[_tipo]["proprieta"]["campo"] = ("campo", "", "Campo della tabella")
 ORDINE_PALETTE = ["Pulsante", "Etichetta", "CampoTesto", "AreaTesto", "Elenco", "CasellaSelezione",
                   "PulsanteOpzione", "Cursore", "CasellaCombinata", "BarraProgresso", "Albero", "Grafico",
-                  "Tela", "Riquadro", "Schede", "Immagine", "Separatore", "BarraMenu", "Timer", "Stampa",
+                  "Tela", "Riquadro", "Schede", "Immagine", "Separatore", "BarraMenu", "MenuContestuale", "MenuModerno", "Timer", "Stampa",
                   "FonteDati", "BarraNavigazione"]
 # Pulsante: apre un'altra finestra del progetto
 TIPI["Pulsante"]["proprieta"]["apre"] = ("finestra", "", "Apre la finestra")
 TIPI["Pulsante"]["proprieta"]["apre_dialogo"] = ("si_no", Falso, "…come dialogo (blocca la principale)")
+TIPI["Pulsante"]["proprieta"]["icona"] = ("file", "", "Icona (file o galleria)")
+TIPI["Pulsante"]["proprieta"]["posizione_icona"] = ("scelta:sinistra,destra,sopra,sotto,solo icona", "sinistra", "Posizione dell'icona")
+POSIZIONI_ICONA = {"sinistra": "left", "destra": "right", "sopra": "top", "sotto": "bottom", "solo icona": "center"}
 
 
 definisci e_contenitore(tipo_):
@@ -233,7 +262,7 @@ definisci proprieta_di(tipo_):
         p["ancoraggio"] = ("ancoraggio", "sa", "Si aggancia ai bordi")
     altrimenti:
         ritorna p
-    se tipo_ non in ("Riquadro", "Schede", "Tela", "Separatore", "Immagine", "BarraProgresso", "Albero", "BarraNavigazione", "Grafico"):
+    se tipo_ non in ("Riquadro", "Schede", "Tela", "Separatore", "Immagine", "BarraProgresso", "Albero", "BarraNavigazione", "Grafico", "MenuModerno"):
         per k, v in COMUNI.items():
             p.setdefault(k, v)
     se tipo_ in ("Riquadro", "Immagine", "BarraProgresso", "Grafico"):
@@ -400,11 +429,9 @@ classe Form:
         """Elenco (componente, proprieta_evento, nome_funzione) dei gestori richiesti."""
         risultato = []
         per c in se_stesso.componenti:
-            se c.tipo == "BarraMenu":
-                per titolo, voci in voci_menu(c.valori.get("voci", "")):
-                    per etichetta, gestore in voci:
-                        se gestore e non gestore.startswith("@") e nome_valido(gestore):
-                            risultato.append((c, "voci", gestore))
+            se c.tipo in TIPI_CON_MENU:
+                per gestore in gestori_del_menu(c.valori.get("voci", "")):
+                    risultato.append((c, "voci", gestore))
             per k, (t, d, desc) in proprieta_di(c.tipo).items():
                 se t == "evento":
                     nome_fn = (c.valori.get(k) o "").strip()
@@ -427,6 +454,19 @@ classe Form:
             per k, (t, d, desc) in proprieta_di(c.tipo).items():
                 se t == "evento" e c.valori.get(k) e non nome_valido(c.valori[k]):
                     p.append(f"{c.nome}.{k}: nome di funzione non valido")
+            se c.tipo in TIPI_CON_MENU:
+                prova:
+                    voci_ = voci_del_menu(nodi_menu(c.valori.get("voci", "")))
+                    nomi_ = [n["nome"] per n in voci_ se n.get("nome")]
+                    per doppio in sorted({n_ per n_ in nomi_ se nomi_.count(n_) > 1}):
+                        p.append(f"{c.nome}: il nome di voce «{doppio}» è usato più volte")
+                    per n in voci_:
+                        se n.get("gestore") e non n["gestore"].startswith("@") e non nome_valido(n["gestore"]):
+                            p.append(f"{c.nome}: il gestore «{n['gestore']}» (voce «{n['testo']}») non è un nome di funzione valido")
+                eccetto ValueError come errore:
+                    p.append(f"{c.nome}: {errore}")
+            se c.tipo == "MenuContestuale" e (c.valori.get("su") o "").strip() e se_stesso.trova(c.valori["su"].strip()) è Nessuno:
+                p.append(f"{c.nome}: il componente «{c.valori['su']}» non esiste")
             se c.tipo == "FonteDati" e non (c.valori.get("tabella") o "").strip():
                 p.append(f"{c.nome}: scegli la tabella")
             se c.tipo == "Riquadro" e c.valori.get("scorrevole") e e_griglia(c.valori.get("layout")):
@@ -447,6 +487,109 @@ classe Form:
 
 
 # --------------------------------------------------------------------------- generazione
+TIPI_CON_MENU = ("BarraMenu", "MenuContestuale", "MenuModerno")
+
+
+definisci _nodi_da_testo(testo_):
+    """Il vecchio formato a rientri («File» / «  Nuovo = nuovo_clic» / «  -»), anche con sotto-menu: ogni rientro in più è un livello."""
+    radice_ = []
+    pila = [(-1, radice_)]
+    per riga in (testo_ o "").split("\n"):
+        se non riga.strip():
+            continua
+        rientro = lunghezza_di(riga) - lunghezza_di(riga.lstrip())
+        t = riga.strip()
+        nodo = {"testo": t}
+        se t == "-":
+            nodo = {"testo": "-", "tipo": "separatore"}
+        altrimenti_se "=" in t:
+            etichetta, gestore = t.split("=", 1)
+            nodo = {"testo": etichetta.strip()}
+            se gestore.strip():
+                nodo["gestore"] = gestore.strip()
+        mentre lunghezza_di(pila) > 1 e pila[-1][0] >= rientro:
+            pila.pop()
+        pila[-1][1].append(nodo)
+        nodo["voci"] = []
+        pila.append((rientro, nodo["voci"]))
+    ritorna radice_
+
+
+definisci _pulisci_nodi(nodi):
+    """Toglie le liste «voci» vuote: il JSON resta corto."""
+    per nodo in nodi:
+        se nodo.get("voci"):
+            _pulisci_nodi(nodo["voci"])
+        altrimenti:
+            nodo.pop("voci", Nessuno)
+    ritorna nodi
+
+
+definisci nodi_menu(valore):
+    """Le voci di un menu come lista di dizionari (con tutti i valori di ogni voce). Il valore è un testo JSON o, nei progetti vecchi, il testo a rientri.
+    Se il JSON non è valido solleva ValueError."""
+    se isinstance(valore, (list, dict)):
+        grezzo = valore se isinstance(valore, list) altrimenti valore.get("voci", [])
+        ritorna _normalizza_nodi(grezzo)
+    testo_ = (valore o "").strip()
+    se non testo_:
+        ritorna []
+    se testo_[0] in "[{":
+        prova:
+            grezzo = json.loads(testo_)
+        eccetto ValueError come errore:
+            solleva ValueError(f"le voci del menu non sono un JSON valido: {errore}")
+        ritorna _normalizza_nodi(grezzo se isinstance(grezzo, list) altrimenti grezzo.get("voci", []))
+    ritorna _normalizza_nodi(_pulisci_nodi(_nodi_da_testo(testo_)))
+
+
+definisci _normalizza_nodi(grezzo):
+    risultato = []
+    per n in grezzo:
+        se non isinstance(n, dict):
+            continua
+        nodo = {"testo": str(n.get("testo", ""))}
+        se n.get("tipo") in ("spunta", "opzione", "separatore"):
+            nodo["tipo"] = n["tipo"]
+        se nodo["testo"].strip() == "-":
+            nodo["testo"] = "-"
+            nodo["tipo"] = "separatore"
+        per chiave in ("nome", "gestore", "scorciatoia", "icona", "gruppo"):
+            se n.get(chiave):
+                nodo[chiave] = str(n[chiave])
+        se n.get("spuntata"):
+            nodo["spuntata"] = Vero
+        se n.get("attiva", Vero) è Falso:
+            nodo["attiva"] = Falso
+        se n.get("voci"):
+            nodo["voci"] = _normalizza_nodi(n["voci"])
+        risultato.append(nodo)
+    ritorna risultato
+
+
+definisci menu_in_json(nodi, rientro=Nessuno):
+    """Il testo JSON di un menu (come lo si salva nel progetto)."""
+    ritorna json.dumps(nodi, ensure_ascii=Falso, indent=rientro)
+
+
+definisci voci_del_menu(nodi):
+    """Tutte le voci di un menu, a qualsiasi profondità, in ordine: [nodo]."""
+    elenco = []
+    per nodo in nodi:
+        elenco.append(nodo)
+        elenco.extend(voci_del_menu(nodo.get("voci", [])))
+    ritorna elenco
+
+
+definisci gestori_del_menu(valore):
+    """I nomi dei metodi richiesti dal menu (le voci con «@Finestra» e i gestori non validi non contano)."""
+    prova:
+        nodi = nodi_menu(valore)
+    eccetto ValueError:
+        ritorna []
+    ritorna [n["gestore"] per n in voci_del_menu(nodi) se n.get("gestore") e non n["gestore"].startswith("@") e nome_valido(n["gestore"])]
+
+
 definisci voci_menu(testo_):
     """Legge il testo di una barra dei menu: [(titolo, [(etichetta, gestore)])]. Il gestore vuoto = voce senza azione, «-» = separatore,
     «@Finestra» = apre un'altra finestra del progetto.
@@ -481,11 +624,14 @@ definisci finestre_aperte(form):
     per c in form.componenti:
         se c.tipo == "Pulsante" e (c.valori.get("apre") o "").strip():
             nomi.append(c.valori["apre"].strip())
-        se c.tipo == "BarraMenu":
-            per titolo, voci in voci_menu(c.valori.get("voci", "")):
-                per etichetta, gestore in voci:
+        se c.tipo in TIPI_CON_MENU:
+            prova:
+                per nodo in voci_del_menu(nodi_menu(c.valori.get("voci", ""))):
+                    gestore = nodo.get("gestore", "")
                     se gestore.startswith("@") e gestore[1:].strip():
                         nomi.append(gestore[1:].strip())
+            eccetto ValueError:
+                passa
     ritorna tipo_lista(dict.fromkeys(nomi))
 
 
@@ -719,6 +865,21 @@ definisci usa_scorrevole(form):
     ritorna any(c.tipo == "Riquadro" e c.valori.get("scorrevole") per c in form.componenti)
 
 
+definisci usa_trasparenza(form):
+    """True se una etichetta è trasparente (serve trasparenza.pit nel progetto)."""
+    ritorna any(e_trasparente(c) per c in form.componenti)
+
+
+definisci usa_stili_ttk(form):
+    """True se una casella combinata o una barra di avanzamento ha colori scelti (servono ttk e uno stile proprio)."""
+    ritorna any(c.tipo in ("CasellaCombinata", "BarraProgresso") e any((c.valori.get(k) o "") non in ("", TRASPARENTE) per k in ("sfondo", "primo_piano")) per c in form.componenti)
+
+
+definisci usa_menu(form):
+    """True se la finestra ha una barra dei menu, un menu contestuale o un menu moderno (serve menu_moderno.pit nel progetto)."""
+    ritorna any(c.tipo in TIPI_CON_MENU per c in form.componenti)
+
+
 definisci usa_grafico(form):
     """True se la finestra ha un Grafico (serve grafico.pit nel progetto)."""
     ritorna any(c.tipo == "Grafico" per c in form.componenti)
@@ -803,6 +964,12 @@ definisci genera_ui(form):
         r.append("importa grafico")
     se usa_scorrevole(form):
         r.append("importa scorrevole")
+    se usa_menu(form):
+        r.append("importa menu_moderno")
+    se usa_stili_ttk(form):
+        r.append("da tkinter importa ttk")
+    se usa_trasparenza(form):
+        r.append("importa trasparenza")
     se usa_stampa(form):
         r.append("importa stampante")
     r.append("")
@@ -840,6 +1007,7 @@ definisci genera_ui(form):
         r.extend(_codice_componente(c, form))
     r.extend(_codice_griglie(form))
     r.extend(_codice_scorrevoli(form))
+    r.extend(_codice_menu_contestuali(form))
     r.extend(_codice_dati(form))
     r.append("        ritorna radice")
     r.append("")
@@ -946,11 +1114,84 @@ definisci font_tk(testo_):
     ritorna (famiglia, int(parti[indice])) + tuple(parti[indice + 1:])
 
 
-definisci _opzioni_comuni(c):
+# componenti il cui sfondo, se non è scelto (o è «trasparente»), è quello di ciò che c'è dietro: il Riquadro che li contiene o la finestra
+TRASPARENTI = ("Etichetta", "CasellaSelezione", "PulsanteOpzione", "Immagine")
+TRASPARENTE = "trasparente"
+TRASPARENZA_VERA = ("Etichetta", "CasellaSelezione", "PulsanteOpzione")        # lasciano vedere davvero quello che c'è sotto (modulo trasparenza.pit)
+
+
+definisci e_trasparente(c):
+    """True se il componente ha lo sfondo «trasparente» ed è di un tipo che lo sa fare (etichetta, casella, opzione)."""
+    ritorna c.tipo in TRASPARENZA_VERA e (c.valori.get("sfondo") o "").strip() == TRASPARENTE
+
+
+definisci indicatore_di(form):
+    """I colori (riempimento, bordo, segno) della casella e dell'opzione trasparenti: quelli di Windows, o del tema della finestra."""
+    standard = ("#ffffff", "#333333", "#000000")
+    se form è Nessuno o form.aspetto == "classico":
+        ritorna standard
+    prova:
+        importa aspetto
+        c = aspetto.colori_del_tema(form.aspetto)
+        ritorna (c["scheda"], c["tenue"], c["testo"])
+    eccetto Exception:
+        ritorna standard
+
+
+definisci sfondo_del_contenitore(form, c):
+    """Il colore di fondo di ciò che sta dietro al componente: quello del Riquadro che lo contiene (o, se non ne ha uno, del contenitore sopra),
+    altrimenti quello della finestra. Vuoto = il colore predefinito di tkinter (uguale per tutti, non serve copiarlo)."""
+    se form è Nessuno:
+        ritorna ""
+    se c.genitore:
+        padre = form.trova(c.genitore.split("#")[0])
+        se padre è non Nessuno:
+            se padre.tipo == "Riquadro" e (padre.valori.get("sfondo") o "") non in ("", TRASPARENTE):
+                ritorna padre.valori["sfondo"]
+            ritorna sfondo_del_contenitore(form, padre)
+    ritorna form.sfondo o ""
+
+
+definisci sfondo_effettivo(form, c):
+    """Il colore di sfondo che il componente avrà davvero: quello scelto; per etichette, caselle, opzioni e immagini senza colore (o «trasparente»)
+    quello di ciò che sta dietro, così non compare un rettangolo grigio sopra a una finestra colorata."""
+    scelto = (c.valori.get("sfondo") o "").strip()
+    se scelto e scelto != TRASPARENTE:
+        ritorna scelto
+    se c.tipo in TRASPARENTI:
+        ritorna sfondo_del_contenitore(form, c)
+    ritorna ""
+
+
+definisci strati_sotto(form, c):
+    """Quello che sta sotto un componente (per l'etichetta trasparente): (colore di fondo, [strati]). Gli strati sono i componenti dello stesso contenitore creati
+    prima e che lo coprono in parte, dal più in fondo: ("colore", x, y, larghezza, altezza, "#rrggbb") o ("immagine", x, y, larghezza, altezza, "file"),
+    con le coordinate relative all'angolo in alto a sinistra del componente."""
+    base = sfondo_del_contenitore(form, c)
+    strati = []
+    se form è Nessuno:
+        ritorna base, strati
+    per altro in ordine_creazione(form):
+        se altro è c:
+            interrompi
+        se altro.genitore != c.genitore o non e_visivo(altro.tipo):
+            continua
+        se altro.x >= c.x + c.larghezza o altro.y >= c.y + c.altezza o altro.x + altro.larghezza <= c.x o altro.y + altro.altezza <= c.y:
+            continua                                    # non lo copre
+        colore_altro = (altro.valori.get("sfondo") o "").strip()
+        se colore_altro e colore_altro != TRASPARENTE:
+            strati.append(("colore", altro.x - c.x, altro.y - c.y, altro.larghezza, altro.altezza, colore_altro))
+        se altro.tipo == "Immagine" e (altro.valori.get("file") o "").strip():
+            strati.append(("immagine", altro.x - c.x, altro.y - c.y, altro.larghezza, altro.altezza, altro.valori["file"].strip()))
+    ritorna base, strati
+
+
+definisci _opzioni_comuni(c, form=Nessuno):
     opzioni = []
     v = c.valori
-    se v.get("sfondo"):
-        opzioni.append(f"sfondo={_lit(v['sfondo'])}")
+    sfondo_ = sfondo_effettivo(form, c) se form è non Nessuno altrimenti ((v.get("sfondo") o "") se v.get("sfondo") != TRASPARENTE altrimenti "")
+    se sfondo_:
+        opzioni.append(f"sfondo={_lit(sfondo_)}")
     se v.get("primo_piano"):
         opzioni.append(f"primo_piano={_lit(v['primo_piano'])}")
     se v.get("carattere"):
@@ -1015,6 +1256,26 @@ definisci _codice_griglie(form):
     ritorna r
 
 
+definisci _menu_per_codice(valore):
+    """Il testo JSON compatto delle voci, da scrivere nel codice generato (se è sbagliato, un menu vuoto: problemi() lo segnala)."""
+    prova:
+        ritorna menu_in_json(nodi_menu(valore))
+    eccetto ValueError:
+        ritorna "[]"
+
+
+definisci _codice_menu_contestuali(form):
+    """I menu del tasto destro: vanno dopo la creazione di tutti i componenti, perché si agganciano a uno di essi."""
+    r = []
+    per c in form.componenti:
+        se c.tipo != "MenuContestuale":
+            continua
+        su = (c.valori.get("su") o "").strip()
+        bersaglio = f"se_stesso.{su}" se su e form.trova(su) è non Nessuno altrimenti "radice"
+        r.append(f"        se_stesso.{c.nome} = menu_moderno.contestuale({bersaglio}, {_lit(_menu_per_codice(c.valori.get('voci', '')))}, se_stesso)")
+    ritorna r
+
+
 definisci _codice_scorrevoli(form):
     """Rende scorrevoli i riquadri che lo chiedono: va dopo la creazione dei loro componenti."""
     r = []
@@ -1066,7 +1327,7 @@ definisci _codice_componente(c, form=Nessuno):
     r = []
     ev = lambda chiave: (v.get(chiave) o "").strip()
     gestore = lambda chiave: f"se_stesso.{ev(chiave)}" se ev(chiave) e nome_valido(ev(chiave)) altrimenti Nessuno
-    opz = _opzioni_comuni(c)
+    opz = _opzioni_comuni(c, form)
     se c.tipo == "Pulsante":
         opzioni = [f"testo={_lit(v['testo'])}"] + opz
         apre = (v.get("apre") o "").strip()
@@ -1075,6 +1336,37 @@ definisci _codice_componente(c, form=Nessuno):
         altrimenti_se gestore("al_clic"):
             opzioni.append(f"comando={gestore('al_clic')}")
         r.append(f"{ind}{nome_att} = {cl}(radice, {', '.join(opzioni)})")
+        se (v.get("icona") o "").strip():
+            scuro = form è non Nessuno e form.aspetto == "scuro"
+            r.append(f"{ind}se_stesso.carica_icona({nome_att}, {_lit(v['icona'].strip())}, {_lit(v.get('posizione_icona') o 'sinistra')}, {_lit(scuro)})")
+    altrimenti_se c.tipo == "CasellaSelezione" e e_trasparente(c):
+        r.append(f"{ind}se_stesso.var_{n} = tk.VariabileBooleana(value={_lit(bool(v.get('selezionata')))})")
+        base_, strati_ = strati_sotto(form, c)
+        opzioni = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{n}", f"base={_lit(base_)}", f"strati={_lit(strati_)}", "cartella=se_stesso.cartella",
+                   f"indicatore={_lit(indicatore_di(form))}"]
+        opzioni += [voce_ per voce_ in opz se voce_.startswith(("primo_piano=", "carattere=", "stato="))]
+        se gestore("al_clic"):
+            opzioni.append(f"comando={gestore('al_clic')}")
+        r.append(f"{ind}{nome_att} = trasparenza.CasellaTrasparente(radice, {', '.join(opzioni)})")
+    altrimenti_se c.tipo == "PulsanteOpzione" e e_trasparente(c):
+        g = v.get("gruppo") o "gruppo1"
+        r.append(f"{ind}se non hasattr(se_stesso, 'var_{g}'):")
+        r.append(f"{ind}    se_stesso.var_{g} = tk.VariabileTesto(value='')")
+        base_, strati_ = strati_sotto(form, c)
+        opzioni = [f"testo={_lit(v['testo'])}", f"variable=se_stesso.var_{g}", f"value={_lit(v['valore'])}", f"base={_lit(base_)}", f"strati={_lit(strati_)}",
+                   "cartella=se_stesso.cartella", f"indicatore={_lit(indicatore_di(form))}"]
+        opzioni += [voce_ per voce_ in opz se voce_.startswith(("primo_piano=", "carattere=", "stato="))]
+        se gestore("al_clic"):
+            opzioni.append(f"comando={gestore('al_clic')}")
+        r.append(f"{ind}{nome_att} = trasparenza.OpzioneTrasparente(radice, {', '.join(opzioni)})")
+        se v.get("selezionata"):
+            r.append(f"{ind}se_stesso.var_{g}.imposta({_lit(v['valore'])})")
+    altrimenti_se c.tipo == "Etichetta" e (v.get("sfondo") o "").strip() == TRASPARENTE:
+        base_, strati_ = strati_sotto(form, c)
+        opzioni = [f"testo={_lit(v['testo'])}", f"giustifica={_lit({'sinistra': 'left', 'centro': 'center', 'destra': 'right'}[v['allineamento']])}",
+                   f"ancora={_lit(v['ancora'])}", f"base={_lit(base_)}", f"strati={_lit(strati_)}", "cartella=se_stesso.cartella"]
+        opzioni += [voce_ per voce_ in opz se voce_.startswith(("primo_piano=", "carattere="))]
+        r.append(f"{ind}{nome_att} = trasparenza.EtichettaTrasparente(radice, {', '.join(opzioni)})")
     altrimenti_se c.tipo == "Etichetta":
         opzioni = [f"testo={_lit(v['testo'])}", f"justify={_lit({'sinistra': 'left', 'centro': 'center', 'destra': 'right'}[v['allineamento']])}",
              f"anchor={_lit(v['ancora'])}"] + opz
@@ -1126,10 +1418,18 @@ definisci _codice_componente(c, form=Nessuno):
         r.append(f"{ind}{nome_att} = {cl}(radice, values={_lit(list(v.get('valori', [])))})")
         se v.get("valore"):
             r.append(f"{ind}{nome_att}.set({_lit(v['valore'])})")
+        colori_ttk = {k: v[chiave] per k, chiave in (("fieldbackground", "sfondo"), ("background", "sfondo"), ("foreground", "primo_piano")) se (v.get(chiave) o "") non in ("", TRASPARENTE)}
+        se colori_ttk:
+            nome_stile = c.nome + ".TCombobox"
+            r.append(f"{ind}ttk.Style(radice).configure({_lit(nome_stile)}, {', '.join(f'{k}={_lit(x)}' per k, x in colori_ttk.items())})")
+            r.append(f"{ind}{nome_att}.configure(style={_lit(nome_stile)})")
         se gestore("al_selezione"):
             r.append(f"{ind}{nome_att}.associa('<<ComboboxSelected>>', {gestore('al_selezione')})")
     altrimenti_se c.tipo == "BarraProgresso":
         r.append(f"{ind}{nome_att} = {cl}(radice, maximum={v['massimo']}, value={v['valore']})")
+        se (v.get("sfondo") o "") non in ("", TRASPARENTE):
+            r.append(f"{ind}ttk.Style(radice).configure({_lit(c.nome + '.Horizontal.TProgressbar')}, troughcolor={_lit(v['sfondo'])})")
+            r.append(f"{ind}{nome_att}.configure(style={_lit(c.nome + '.Horizontal.TProgressbar')})")
     altrimenti_se c.tipo == "Albero":
         colonne = list(v.get("colonne", []))
         r.append(f"{ind}{nome_att} = {cl}(radice, columns={_lit(colonne)}, show='headings')")
@@ -1165,28 +1465,24 @@ definisci _codice_componente(c, form=Nessuno):
             r.append(f"{ind}{nome_att}_pagina{i + 1} = tk.Riquadro({nome_att})")
             r.append(f"{ind}{nome_att}.add({nome_att}_pagina{i + 1}, text={_lit(nome_pagina)})")
     altrimenti_se c.tipo == "Immagine":
-        r.append(f"{ind}{nome_att} = {cl}(radice)")
+        r.append(f"{ind}{nome_att} = {cl}(radice{', ' + ', '.join(opz) se opz altrimenti ''})")
         se v.get("file"):
             r.append(f"{ind}se_stesso.carica_immagine({nome_att}, {_lit(v['file'])}, {c.larghezza}, {c.altezza})")
     altrimenti_se c.tipo == "Separatore":
         r.append(f"{ind}{nome_att} = {cl}(radice, orient={_lit('horizontal' se v['orientamento'] == 'orizzontale' altrimenti 'vertical')})")
     altrimenti_se c.tipo == "BarraMenu":
-        r.append(f"{ind}{nome_att} = tk.Menu(radice)")
-        per i, (titolo, voci) in enumera(voci_menu(v.get("voci", ""))):
-            m = f"{nome_att}_{i + 1}"
-            r.append(f"{ind}{m} = tk.Menu({nome_att}, tearoff=0)")
-            per etichetta, g in voci:
-                se etichetta == "-":
-                    r.append(f"{ind}{m}.add_separator()")
-                altrimenti_se g.startswith("@") e nome_valido(g[1:].strip()):
-                    r.append(f"{ind}{m}.add_command(label={_lit(etichetta)}, command=se_stesso._apri_{g[1:].strip()})")
-                altrimenti_se g e nome_valido(g):
-                    r.append(f"{ind}{m}.add_command(label={_lit(etichetta)}, command=se_stesso.{g})")
-                altrimenti:
-                    r.append(f"{ind}{m}.add_command(label={_lit(etichetta)}, state='disabled')")
-            r.append(f"{ind}{nome_att}.add_cascade(label={_lit(titolo)}, menu={m})")
-        r.append(f"{ind}radice.config(menu={nome_att})")
+        r.append(f"{ind}{nome_att} = menu_moderno.barra(radice, {_lit(_menu_per_codice(v.get('voci', '')))}, se_stesso)")
         ritorna r
+    altrimenti_se c.tipo == "MenuContestuale":
+        ritorna r                 # va dopo la creazione degli altri componenti (vedi _codice_menu_contestuali)
+    altrimenti_se c.tipo == "MenuModerno":
+        opzioni = [f"orientamento={_lit(v.get('orientamento') o 'verticale')}", f"modalita={_lit(v.get('modalita') o 'esteso')}",
+                   f"hamburger={_lit(bool(v.get('hamburger', Vero)))}", f"titolo={_lit(v.get('titolo') o '')}", f"ricerca={_lit(bool(v.get('ricerca')))}",
+                   f"collassa_sotto={int(v.get('collassa_sotto') o 0)}", f"larghezza={c.larghezza}", f"larghezza_compatta={int(v.get('larghezza_compatta') o 48)}",
+                   f"altezza_riga={int(v.get('altezza_riga') o 34)}", f"rientro={int(v.get('rientro', 18))}"]
+        se form è non Nessuno e form.aspetto != "classico":
+            opzioni.append(f"tema={_lit(form.aspetto)}")
+        r.append(f"{ind}{nome_att} = {cl}(radice, {_lit(_menu_per_codice(v.get('voci', '')))}, se_stesso, {', '.join(opzioni)})")
     altrimenti_se c.tipo == "Timer":
         r.append(f"{ind}se_stesso._timer_{n}_attivo = Falso")
         se v.get("attivo"):
@@ -1225,13 +1521,34 @@ definisci _codice_componente(c, form=Nessuno):
         r.append(f"{ind}{nome_att}.posiziona({_geometria(c, form)})")
     se c.genitore:
         padre = padre_codice(c)
-        r = [riga.replace(f"{cl}(radice", f"{cl}({padre}", 1) se f"{cl}(radice" in riga altrimenti riga.replace("dati.BarraDati(radice", f"dati.BarraDati({padre}", 1) per riga in r]
+        r = [riga.replace("(radice", f"({padre}", 1) se "= trasparenza." in riga altrimenti (riga.replace(f"{cl}(radice", f"{cl}({padre}", 1) se f"{cl}(radice" in riga
+                                                                altrimenti riga.replace("dati.BarraDati(radice", f"dati.BarraDati({padre}", 1)) per riga in r]
     ritorna r
 
 
 definisci genera_ui_completa(form):
     """genera_ui + il metodo di supporto per le immagini (se serve)."""
     codice = genera_ui(form)
+    se any(c.tipo == "Pulsante" e (c.valori.get("icona") o "").strip() per c in form.componenti):
+        aiuto_icone = '''
+    definisci carica_icona(se_stesso, componente, file, posizione="sinistra", scuro=Falso):
+        """Mette un'icona (png o gif) in un pulsante. Sul tema scuro usa «nome_chiaro.png» se c'è accanto."""
+        percorso = file se os.path.isabs(file) altrimenti os.path.join(se_stesso.cartella, file)
+        se scuro e percorso.lower().endswith(".png") e os.path.isfile(percorso[:-4] + "_chiaro.png"):
+            percorso = percorso[:-4] + "_chiaro.png"
+        prova:
+            foto = tk.PhotoImage(file=percorso)
+        eccetto Eccezione:
+            ritorna
+        se_stesso.immagini.append(foto)
+        lato = {"sinistra": "left", "destra": "right", "sopra": "top", "sotto": "bottom"}.get(posizione, "center")
+        componente.configura(image=foto, compound=lato)
+        se posizione == "solo icona":
+            componente.configura(text="")
+'''
+        marca = "        ritorna radice\n"
+        punto = codice.index(marca) + lunghezza_di(marca)
+        codice = codice[:punto] + aiuto_icone + codice[punto:]
     se any(c.tipo == "Immagine" per c in form.componenti):
         aiuto = '''
     definisci carica_immagine(se_stesso, etichetta, file, larghezza, altezza):
@@ -1243,7 +1560,7 @@ definisci genera_ui_completa(form):
             img.thumbnail((larghezza, altezza))
             foto = ImageTk.PhotoImage(img)
         eccetto Eccezione:
-            etichetta.configura(testo="[immagine]")
+            etichetta.configura(text="[immagine]")
             ritorna
         se_stesso.immagini.append(foto)
         etichetta.configura(image=foto)
@@ -1333,6 +1650,11 @@ definisci copia_scorrevole(cartella, scritti=Nessuno):
     moduli_modelli.copia(cartella, "scorrevole", scritti)
 
 
+definisci copia_menu(cartella, scritti=Nessuno):
+    """Mette nel progetto menu_moderno.pit, o lo rinnova se è più vecchio di quello di PitStudio (la vecchia resta come .bak; una copia modificata a mano non si tocca). Vedi moduli_modelli."""
+    moduli_modelli.copia(cartella, "menu_moderno", scritti)
+
+
 MODELLO_GRAFICO = os.path.join(CARTELLA_MODELLI, "grafico.pit")
 
 
@@ -1385,6 +1707,10 @@ definisci salva_form(form, cartella):
         copia_grafico(cartella, scritti)
     se usa_scorrevole(form):
         copia_scorrevole(cartella, scritti)
+    se usa_menu(form):
+        copia_menu(cartella, scritti)
+    se usa_trasparenza(form):
+        moduli_modelli.copia(cartella, "trasparenza", scritti)
     se usa_stampa(form):
         copia_stampante(cartella, scritti)
     se os.path.exists(p["logica"]):

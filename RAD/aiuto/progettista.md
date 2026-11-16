@@ -82,20 +82,11 @@ classe Saluto(SalutoUI):
 
 ## Novità: menu, timer, schede, ancoraggio, altre finestre
 
-**Barra dei menu.** Aggiungi il componente **BarraMenu** dalla palette: compare come una piccola etichetta gialla (non si vede nel programma). Nelle proprietà premi **Modifica…** e scrivi i menu: i titoli a margine, le voci rientrate di due spazi.
+**Menu.** Ci sono tre componenti: **BarraMenu** (la barra del sistema, si vede come una piccola etichetta gialla nel progettista), **MenuContestuale** (il tasto destro) e **MenuModerno** (disegnato nella finestra, verticale o orizzontale, con hamburger). Nelle proprietà premi **Modifica…**: un albero con voci e sotto-voci a qualsiasi profondità, e per ogni voce testo, gestore, scorciatoia, icona, spunta, opzione e altro. `Etichetta = nome_funzione` si traduce in un gestore (PitStudio crea la funzione nel file della logica), `@NomeFinestra` apre un'altra finestra del progetto. Tutti i dettagli in «Menu: barra, contestuale e moderno».
 
-```
-File
-  Nuovo = nuovo_clic
-  Apri = apri_clic
-  -
-  Seconda finestra = @Seconda
-  Esci = esci_clic
-Aiuto
-  Informazioni = info_clic
-```
+**Etichetta, casella e opzione trasparenti.** Il pulsante **◌** accanto a *Colore di sfondo* di un'**Etichetta**, di una **Casella** o di un'**Opzione** la rende trasparente: lascia vedere quello che c'è sotto, cioè il colore della finestra o del riquadro, un'**Immagine** o un altro componente colorato che la copre in parte (conta l'ordine: quello che sta sotto deve essere stato disegnato prima). tkinter non ha componenti trasparenti: PitStudio mette un'etichetta speciale (modulo `trasparenza.pit`) che ci scrive sopra il testo. **Su Windows** (con Pillow, che PitStudio ha) fa una fotografia di quello che c'è davvero sotto, anche pulsanti e campi, e i clic sulla parte che copre passano al componente sotto; se sotto qualcosa cambia (hover, testo digitato) la fotografia non si aggiorna da sola: `aggiorna_sfondo()` la rifà. **Su Linux e macOS** ridisegna soltanto i colori e le immagini che ha sotto. Si usano come i componenti normali (`configura(testo=...)`, e per casella e opzione `select()`, `deselect()`, `toggle()`, `invoke()`, la variabile e il comando); casella e opzione rispondono ai clic e alla barra spaziatrice, l'etichetta lascia passare i clic. Le immagini senza colore prendono il colore di ciò che c'è dietro, ma non lasciano vedere altro.
 
-`Etichetta = nome_funzione` collega la voce a un gestore (PitStudio crea la funzione nel file della logica), `-` è un separatore, `= @NomeFinestra` apre un'altra finestra del progetto, e una voce senza «=» resta spenta.
+**Icona in un pulsante.** Il **Pulsante** ha la proprietà *Icona*: scrivi il file oppure premi **☺** per sceglierla dalla galleria di icone di PitStudio (monocromatica o a colori; viene copiata in `risorse/icone`). *Posizione dell'icona* la mette a sinistra, a destra, sopra o sotto il testo, oppure da sola (*solo icona*). Sul tema scuro le icone monocromatiche passano da sole alla versione chiara. Nel programma l'icona si carica con il metodo `carica_icona` del codice generato.
 
 **Dati.** I componenti **FonteDati** e **BarraNavigazione** e le proprietà *Fonte dati* e *Campo* dei campi, delle caselle, degli elenchi e degli alberi collegano la finestra a una tabella SQLite o MySQL: vedi «Dati nelle finestre».
 

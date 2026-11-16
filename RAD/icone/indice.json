@@ -1,0 +1,732 @@
+[
+ {
+  "nome": "campana",
+  "categoria": "Comunicazione",
+  "parole": "campana notifica avviso"
+ },
+ {
+  "nome": "chat",
+  "categoria": "Comunicazione",
+  "parole": "chat messaggio fumetto"
+ },
+ {
+  "nome": "globo",
+  "categoria": "Comunicazione",
+  "parole": "globo mondo web internet"
+ },
+ {
+  "nome": "mail",
+  "categoria": "Comunicazione",
+  "parole": "mail posta lettera"
+ },
+ {
+  "nome": "nuvola",
+  "categoria": "Comunicazione",
+  "parole": "nuvola cloud"
+ },
+ {
+  "nome": "nuvola_carica",
+  "categoria": "Comunicazione",
+  "parole": "nuvola carica upload cloud"
+ },
+ {
+  "nome": "telefono",
+  "categoria": "Comunicazione",
+  "parole": "telefono chiama"
+ },
+ {
+  "nome": "utente",
+  "categoria": "Comunicazione",
+  "parole": "utente persona profilo"
+ },
+ {
+  "nome": "utenti",
+  "categoria": "Comunicazione",
+  "parole": "utenti persone gruppo"
+ },
+ {
+  "nome": "wifi",
+  "categoria": "Comunicazione",
+  "parole": "wifi rete wireless"
+ },
+ {
+  "nome": "allegato",
+  "categoria": "File e documenti",
+  "parole": "allegato graffetta"
+ },
+ {
+  "nome": "apri",
+  "categoria": "File e documenti",
+  "parole": "apri cartella aperta"
+ },
+ {
+  "nome": "archivio",
+  "categoria": "File e documenti",
+  "parole": "archivio scatola"
+ },
+ {
+  "nome": "carica",
+  "categoria": "File e documenti",
+  "parole": "carica upload"
+ },
+ {
+  "nome": "cartella",
+  "categoria": "File e documenti",
+  "parole": "cartella directory"
+ },
+ {
+  "nome": "cartella_nuova",
+  "categoria": "File e documenti",
+  "parole": "cartella nuova crea"
+ },
+ {
+  "nome": "documenti",
+  "categoria": "File e documenti",
+  "parole": "documenti copie pagine"
+ },
+ {
+  "nome": "documento",
+  "categoria": "File e documenti",
+  "parole": "documento testo pagina"
+ },
+ {
+  "nome": "esporta",
+  "categoria": "File e documenti",
+  "parole": "esporta esci condividi freccia fuori"
+ },
+ {
+  "nome": "file",
+  "categoria": "File e documenti",
+  "parole": "file pagina vuoto"
+ },
+ {
+  "nome": "importa",
+  "categoria": "File e documenti",
+  "parole": "importa entra freccia dentro"
+ },
+ {
+  "nome": "nuovo",
+  "categoria": "File e documenti",
+  "parole": "nuovo crea aggiungi file pagina"
+ },
+ {
+  "nome": "salva",
+  "categoria": "File e documenti",
+  "parole": "salva dischetto"
+ },
+ {
+  "nome": "salva_come",
+  "categoria": "File e documenti",
+  "parole": "salva con nome"
+ },
+ {
+  "nome": "scarica",
+  "categoria": "File e documenti",
+  "parole": "scarica download"
+ },
+ {
+  "nome": "stampa",
+  "categoria": "File e documenti",
+  "parole": "stampa stampante"
+ },
+ {
+  "nome": "accedi",
+  "categoria": "Frecce",
+  "parole": "accedi login entra"
+ },
+ {
+  "nome": "aggiorna",
+  "categoria": "Frecce",
+  "parole": "aggiorna ricarica refresh"
+ },
+ {
+  "nome": "avanti",
+  "categoria": "Frecce",
+  "parole": "avanti destra freccia"
+ },
+ {
+  "nome": "chevron_destra",
+  "categoria": "Frecce",
+  "parole": "destra chevron avanti"
+ },
+ {
+  "nome": "chevron_giu",
+  "categoria": "Frecce",
+  "parole": "giù chevron"
+ },
+ {
+  "nome": "chevron_sinistra",
+  "categoria": "Frecce",
+  "parole": "sinistra chevron indietro"
+ },
+ {
+  "nome": "chevron_su",
+  "categoria": "Frecce",
+  "parole": "su chevron"
+ },
+ {
+  "nome": "comprimi",
+  "categoria": "Frecce",
+  "parole": "comprimi riduci"
+ },
+ {
+  "nome": "esci",
+  "categoria": "Frecce",
+  "parole": "esci logout uscita"
+ },
+ {
+  "nome": "espandi",
+  "categoria": "Frecce",
+  "parole": "espandi allarga ingrandisci"
+ },
+ {
+  "nome": "giu",
+  "categoria": "Frecce",
+  "parole": "giù basso freccia"
+ },
+ {
+  "nome": "indietro",
+  "categoria": "Frecce",
+  "parole": "indietro sinistra freccia"
+ },
+ {
+  "nome": "ordina",
+  "categoria": "Frecce",
+  "parole": "ordina su giù"
+ },
+ {
+  "nome": "scambia",
+  "categoria": "Frecce",
+  "parole": "scambia sposta swap"
+ },
+ {
+  "nome": "schermo_intero",
+  "categoria": "Frecce",
+  "parole": "schermo intero fullscreen"
+ },
+ {
+  "nome": "su",
+  "categoria": "Frecce",
+  "parole": "su alto freccia"
+ },
+ {
+  "nome": "aiuto",
+  "categoria": "Interfaccia",
+  "parole": "aiuto domanda"
+ },
+ {
+  "nome": "altro",
+  "categoria": "Interfaccia",
+  "parole": "altro tre puntini orizzontali"
+ },
+ {
+  "nome": "altro_verticale",
+  "categoria": "Interfaccia",
+  "parole": "altro tre puntini verticali"
+ },
+ {
+  "nome": "avviso",
+  "categoria": "Interfaccia",
+  "parole": "avviso attenzione pericolo"
+ },
+ {
+  "nome": "bandiera",
+  "categoria": "Interfaccia",
+  "parole": "bandiera segnala"
+ },
+ {
+  "nome": "barra_laterale",
+  "categoria": "Interfaccia",
+  "parole": "barra laterale pannello sinistra layout"
+ },
+ {
+  "nome": "cerca",
+  "categoria": "Interfaccia",
+  "parole": "cerca lente trova"
+ },
+ {
+  "nome": "chiave",
+  "categoria": "Interfaccia",
+  "parole": "chiave password"
+ },
+ {
+  "nome": "chiudi",
+  "categoria": "Interfaccia",
+  "parole": "chiudi croce x"
+ },
+ {
+  "nome": "condividi",
+  "categoria": "Interfaccia",
+  "parole": "condividi invia"
+ },
+ {
+  "nome": "cuore",
+  "categoria": "Interfaccia",
+  "parole": "cuore mi piace"
+ },
+ {
+  "nome": "elenco",
+  "categoria": "Interfaccia",
+  "parole": "elenco righe lista"
+ },
+ {
+  "nome": "errore",
+  "categoria": "Interfaccia",
+  "parole": "errore sbagliato"
+ },
+ {
+  "nome": "filtro",
+  "categoria": "Interfaccia",
+  "parole": "filtro imbuto"
+ },
+ {
+  "nome": "finestra",
+  "categoria": "Interfaccia",
+  "parole": "finestra riquadro"
+ },
+ {
+  "nome": "griglia",
+  "categoria": "Interfaccia",
+  "parole": "griglia riquadri"
+ },
+ {
+  "nome": "home",
+  "categoria": "Interfaccia",
+  "parole": "home casa pagina iniziale"
+ },
+ {
+  "nome": "impostazioni",
+  "categoria": "Interfaccia",
+  "parole": "impostazioni ingranaggio opzioni"
+ },
+ {
+  "nome": "info",
+  "categoria": "Interfaccia",
+  "parole": "informazioni info"
+ },
+ {
+  "nome": "link",
+  "categoria": "Interfaccia",
+  "parole": "link collegamento catena"
+ },
+ {
+  "nome": "lucchetto",
+  "categoria": "Interfaccia",
+  "parole": "lucchetto chiuso sicurezza"
+ },
+ {
+  "nome": "lucchetto_aperto",
+  "categoria": "Interfaccia",
+  "parole": "lucchetto aperto sblocca"
+ },
+ {
+  "nome": "meno",
+  "categoria": "Interfaccia",
+  "parole": "meno togli"
+ },
+ {
+  "nome": "menu",
+  "categoria": "Interfaccia",
+  "parole": "menu hamburger"
+ },
+ {
+  "nome": "occhio",
+  "categoria": "Interfaccia",
+  "parole": "occhio vedi mostra"
+ },
+ {
+  "nome": "occhio_barrato",
+  "categoria": "Interfaccia",
+  "parole": "occhio barrato nascondi"
+ },
+ {
+  "nome": "ok",
+  "categoria": "Interfaccia",
+  "parole": "ok riuscito conferma"
+ },
+ {
+  "nome": "pannello_basso",
+  "categoria": "Interfaccia",
+  "parole": "pannello basso layout"
+ },
+ {
+  "nome": "piu",
+  "categoria": "Interfaccia",
+  "parole": "più aggiungi"
+ },
+ {
+  "nome": "posizione",
+  "categoria": "Interfaccia",
+  "parole": "posizione segnaposto mappa"
+ },
+ {
+  "nome": "regolazioni",
+  "categoria": "Interfaccia",
+  "parole": "regolazioni cursori impostazioni"
+ },
+ {
+  "nome": "segnalibro",
+  "categoria": "Interfaccia",
+  "parole": "segnalibro preferiti"
+ },
+ {
+  "nome": "spunta",
+  "categoria": "Interfaccia",
+  "parole": "spunta ok conferma"
+ },
+ {
+  "nome": "stella",
+  "categoria": "Interfaccia",
+  "parole": "stella preferito"
+ },
+ {
+  "nome": "tag",
+  "categoria": "Interfaccia",
+  "parole": "etichetta tag prezzo"
+ },
+ {
+  "nome": "zoom_meno",
+  "categoria": "Interfaccia",
+  "parole": "zoom riduci"
+ },
+ {
+  "nome": "zoom_piu",
+  "categoria": "Interfaccia",
+  "parole": "zoom ingrandisci"
+ },
+ {
+  "nome": "avanti_veloce",
+  "categoria": "Media",
+  "parole": "avanti veloce"
+ },
+ {
+  "nome": "cuffie",
+  "categoria": "Media",
+  "parole": "cuffie audio ascolta"
+ },
+ {
+  "nome": "fotocamera",
+  "categoria": "Media",
+  "parole": "fotocamera foto scatta"
+ },
+ {
+  "nome": "immagine",
+  "categoria": "Media",
+  "parole": "immagine foto paesaggio"
+ },
+ {
+  "nome": "indietro_veloce",
+  "categoria": "Media",
+  "parole": "indietro veloce"
+ },
+ {
+  "nome": "microfono",
+  "categoria": "Media",
+  "parole": "microfono registra voce"
+ },
+ {
+  "nome": "musica",
+  "categoria": "Media",
+  "parole": "musica nota"
+ },
+ {
+  "nome": "muto",
+  "categoria": "Media",
+  "parole": "muto silenzio audio"
+ },
+ {
+  "nome": "pausa",
+  "categoria": "Media",
+  "parole": "pausa ferma"
+ },
+ {
+  "nome": "play",
+  "categoria": "Media",
+  "parole": "play avvia riproduci"
+ },
+ {
+  "nome": "registra",
+  "categoria": "Media",
+  "parole": "registra rec"
+ },
+ {
+  "nome": "schermo",
+  "categoria": "Media",
+  "parole": "schermo monitor computer"
+ },
+ {
+  "nome": "stop",
+  "categoria": "Media",
+  "parole": "stop interrompi"
+ },
+ {
+  "nome": "video",
+  "categoria": "Media",
+  "parole": "video film camera"
+ },
+ {
+  "nome": "volume",
+  "categoria": "Media",
+  "parole": "volume audio altoparlante"
+ },
+ {
+  "nome": "allinea_centro",
+  "categoria": "Modifica",
+  "parole": "allinea centro testo"
+ },
+ {
+  "nome": "allinea_destra",
+  "categoria": "Modifica",
+  "parole": "allinea destra testo"
+ },
+ {
+  "nome": "allinea_sinistra",
+  "categoria": "Modifica",
+  "parole": "allinea sinistra testo"
+ },
+ {
+  "nome": "annulla",
+  "categoria": "Modifica",
+  "parole": "annulla indietro undo"
+ },
+ {
+  "nome": "copia",
+  "categoria": "Modifica",
+  "parole": "copia duplica"
+ },
+ {
+  "nome": "corsivo",
+  "categoria": "Modifica",
+  "parole": "corsivo italic testo"
+ },
+ {
+  "nome": "elenco_numerato",
+  "categoria": "Modifica",
+  "parole": "elenco numerato lista numeri"
+ },
+ {
+  "nome": "elenco_puntato",
+  "categoria": "Modifica",
+  "parole": "elenco puntato lista"
+ },
+ {
+  "nome": "elimina",
+  "categoria": "Modifica",
+  "parole": "elimina cestino cancella"
+ },
+ {
+  "nome": "grassetto",
+  "categoria": "Modifica",
+  "parole": "grassetto bold testo"
+ },
+ {
+  "nome": "incolla",
+  "categoria": "Modifica",
+  "parole": "incolla appunti"
+ },
+ {
+  "nome": "matita",
+  "categoria": "Modifica",
+  "parole": "matita modifica scrivi"
+ },
+ {
+  "nome": "pennello",
+  "categoria": "Modifica",
+  "parole": "pennello disegna colore"
+ },
+ {
+  "nome": "righello",
+  "categoria": "Modifica",
+  "parole": "righello misura"
+ },
+ {
+  "nome": "ripeti",
+  "categoria": "Modifica",
+  "parole": "ripeti avanti redo"
+ },
+ {
+  "nome": "sottolineato",
+  "categoria": "Modifica",
+  "parole": "sottolineato underline testo"
+ },
+ {
+  "nome": "tabella",
+  "categoria": "Modifica",
+  "parole": "tabella celle griglia"
+ },
+ {
+  "nome": "taglia",
+  "categoria": "Modifica",
+  "parole": "taglia forbici"
+ },
+ {
+  "nome": "batteria",
+  "categoria": "Oggetti",
+  "parole": "batteria energia carica"
+ },
+ {
+  "nome": "borsa",
+  "categoria": "Oggetti",
+  "parole": "borsa valigetta lavoro"
+ },
+ {
+  "nome": "calendario",
+  "categoria": "Oggetti",
+  "parole": "calendario data giorno"
+ },
+ {
+  "nome": "carrello",
+  "categoria": "Oggetti",
+  "parole": "carrello spesa acquisti"
+ },
+ {
+  "nome": "casa_lavoro",
+  "categoria": "Oggetti",
+  "parole": "edificio azienda ufficio"
+ },
+ {
+  "nome": "fulmine",
+  "categoria": "Oggetti",
+  "parole": "fulmine veloce energia"
+ },
+ {
+  "nome": "fuoco",
+  "categoria": "Oggetti",
+  "parole": "fuoco fiamma caldo"
+ },
+ {
+  "nome": "ingranaggi",
+  "categoria": "Oggetti",
+  "parole": "strumenti attrezzi chiave inglese"
+ },
+ {
+  "nome": "laurea",
+  "categoria": "Oggetti",
+  "parole": "cappello laurea studio scuola"
+ },
+ {
+  "nome": "libro",
+  "categoria": "Oggetti",
+  "parole": "libro guida leggi"
+ },
+ {
+  "nome": "luna",
+  "categoria": "Oggetti",
+  "parole": "luna notte scuro tema"
+ },
+ {
+  "nome": "mappa",
+  "categoria": "Oggetti",
+  "parole": "mappa cartina percorso"
+ },
+ {
+  "nome": "orologio",
+  "categoria": "Oggetti",
+  "parole": "orologio tempo ora"
+ },
+ {
+  "nome": "regalo",
+  "categoria": "Oggetti",
+  "parole": "regalo pacco dono"
+ },
+ {
+  "nome": "scudo",
+  "categoria": "Oggetti",
+  "parole": "scudo protezione sicurezza"
+ },
+ {
+  "nome": "sole",
+  "categoria": "Oggetti",
+  "parole": "sole giorno chiaro tema"
+ },
+ {
+  "nome": "trofeo",
+  "categoria": "Oggetti",
+  "parole": "trofeo premio coppa"
+ },
+ {
+  "nome": "bug",
+  "categoria": "Sviluppo e dati",
+  "parole": "bug errore insetto debug"
+ },
+ {
+  "nome": "calcolatrice",
+  "categoria": "Sviluppo e dati",
+  "parole": "calcolatrice calcola"
+ },
+ {
+  "nome": "codice",
+  "categoria": "Sviluppo e dati",
+  "parole": "codice programma parentesi"
+ },
+ {
+  "nome": "database",
+  "categoria": "Sviluppo e dati",
+  "parole": "database dati archivio"
+ },
+ {
+  "nome": "disco",
+  "categoria": "Sviluppo e dati",
+  "parole": "disco hard disk memoria"
+ },
+ {
+  "nome": "forbici_codice",
+  "categoria": "Sviluppo e dati",
+  "parole": "ramo git versioni"
+ },
+ {
+  "nome": "grafico_barre",
+  "categoria": "Sviluppo e dati",
+  "parole": "grafico barre statistiche"
+ },
+ {
+  "nome": "grafico_linee",
+  "categoria": "Sviluppo e dati",
+  "parole": "grafico linee andamento"
+ },
+ {
+  "nome": "grafico_torta",
+  "categoria": "Sviluppo e dati",
+  "parole": "grafico torta percentuale"
+ },
+ {
+  "nome": "lampadina",
+  "categoria": "Sviluppo e dati",
+  "parole": "lampadina idea"
+ },
+ {
+  "nome": "pacchetto",
+  "categoria": "Sviluppo e dati",
+  "parole": "pacchetto scatola modulo"
+ },
+ {
+  "nome": "processore",
+  "categoria": "Sviluppo e dati",
+  "parole": "processore cpu chip"
+ },
+ {
+  "nome": "puzzle",
+  "categoria": "Sviluppo e dati",
+  "parole": "puzzle estensione componente"
+ },
+ {
+  "nome": "razzo",
+  "categoria": "Sviluppo e dati",
+  "parole": "razzo lancia avvia"
+ },
+ {
+  "nome": "server",
+  "categoria": "Sviluppo e dati",
+  "parole": "server rack"
+ },
+ {
+  "nome": "spina",
+  "categoria": "Sviluppo e dati",
+  "parole": "spina plugin corrente"
+ },
+ {
+  "nome": "terminale",
+  "categoria": "Sviluppo e dati",
+  "parole": "terminale console riga di comando"
+ }
+]

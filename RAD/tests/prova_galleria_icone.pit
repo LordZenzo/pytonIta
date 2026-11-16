@@ -1,0 +1,137 @@
+"""Galleria di icone: oltre cento icone in due colori, finestra di scelta con ricerca e categorie, copia nel progetto e uso nei menu (anche col tema scuro)."""
+importa sys, os, tempfile, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile
+da rad importa galleria_icone, form_modello, progettista
+importa menu_moderno
+
+esiti = []
+
+
+definisci controlla(nome, condizione, dettaglio=""):
+    esiti.append((nome, bool(condizione)))
+    stampa(("ok     " se condizione altrimenti "ERRORE ") + nome, "" se condizione altrimenti dettaglio)
+
+
+icone = galleria_icone.elenco_icone()
+nomi = [i["nome"] per i in icone]
+controlla("almeno 100 icone", lunghezza_di(icone) >= 100, lunghezza_di(icone))
+controlla("nomi tutti diversi", lunghezza_di(set(nomi)) == lunghezza_di(nomi))
+mancanti = [n per n in nomi se galleria_icone.file_icona(n) è Nessuno o galleria_icone.file_icona(n, Vero) è Nessuno]
+controlla("ogni icona ha la versione scura e quella chiara", non mancanti, mancanti[:5])
+controlla("categorie", lunghezza_di(galleria_icone.categorie()) >= 6, galleria_icone.categorie())
+da PIL importa Image
+scuro = Image.open(galleria_icone.file_icona("salva"))
+chiaro = Image.open(galleria_icone.file_icona("salva", Vero))
+controlla("24x24 con trasparenza", scuro.size == (24, 24) e scuro.mode == "RGBA" e scuro.getpixel((0, 0))[3] == 0)
+controlla("le due versioni hanno colori diversi", max(p[:3] per p in scuro.getdata() se p[3] > 200) < (100, 100, 100) e min(p[:3] per p in chiaro.getdata() se p[3] > 200) > (150, 150, 150))
+controlla("nessuna icona vuota", all(max(p[3] per p in Image.open(galleria_icone.file_icona(n)).getdata()) > 200 per n in nomi))
+
+# ---- versione a colori
+mancanti_colore = [n per n in nomi se galleria_icone.file_icona(n + "_colore") è Nessuno]
+controlla("ogni icona ha anche la versione a colori", non mancanti_colore, mancanti_colore[:5])
+colorata = Image.open(galleria_icone.file_icona("elimina_colore")).convert("RGBA")
+opachi = [q per q in colorata.getdata() se q[3] > 200]
+controlla("a colori: l'icona «elimina» è rossa", opachi e opachi[0][0] > 200 e opachi[0][1] < 120, opachi[:1])
+colorata2 = Image.open(galleria_icone.file_icona("spunta_colore")).convert("RGBA")
+controlla("a colori: la «spunta» è verde", [q per q in colorata2.getdata() se q[3] > 200][0][1] > 150)
+con_riempimento = [n per n in ("cartella", "salva", "campana", "cuore") se any(0 < q[3] < 120 per q in Image.open(galleria_icone.file_icona(n + "_colore")).convert("RGBA").crop((6, 6, 18, 18)).getdata())]
+controlla("a colori: le forme chiuse hanno il riempimento tenue", lunghezza_di(con_riempimento) >= 3, con_riempimento)
+
+# ---- copia nel progetto
+cartella = tempfile.mkdtemp()
+percorso = galleria_icone.copia_nel_progetto(os.path.join(cartella, "risorse"), "salva")
+controlla("copia nel progetto: scura e chiara", os.path.isfile(percorso) e os.path.isfile(percorso[:-4] + "_chiaro.png"), percorso)
+percorso_c = galleria_icone.copia_nel_progetto(os.path.join(cartella, "risorse"), "salva_colore")
+controlla("copia nel progetto: quella a colori è un file solo", os.path.isfile(percorso_c) e percorso_c.endswith("salva_colore.png") e non os.path.isfile(percorso_c[:-4] + "_chiaro.png"), percorso_c)
+
+# ---- la finestra
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+radice = tk.Tk()
+radice.geometry("900x600+10+10")
+configura_stile(radice, col)
+d = galleria_icone.DialogoIcone(radice, col)
+d.withdraw()
+radice.update()
+controlla("finestra: mostra tutte le icone", lunghezza_di(d.bottoni) == lunghezza_di(icone), lunghezza_di(d.bottoni))
+d.var_cerca.set("cerca")
+radice.update()
+controlla("ricerca per nome o parola chiave", "cerca" in d.bottoni e lunghezza_di(d.bottoni) < 10, list(d.bottoni))
+d.var_cerca.set("cestino")
+radice.update()
+controlla("ricerca nelle parole chiave", "elimina" in d.bottoni, list(d.bottoni))
+d.var_cerca.set("")
+d.var_categoria.set("Media")
+radice.update()
+d._riempi()
+controlla("filtro per categoria", 10 < lunghezza_di(d.bottoni) < lunghezza_di(icone) e "play" in d.bottoni, lunghezza_di(d.bottoni))
+d.scegli("play")
+d.conferma()
+controlla("scelta restituisce il nome", d.risultato == "play", d.risultato)
+dc = galleria_icone.DialogoIcone(radice, col)
+dc.withdraw()
+dc.var_stile.set("A colori")
+dc._cambia_stile()
+radice.update()
+dc.scegli("play")
+dc.conferma()
+controlla("stile a colori: il nome ha il suffisso «_colore»", dc.risultato == "play_colore", dc.risultato)
+dd = galleria_icone.DialogoIcone(radice, col, "elimina_colore")
+dd.withdraw()
+controlla("riaprendo con un'icona a colori si parte dallo stile a colori e dalla stessa icona", dd.var_stile.get() == "A colori" e dd.scelta == "elimina", (dd.var_stile.get(), dd.scelta))
+dd.destroy()
+galleria_icone._ricordo["stile"] = "Monocromatico"
+d2 = galleria_icone.DialogoIcone(radice, col)
+d2.withdraw()
+d2.nessuna()
+controlla("«Nessuna icona» restituisce testo vuoto", d2.risultato == "")
+d3 = galleria_icone.DialogoIcone(radice, col)
+d3.withdraw()
+d3.destroy()
+controlla("annullando il risultato è Nessuno", d3.risultato è Nessuno)
+
+# ---- nei menu: percorso relativo accanto al modulo, e versione chiara sul tema scuro
+radice.destroy()
+radice = tk.Tk()
+radice.geometry("500x300+10+10")
+modulo_dir = os.path.dirname(os.path.abspath(menu_moderno.__file__))
+rel = os.path.relpath(galleria_icone.file_icona("salva"), modulo_dir).replace("\\", "/")
+chiaro_m = menu_moderno.MenuModerno(radice, [{"testo": "Salva", "icona": galleria_icone.file_icona("salva")}], Nessuno, tema="chiaro")
+chiaro_m.place(x=0, y=0, width=200, height=200)
+scuro_m = menu_moderno.MenuModerno(radice, [{"testo": "Salva", "icona": galleria_icone.file_icona("salva")}], Nessuno, tema="scuro")
+scuro_m.place(x=250, y=0, width=200, height=200)
+radice.update()
+img_c = chiaro_m._cont.righe[0].parti[0].cget("image")
+img_s = scuro_m._cont.righe[0].parti[0].cget("image")
+controlla("menu: l'icona file si vede", img_c != "" e img_s != "", (img_c, img_s))
+controlla("menu: tema scuro usa la versione chiara", chiaro_m._immagine(galleria_icone.file_icona("salva")) è non scuro_m._immagine(galleria_icone.file_icona("salva")))
+controlla("menu: il pixel più visibile è scuro nel tema chiaro e chiaro nel tema scuro",
+          chiaro_m._immagine(galleria_icone.file_icona("salva")).width() == 24 e scuro_m._scuro è Vero e chiaro_m._scuro è Falso)
+radice.destroy()
+
+# ---- il progettista: pulsante «Galleria…» del dialogo del menu
+radice = tk.Tk()
+radice.geometry("900x600+10+10")
+configura_stile(radice, col)
+copiate = []
+d = progettista.DialogoMenu(radice, col, json.dumps([{"testo": "Salva"}]), [], lambda nome: (copiate.append(nome), f"risorse/icone/{nome}.png")[1])
+d.withdraw()
+radice.update()
+d._scegli_percorso([0])
+galleria_icone.scegli_icona = lambda *a, **k: "salva"
+d.apri_galleria()
+radice.update()
+controlla("dialogo del menu: la galleria riempie l'icona della voce", d._nodo_di([0]).get("icona") == "risorse/icone/salva.png" e copiate == ["salva"], d._nodo_di([0]))
+galleria_icone.scegli_icona = lambda *a, **k: ""
+d.apri_galleria()
+radice.update()
+controlla("dialogo del menu: «nessuna» toglie l'icona", "icona" non in d._nodo_di([0]), d._nodo_di([0]))
+d.destroy()
+radice.destroy()
+
+fallite = [n per n, ok in esiti se non ok]
+stampa(f"\n{lunghezza_di(esiti) - lunghezza_di(fallite)}/{lunghezza_di(esiti)} controlli riusciti", "| FALLITI:" se fallite altrimenti "", fallite)
+sys.exit(1 se fallite altrimenti 0)

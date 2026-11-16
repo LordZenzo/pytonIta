@@ -61,9 +61,10 @@ def riproduci(file, attendi=True):
         _ws.PlaySound(p, flag if attendi else flag | _ws.SND_ASYNC)
         return
     ferma()
-    _processo = _subprocess.Popen(_lettore() + [p])
+    _processo = _subprocess.Popen(_lettore() + [p], stdout=_subprocess.DEVNULL, stderr=_subprocess.DEVNULL)     # i lettori di sistema scrivono messaggi: non servono
     if attendi:
-        _processo.wait()
+        if _processo.wait() != 0:
+            raise ErroreSuono("Il lettore audio del sistema non e' riuscito a suonare il file (manca la scheda audio, o il servizio audio non e' attivo?)")
 
 
 def ripeti(file):

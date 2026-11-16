@@ -225,6 +225,11 @@
   "gruppo": "Costruire senza scrivere codice"
  },
  {
+  "id": "menu",
+  "titolo": "Menu: barra, contestuale e moderno",
+  "gruppo": "Costruire senza scrivere codice"
+ },
+ {
   "id": "dati-finestre",
   "titolo": "Dati nelle finestre",
   "gruppo": "Costruire senza scrivere codice"

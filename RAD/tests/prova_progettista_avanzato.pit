@@ -26,7 +26,7 @@ stampa("gestori:", sorted({n per _, _, n in f.eventi()}))
 stampa("finestre aperte:", finestre_aperte(f))
 ui = form_modello.genera_ui_completa(f)
 stampa("ancoraggio nel codice:", "relwidth=1" in ui, "relheight=1" in ui, "relx=1" in ui, "rely=1" in ui)
-stampa("apre finestra:", "_apri_Seconda" in ui, "grab_set" in ui, "timer1_avvia" in ui, "add_cascade" in ui, "radice.config(menu=" in ui)
+stampa("apre finestra:", "_apri_Seconda" in ui, "grab_set" in ui, "timer1_avvia" in ui, "menu_moderno.barra(" in ui, "importa menu_moderno" in ui)
 form_modello.salva_form(f, cartella)
 # la logica scritta dall'utente: il timer conta, i gestori segnano
 logica = open(os.path.join(cartella, "principale.pit"), encoding="utf-8").read()

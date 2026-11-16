@@ -4,7 +4,8 @@ importa tkinter come tk
 da tkinter importa ttk, messagebox
 
 da rad.dialoghi importa DialogoBase
-da rad importa esecuzione
+da rad.comandi_ui importa PannelloComandi
+da rad importa esecuzione, piattaforma
 da rad.piattaforma importa FONT_UI, semi
 importa multimedia
 
@@ -30,7 +31,9 @@ classe DialogoFfmpeg(DialogoBase):
         se_stesso.situazione.pack(fill="x", padx=18)
         se_stesso.dettagli = tk.Label(se_stesso, wraplength=540, justify="left", anchor="w", background=c["pannello"], foreground=c["tenue"])
         se_stesso.dettagli.pack(fill="x", padx=18, pady=(2, 0))
-        riga_versione = tk.Frame(se_stesso, background=c["pannello"])
+        se_stesso.cornice_comandi = tk.Frame(se_stesso, background=c["pannello"])         # i comandi da copiare (fuori da Windows)
+        se_stesso.cornice_comandi.pack(fill="x", padx=18)
+        se_stesso.riga_versione = riga_versione = tk.Frame(se_stesso, background=c["pannello"])
         riga_versione.pack(fill="x", padx=18, pady=(12, 0))
         tk.Label(riga_versione, text="Versione da scaricare:", background=c["pannello"], foreground=c["primo_piano"]).pack(side="left")
         se_stesso._varianti = multimedia.varianti_ffmpeg()
@@ -89,9 +92,21 @@ classe DialogoFfmpeg(DialogoBase):
                 se_stesso.scarica.configure(state="disabled", text="Scarica ffmpeg")
         altrimenti:
             se_stesso.situazione.configure(text="ffmpeg non è installato.", foreground=se_stesso.colori["avviso"])
-            se_stesso.dettagli.configure(text="Scegli la versione e scaricala da qui (dal sito di chi la compila, nella cartella .rad della tua cartella utente) "
-                                              "oppure installala tu (Windows: winget install ffmpeg).")
-            se_stesso.scarica.configure(state="normal", text="Scarica ffmpeg")
+            se piattaforma.WINDOWS:
+                se_stesso.dettagli.configure(text="Scegli la versione e scaricala da qui (dal sito di chi la compila, nella cartella .rad della tua cartella utente) "
+                                                  "oppure installala tu (Windows: winget install ffmpeg).")
+                se_stesso.scarica.configure(state="normal", text="Scarica ffmpeg")
+            altrimenti:
+                se_stesso.dettagli.configure(text="Copia uno di questi comandi nel terminale (chiede la password di amministratore). "
+                                                  "Dopo l'installazione riapri questa finestra: PitStudio lo troverà da solo.")
+                per figlio in se_stesso.cornice_comandi.winfo_children():
+                    figlio.destroy()
+                PannelloComandi(se_stesso.cornice_comandi, se_stesso.colori, multimedia.comandi_installazione("ffmpeg")).pack(fill="x")
+        se non piattaforma.WINDOWS:           # il download automatico c'è solo su Windows: altrove si installa con il gestore di pacchetti
+            se_stesso.riga_versione.pack_forget()
+            se_stesso.descrizione_variante.pack_forget()
+            se_stesso.barra_avanzamento.pack_forget()
+            se_stesso.scarica.pack_forget()
 
     definisci _chiudi(se_stesso):
         se_stesso._interrompi = Vero

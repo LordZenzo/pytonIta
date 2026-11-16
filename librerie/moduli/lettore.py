@@ -141,10 +141,38 @@ def _cartella_vlc():
     return ctypes.util.find_library("vlc") or None
 
 
+def _istruzioni(windows, mac, comando_apt, comando_dnf, comando_pacman, nome):
+    """Come installare un programma su questo computer: il comando giusto per Windows, macOS o la distribuzione Linux in uso."""
+    if _os.name == "nt":
+        return windows
+    if _sistema.platform == "darwin":
+        return mac
+    import shutil
+    for programma, comando in (("apt-get", comando_apt), ("dnf", comando_dnf), ("pacman", comando_pacman)):
+        if shutil.which(programma):
+            return comando
+    return f"installa il pacchetto {nome} con il gestore di pacchetti della tua distribuzione"
+
+
+def _come_installare(programma):
+    """I comandi per installare un motore (vlc, mpv) con il gestore di pacchetti del computer, separati da « | »."""
+    try:
+        import multimedia
+        return " | ".join(v["comando"] for v in multimedia.comandi_installazione(programma))
+    except Exception:
+        return f"installa il pacchetto {programma} con il gestore di pacchetti della tua distribuzione"
+
+
+def _come_installare_vlc():
+    if _os.name == "nt":
+        return "winget install VideoLAN.VLC  (oppure lettore.installa_motore('vlc'))"
+    return _come_installare("vlc")
+
+
 def _carica_vlc():
     cartella = _cartella_vlc()
     if not cartella:
-        raise MotoreNonTrovato("VLC non e' installato. Installalo (Windows: winget install VideoLAN.VLC, oppure lettore.installa_motore('vlc')) "
+        raise MotoreNonTrovato("VLC non e' installato. Installalo (" + _come_installare_vlc() + ") "
                                "oppure indica la sua cartella nella variabile PITONIT_VLC.")
     if cartella in _librerie_vlc:
         return _librerie_vlc[cartella]
@@ -196,6 +224,8 @@ def _carica_vlc():
     dichiara("libvlc_video_set_spu", i, p, i)
     dichiara("libvlc_video_set_subtitle_file", i, p, s)
     dichiara("libvlc_track_description_list_release", None, _ctypes.POINTER(_Descrizione))
+    dichiara("libvlc_video_set_mouse_input", None, p, _ctypes.c_uint)
+    dichiara("libvlc_video_set_key_input", None, p, _ctypes.c_uint)
     if _os.name == "nt":
         dichiara("libvlc_media_player_set_hwnd", None, p, p)
     elif _sistema.platform != "darwin":
@@ -207,9 +237,12 @@ def _carica_vlc():
 class MotoreVlc(Motore):
     nome = "vlc"
     descrizione = "VLC (libvlc): legge quasi ogni formato, con sottotitoli, tracce multiple e flussi di rete."
-    installazione = "Windows: winget install VideoLAN.VLC  (oppure lettore.installa_motore('vlc'))  |  https://www.videolan.org/vlc/"
     sito = "https://www.videolan.org/vlc/"
     winget = "VideoLAN.VLC"
+
+    @classmethod
+    def _installazione(cls):
+        return f"{_come_installare_vlc()}  |  {cls.sito}"
 
     @classmethod
     def trova(cls):
@@ -349,7 +382,12 @@ class MotoreVlc(Motore):
     def passa_clic(self):
         """Disabilita le finestre del video di VLC (classe 'VLC video ...'): un clic su una finestra disabilitata va a quella che la contiene,
         e cosi' tkinter riceve <Button-1> e il resto. VLC le crea quando il video parte, quindi va richiamato ogni tanto."""
-        if _os.name != "nt" or not self._finestra:
+        if not self._finestra:
+            return
+        if _os.name != "nt":
+            if _sistema.platform != "darwin":      # X11: senza eventi selezionati dal video, mouse e tastiera salgono alla finestra che lo contiene
+                self._lib.libvlc_video_set_mouse_input(self._lettore, 0)
+                self._lib.libvlc_video_set_key_input(self._lettore, 0)
             return
         user32 = _ctypes.windll.user32
         trovate = []
@@ -381,7 +419,7 @@ class MotoreVlc(Motore):
 # =====================================================================================================
 _MOTORI = {"vlc": MotoreVlc}
 _ELENCO_FUTURI = {"mpv": ("mpv: moderno e leggero, ottima resa video e posizionamento preciso.",
-                          "Windows: scarica mpv da https://mpv.io/installation/ (o winget search mpv)", "https://mpv.io/")}
+                          "https://mpv.io/installation/  (Linux: sudo apt install mpv; macOS: brew install mpv; Windows: winget search mpv)", "https://mpv.io/")}
 
 
 def motori():
@@ -391,11 +429,11 @@ def motori():
     for nome, classe in _MOTORI.items():
         percorso = classe.trova()
         out.append(Voce(nome=nome, descrizione=classe.descrizione, disponibile=bool(percorso), percorso=percorso or None, implementato=True,
-                        installazione=classe.installazione, sito=classe.sito, predefinito=nome == scelto))
+                        installazione=classe._installazione() if hasattr(classe, '_installazione') else classe.installazione, sito=classe.sito, predefinito=nome == scelto))
     for nome, (descrizione, installazione, sito) in _ELENCO_FUTURI.items():
         if nome not in _MOTORI:
             out.append(Voce(nome=nome, descrizione=descrizione, disponibile=False, percorso=None, implementato=False,
-                            installazione=installazione, sito=sito, predefinito=False))
+                            installazione=_come_installare(nome) if nome == "mpv" else installazione, sito=sito, predefinito=False))
     return out
 
 
@@ -437,10 +475,10 @@ def installa_motore(nome="vlc", avanzamento=None):
     if classe is None or not getattr(classe, "winget", ""):
         raise ErroreLettore(f"Non so installare {nome!r} da qui: {_ELENCO_FUTURI.get(nome, ('', 'vedi il sito del motore'))[1]}")
     if _os.name != "nt":
-        raise ErroreLettore("L'installazione automatica e' solo per Windows: " + classe.installazione)
+        raise ErroreLettore("L'installazione automatica e' solo per Windows: " + (classe._installazione() if hasattr(classe, "_installazione") else classe.installazione))
     import shutil
     if not shutil.which("winget"):
-        raise ErroreLettore("winget non c'e' su questo computer: " + classe.installazione)
+        raise ErroreLettore("winget non c'e' su questo computer: " + (classe._installazione() if hasattr(classe, "_installazione") else classe.installazione))
     processo = _subprocess.Popen(["winget", "install", "--id", classe.winget, "-e", "--accept-package-agreements", "--accept-source-agreements"],
                                  stdout=_subprocess.PIPE, stderr=_subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
                                  creationflags=0x08000000)

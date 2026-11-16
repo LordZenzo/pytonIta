@@ -1,0 +1,127 @@
+"""Icona nei pulsanti: proprietà nel progettista (con la galleria), anteprima, codice generato che gira (anche sul tema scuro e esportato in Python)."""
+importa sys, os, tempfile, importlib, subprocess
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.tema importa colori, configura_stile, applica
+da rad importa form_modello, progettista, galleria_icone
+da rad.form_modello importa Form
+
+esiti = []
+
+
+definisci controlla(nome, condizione, dettaglio=""):
+    esiti.append((nome, bool(condizione)))
+    stampa(("ok     " se condizione altrimenti "ERRORE ") + nome, "" se condizione altrimenti dettaglio)
+
+
+cartella = tempfile.mkdtemp()
+risorse = os.path.join(cartella, "risorse")
+salva = galleria_icone.copia_nel_progetto(risorse, "salva")
+cestino = galleria_icone.copia_nel_progetto(risorse, "elimina_colore")
+rel_salva = os.path.relpath(salva, cartella).replace("\\", "/")
+rel_cestino = os.path.relpath(cestino, cartella).replace("\\", "/")
+
+
+definisci costruisci(aspetto, nome):
+    f = Form(nome, nome)
+    f.larghezza, f.altezza = 420, 200
+    f.aspetto = aspetto
+    f.aggiungi("Pulsante", 10, 10, nome="salva", testo="Salva", larghezza=120, altezza=34, icona=rel_salva)
+    f.aggiungi("Pulsante", 150, 10, nome="cestino", testo="Elimina", larghezza=120, altezza=34, icona=rel_cestino, posizione_icona="destra")
+    f.aggiungi("Pulsante", 290, 10, nome="solo", testo="Solo", larghezza=40, altezza=34, icona=rel_cestino, posizione_icona="solo icona")
+    f.aggiungi("Pulsante", 10, 60, nome="sopra", testo="Sopra", larghezza=90, altezza=70, icona=rel_salva, posizione_icona="sopra")
+    f.aggiungi("Pulsante", 120, 60, nome="senza", testo="Senza", larghezza=90, altezza=34)
+    f.aggiungi("Pulsante", 230, 60, nome="manca", testo="Manca", larghezza=90, altezza=34, icona="risorse/icone/non_esiste.png")
+    ritorna f
+
+
+chiara = costruisci("classico", "Chiara")
+ui = form_modello.genera_ui_completa(chiara)
+controlla("codice: chiama carica_icona solo per i pulsanti con icona", ui.count("se_stesso.carica_icona(") == 5 e "definisci carica_icona" in ui)
+controlla("codice: senza icone nessun aiuto", "carica_icona" non in form_modello.genera_ui_completa(Form("Vuota", "Vuota")))
+compile(ui, "x", "exec", 0x10000)
+form_modello.salva_form(chiara, cartella)
+form_modello.salva_form(costruisci("scuro", "Scura"), cartella)
+
+sys.path.insert(0, cartella)
+radice = tk.Tk()
+radice.geometry("+20+20")
+modulo = importlib.import_module("chiara")
+app = modulo.Chiara(radice)
+radice.update()
+controlla("in esecuzione: icona a sinistra con il testo", app.salva.cget("image") != "" e app.salva.cget("compound") == "left" e app.salva.cget("text") == "Salva")
+controlla("in esecuzione: icona a destra", app.cestino.cget("compound") == "right")
+controlla("in esecuzione: «solo icona» toglie il testo", app.solo.cget("compound") == "center" e app.solo.cget("text") == "")
+controlla("in esecuzione: icona sopra", app.sopra.cget("compound") == "top")
+controlla("in esecuzione: senza icona resta un pulsante normale", app.senza.cget("image") == "" e app.senza.cget("text") == "Senza")
+controlla("in esecuzione: un file che manca non rompe la finestra", app.manca.cget("image") == "" e app.manca.cget("text") == "Manca")
+controlla("in esecuzione: l'immagine è la scura", app.salva.cget("image") == app.immagini[0].name e lunghezza_di(app.immagini) == 4, lunghezza_di(app.immagini))
+radice.destroy()
+
+# tema scuro: la versione chiara dell'icona monocromatica
+radice = tk.Tk()
+radice.geometry("+20+20")
+modulo_s = importlib.import_module("scura")
+app_s = modulo_s.Scura(radice)
+radice.update()
+pixel_chiaro = app_s.immagini[0].get(12, 12)
+da PIL importa Image
+scuro_px = [q per q in Image.open(salva).convert("RGBA").getdata() se q[3] > 200][0]
+chiaro_px = [q per q in Image.open(salva[:-4] + "_chiaro.png").convert("RGBA").getdata() se q[3] > 200][0]
+controlla("tema scuro: usa «nome_chiaro.png»", app_s.immagini[0].width() == 24 e chiaro_px[0] > 200 e scuro_px[0] < 80)
+rosso = app_s.immagini[1]
+controlla("tema scuro: l'icona a colori resta com'è", rosso.width() == 24)
+radice.destroy()
+
+# ---- progettista: anteprima e proprietà
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+col = colori(cfg)
+radice2 = tk.Tk()
+radice2.geometry("1300x760+10+10")
+configura_stile(radice2, col)
+p = progettista.Progettista(radice2, os.path.join(cartella, "chiara.form.json"), form_modello.carica_form(os.path.join(cartella, "chiara.form.json")), col, cfg,
+                            type("Az", (), {"__getattr__": lambda s, n: (lambda *a, **k: cartella)})())
+p.pack(fill="both", expand=Vero)
+applica(radice2, col)
+radice2.update()
+controlla("progettista: anteprima del pulsante con l'icona", p.widget["salva"].cget("image") != "" e p.widget["solo"].cget("text") == "" e p.widget["senza"].cget("image") == "")
+p.seleziona(["salva"])
+radice2.update()
+definisci tutte(w):
+    trovate = []
+    per figlio in w.winfo_children():
+        trovate.append((figlio.winfo_class(), figlio.cget("text") se figlio.winfo_class() in ("Label", "Button") altrimenti ""))
+        trovate.extend(tutte(figlio))
+    ritorna trovate
+
+
+voci = tutte(p.righe_ispettore)
+controlla("progettista: nell'ispettore ci sono l'icona, la posizione e il pulsante della galleria", ("Label", "Icona (file o galleria)") in voci e ("Label", "Posizione dell'icona") in voci e ("Button", "☺") in voci, [v per v in voci se v[0] == "Label"][-6:])
+radice2.destroy()
+
+# ---- esportato in Python
+da rad importa esporta_python
+dest = os.path.join(tempfile.mkdtemp(), "export")
+elemento = esporta_python.esporta(cartella, dest)
+controlla("esportazione senza errori", elemento["errori"] == [], elemento["errori"])
+open(os.path.join(dest, "prova_py.py"), "w", encoding="utf-8").write("""
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import tkinter as tk
+import chiara
+r = tk.Tk(); r.geometry('+20+20')
+app = chiara.Chiara(r)
+r.update()
+print('python:', app.salva.cget('compound'), app.cestino.cget('compound'), repr(app.solo.cget('text')), bool(app.salva.cget('image')))
+r.destroy()
+""")
+python_ = __import__("shutil").which("python") o __import__("shutil").which("py")
+se python_:
+    u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "prova_py.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=120,
+                       env=dict(os.environ, PYTHONUTF8="1"))
+    controlla("con Python normale le icone dei pulsanti funzionano", "python: left right '' True" in u.stdout, (u.stdout.strip(), u.stderr.strip()[-900:]))
+
+fallite = [n per n, ok in esiti se non ok]
+stampa(f"\n{lunghezza_di(esiti) - lunghezza_di(fallite)}/{lunghezza_di(esiti)} controlli riusciti", "| FALLITI:" se fallite altrimenti "", fallite)
+sys.exit(1 se fallite altrimenti 0)

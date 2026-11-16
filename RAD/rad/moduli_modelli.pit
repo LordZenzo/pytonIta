@@ -15,7 +15,7 @@ importa sys
 
 CARTELLA_MODELLI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice")
 TABELLA = os.path.join(CARTELLA_MODELLI, "versioni_moduli.json")
-MODULI = ("aspetto", "fonte_dati", "griglia", "grafico", "scorrevole", "stampante")
+MODULI = ("aspetto", "fonte_dati", "griglia", "grafico", "scorrevole", "stampante", "menu_moderno", "trasparenza")
 RIGA_VERSIONE = re.compile(r"^VERSIONE_MODULO\s*=\s*(\d+)\s*$", re.M)
 
 

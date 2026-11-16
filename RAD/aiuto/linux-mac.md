@@ -47,3 +47,12 @@ Su Linux viene creata anche la voce «PitStudio» nel menu delle applicazioni.
 - «Crea l'eseguibile» produce un programma per il sistema su cui lo costruisci (serve PyInstaller).
 - I caratteri sono quelli di sistema (DejaVu su Linux, Helvetica Neue e Menlo su macOS).
 - Le icone dei pulsanti sono quelle di ripiego, non «Segoe Fluent Icons».
+
+## Audio e video
+
+I moduli `suono`, `multimedia`, `ffmpeg` e `lettore` funzionano anche qui, con qualche differenza:
+
+- **ffmpeg** non si scarica da PitStudio (il download automatico c'è solo su Windows): si installa con il gestore di pacchetti, per esempio `sudo apt install ffmpeg` (Debian/Ubuntu), `sudo dnf install ffmpeg` (Fedora), `sudo pacman -S ffmpeg` (Arch) o `brew install ffmpeg` (macOS). *Strumenti → ffmpeg: audio e video…* mostra il comando adatto al tuo sistema; se ffmpeg è già nel `PATH` lo usa. `ffmpeg.cattura_schermo` è solo per Windows.
+- **VLC** (per `lettore` e per la finestra *Strumenti → Lettore audio e video…*) si installa allo stesso modo, per esempio `sudo apt install vlc`; il pulsante «Installa VLC» (winget) c'è solo su Windows. Il video dentro una finestra usa X11 (anche tramite XWayland); su macOS il video dentro una finestra non è ancora supportato.
+- **suono** suona i `.wav` con il lettore del sistema (`aplay`, `paplay` o `afplay`); senza scheda audio dà un errore chiaro. `suono.ripeti()` e `suono.avviso()` (il suono di sistema) sono solo per Windows.
+- **Stato della verifica**: provato su Ubuntu 24.10 senza ffmpeg né VLC installati (messaggi, ripieghi, comandi, finestre e tutta la serie di test). La parte che richiede ffmpeg e VLC veri su Linux non è ancora stata provata.

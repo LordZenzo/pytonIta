@@ -54,13 +54,85 @@ def trova_ffmpeg(programma="ffmpeg"):
     return propria if _os.path.isfile(propria) else None
 
 
+def _gestore_pacchetti():
+    """Il gestore di pacchetti di questo computer: «winget», «brew», «apt», «dnf», «pacman», «zypper», oppure None."""
+    if _os.name == "nt":
+        return "winget"
+    if _sistema.platform == "darwin":
+        return "brew"
+    for programma, gestore in (("apt-get", "apt"), ("dnf", "dnf"), ("pacman", "pacman"), ("zypper", "zypper")):
+        if _shutil.which(programma):
+            return gestore
+    return None
+
+
+# per ogni programma e gestore: [(etichetta, comando, nota)]. Il comando si copia e si incolla nel terminale cosi' com'e'.
+_COMANDI = {
+    "ffmpeg": {
+        "apt": [("Completo", "sudo apt update && sudo apt install ffmpeg",
+                 "Il pacchetto della distribuzione: ffmpeg con tutte le sue librerie (x264, x265, VP9, AV1, filtri...)."),
+                ("Essenziale", "sudo apt update && sudo apt install --no-install-recommends ffmpeg",
+                 "Solo le dipendenze indispensabili. Su Ubuntu 24.10 il pacchetto non ha raccomandazioni, quindi e' uguale al completo: su Linux la "
+                 "distribuzione offre una sola build.")],
+        "dnf": [("Completo", "sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm && "
+                             "sudo dnf install ffmpeg --allowerasing",
+                 "Fedora: il ffmpeg con tutti i codec e' nel repository RPM Fusion (il primo comando lo aggiunge)."),
+                ("Essenziale", "sudo dnf install ffmpeg-free",
+                 "La build di Fedora, senza i codec coperti da brevetti (niente H.264/H.265).")],
+        "pacman": [("Completo", "sudo pacman -S ffmpeg", "La build completa di Arch."),
+                   ("Essenziale", "sudo pacman -S ffmpeg-headless", "Come ffmpeg ma senza le librerie per schermo e finestre (meno dipendenze).")],
+        "zypper": [("Completo", "sudo zypper install ffmpeg",
+                    "openSUSE: per tutti i codec serve il repository Packman (https://en.opensuse.org/Additional_package_repositories).")],
+        "brew": [("Completo", "brew install ffmpeg", "Con Homebrew.")],
+        "winget": [("Completo", "winget install ffmpeg", "Oppure scaricalo da PitStudio (Strumenti > ffmpeg).")],
+    },
+    "vlc": {
+        "apt": [("VLC", "sudo apt update && sudo apt install vlc", "")],
+        "dnf": [("VLC", "sudo dnf install vlc", "Su Fedora VLC e' nel repository RPM Fusion: aggiungilo prima (vedi i comandi di ffmpeg).")],
+        "pacman": [("VLC", "sudo pacman -S vlc", "")],
+        "zypper": [("VLC", "sudo zypper install vlc", "Da Packman, come ffmpeg.")],
+        "brew": [("VLC", "brew install --cask vlc", "")],
+        "winget": [("VLC", "winget install VideoLAN.VLC", "")],
+    },
+    "mpv": {
+        "apt": [("mpv", "sudo apt update && sudo apt install mpv", "")],
+        "dnf": [("mpv", "sudo dnf install mpv", "Su Fedora mpv e' nel repository RPM Fusion.")],
+        "pacman": [("mpv", "sudo pacman -S mpv", "")],
+        "zypper": [("mpv", "sudo zypper install mpv", "")],
+        "brew": [("mpv", "brew install mpv", "")],
+        "winget": [("mpv", "winget install mpv", "")],
+    },
+}
+
+
+def comandi_installazione(programma="ffmpeg"):
+    """I comandi da copiare per installare ffmpeg, vlc o mpv con il gestore di pacchetti di questo computer: una lista di dizionari
+    {etichetta, comando, nota}. Per ffmpeg ci sono la versione «Completo» e quella «Essenziale». Se il gestore non si riconosce restituisce
+    i comandi di tutti i gestori comuni, con il nome del gestore davanti all'etichetta."""
+    if programma not in _COMANDI:
+        raise ValueError("programma sconosciuto: scegli tra " + ", ".join(_COMANDI))
+    tabella = _COMANDI[programma]
+    gestore = _gestore_pacchetti()
+    if gestore in tabella:
+        return [dict(etichetta=e, comando=c, nota=n) for e, c, n in tabella[gestore]]
+    return [dict(etichetta=f"{g}: {e}", comando=c, nota=n) for g in ("apt", "dnf", "pacman", "zypper") for e, c, n in tabella.get(g, [])]
+
+
+def istruzioni_ffmpeg():
+    """Come procurarsi ffmpeg su questo computer (un testo da mostrare a chi ne ha bisogno)."""
+    if _gestore_pacchetti() == "winget":
+        return ("Scrivi multimedia.scarica_ffmpeg() per scaricarlo (circa 115 MB, dal sito ufficiale), oppure usa Strumenti > ffmpeg in PitStudio, "
+                "oppure installalo tu (Windows: winget install ffmpeg).")
+    voci = comandi_installazione("ffmpeg")
+    if _gestore_pacchetti() is None:
+        return "Installa il pacchetto ffmpeg con il gestore di pacchetti della tua distribuzione. Per esempio:\n" + "\n".join(f"  {v['comando']}" for v in voci[:4])
+    return "Installalo con il gestore di pacchetti:\n" + "\n".join(f"  {v['etichetta']}: {v['comando']}" for v in voci)
+
+
 def _richiedi(programma):
     p = trova_ffmpeg(programma)
     if not p:
-        raise FfmpegNonTrovato(
-            "ffmpeg non e' installato. Scrivi multimedia.scarica_ffmpeg() per scaricarlo (circa 115 MB, "
-            "dal sito ufficiale), oppure usa Strumenti > ffmpeg in PitStudio, oppure installalo tu "
-            "(Windows: winget install ffmpeg).")
+        raise FfmpegNonTrovato("ffmpeg non e' installato. " + istruzioni_ffmpeg())
     return p
 
 
@@ -263,7 +335,7 @@ def scarica_ffmpeg(url=None, cartella=CARTELLA_FFMPEG, avanzamento=None, sha256=
     versione, sostituisce quella gia' scaricata. Controlla l'impronta SHA-256. `avanzamento(byte_scaricati, byte_totali)` e `interrompi()`
     sono facoltativi. Con `url=` si scarica un archivio qualunque (con `sha256=`). Funziona solo su Windows (altrove: apt, brew, ...)."""
     if _os.name != "nt":
-        raise ErroreMultimedia("Il download automatico e' solo per Windows: installa ffmpeg con il gestore di pacchetti (apt, brew, ...).")
+        raise ErroreMultimedia("Il download automatico e' solo per Windows. " + istruzioni_ffmpeg())
     chiave = None
     if url is None:
         chiave = _chiave_variante(variante)

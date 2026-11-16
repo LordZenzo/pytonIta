@@ -52,6 +52,14 @@ definisci _moduli_italiani():
         da _mappa_moduli importa PROPRI come propri        # moduli scritti a mano (suono, multimedia, ffmpeg, lettore)
     eccetto ImportError:
         passa
+    # l'interprete di Linux e macOS si compila con una patch: il suo _mappa_moduli non sa dei moduli scritti a mano arrivati dopo,
+    # che pero' ci sono (si installano insieme a PitStudio): li riconosco dai file
+    per nome in ("suono", "multimedia", "ffmpeg", "lettore"):
+        prova:
+            se importlib.util.find_spec(nome) è non Nessuno:
+                propri = list(propri) + [nome]
+        eccetto (ImportError, ValueError):
+            passa
     ritorna sorted(set(MAPPA.values()) | set(propri))
 
 

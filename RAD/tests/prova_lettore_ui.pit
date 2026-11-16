@@ -11,6 +11,9 @@ da rad.config importa Configurazione
 da rad.finestra importa Applicazione
 da rad.media_ui importa FinestraLettore
 importa lettore
+da rad importa piattaforma
+
+piattaforma.WINDOWS = Vero          # il flusso di Windows (winget); gli altri sistemi si provano sotto
 importa suono
 
 lettore.CONFIGURAZIONE = os.path.join(radice_test, "lettore.json")
@@ -63,6 +66,13 @@ f.b_installa.invoke()
 aspetta(3, lambda: installazioni)
 verifica(installazioni == ["vlc"], f"installazione dopo il consenso: {installazioni}")
 f.destroy()
+# altri sistemi: niente pulsante per winget, solo la spiegazione del comando
+piattaforma.WINDOWS = Falso
+f = FinestraLettore(app)
+radice.update()
+verifica("non è installato" in f.nota.cget("text") e non f.b_installa.winfo_ismapped(), f"altri sistemi: {f.nota.cget('text')}")
+f.destroy()
+piattaforma.WINDOWS = Vero
 lettore._cartella_vlc = vero_cartella
 
 se non lettore.motori_disponibili():

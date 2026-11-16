@@ -1,0 +1,466 @@
+"""Etichetta, casella e opzione trasparenti: lasciano vedere quello che c'è sotto (il colore della finestra o di un riquadro, un'immagine, pulsanti, campi...).
+
+tkinter non ha componenti trasparenti: questi sono tele che mostrano ciò che sta sotto di loro e ci disegnano sopra testo e indicatore.
+Su Windows (con Pillow) fanno una «fotografia» di quello che c'è davvero sotto e la mettono dietro; altrove, o senza Pillow, ridisegnano solo i colori e le
+immagini degli «strati» (vedi sotto). L'etichetta lascia passare i clic al componente sotto; casella e opzione, invece, rispondono loro.
+
+    etichetta = trasparenza.EtichettaTrasparente(radice, testo="Titolo", base="#ffeecc",
+                                                 strati=[("immagine", -20, -10, 300, 200, "sfondo.png")], cartella=cartella)
+    casella = trasparenza.CasellaTrasparente(radice, testo="Ricorda", variable=variabile, comando=funzione)
+    opzione = trasparenza.OpzioneTrasparente(radice, testo="Rosso", variable=variabile_testo, value="rosso")
+    etichetta.posiziona(x=20, y=10, width=200, height=30)
+
+Si usano come i componenti normali: `configura(testo=...)`, `cget("text")`, e per casella e opzione `select()`, `deselect()`, `toggle()` e `invoke()`
+(anche `seleziona()`, `deseleziona()`, `inverti()` e `invoca()`). Se sotto qualcosa cambia, `aggiorna_sfondo()` rifà la fotografia.
+Gli «strati» sono quello che sta sotto, dal più in fondo al più vicino, con le coordinate relative all'angolo in alto a sinistra del componente:
+("colore", x, y, larghezza, altezza, "#rrggbb") oppure ("immagine", x, y, larghezza, altezza, "file.png").
+Questo file è stato creato da PitStudio (sfondo «trasparente») e si può usare anche con finestre scritte a mano.
+"""
+VERSIONE_MODULO = 3
+importa os
+importa sys
+importa tkinter come tk
+
+_API = {}
+_CHIAVI_BASE = {"testo": "testo", "text": "testo", "primo_piano": "colore", "foreground": "colore", "fg": "colore", "carattere": "carattere", "font": "carattere",
+                "stato": "stato", "state": "stato"}
+
+
+definisci _istantanea_finestra(widget):
+    """Un'immagine Pillow di come appare il widget (con i componenti che contiene), anche se è coperto da altre finestre: PrintWindow di Windows.
+    Nessuno se non è possibile (altri sistemi, niente Pillow, errore)."""
+    se sys.platform != "win32":
+        ritorna Nessuno
+    prova:
+        importa ctypes
+        da ctypes importa wintypes
+        da PIL importa Image
+        user32, gdi32 = ctypes.windll.user32, ctypes.windll.gdi32
+        H = ctypes.c_void_p
+        se non _API:
+            user32.GetDC.argtypes = [H]
+            user32.GetDC.restype = H
+            user32.ReleaseDC.argtypes = [H, H]
+            user32.PrintWindow.argtypes = [H, H, wintypes.UINT]
+            gdi32.CreateCompatibleDC.argtypes = [H]
+            gdi32.CreateCompatibleDC.restype = H
+            gdi32.CreateCompatibleBitmap.argtypes = [H, ctypes.c_int, ctypes.c_int]
+            gdi32.CreateCompatibleBitmap.restype = H
+            gdi32.SelectObject.argtypes = [H, H]
+            gdi32.SelectObject.restype = H
+            gdi32.GetDIBits.argtypes = [H, H, wintypes.UINT, wintypes.UINT, ctypes.c_void_p, ctypes.c_void_p, wintypes.UINT]
+            gdi32.DeleteObject.argtypes = [H]
+            gdi32.DeleteDC.argtypes = [H]
+            _API["ok"] = Vero
+
+        classe INTESTAZIONE(ctypes.Structure):
+            _fields_ = [("biSize", wintypes.DWORD), ("biWidth", wintypes.LONG), ("biHeight", wintypes.LONG), ("biPlanes", wintypes.WORD), ("biBitCount", wintypes.WORD),
+                        ("biCompression", wintypes.DWORD), ("biSizeImage", wintypes.DWORD), ("biXPelsPerMeter", wintypes.LONG), ("biYPelsPerMeter", wintypes.LONG),
+                        ("biClrUsed", wintypes.DWORD), ("biClrImportant", wintypes.DWORD)]
+        larghezza, altezza = widget.winfo_width(), widget.winfo_height()
+        se larghezza < 2 o altezza < 2:
+            ritorna Nessuno
+        schermo = user32.GetDC(Nessuno)
+        memoria = gdi32.CreateCompatibleDC(schermo)
+        bitmap = gdi32.CreateCompatibleBitmap(schermo, larghezza, altezza)
+        gdi32.SelectObject(memoria, bitmap)
+        riuscito = user32.PrintWindow(widget.winfo_id(), memoria, 2)
+        intestazione = INTESTAZIONE(ctypes.sizeof(INTESTAZIONE), larghezza, -altezza, 1, 32, 0, 0, 0, 0, 0, 0)
+        dati = ctypes.create_string_buffer(larghezza * altezza * 4)
+        gdi32.GetDIBits(memoria, bitmap, 0, altezza, dati, ctypes.byref(intestazione), 0)
+        gdi32.DeleteObject(bitmap)
+        gdi32.DeleteDC(memoria)
+        user32.ReleaseDC(Nessuno, schermo)
+        se non riuscito:
+            ritorna Nessuno
+        ritorna Image.frombuffer("RGBA", (larghezza, altezza), dati, "raw", "BGRA", 0, 1).convert("RGB")
+    eccetto Exception:
+        ritorna Nessuno
+
+
+classe _Trasparente(tk.Canvas):
+    """La parte comune: la tela che mostra quello che c'è sotto (fotografia o strati) e ci disegna sopra il contenuto della sottoclasse."""
+    _CHIAVI = _CHIAVI_BASE
+
+    definisci __inizializza__(se_stesso, genitore, base="", strati=(), cartella=Nessuno, anteprima=Falso, nascondi=Nessuno, **opzioni):
+        sfondo_ = base
+        se non sfondo_:
+            prova:
+                sfondo_ = genitore.cget("background")
+            eccetto tk.TclError:
+                sfondo_ = "#f0f0f0"
+        tk.Canvas.__init__(se_stesso, genitore, background=sfondo_, highlightthickness=0, borderwidth=0, **opzioni)
+        se_stesso._strati = list(strati)
+        se_stesso._cartella = cartella
+        se_stesso._cache = {}
+        se_stesso._ritaglio = Nessuno
+        se_stesso._istantanea = Nessuno          # la fotografia di quello che c'è sotto (Windows con Pillow)
+        se_stesso._in_corso = Falso
+        se_stesso._ripeti = Falso
+        se_stesso._attese = []
+        se_stesso.anteprima = anteprima          # nel progettista: niente clic e tasti
+        se_stesso.nascondi = nascondi            # funzione che dà i componenti da nascondere durante la fotografia (nel progettista: contorno e maniglie)
+        se_stesso.bind("<Configure>", lambda evento: se_stesso._disegna())
+        se_stesso.bind("<Map>", se_stesso._alla_mappa, add="+")
+        se_stesso.bind("<Destroy>", se_stesso._alla_distruzione, add="+")
+
+    # ---- configure / cget come un componente normale (nomi di tkinter e italiani)
+    definisci _chiave(se_stesso, nome):
+        ritorna se_stesso._CHIAVI.get(nome)
+
+    definisci configure(se_stesso, cnf=Nessuno, **opzioni):
+        se isinstance(cnf, str) e non opzioni:
+            ritorna se_stesso.cget(cnf) se se_stesso._chiave(cnf) altrimenti tk.Canvas.configure(se_stesso, cnf)
+        se cnf è Nessuno e non opzioni:
+            ritorna tk.Canvas.configure(se_stesso)
+        se isinstance(cnf, dict):
+            opzioni = dict(cnf, **opzioni)
+        cambiato = Falso
+        per nome in list(opzioni):
+            interna = se_stesso._chiave(nome)
+            se interna:
+                se_stesso._v[interna] = opzioni.pop(nome)
+                cambiato = Vero
+        se "sfondo" in opzioni:
+            opzioni["background"] = opzioni.pop("sfondo")
+        se opzioni:
+            tk.Canvas.configure(se_stesso, **opzioni)
+        se cambiato:
+            se_stesso._disegna()
+
+    config = configure
+    configura = configure
+
+    definisci cget(se_stesso, chiave):
+        interna = se_stesso._chiave(chiave)
+        se interna:
+            ritorna se_stesso._v[interna]
+        ritorna tk.Canvas.cget(se_stesso, chiave)
+
+    __getitem__ = cget
+
+    # ---- la fotografia di quello che c'è sotto
+    definisci imposta_strati(se_stesso, base, strati):
+        """Cambia quello che sta sotto (per esempio dopo aver spostato un'immagine)."""
+        se base:
+            tk.Canvas.configure(se_stesso, background=base)
+        se_stesso._strati = list(strati)
+        se_stesso._disegna()
+        se_stesso.aggiorna_sfondo()
+
+    definisci _alla_mappa(se_stesso, evento=Nessuno):
+        """Quando il componente compare si fa la fotografia (un momento dopo, perché anche gli altri siano al loro posto). La comparsa causata
+        dalla fotografia stessa non conta."""
+        se non se_stesso._in_corso:
+            se_stesso._programma(120, lambda: se_stesso.aggiorna_sfondo(da_mappa=Vero))
+
+    definisci aggiorna_sfondo(se_stesso, da_mappa=Falso):
+        """Rifà la fotografia di quello che c'è sotto (da chiamare se sotto qualcosa è cambiato). Restituisce Vero se c'è riuscita."""
+        se non se_stesso.winfo_exists() o se_stesso.winfo_manager() == "":
+            ritorna Falso
+        se se_stesso._in_corso:
+            se non da_mappa:
+                se_stesso._ripeti = Vero        # una fotografia è appena stata fatta: se ne rifà una subito dopo
+            ritorna Falso
+        se_stesso._in_corso = Vero
+        riuscito = Falso
+        nascosti = []
+        prova:
+            padre = se_stesso.master
+            x, y, larghezza, altezza = se_stesso.winfo_x(), se_stesso.winfo_y(), se_stesso.winfo_width(), se_stesso.winfo_height()
+            gestore = se_stesso.winfo_manager()
+            se sys.platform == "win32" e larghezza > 1 e altezza > 1 e gestore in ("place", "grid"):
+                info = getattr(se_stesso, gestore + "_info")()
+                getattr(se_stesso, gestore + "_forget")()
+                per altro in (se_stesso.nascondi() se se_stesso.nascondi altrimenti []):
+                    se altro.winfo_exists() e altro.winfo_manager() == "place":
+                        nascosti.append((altro, altro.place_info()))
+                        altro.place_forget()
+                padre.update()                    # il genitore si ridisegna senza di noi
+                immagine = _istantanea_finestra(padre)
+                per altro, informazioni in nascosti:
+                    altro.place(**informazioni)
+                nascosti = []
+                getattr(se_stesso, gestore)(**info)
+                padre.update_idletasks()
+                se immagine è non Nessuno:
+                    da PIL importa ImageTk
+                    se_stesso._ritaglio = immagine.crop((x, y, x + larghezza, y + altezza))          # (anche per controllare cosa si vede)
+                    se_stesso._istantanea = ImageTk.PhotoImage(se_stesso._ritaglio)
+                    se_stesso._disegna()
+                    riuscito = Vero
+        eccetto Exception:
+            riuscito = Falso
+        infine:
+            per altro, informazioni in nascosti:
+                prova:
+                    altro.place(**informazioni)
+                eccetto Exception:
+                    passa
+            se_stesso._programma(250, se_stesso._libera)
+        ritorna riuscito
+
+    definisci _programma(se_stesso, millisecondi, funzione):
+        """Come after(), ma le attese ancora in corso si annullano quando il componente sparisce (niente errori «invalid command name»)."""
+        se_stesso._attese.append(se_stesso.after(millisecondi, funzione))
+
+    definisci _alla_distruzione(se_stesso, evento=Nessuno):
+        se evento è Nessuno o evento.widget è se_stesso:
+            per identificatore in se_stesso._attese:
+                prova:
+                    se_stesso.after_cancel(identificatore)
+                eccetto tk.TclError:
+                    passa
+            se_stesso._attese = []
+            se_stesso._pulisci()
+
+    definisci _pulisci(se_stesso):
+        """Le sottoclassi sciolgono qui quello che hanno legato (per esempio la variabile)."""
+        passa
+
+    definisci _libera(se_stesso):
+        se_stesso._in_corso = Falso
+        se se_stesso._ripeti e se_stesso.winfo_exists():
+            se_stesso._ripeti = Falso
+            se_stesso.aggiorna_sfondo()
+
+    # ---- i clic che attraversano (etichetta)
+    definisci _sotto(se_stesso, x_schermo, y_schermo):
+        """Il componente (dello stesso contenitore) che sta sotto al punto, il più in alto."""
+        per fratello in reversed(se_stesso.master.winfo_children()):
+            se fratello è se_stesso o isinstance(fratello, _Trasparente) o non fratello.winfo_ismapped():
+                continua
+            se fratello.winfo_rootx() <= x_schermo < fratello.winfo_rootx() + fratello.winfo_width() e fratello.winfo_rooty() <= y_schermo < fratello.winfo_rooty() + fratello.winfo_height():
+                ritorna fratello
+        ritorna Nessuno
+
+    definisci _inoltra(se_stesso, sequenza, evento):
+        """I clic sulla parte che il componente copre vanno al componente che c'è sotto."""
+        bersaglio = se_stesso._sotto(evento.x_root, evento.y_root)
+        se bersaglio è non Nessuno:
+            posizione = dict(x=evento.x_root - bersaglio.winfo_rootx(), y=evento.y_root - bersaglio.winfo_rooty(), rootx=evento.x_root, rooty=evento.y_root)
+            se sequenza.startswith("<ButtonPress"):
+                bersaglio.event_generate("<Enter>", **posizione)          # i pulsanti scattano solo se il mouse «è entrato» in loro
+            bersaglio.event_generate(sequenza, **posizione)
+            se sequenza.startswith("<ButtonRelease"):
+                bersaglio.event_generate("<Leave>", **posizione)
+
+    # ---- il disegno
+    definisci _immagine(se_stesso, file, larghezza, altezza):
+        chiave = (file, larghezza, altezza)
+        se chiave in se_stesso._cache:
+            ritorna se_stesso._cache[chiave]
+        percorso = file se os.path.isabs(file) o non se_stesso._cartella altrimenti os.path.join(se_stesso._cartella, file)
+        foto = Nessuno
+        prova:
+            da PIL importa Image, ImageTk
+            immagine = Image.open(percorso)
+            immagine.thumbnail((max(1, larghezza), max(1, altezza)))
+            foto = ImageTk.PhotoImage(immagine)
+        eccetto Exception:
+            prova:
+                foto = tk.PhotoImage(file=percorso)
+            eccetto Exception:
+                foto = Nessuno
+        se_stesso._cache[chiave] = foto
+        ritorna foto
+
+    definisci _disegna(se_stesso):
+        se_stesso.delete("all")
+        larghezza, altezza = se_stesso.winfo_width(), se_stesso.winfo_height()
+        se se_stesso._istantanea è non Nessuno:
+            se_stesso.create_image(0, 0, image=se_stesso._istantanea, anchor="nw")
+        per strato in (se_stesso._strati se se_stesso._istantanea è Nessuno altrimenti []):
+            tipo_strato, x, y, w, h, valore = strato
+            se tipo_strato == "colore":
+                se_stesso.create_rectangle(x, y, x + w, y + h, fill=valore, outline="")
+            altrimenti_se tipo_strato == "immagine":
+                foto = se_stesso._immagine(valore, w, h)
+                se foto è non Nessuno:
+                    se_stesso.create_image(x + (w - foto.width()) // 2, y + (h - foto.height()) // 2, image=foto, anchor="nw")
+        se_stesso._disegna_contenuto(larghezza, altezza)
+
+    definisci _disegna_contenuto(se_stesso, larghezza, altezza):
+        passa
+
+
+classe EtichettaTrasparente(_Trasparente):
+    """Come un'etichetta, ma lascia vedere quello che c'è sotto; i clic passano al componente sotto."""
+    _CHIAVI = dict(_CHIAVI_BASE, giustifica="giustifica", justify="giustifica", ancora="ancora", anchor="ancora")
+
+    definisci __inizializza__(se_stesso, genitore, testo="", giustifica="left", ancora="w", primo_piano="", carattere=Nessuno, **opzioni):
+        _Trasparente.__inizializza__(se_stesso, genitore, **opzioni)
+        se_stesso._v = {"testo": testo, "giustifica": giustifica, "ancora": ancora, "colore": primo_piano o "black", "carattere": carattere, "stato": "normal"}
+        se non se_stesso.anteprima:
+            per sequenza in ("<ButtonPress-1>", "<ButtonRelease-1>", "<Double-Button-1>", "<ButtonPress-3>"):
+                se_stesso.bind(sequenza, lambda evento, nome=sequenza: se_stesso._inoltra(nome, evento))
+
+    definisci _disegna_contenuto(se_stesso, larghezza, altezza):
+        v = se_stesso._v
+        ancora = v["ancora"] se v["ancora"] in ("w", "e", "center") altrimenti "w"
+        x_testo = {"w": 2, "e": larghezza - 2, "center": larghezza / 2}[ancora]
+        opzioni = dict(text=v["testo"], anchor=ancora, justify=v["giustifica"], fill=v["colore"])
+        se v["carattere"]:
+            opzioni["font"] = v["carattere"]
+        se_stesso.create_text(x_testo, altezza / 2, **opzioni)
+
+
+classe _Scelta(_Trasparente):
+    """La parte comune di casella e opzione: indicatore a sinistra, testo a destra, variabile, comando, clic e barra spaziatrice."""
+    LATO = 13
+    _CHIAVI = dict(_CHIAVI_BASE, comando="comando", command="comando", valore="valore", value="valore")
+
+    definisci __inizializza__(se_stesso, genitore, testo="", variable=Nessuno, variabile=Nessuno, comando=Nessuno, command=Nessuno, valore=Nessuno, value=Nessuno,
+                              stato="normal", indicatore=("#ffffff", "#333333", "#000000"), primo_piano="", carattere=Nessuno, selezionata=Falso, **opzioni):
+        _Trasparente.__inizializza__(se_stesso, genitore, **opzioni)
+        se_stesso._v = {"testo": testo, "colore": primo_piano o "black", "carattere": carattere, "stato": stato, "comando": comando o command,
+                        "valore": valore se valore è non Nessuno altrimenti value}
+        se_stesso._variabile = variable o variabile
+        se_stesso._locale = bool(selezionata)          # lo stato, se non c'è una variabile
+        se_stesso._indicatore = indicatore
+        se_stesso._traccia = Nessuno
+        se se_stesso._variabile è non Nessuno:
+            se_stesso._traccia = se_stesso._variabile.trace_add("write", lambda *argomenti: se_stesso._ridisegna_se_esiste())
+        se non se_stesso.anteprima:
+            tk.Canvas.configure(se_stesso, takefocus=1, cursor="hand2")
+            se_stesso.bind("<ButtonPress-1>", lambda evento: se_stesso.focus_set())
+            se_stesso.bind("<ButtonRelease-1>", se_stesso._rilascio)
+            se_stesso.bind("<space>", lambda evento: se_stesso.invoke())
+            se_stesso.bind("<FocusIn>", lambda evento: se_stesso._disegna())
+            se_stesso.bind("<FocusOut>", lambda evento: se_stesso._disegna())
+
+    definisci _ridisegna_se_esiste(se_stesso):
+        se se_stesso.winfo_exists():
+            se_stesso._disegna()
+
+    definisci _pulisci(se_stesso):
+        se se_stesso._traccia è non Nessuno e se_stesso._variabile è non Nessuno:
+            prova:
+                se_stesso._variabile.trace_remove("write", se_stesso._traccia)
+            eccetto Exception:
+                passa
+            se_stesso._traccia = Nessuno
+
+    definisci _rilascio(se_stesso, evento):
+        se 0 <= evento.x < se_stesso.winfo_width() e 0 <= evento.y < se_stesso.winfo_height():
+            se_stesso.invoke()
+
+    definisci _attiva(se_stesso):
+        ritorna Falso
+
+    definisci _disegna_contenuto(se_stesso, larghezza, altezza):
+        v = se_stesso._v
+        lato = se_stesso.LATO
+        x0, y0 = 2, (altezza - lato) / 2
+        spento = tipo_testo(v["stato"]) == "disabled"
+        riempimento, bordo, segno = se_stesso._indicatore
+        se spento:
+            bordo, segno = "#a0a0a0", "#a0a0a0"
+        se_stesso._disegna_indicatore(x0, y0, lato, riempimento, bordo, segno, se_stesso._attiva())
+        opzioni = dict(text=v["testo"], anchor="w", fill="#a0a0a0" se spento altrimenti v["colore"])
+        se v["carattere"]:
+            opzioni["font"] = v["carattere"]
+        testo_ = se_stesso.create_text(x0 + lato + 6, altezza / 2, **opzioni)
+        se se_stesso.focus_get() è se_stesso e non spento:
+            riquadro = se_stesso.bbox(testo_)
+            se riquadro:
+                se_stesso.create_rectangle(riquadro[0] - 2, riquadro[1] - 1, riquadro[2] + 2, riquadro[3] + 1, outline=v["colore"], dash=(1, 2))
+
+    definisci _disegna_indicatore(se_stesso, x0, y0, lato, riempimento, bordo, segno, acceso):
+        passa
+
+    # ---- come una casella / un'opzione normale
+    definisci invoke(se_stesso):
+        """Come un clic: cambia lo stato e chiama il comando."""
+        se tipo_testo(se_stesso._v["stato"]) == "disabled":
+            ritorna
+        se_stesso._cambia()
+        se se_stesso._v["comando"]:
+            se_stesso._v["comando"]()
+
+    definisci _cambia(se_stesso):
+        passa
+
+    definisci flash(se_stesso):
+        passa
+
+    invoca = invoke
+    lampeggia = flash
+
+
+classe CasellaTrasparente(_Scelta):
+    """Come una casella di selezione (Checkbutton), ma trasparente."""
+
+    definisci _attiva(se_stesso):
+        se se_stesso._variabile è non Nessuno:
+            prova:
+                ritorna bool(se_stesso._variabile.get())
+            eccetto tk.TclError:
+                ritorna Falso
+        ritorna se_stesso._locale
+
+    definisci _imposta(se_stesso, acceso):
+        se se_stesso._variabile è non Nessuno:
+            se_stesso._variabile.set(bool(acceso))
+        altrimenti:
+            se_stesso._locale = bool(acceso)
+            se_stesso._disegna()
+
+    definisci _cambia(se_stesso):
+        se_stesso._imposta(non se_stesso._attiva())
+
+    definisci select(se_stesso):
+        se_stesso._imposta(Vero)
+
+    definisci deselect(se_stesso):
+        se_stesso._imposta(Falso)
+
+    definisci toggle(se_stesso):
+        se_stesso._cambia()
+
+    seleziona = select
+    deseleziona = deselect
+    inverti = toggle
+
+    definisci _disegna_indicatore(se_stesso, x0, y0, lato, riempimento, bordo, segno, acceso):
+        se_stesso.create_rectangle(x0, y0, x0 + lato, y0 + lato, fill=riempimento, outline=bordo)
+        se acceso:
+            se_stesso.create_line(x0 + 3, y0 + 7, x0 + 5.5, y0 + 10, x0 + 10, y0 + 3.5, fill=segno, width=2, capstyle="round", joinstyle="round")
+
+
+classe OpzioneTrasparente(_Scelta):
+    """Come un pulsante di opzione (Radiobutton), ma trasparente."""
+
+    definisci _attiva(se_stesso):
+        se se_stesso._variabile è non Nessuno:
+            prova:
+                ritorna se_stesso._variabile.get() == se_stesso._v["valore"]
+            eccetto tk.TclError:
+                ritorna Falso
+        ritorna se_stesso._locale
+
+    definisci _cambia(se_stesso):
+        se_stesso.select()
+
+    definisci select(se_stesso):
+        se se_stesso._variabile è non Nessuno:
+            se_stesso._variabile.set(se_stesso._v["valore"])
+        altrimenti:
+            se_stesso._locale = Vero
+            se_stesso._disegna()
+
+    definisci deselect(se_stesso):
+        se se_stesso._variabile è non Nessuno:
+            se se_stesso._variabile.get() == se_stesso._v["valore"]:
+                se_stesso._variabile.set("")
+        altrimenti:
+            se_stesso._locale = Falso
+            se_stesso._disegna()
+
+    seleziona = select
+    deseleziona = deselect
+
+    definisci _disegna_indicatore(se_stesso, x0, y0, lato, riempimento, bordo, segno, acceso):
+        se_stesso.create_oval(x0, y0, x0 + lato, y0 + lato, fill=riempimento, outline=bordo)
+        se acceso:
+            se_stesso.create_oval(x0 + 3.5, y0 + 3.5, x0 + lato - 3.5, y0 + lato - 3.5, fill=segno, outline=segno)
