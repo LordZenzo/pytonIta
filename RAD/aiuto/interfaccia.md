@@ -20,6 +20,16 @@
 - PitStudio ricorda la disposizione, le schede aperte e l'ultimo progetto: alla riapertura ritrovi tutto com'era.
 - **Ctrl +** e **Ctrl −** cambiano la dimensione del testo; il tema chiaro/scuro si cambia da *Visualizza → Tema chiaro / scuro*.
 
+## Una finestra con le schede, o una finestra per scheda
+
+Di solito i file aperti stanno tutti nella finestra principale, in schede. Se preferisci, ogni scheda (un file, il disegno di una finestra, un database) può stare **in una finestra separata**: comoda con più monitor o per confrontare due file a fianco.
+
+- **Visualizza → Ogni scheda in una finestra separata** (o *Impostazioni → Finestre*) sceglie come si aprono i file da ora in poi; se ci sono già schede aperte, PitStudio chiede se spostarle.
+- **Stacca in una finestra**: dal tasto destro sulla linguetta, o *Visualizza → Stacca la scheda corrente in una finestra*. **Riporta la scheda corrente nella finestra principale** e **Riporta tutte le schede nella finestra principale** fanno il percorso inverso. Se la scheda ha modifiche non salvate, PitStudio chiede cosa fare (e se annulli non sposta niente).
+- Ogni finestra ha la barra dei menu di PitStudio e le stesse scorciatoie (Ctrl+S salva il file di quella finestra); il titolo mostra il nome del file e il pallino ● delle modifiche. Chiudere la finestra chiude la scheda.
+- La posizione e la dimensione di ogni file si ricordano; alla riapertura ritrovi le finestre dove le avevi lasciate. Le schede miste (alcune nella principale, altre in finestre) vanno benissimo.
+- Il pannello Progetto, la Console e l'Assistente restano nella finestra principale. Le schede di tipo «database» (MySQL, PostgreSQL) non si possono spostare dopo l'apertura: chiudile e riaprile.
+
 ## Menu
 
 - **File**: progetti, nuovi file, finestre e programmi a mattonelle, conversione, salva, esci.

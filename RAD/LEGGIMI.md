@@ -16,6 +16,13 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.39
+
+- **Schede di PitStudio: una finestra con le schede, oppure una finestra per scheda.** Si sceglie da *Visualizza → Ogni scheda in una finestra separata* o *Impostazioni → Finestre*; ogni file (editor, disegno di finestra, visore, database) si apre nella sua finestra, con la barra dei menu di PitStudio, le scorciatoie, il titolo col pallino delle modifiche e la posizione ricordata. *Stacca in una finestra* (tasto destro sulla linguetta) e *Riporta nella finestra principale* spostano una scheda; si possono mescolare schede e finestre.
+- **Console e assistente partono chiusi**: si aprono dai pulsanti della barra o da *Visualizza*.
+- **Ubuntu recente (Wayland): «Nuovo progetto» non creava il progetto.** I dialoghi di PitStudio bloccavano le altre finestre prima che fossero visibili (`grab failed: window not viewable`) e il dialogo restava aperto senza risultato; ora aspettano che compaiano e, se non ci riescono, restano aperti senza bloccare, senza errore.
+- **Esportazione in Python con i moduli trasparenza e menu**: parametri con nomi come `testo`, `stato` o `comando` nei moduli del progetto facevano non convertire le stesse opzioni nelle altre chiamate (`TclError: unknown option "-testo"`); i moduli di PitStudio non li usano più.
+
 ## Novità della 2.38
 
 - **Menu rifatti.** La barra dei menu ha ora sotto-menu a **qualsiasi profondità**, voci con **scorciatoia da tastiera**, **icona**, **spunta** e **opzioni** (una per gruppo), voci spente e `@Finestra`. Le voci si scrivono in **JSON con più valori per voce** e si modificano in un **editor ad albero** (ma si può anche scrivere il JSON a mano); i menu scritti a rientri dei progetti vecchi si aprono come prima. Nuovi componenti: **MenuContestuale** (il tasto destro su un componente o sulla finestra) e **MenuModerno**, disegnato nella finestra, **verticale o orizzontale**, con **hamburger** (esteso, solo icone, chiuso), sotto-menu a fisarmonica o a cascata, **riduzione automatica** sotto una certa larghezza, ricerca dei comandi, tastiera e scorrimento. Il tutto usa il modulo `menu_moderno.pit`, che PitStudio mette nel progetto (e che l'esportazione in Python converte). Guida: «Menu: barra, contestuale e moderno».

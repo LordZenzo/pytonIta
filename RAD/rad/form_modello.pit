@@ -1048,7 +1048,11 @@ definisci genera_ui(form):
         r.append(f"        {_nome_classe(nome_f)}(finestra)")
         se come_dialogo:
             r.append("        finestra.transient(se_stesso.radice)")
-            r.append("        finestra.grab_set()")
+            r.append("        finestra.update()")
+            r.append("        prova:")
+            r.append("            finestra.grab_set()")
+            r.append("        eccetto Eccezione:                 # su alcuni sistemi la finestra non è ancora visibile: resta aperta senza bloccare le altre")
+            r.append("            passa")
         r.append("")
     # gestori predefiniti (vuoti): la classe di logica li ridefinisce
     gestori = []

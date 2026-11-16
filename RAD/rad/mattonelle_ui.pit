@@ -10,7 +10,7 @@ da rad.mattonelle_modello importa (CATEGORIE, ORDINE_CATEGORIE, PREFERITE_PER_CA
 da rad.mattonelle_disegno importa Disegnatore, scurisci, schiarisci
 da rad.editor importa Editor
 da rad.stile importa suggerisci
-da rad.piattaforma importa FONT_MONO, FONT_UI, lega_rotella
+da rad.piattaforma importa FONT_MONO, FONT_UI, lega_rotella, cattura
 
 CAPPELLI = ("avvio", "definisci_funzione")
 
@@ -100,7 +100,7 @@ classe DialogoTesto(tk.Toplevel):
         se_stesso.destroy()
 
     definisci mostra(se_stesso):
-        se_stesso.grab_set()
+        cattura(se_stesso)
         se_stesso.t.focus_set()
         se_stesso.wait_window()
         ritorna se_stesso.risultato
@@ -148,7 +148,7 @@ classe DialogoClasse(tk.Toplevel):
         se_stesso.destroy()
 
     definisci mostra(se_stesso):
-        se_stesso.grab_set()
+        cattura(se_stesso)
         se_stesso.e_nome.focus_set()
         se_stesso.wait_window()
         ritorna se_stesso.risultato

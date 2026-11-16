@@ -1,0 +1,164 @@
+"""Schede di PitStudio: tutte in una finestra (come sempre) oppure ognuna in una finestra separata; stacca e riporta, titolo e modifiche, salvataggio e chiusura,
+scorciatoie, posizione ricordata, sessione e impostazione."""
+importa sys, os, tempfile, json
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da tkinter importa messagebox
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.editor importa Editor
+da rad.schede_finestre importa FinestraScheda
+da rad importa impostazioni
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cartella = tempfile.mkdtemp()
+progetto = Progetto.nuovo(os.path.join(cartella, "P"), "P", "console")
+nomi = ["uno.pit", "due.pit", "tre.pit"]
+per n in nomi:
+    progetto.crea_file(n, f"stampa('{n}')\n")
+cfg = Configurazione(os.path.join(cartella, "c.json"))
+radice = tk.Tk()
+radice.geometry("1400x800+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+app.apri_progetto(progetto.cartella)
+radice.update()
+app.chiudi_tutte_le_schede()                  # il progetto apre da solo il file principale: si parte da zero
+radice.update()
+percorsi = {n: os.path.abspath(os.path.join(progetto.cartella, n)) per n in nomi}
+domande = []
+messagebox.askyesnocancel = lambda *a, **k: domande.append(a) o risposta["valore"]
+messagebox.askyesno = lambda *a, **k: Vero
+risposta = {"valore": Falso}
+
+verifica("Finestre" in [titolo per titolo, campi in impostazioni.SCHEDE], "le impostazioni hanno la sezione «Finestre»")
+verifica(("finestra.schede_in_finestre", "Ogni scheda (file, disegno di finestra, database) in una finestra separata, invece di tutte in una finestra con le schede", "si_no", Nessuno) in
+         [c per titolo, campi in impostazioni.SCHEDE se titolo == "Finestre" per c in campi], "e il campo per scegliere")
+verifica(cfg.ottieni("finestra.schede_in_finestre") è Falso, "per impostazione predefinita le schede restano nella finestra principale")
+
+# ---- come sempre: tutto nelle schede
+app.apri_file(percorsi["uno.pit"])
+radice.update()
+w1 = app.schede[percorsi["uno.pit"]]
+verifica(app._gruppo_di(w1) è app.schede_nb e w1.master è app.area_editor e lunghezza_di(app.finestre_schede) == 0, "senza l'impostazione il file si apre in una scheda")
+
+# ---- «Stacca in una finestra» dalla scheda
+verifica(app.stacca_scheda(w1), "stacca la scheda in una finestra")
+radice.update()
+w1 = app.schede[percorsi["uno.pit"]]
+verifica(isinstance(app._gruppo_di(w1), FinestraScheda) e lunghezza_di(app.finestre_schede) == 1 e w1.master.winfo_toplevel() è w1.master, "il file ora sta in una finestra a sé")
+verifica(w1.master.title().startswith("uno.pit — P — PitStudio"), "la finestra ha il nome del file e del progetto: " + w1.master.title())
+verifica(app._benvenuto è non Nessuno, "nella finestra principale torna la pagina di benvenuto")
+verifica(w1.master.cget("menu") != "", "la finestra ha la barra dei menu di PitStudio")
+verifica(app.sposta_scheda_nell_altro_gruppo(w1) è Falso, "«apri a fianco» non vale per una scheda in una finestra")
+# ---- ritorna tra le schede
+verifica(app.riporta_nelle_schede(w1), "riporta nella finestra principale")
+radice.update()
+w1 = app.schede[percorsi["uno.pit"]]
+verifica(app._gruppo_di(w1) è app.schede_nb e lunghezza_di(app.finestre_schede) == 0, "il file è di nuovo una scheda")
+radice.update()
+verifica(lunghezza_di([w per w in radice.winfo_children() se isinstance(w, FinestraScheda)]) == 0, "e la finestra vuota è sparita")
+
+# ---- la modalità «una finestra per scheda»
+app.var_schede_in_finestre.set(Vero)
+cfg.imposta("finestra.schede_in_finestre", Vero)
+app.apri_file(percorsi["due.pit"])
+app.apri_file(percorsi["tre.pit"])
+radice.update()
+w2, w3 = app.schede[percorsi["due.pit"]], app.schede[percorsi["tre.pit"]]
+verifica(isinstance(w2.master, FinestraScheda) e isinstance(w3.master, FinestraScheda) e w2.master è non w3.master, "ogni file nuovo ha la sua finestra")
+verifica(app._gruppo_di(w1) è app.schede_nb e isinstance(app._gruppo_di(w2), FinestraScheda), "i file aperti prima restano dove sono: misto schede e finestre")
+verifica(lunghezza_di(app.finestre_schede) == 2, "le finestre delle schede sono due")
+verifica(w2.master.tabs() == (str(w2),) e w2.master.select() == str(w2), "la finestra fa da «gruppo» con la sua unica scheda")
+verifica(app._gruppo2_visibile() è Falso, "i gruppi di schede non cambiano")
+
+# ---- scheda corrente = quella della finestra che ha il fuoco
+w2.master.focus_force()
+w2.t.focus_force()
+radice.update()
+verifica(app._scheda_corrente() è w2, "la scheda corrente è quella della finestra con il fuoco")
+w3.t.focus_force()
+radice.update()
+verifica(app._scheda_corrente() è w3, "cambiando finestra cambia la scheda corrente")
+app.radice.focus_force()
+radice.update()
+verifica(app._scheda_corrente() è non w2 e app._scheda_corrente() è non w3, "con il fuoco nella principale la corrente è una scheda della principale")
+
+# ---- modifica, titolo, salvataggio con la scorciatoia nella finestra
+w2.t.insert("end", "x = 1\n")
+radice.update()
+verifica(w2.master.title().startswith("●"), "il pallino «modificato» compare nel titolo della finestra: " + w2.master.title())
+w2.t.focus_force()
+radice.update()
+w2.t.event_generate("<Control-s>")
+radice.update()
+verifica("x = 1" in open(percorsi["due.pit"], encoding="utf-8").read(), "Ctrl+S dentro la finestra salva il suo file")
+verifica(non getattr(w2, "modificato", Falso) e non w2.master.title().startswith("●"), "e il titolo torna normale: " + w2.master.title())
+verifica("<Control-s>" in w2.master._sequenze_app, "le scorciatoie di PitStudio sono legate anche alla finestra")
+
+# ---- chiusura: modifiche non salvate
+w3.t.insert("end", "y = 2\n")
+radice.update()
+risposta["valore"] = Nessuno                      # «Annulla»
+w3.master._richiesta_chiusura()
+radice.update()
+verifica(w3.master.winfo_exists() e percorsi["tre.pit"] in app.schede e lunghezza_di(domande) == 1, "con modifiche non salvate chiede e, se si annulla, la finestra resta")
+risposta["valore"] = Falso                        # «No»: non salvare
+w3.master._richiesta_chiusura()
+radice.update()
+verifica(percorsi["tre.pit"] non in app.schede e lunghezza_di(app.finestre_schede) == 1, "dicendo di non salvare la scheda si chiude")
+verifica("y = 2" non in open(percorsi["tre.pit"], encoding="utf-8").read(), "e il file non è stato modificato")
+
+# ---- posizione e dimensione ricordate
+w2.master.geometry("777x555+120+90")
+radice.update()
+app.chiudi_scheda(w2)
+radice.update()
+verifica("777x555" in tipo_testo((cfg.ottieni("finestra.schede_geometrie") o {}).get(percorsi["due.pit"], "")), "la geometria si salva alla chiusura")
+app.apri_file(percorsi["due.pit"])
+radice.update()
+w2 = app.schede[percorsi["due.pit"]]
+verifica(w2.master.winfo_width() == 777 e w2.master.winfo_height() == 555, "e la finestra riappare uguale")
+
+# ---- sessione: tutti i file aperti, anche quelli nelle finestre
+app.salva_sessione()
+sessione = json.loads(open(app._file_sessione(), encoding="utf-8").read())
+verifica({"uno.pit", "due.pit"} <= set(sessione.get("aperti", [])), "la sessione elenca anche i file nelle finestre: " + tipo_testo(sessione.get("aperti")))
+stato = app.stato_ide()
+verifica({s["file"] per s in stato["schede_aperte"]} >= {"uno.pit", "due.pit"}, "l'assistente vede le schede di tutte le finestre")
+
+# ---- sposta tutto avanti e indietro
+verifica(app.stacca_tutte(), "stacca tutte le schede")
+radice.update()
+verifica(lunghezza_di(app.finestre_schede) == 2 e lunghezza_di(app._schede_nei_gruppi()) == 0 e app._benvenuto è non Nessuno, "tutto nelle finestre e la principale mostra il benvenuto")
+verifica(app.riporta_tutte(), "riporta tutte le schede")
+radice.update()
+verifica(lunghezza_di(app.finestre_schede) == 0 e lunghezza_di(app._schede_nei_gruppi()) == 2 e app._benvenuto è Nessuno, "tutto di nuovo nelle schede, senza benvenuto")
+
+# ---- la voce di menu e l'impostazione
+cfg.imposta("finestra.schede_in_finestre", Falso)
+app.var_schede_in_finestre.set(Vero)
+app._commuta_schede_in_finestre()
+verifica(cfg.ottieni("finestra.schede_in_finestre") è Vero, "la voce di menu «Ogni scheda in una finestra separata» cambia l'impostazione")
+radice.update()
+verifica(lunghezza_di(app.finestre_schede) == 2, "e (confermando) sposta le schede aperte")
+cfg.imposta("finestra.schede_in_finestre", Falso)
+radice.update()
+verifica(app.var_schede_in_finestre.get() è Falso e lunghezza_di(app.finestre_schede) == 0, "cambiandola dalle impostazioni la voce di menu segue e le schede tornano")
+
+# ---- si chiude tutto
+verifica(app.chiudi_tutte_le_schede(), "chiudi tutte le schede")
+radice.update()
+verifica(lunghezza_di(app.schede) == 0 e app._benvenuto è non Nessuno, "chiuse tutte, resta il benvenuto")
+radice.destroy()
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)

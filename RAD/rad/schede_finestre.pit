@@ -1,0 +1,115 @@
+"""Schede di PitStudio in finestre separate: una finestra che contiene una sola scheda (un file, un disegno di finestra, un database...).
+
+PitStudio può tenere i file aperti in due modi: tutti nella finestra principale, in schede (come sempre), oppure ognuno in una finestra a sé.
+Una FinestraScheda sta al posto del «gruppo di schede» (SchedeScorrevoli) per il resto del programma: ha gli stessi metodi che PitStudio usa
+(add, forget, select, tab, tabs, index, nametowidget, segna_attivo, applica_stile), così salvataggio, titolo con il pallino delle modifiche, chiusura,
+sessione e assistente funzionano senza sapere in che finestra sta il file.
+"""
+importa tkinter come tk
+
+LARGHEZZA_PREDEFINITA = 900
+ALTEZZA_PREDEFINITA = 650
+SCARTO = 34          # ogni finestra nuova parte un po' più in basso e a destra della precedente
+
+
+classe FinestraScheda(tk.Toplevel):
+    """Una finestra con dentro una scheda. Chiudendola si chiude la scheda (con la domanda di salvare, se serve)."""
+
+    definisci __inizializza__(se_stesso, app, geometria=Nessuno):
+        tk.Toplevel.__init__(se_stesso, app.radice)
+        se_stesso.app = app
+        se_stesso.contenuto = Nessuno
+        se_stesso.attivo = Falso
+        se_stesso.withdraw()                                  # compare quando c'è il contenuto
+        se_stesso.configure(background=app.colori["sfondo"])
+        se_stesso.geometry(geometria o se_stesso._geometria_nuova())
+        se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._richiesta_chiusura)
+        se_stesso.bind("<FocusIn>", se_stesso._attivata, add="+")
+        prova:
+            se_stesso.configure(menu=app.radice.nametowidget(app.radice.cget("menu")))      # la stessa barra dei menu della finestra principale
+        eccetto (tk.TclError, KeyError):
+            passa
+        app.applica_scorciatoie_a(se_stesso)
+
+    definisci _geometria_nuova(se_stesso):
+        radice = se_stesso.app.radice
+        n = lunghezza_di(se_stesso.app.finestre_schede)
+        x = radice.winfo_rootx() + 60 + (n % 8) * SCARTO
+        y = radice.winfo_rooty() + 60 + (n % 8) * SCARTO
+        ritorna f"{LARGHEZZA_PREDEFINITA}x{ALTEZZA_PREDEFINITA}+{max(0, x)}+{max(0, y)}"
+
+    # ---- il «gruppo di schede» che questa finestra finge di essere
+    definisci add(se_stesso, widget, text="", **opzioni):
+        """Mette la scheda nella finestra e la mostra."""
+        se_stesso.contenuto = widget
+        widget.pack(fill="both", expand=Vero)
+        se_stesso.title(se_stesso._titolo(text))
+        se_stesso.app.finestre_schede.append(se_stesso)
+        se_stesso.deiconify()
+        se_stesso.lift()
+
+    definisci _titolo(se_stesso, testo_):
+        ritorna f"{testo_} — {se_stesso.app.titolo_base()}"
+
+    definisci forget(se_stesso, widget):
+        """Toglie la scheda: la finestra, rimasta vuota, si chiude."""
+        se se_stesso.contenuto è widget:
+            se_stesso.app.ricorda_finestra_scheda(widget, se_stesso)
+            prova:
+                widget.pack_forget()
+            eccetto tk.TclError:
+                passa
+            se_stesso.contenuto = Nessuno
+            se se_stesso in se_stesso.app.finestre_schede:
+                se_stesso.app.finestre_schede.remove(se_stesso)
+            se_stesso.after_idle(se_stesso._chiudi_se_vuota)
+
+    definisci _chiudi_se_vuota(se_stesso):
+        se se_stesso.contenuto è Nessuno:
+            prova:
+                se_stesso.destroy()
+            eccetto tk.TclError:
+                passa
+
+    definisci select(se_stesso, widget=Nessuno):
+        """Senza argomenti: il nome della scheda (come ttk.Notebook). Con la scheda: porta la finestra in primo piano."""
+        se widget è Nessuno:
+            ritorna str(se_stesso.contenuto) se se_stesso.contenuto è non Nessuno altrimenti ""
+        prova:
+            se_stesso.deiconify()
+            se_stesso.lift()
+            se_stesso.focus_force()
+        eccetto tk.TclError:
+            passa
+
+    definisci tab(se_stesso, widget, text=Nessuno, **opzioni):
+        se text è non Nessuno:
+            se_stesso.title(se_stesso._titolo(text))
+        ritorna {"text": se_stesso.title()}
+
+    definisci tabs(se_stesso):
+        ritorna (str(se_stesso.contenuto),) se se_stesso.contenuto è non Nessuno altrimenti ()
+
+    definisci index(se_stesso, quale):
+        ritorna 0
+
+    definisci segna_attivo(se_stesso, attivo):
+        se_stesso.attivo = attivo
+
+    definisci applica_stile(se_stesso, colori):
+        prova:
+            se_stesso.configure(background=colori["sfondo"])
+        eccetto tk.TclError:
+            passa
+
+    # ---- chiusura e primo piano
+    definisci _richiesta_chiusura(se_stesso):
+        """La X della finestra: chiude la scheda (se ha modifiche non salvate chiede cosa fare; se l'utente annulla la finestra resta)."""
+        se se_stesso.contenuto è Nessuno:
+            se_stesso.destroy()
+            ritorna
+        se_stesso.app.chiudi_scheda(se_stesso.contenuto)
+
+    definisci _attivata(se_stesso, evento=Nessuno):
+        se evento è Nessuno o evento.widget è se_stesso:
+            se_stesso.app._scheda_cambiata()

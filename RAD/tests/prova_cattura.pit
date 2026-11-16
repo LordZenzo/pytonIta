@@ -1,0 +1,67 @@
+"""piattaforma.cattura: la finestra modale non dà errore nemmeno quando non è ancora visibile (Ubuntu con Wayland: «grab failed: window not viewable»)."""
+importa sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad importa piattaforma
+
+esiti = []
+
+
+definisci controlla(nome, condizione, dettaglio=""):
+    esiti.append((nome, bool(condizione)))
+    stampa(("ok     " se condizione altrimenti "ERRORE ") + nome, "" se condizione altrimenti dettaglio)
+
+
+radice = tk.Tk()
+radice.geometry("+10+10")
+radice.update()
+nascosta = tk.Toplevel(radice)
+nascosta.withdraw()
+prova:
+    piattaforma.cattura(nascosta, 0.1)
+    controlla("una finestra nascosta non fa dare errore (il grab di tkinter da solo sì)", Vero)
+eccetto Exception come errore:
+    controlla("una finestra nascosta non fa dare errore", Falso, errore)
+prova:
+    nascosta.grab_set()
+    stampa("   (su questo sistema grab_set su una finestra nascosta non dà errore)")
+eccetto tk.TclError:
+    stampa("   (su questo sistema grab_set su una finestra nascosta dà TclError, come su Ubuntu recente)")
+nascosta.destroy()
+visibile = tk.Toplevel(radice)
+visibile.geometry("200x100+60+60")
+piattaforma.cattura(visibile)
+controlla("una finestra che compare riceve il grab", visibile.grab_current() è non Nessuno)
+visibile.grab_release()
+visibile.destroy()
+# subito dopo la creazione, senza aspettare: la funzione aspetta da sola
+nuova = tk.Toplevel(radice)
+piattaforma.cattura(nuova, 2.0)
+controlla("creata e subito catturata: ci riesce aspettando che compaia", nuova.winfo_viewable() e nuova.grab_current() è non Nessuno, (nuova.winfo_viewable(), nuova.grab_current()))
+nuova.destroy()
+# ---- il caso vero: su Ubuntu 26 grab_set dava sempre «window not viewable» e il dialogo «Nuovo progetto» restava aperto senza che il progetto venisse creato
+da rad.config importa Configurazione
+da rad.tema importa colori
+da rad.dialoghi importa DialogoNuovoProgetto
+importa tempfile
+originale = tk.Misc.grab_set
+
+
+definisci grab_che_fallisce(se_stesso):
+    solleva tk.TclError("grab failed: window not viewable")
+
+
+tk.Misc.grab_set = grab_che_fallisce
+cfg = Configurazione(os.path.join(tempfile.mkdtemp(), "c.json"))
+dialogo = DialogoNuovoProgetto(radice, colori(cfg), tempfile.mkdtemp())
+radice.after(300, dialogo._conferma)
+prova:
+    risultato = dialogo.mostra()
+    controlla("«Nuovo progetto» funziona anche se il grab fallisce sempre", risultato è non Nessuno e risultato[0] == "MioProgetto", risultato)
+eccetto Exception come errore:
+    controlla("«Nuovo progetto» funziona anche se il grab fallisce sempre", Falso, errore)
+tk.Misc.grab_set = originale
+radice.destroy()
+fallite = [n per n, ok in esiti se non ok]
+stampa(f"\n{lunghezza_di(esiti) - lunghezza_di(fallite)}/{lunghezza_di(esiti)} controlli riusciti", "| FALLITI:" se fallite altrimenti "", fallite)
+sys.exit(1 se fallite altrimenti 0)

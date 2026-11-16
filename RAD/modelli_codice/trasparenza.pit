@@ -16,7 +16,7 @@ Gli «strati» sono quello che sta sotto, dal più in fondo al più vicino, con 
 ("colore", x, y, larghezza, altezza, "#rrggbb") oppure ("immagine", x, y, larghezza, altezza, "file.png").
 Questo file è stato creato da PitStudio (sfondo «trasparente») e si può usare anche con finestre scritte a mano.
 """
-VERSIONE_MODULO = 3
+VERSIONE_MODULO = 4
 importa os
 importa sys
 importa tkinter come tk
@@ -288,9 +288,16 @@ classe EtichettaTrasparente(_Trasparente):
     """Come un'etichetta, ma lascia vedere quello che c'è sotto; i clic passano al componente sotto."""
     _CHIAVI = dict(_CHIAVI_BASE, giustifica="giustifica", justify="giustifica", ancora="ancora", anchor="ancora")
 
-    definisci __inizializza__(se_stesso, genitore, testo="", giustifica="left", ancora="w", primo_piano="", carattere=Nessuno, **opzioni):
+    definisci __inizializza__(se_stesso, genitore, **opzioni):
+        # testo, primo_piano e carattere (o text, foreground, font) arrivano da **opzioni: un parametro che si chiama «testo» (o «stato», «comando»...) in un modulo
+        # del progetto farebbe sbagliare l'esportazione in Python di tutte le chiamate con quell'opzione
+        testo_ = opzioni.pop("text", opzioni.pop("testo", ""))
+        giustifica_ = opzioni.pop("giustifica", opzioni.pop("justify", "left"))
+        ancora_ = opzioni.pop("ancora", opzioni.pop("anchor", "w"))
+        colore_ = opzioni.pop("foreground", opzioni.pop("primo_piano", ""))
+        carattere_ = opzioni.pop("font", opzioni.pop("carattere", Nessuno))
         _Trasparente.__inizializza__(se_stesso, genitore, **opzioni)
-        se_stesso._v = {"testo": testo, "giustifica": giustifica, "ancora": ancora, "colore": primo_piano o "black", "carattere": carattere, "stato": "normal"}
+        se_stesso._v = {"testo": testo_, "giustifica": giustifica_, "ancora": ancora_, "colore": colore_ o "black", "carattere": carattere_, "stato": "normal"}
         se non se_stesso.anteprima:
             per sequenza in ("<ButtonPress-1>", "<ButtonRelease-1>", "<Double-Button-1>", "<ButtonPress-3>"):
                 se_stesso.bind(sequenza, lambda evento, nome=sequenza: se_stesso._inoltra(nome, evento))
@@ -310,12 +317,17 @@ classe _Scelta(_Trasparente):
     LATO = 13
     _CHIAVI = dict(_CHIAVI_BASE, comando="comando", command="comando", valore="valore", value="valore")
 
-    definisci __inizializza__(se_stesso, genitore, testo="", variable=Nessuno, variabile=Nessuno, comando=Nessuno, command=Nessuno, valore=Nessuno, value=Nessuno,
-                              stato="normal", indicatore=("#ffffff", "#333333", "#000000"), primo_piano="", carattere=Nessuno, selezionata=Falso, **opzioni):
+    definisci __inizializza__(se_stesso, genitore, variable=Nessuno, indicatore=("#ffffff", "#333333", "#000000"), selezionata=Falso, **opzioni):
+        testo_ = opzioni.pop("text", opzioni.pop("testo", ""))
+        colore_ = opzioni.pop("foreground", opzioni.pop("primo_piano", ""))
+        carattere_ = opzioni.pop("font", opzioni.pop("carattere", Nessuno))
+        stato_ = opzioni.pop("state", opzioni.pop("stato", "normal"))
+        funzione_ = opzioni.pop("command", opzioni.pop("comando", Nessuno))
+        valore_ = opzioni.pop("value", opzioni.pop("valore", Nessuno))
+        variabile_ = opzioni.pop("variabile", Nessuno)
         _Trasparente.__inizializza__(se_stesso, genitore, **opzioni)
-        se_stesso._v = {"testo": testo, "colore": primo_piano o "black", "carattere": carattere, "stato": stato, "comando": comando o command,
-                        "valore": valore se valore è non Nessuno altrimenti value}
-        se_stesso._variabile = variable o variabile
+        se_stesso._v = {"testo": testo_, "colore": colore_ o "black", "carattere": carattere_, "stato": stato_, "comando": funzione_, "valore": valore_}
+        se_stesso._variabile = variable o variabile_
         se_stesso._locale = bool(selezionata)          # lo stato, se non c'è una variabile
         se_stesso._indicatore = indicatore
         se_stesso._traccia = Nessuno

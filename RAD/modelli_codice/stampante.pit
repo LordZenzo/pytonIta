@@ -15,7 +15,7 @@ Questo file lo crea PitStudio nel progetto quando usi il componente «Stampa».
     s.salva_pdf()        # chiede dove salvarlo
     s.stampa()           # lo manda alla stampante (Windows: verbo «print» del programma PDF; altrove: lp)
 """
-VERSIONE_MODULO = 2
+VERSIONE_MODULO = 3
 importa os
 importa re
 importa sys
@@ -1064,7 +1064,11 @@ classe FinestraStampa:
     definisci mostra(se_stesso):
         """Apre la finestra (modale) e ritorna «stampa», «anteprima», «pdf» o Nessuno."""
         prova:
-            se_stesso.finestra.grab_set()
+            se_stesso.finestra.update()
+            prova:
+                se_stesso.finestra.grab_set()          # su alcuni sistemi la finestra non è ancora visibile: resta aperta senza bloccare le altre
+            eccetto se_stesso._tk.TclError:
+                passa
             se_stesso.finestra.focus_set()
             se_stesso.finestra.wait_window()
         eccetto se_stesso._tk.TclError:

@@ -118,3 +118,19 @@ definisci apri(percorso):
         subprocess.Popen(["open", percorso])
     altrimenti:
         subprocess.Popen(["xdg-open", percorso], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+definisci cattura(finestra, attesa=1.0):
+    """Come finestra.grab_set() (la finestra modale blocca le altre), ma funziona anche dove la finestra non è subito visibile: su Ubuntu recente (Wayland/XWayland)
+    grab_set subito dopo la creazione dà «grab failed: window not viewable». Aspetta che compaia (al massimo `attesa` secondi); se non riesce, la finestra resta
+    aperta senza bloccare le altre invece di dare errore."""
+    importa time
+    prova:
+        finestra.update_idletasks()
+        fine = time.time() + attesa
+        mentre non finestra.winfo_viewable() e time.time() < fine:
+            finestra.update()
+            time.sleep(0.01)
+        finestra.grab_set()
+    eccetto Exception:
+        passa

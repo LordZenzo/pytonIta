@@ -12,7 +12,7 @@ importa shutil
 importa tkinter come tk
 da tkinter importa ttk
 
-da rad.piattaforma importa FONT_UI, lega_rotella
+da rad.piattaforma importa FONT_UI, lega_rotella, cattura
 
 CARTELLA_ICONE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "icone")
 TUTTE = "Tutte"
@@ -192,7 +192,7 @@ classe DialogoIcone(tk.Toplevel):
         se_stesso.destroy()
 
     definisci mostra(se_stesso):
-        se_stesso.grab_set()
+        cattura(se_stesso)
         se_stesso.wait_window()
         ritorna se_stesso.risultato
 

@@ -108,9 +108,11 @@ PREDEFINITI = {
         "pannello_sinistro": 270 se WINDOWS altrimenti 320,        # sugli altri sistemi i caratteri sono più larghi
         "pannello_destro": 430 se WINDOWS altrimenti 480,
         "console_altezza": 190,
-        "chat_visibile": Vero,
+        "chat_visibile": Falso,
         "progetti_visibile": Vero,
-        "console_visibile": Vero,
+        "console_visibile": Falso,
+        "schede_in_finestre": Falso,        # Vero: ogni scheda (file, disegno di finestra, database) si apre in una finestra a sé
+        "schede_geometrie": {},             # posizione e dimensione ricordate per ogni file aperto in una finestra
     },
     "scorciatoie": {
         "salva": "Control-s",

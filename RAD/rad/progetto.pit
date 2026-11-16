@@ -507,7 +507,7 @@ classe DialogoGruppoFinestra(tk.Toplevel):
         y = p.winfo_rooty() + max(0, (p.winfo_height() - se_stesso.winfo_reqheight()) // 3)
         se_stesso.geometry(f"+{x}+{y}")
         prova:
-            se_stesso.grab_set()
+            piattaforma.cattura(se_stesso)
         eccetto tk.TclError:
             passa
 

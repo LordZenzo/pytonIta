@@ -22,8 +22,10 @@ app = Applicazione(r, cfg)
 r.update()
 b = app.pulsante_chat
 verifica(b è non Nessuno, "il pulsante c'è nella barra")
-verifica(app._chat_visibile(), "la chat parte aperta")
-verifica(b.icona.cget("foreground") == COLORE_CHAT_APERTA, "aperta: icona verde: " + tipo_testo(b.icona.cget("foreground")))
+verifica(non app._chat_visibile() e b.icona.cget("foreground") == app.colori["primo_piano"], "la chat parte chiusa (anche se l'ultima volta era aperta): colore normale")
+app.mostra_chat()
+r.update()
+verifica(app._chat_visibile() e b.icona.cget("foreground") == COLORE_CHAT_APERTA, "aperta: icona verde: " + tipo_testo(b.icona.cget("foreground")))
 app.mostra_chat()
 r.update()
 verifica(non app._chat_visibile() e b.icona.cget("foreground") == app.colori["primo_piano"], "chiusa: colore normale: " + tipo_testo(b.icona.cget("foreground")))
@@ -41,6 +43,9 @@ verifica(app.pulsante_chat.icona.cget("foreground") == app.colori["primo_piano"]
 # il pulsante «Console» funziona allo stesso modo
 c = app.pulsante_console
 verifica(c è non Nessuno e "Console" in c.etichetta.cget("text"), "c'è il pulsante «Console» nella barra")
+verifica(non app._console_visibile() e c.icona.cget("foreground") == app.colori["primo_piano"], "la console parte chiusa: colore normale")
+app._commuta("console")
+r.update()
 verifica(app._console_visibile() e c.icona.cget("foreground") == COLORE_CHAT_APERTA, "console aperta: verde")
 app._commuta("console")
 r.update()

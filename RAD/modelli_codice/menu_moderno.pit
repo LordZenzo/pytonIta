@@ -11,7 +11,7 @@ Il gestore è il nome di un metodo della finestra («nuovo_clic») oppure «@Fin
 
 Questo file è stato creato da PitStudio (componenti BarraMenu, MenuContestuale e MenuModerno) e si può usare anche con finestre scritte a mano.
 """
-VERSIONE_MODULO = 2
+VERSIONE_MODULO = 3
 importa json
 importa os
 importa sys
@@ -477,19 +477,19 @@ classe MenuModerno(tk.Frame, _Stato):
         altrimenti:
             se_stesso.configure(width=misura)
 
-    definisci imposta_stato(se_stesso, stato, da_utente=Vero):
+    definisci imposta_stato(se_stesso, nuovo_stato, da_utente=Vero):
         """«esteso», «compatto» o «chiuso»."""
-        se stato non in ("esteso", "compatto", "chiuso"):
+        se nuovo_stato non in ("esteso", "compatto", "chiuso"):
             solleva ValueError("stato sconosciuto: scegli tra esteso, compatto e chiuso")
         se da_utente:
-            se_stesso._stato_utente = stato
-            se stato != "esteso":
-                se_stesso._modalita_ridotta = stato
+            se_stesso._stato_utente = nuovo_stato
+            se nuovo_stato != "esteso":
+                se_stesso._modalita_ridotta = nuovo_stato
         se_stesso._chiudi_cascate()
-        se_stesso.stato = stato
+        se_stesso.stato = nuovo_stato
         se_stesso._ridisegna()
         se se_stesso.al_stato:
-            se_stesso.al_stato(stato)
+            se_stesso.al_stato(nuovo_stato)
 
     definisci alterna(se_stesso):
         """Come il pulsante hamburger: da esteso si riduce, altrimenti si apre."""

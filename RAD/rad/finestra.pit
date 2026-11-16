@@ -44,6 +44,7 @@ da rad importa barra come barra_mod
 da rad.progetto importa Progetto, PannelloProgetto, tipo_file
 da rad.risorse importa crea_visore
 da rad.progettista importa Progettista
+da rad.schede_finestre importa FinestraScheda
 da rad importa mattonelle_modello
 da rad.mattonelle_ui importa EditorMattonelle
 da rad importa mattonelle_converti
@@ -67,6 +68,7 @@ classe Applicazione:
         se_stesso.colori = tema.colori(se_stesso.config_)
         se_stesso.progetto = Nessuno
         se_stesso.schede = {}            # percorso assoluto -> widget della scheda
+        se_stesso.finestre_schede = []   # le schede che stanno in una finestra a sé (FinestraScheda), invece che nei due gruppi di schede
         se_stesso.storia = Nessuno       # Storia delle modifiche dell'assistente del progetto aperto
         se_stesso.punti_arresto = {}     # percorso assoluto -> insieme di righe con punto di arresto (debugger)
         se_stesso.dettagli_punti = {}    # percorso assoluto -> {riga: {"se", "dopo", "messaggio"}} (punti con condizione)
@@ -181,11 +183,10 @@ classe Applicazione:
         se_stesso.corpo.add(se_stesso.chat, minsize=280, width=se_stesso.config_.ottieni("finestra.pannello_destro", 430))
         se_stesso._benvenuto = Nessuno
         se_stesso._mostra_benvenuto()
-        se non se_stesso.config_.ottieni("finestra.chat_visibile", Vero):
-            se_stesso.corpo.forget(se_stesso.chat)
+        # l'assistente e la console partono sempre chiusi (si aprono dai pulsanti o da Visualizza); gli altri pannelli ricordano come li avevi lasciati
+        se_stesso.corpo.forget(se_stesso.chat)
         se_stesso._colora_pulsante_chat()
-        se non se_stesso.config_.ottieni("finestra.console_visibile", Vero):
-            se_stesso.centro.forget(se_stesso.console)
+        se_stesso.centro.forget(se_stesso.console)
         se non se_stesso.config_.ottieni("finestra.progetti_visibile", Vero):
             se_stesso.corpo.forget(se_stesso.sinistra)
         se_stesso._colora_pulsanti_stato()
@@ -397,6 +398,12 @@ classe Applicazione:
         vista.add_command(label="Dividi l'editor: apri la scheda a fianco", command=lambda: se_stesso.sposta_scheda_nell_altro_gruppo(), accelerator="Ctrl+" + chr(92))
         vista.add_command(label="Unisci i gruppi di schede", command=lambda: se_stesso.unisci_gruppi())
         vista.add_separator()
+        se_stesso.var_schede_in_finestre = tk.BooleanVar(value=bool(se_stesso.config_.ottieni("finestra.schede_in_finestre", Falso)))
+        vista.add_checkbutton(label="Ogni scheda in una finestra separata", variable=se_stesso.var_schede_in_finestre, command=se_stesso._commuta_schede_in_finestre)
+        vista.add_command(label="Stacca la scheda corrente in una finestra", command=lambda: se_stesso.stacca_scheda())
+        vista.add_command(label="Riporta la scheda corrente nella finestra principale", command=lambda: se_stesso.riporta_nelle_schede())
+        vista.add_command(label="Riporta tutte le schede nella finestra principale", command=lambda: se_stesso.riporta_tutte())
+        vista.add_separator()
         vista.add_command(label="Tema chiaro / scuro", command=se_stesso.commuta_tema)
         vista.add_command(label="Ingrandisci il testo", command=lambda: se_stesso.zoom(1), accelerator="Ctrl++")
         vista.add_command(label="Riduci il testo", command=lambda: se_stesso.zoom(-1), accelerator="Ctrl+-")
@@ -451,6 +458,7 @@ classe Applicazione:
         per sequenza in getattr(se_stesso, "_sequenze", []):
             r.unbind(sequenza)
         se_stesso._sequenze = []
+        se_stesso._legami = []           # (sequenza, funzione): si legano anche alle finestre delle schede
         mappa = {"salva": se_stesso.salva_scheda, "salva_tutto": se_stesso.salva_tutto,
                  "apri_progetto": se_stesso.apri_progetto, "nuovo_file": lambda: se_stesso.pannello_progetto.nuovo_file(),
                  "esegui": se_stesso.esegui_principale, "ferma": se_stesso.ferma,
@@ -474,6 +482,7 @@ classe Applicazione:
             prova:
                 r.bind(sequenza, lambda evento, f=funzione: f() o "break")
                 se_stesso._sequenze.append(sequenza)
+                se_stesso._legami.append((sequenza, funzione))
             eccetto tk.TclError:
                 passa
         r.bind("<F1>", lambda evento: se_stesso.apri_aiuto(se_stesso._parola_sotto_cursore()) o "break")
@@ -483,6 +492,28 @@ classe Applicazione:
         r.bind("<Control-plus>", lambda evento: se_stesso.zoom(1) o "break")
         r.bind("<Control-equal>", lambda evento: se_stesso.zoom(1) o "break")
         r.bind("<Control-minus>", lambda evento: se_stesso.zoom(-1) o "break")
+        se_stesso._legami += [("<F1>", lambda: se_stesso.apri_aiuto(se_stesso._parola_sotto_cursore())), ("<Control-plus>", lambda: se_stesso.zoom(1)),
+                              ("<Control-equal>", lambda: se_stesso.zoom(1)), ("<Control-minus>", lambda: se_stesso.zoom(-1))]
+        per f in se_stesso.finestre_schede:
+            se_stesso.applica_scorciatoie_a(f)
+
+    definisci applica_scorciatoie_a(se_stesso, finestra):
+        """Le scorciatoie da tastiera valgono anche in una finestra che contiene una scheda (si rileggono se cambiano)."""
+        per sequenza in getattr(finestra, "_sequenze_app", []):
+            prova:
+                finestra.unbind(sequenza)
+            eccetto tk.TclError:
+                passa
+        finestra._sequenze_app = []
+        per sequenza, funzione in getattr(se_stesso, "_legami", []):
+            prova:
+                finestra.bind(sequenza, lambda evento, f=funzione: f() o "break")
+                finestra._sequenze_app.append(sequenza)
+            eccetto tk.TclError:
+                passa
+
+    definisci titolo_base(se_stesso):
+        ritorna f"{se_stesso.progetto.nome} — {NOME}" se se_stesso.progetto altrimenti NOME
 
     # ================================================================== tema e impostazioni
     definisci applica_tema(se_stesso):
@@ -496,7 +527,7 @@ classe Applicazione:
         se_stesso.riga_barra.configure(background=c["bordo"])
         per b in se_stesso.pulsanti_barra:
             b.applica_colori(c)
-        per gruppo in (se_stesso.schede_nb, se_stesso.schede_nb2):
+        per gruppo in (se_stesso.schede_nb, se_stesso.schede_nb2) + tuple(se_stesso.finestre_schede):
             gruppo.applica_stile(c)
         se_stesso.stato.configure(background=c["pannello"])
         se_stesso.testo_stato.configure(background=c["pannello"], foreground=c["primo_piano"])
@@ -614,6 +645,11 @@ classe Applicazione:
                 se_stesso._costruisci_barra()
         se percorso in ("*",) o percorso.startswith("scorciatoie"):
             se_stesso._associa_scorciatoie()
+        se percorso in ("*", "finestra.schede_in_finestre") e hasattr(se_stesso, "var_schede_in_finestre"):
+            nuovo_modo = bool(se_stesso.config_.ottieni("finestra.schede_in_finestre", Falso))
+            se se_stesso.var_schede_in_finestre.get() != nuovo_modo:
+                se_stesso.var_schede_in_finestre.set(nuovo_modo)
+                se_stesso._schede_da_spostare(nuovo_modo)
         se percorso in ("*",) o percorso.startswith("ai"):
             se_stesso.chat.var_modello.set(se_stesso.config_.ottieni(ai.chiave_modello(se_stesso.config_)))
             se_stesso.chat.selettore.configure(values=ai.modelli_di(se_stesso.config_))
@@ -923,6 +959,9 @@ classe Applicazione:
         per gruppo in se_stesso.gruppi:
             se str(widget) in gruppo.tabs():
                 ritorna gruppo
+        per finestra in se_stesso.finestre_schede:
+            se str(widget) in finestra.tabs():
+                ritorna finestra
         ritorna Nessuno
 
     definisci _gruppo_attivo(se_stesso):
@@ -965,8 +1004,9 @@ classe Applicazione:
         se gruppo è Nessuno:
             ritorna
         gruppo.select(widget)
-        se_stesso._gruppo_ultimo = gruppo
-        se_stesso._segna_gruppi()
+        se gruppo in se_stesso.gruppi:
+            se_stesso._gruppo_ultimo = gruppo
+            se_stesso._segna_gruppi()
 
     definisci _aggiorna_gruppi(se_stesso):
         """Il secondo gruppo c'è solo finché ha schede."""
@@ -981,7 +1021,7 @@ classe Applicazione:
         se w è Nessuno:
             ritorna Falso
         origine = se_stesso._gruppo_di(w)
-        se origine è Nessuno o w è se_stesso._benvenuto:
+        se origine è Nessuno o w è se_stesso._benvenuto o isinstance(origine, FinestraScheda):
             ritorna Falso
         destinazione = se_stesso.schede_nb2 se origine è se_stesso.schede_nb altrimenti se_stesso.schede_nb
         se destinazione è se_stesso.schede_nb2 e non se_stesso._gruppo2_visibile():
@@ -1005,6 +1045,14 @@ classe Applicazione:
         se_stesso.salva_sessione()
 
     definisci _scheda_corrente(se_stesso):
+        # una scheda in una finestra a sé: è quella corrente quando il fuoco è in quella finestra
+        prova:
+            fuoco = se_stesso.radice.focus_get()
+            finestra_fuoco = fuoco.winfo_toplevel() se fuoco è non Nessuno altrimenti Nessuno
+        eccetto (KeyError, tk.TclError):
+            finestra_fuoco = Nessuno
+        se isinstance(finestra_fuoco, FinestraScheda) e finestra_fuoco.contenuto è non Nessuno:
+            ritorna finestra_fuoco.contenuto
         per gruppo in [se_stesso._gruppo_attivo()] + se_stesso.gruppi:
             prova:
                 nome = gruppo.select()
@@ -1041,13 +1089,109 @@ classe Applicazione:
             se_stesso.pannello_librerie.aggiorna_uso()
 
     definisci _aggiungi_scheda(se_stesso, percorso, widget):
+        se isinstance(widget.master, FinestraScheda):              # creata dentro la sua finestra (vedi _genitore_per_scheda)
+            se_stesso.schede[percorso] = widget
+            widget.master.add(widget, text=se_stesso._titolo_scheda(widget))
+            se_stesso._seleziona(widget)
+            ritorna
         se_stesso._nascondi_benvenuto()
         se_stesso.schede[percorso] = widget
         gruppo = se_stesso._gruppo_attivo()
         gruppo.add(widget, text=se_stesso._titolo_scheda(widget))
         se_stesso._seleziona(widget)
 
-    definisci apri_file(se_stesso, percorso, riga=Nessuno):
+    definisci _genitore_per_scheda(se_stesso, chiave, in_finestra=Nessuno):
+        """Dove si crea il contenuto di una scheda: nell'area comune dei gruppi di schede oppure, se si lavora «una scheda per finestra», dentro una finestra nuova
+        (che riappare dove l'avevi lasciata l'ultima volta)."""
+        se in_finestra è Nessuno:
+            in_finestra = se_stesso.config_.ottieni("finestra.schede_in_finestre", Falso)
+        se non in_finestra:
+            ritorna se_stesso.area_editor
+        chiave = chiave se "://" in chiave altrimenti os.path.abspath(chiave)
+        geometrie = se_stesso.config_.ottieni("finestra.schede_geometrie", {}) o {}
+        finestra = FinestraScheda(se_stesso, geometrie.get(chiave))
+        finestra.after(3000, finestra._chiudi_se_vuota)            # se la scheda non si è potuta creare la finestra non resta vuota
+        ritorna finestra
+
+    definisci ricorda_finestra_scheda(se_stesso, widget, finestra):
+        """Salva posizione e dimensione della finestra di un file, per ritrovarla uguale."""
+        chiave = se_stesso._percorso_di(widget)
+        se non chiave:
+            ritorna
+        prova:
+            geometria = finestra.winfo_geometry()
+        eccetto tk.TclError:
+            ritorna
+        geometrie = dict(se_stesso.config_.ottieni("finestra.schede_geometrie", {}) o {})
+        geometrie.pop(chiave, Nessuno)
+        geometrie[chiave] = geometria
+        se lunghezza_di(geometrie) > 300:
+            per vecchia in list(geometrie)[:lunghezza_di(geometrie) - 300]:
+                geometrie.pop(vecchia)
+        se_stesso.config_.imposta("finestra.schede_geometrie", geometrie, notifica=Falso)
+
+    definisci stacca_scheda(se_stesso, widget=Nessuno):
+        """Porta una scheda (la corrente se non si dice) in una finestra a sé. Se ha modifiche non salvate chiede cosa fare."""
+        w = widget o se_stesso._scheda_corrente()
+        ritorna se_stesso._sposta_scheda(w, Vero)
+
+    definisci riporta_nelle_schede(se_stesso, widget=Nessuno):
+        """Riporta una scheda (la corrente se non si dice) dalla sua finestra alla finestra principale, tra le schede."""
+        w = widget o se_stesso._scheda_corrente()
+        ritorna se_stesso._sposta_scheda(w, Falso)
+
+    definisci _sposta_scheda(se_stesso, w, in_finestra):
+        se w è Nessuno o w è se_stesso._benvenuto:
+            ritorna Falso
+        percorso = se_stesso._percorso_di(w)
+        gia_in_finestra = isinstance(se_stesso._gruppo_di(w), FinestraScheda)
+        se gia_in_finestra == in_finestra:
+            ritorna Vero
+        se non percorso o "://" in percorso:
+            se_stesso.info("Questa scheda non si può spostare: chiudila e riaprila")
+            ritorna Falso
+        se non se_stesso.chiudi_scheda(w):                  # chiede di salvare; se si annulla non si sposta niente
+            ritorna Falso
+        se_stesso.apri_file(percorso, in_finestra=in_finestra)
+        ritorna Vero
+
+    definisci riporta_tutte(se_stesso):
+        """Riporta nella finestra principale, tra le schede, tutte quelle che stanno in una finestra a sé."""
+        per finestra in list(se_stesso.finestre_schede):
+            se finestra.contenuto è non Nessuno:
+                se non se_stesso._sposta_scheda(finestra.contenuto, Falso):
+                    ritorna Falso
+        ritorna Vero
+
+    definisci stacca_tutte(se_stesso):
+        """Porta tutte le schede dei gruppi in una finestra a sé ciascuna."""
+        per w in [w per w in tipo_lista(se_stesso.schede.values()) se non isinstance(se_stesso._gruppo_di(w), FinestraScheda)]:
+            se non se_stesso._sposta_scheda(w, Vero):
+                ritorna Falso
+        ritorna Vero
+
+    definisci _commuta_schede_in_finestre(se_stesso):
+        """La voce di menu Visualizza → «Ogni scheda in una finestra separata»: vale per le schede che si aprono da ora; se ce ne sono già, si chiede se spostarle."""
+        nuovo = bool(se_stesso.var_schede_in_finestre.get())
+        se_stesso.config_.imposta("finestra.schede_in_finestre", nuovo)
+        se_stesso.config_.salva()
+        se_stesso._schede_da_spostare(nuovo)
+
+    definisci _schede_da_spostare(se_stesso, in_finestre):
+        da_spostare = [w per w in se_stesso.schede.values() se isinstance(se_stesso._gruppo_di(w), FinestraScheda) != in_finestre]
+        domanda = ("Ci sono schede aperte nella finestra principale. Le sposto, ognuna in una finestra a sé?" se in_finestre
+                   altrimenti "Ci sono schede aperte in finestre separate. Le riporto nella finestra principale?")
+        se da_spostare e messagebox.askyesno("Schede aperte", domanda, parent=se_stesso.radice):
+            se in_finestre:
+                se_stesso.stacca_tutte()
+            altrimenti:
+                se_stesso.riporta_tutte()
+
+    definisci _schede_nei_gruppi(se_stesso):
+        """Le schede che stanno nei due gruppi della finestra principale (non quelle in una finestra a sé)."""
+        ritorna [w per w in se_stesso.schede.values() se non isinstance(se_stesso._gruppo_di(w), FinestraScheda)]
+
+    definisci apri_file(se_stesso, percorso, riga=Nessuno, in_finestra=Nessuno):
         percorso = os.path.abspath(percorso)
         se percorso in se_stesso.schede:
             se_stesso._seleziona(se_stesso.schede[percorso])
@@ -1059,17 +1203,18 @@ classe Applicazione:
             cartelle = [se_stesso.progetto.cartella] se se_stesso.progetto altrimenti []
             tipo_ = tipo_file(percorso)
             w = Nessuno
+            genitore = se_stesso._genitore_per_scheda(percorso, in_finestra)
             prova:
                 se tipo_ == "form":
                     f = form_modello.carica_form(percorso)
-                    w = Progettista(se_stesso.area_editor, percorso, f, se_stesso.colori, se_stesso.config_, se_stesso)
+                    w = Progettista(genitore, percorso, f, se_stesso.colori, se_stesso.config_, se_stesso)
                 altrimenti_se tipo_ == "mattonelle":
                     prog = mattonelle_modello.carica_programma(percorso)
-                    w = EditorMattonelle(se_stesso.area_editor, percorso, prog, se_stesso.colori, se_stesso.config_, se_stesso)
+                    w = EditorMattonelle(genitore, percorso, prog, se_stesso.colori, se_stesso.config_, se_stesso)
                 altrimenti:
-                    w = crea_visore(se_stesso.area_editor, percorso, se_stesso.colori, se_stesso.config_, se_stesso)
+                    w = crea_visore(genitore, percorso, se_stesso.colori, se_stesso.config_, se_stesso)
                     se w è Nessuno:
-                        w = Editor(se_stesso.area_editor, se_stesso.config_, se_stesso.colori, percorso,
+                        w = Editor(genitore, se_stesso.config_, se_stesso.colori, percorso,
                                    sul_cambio=se_stesso.scheda_modificata, sul_cursore=se_stesso._cursore,
                                    cartelle_progetto=cartelle)
                         w.carica(percorso)
@@ -1079,6 +1224,8 @@ classe Applicazione:
                         w.dettagli_punti = dict(se_stesso.dettagli_punti.get(os.path.abspath(percorso), {}))
                         w.sui_punti_arresto = se_stesso._cambio_punti_arresto
             eccetto (OSError, ValueError, KeyError) come errore:
+                se isinstance(genitore, FinestraScheda):
+                    genitore.destroy()
                 messagebox.showerror("Errore", f"Impossibile aprire {os.path.basename(percorso)}:\n{errore}", parent=se_stesso.radice)
                 ritorna Nessuno
             tema.applica(w, se_stesso.colori)
@@ -1150,7 +1297,7 @@ classe Applicazione:
             se_stesso.recupero.togli(p)             # salvato o scartato di proposito: la copia di sicurezza non serve più
         widget.destroy()
         se_stesso._aggiorna_gruppi()
-        se non se_stesso.schede:
+        se non se_stesso._schede_nei_gruppi():
             se_stesso._mostra_benvenuto()
         ritorna Vero
 
@@ -1184,6 +1331,8 @@ classe Applicazione:
         se w è non se_stesso._benvenuto:
             m.add_command(label="Apri a fianco" se gruppo è se_stesso.schede_nb altrimenti "Sposta nell'altro gruppo",
                           command=lambda: se_stesso.sposta_scheda_nell_altro_gruppo(w))
+        se w è non se_stesso._benvenuto e se_stesso._percorso_di(w):
+            m.add_command(label="Stacca in una finestra", command=lambda: se_stesso.stacca_scheda(w))
         m.add_command(label="Chiudi le altre", command=lambda: [se_stesso.chiudi_scheda(x) per x in tipo_lista(se_stesso.schede.values()) se x è non w])
         p = se_stesso._percorso_di(w)
         se p:
@@ -1874,7 +2023,7 @@ classe Applicazione:
             se_stesso._seleziona(se_stesso.schede[chiave])
             conn.chiudi()
             ritorna se_stesso.schede[chiave]
-        w = VisoreDatabase(se_stesso.area_editor, chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
+        w = VisoreDatabase(se_stesso._genitore_per_scheda(chiave), chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
         tema.applica(w, se_stesso.colori)
         w.applica_colori(se_stesso.colori)
         se_stesso._aggiungi_scheda(chiave, w)
@@ -1903,7 +2052,7 @@ classe Applicazione:
             se_stesso._seleziona(se_stesso.schede[chiave])
             conn.chiudi()
             ritorna se_stesso.schede[chiave]
-        w = VisoreDatabase(se_stesso.area_editor, chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
+        w = VisoreDatabase(se_stesso._genitore_per_scheda(chiave), chiave, se_stesso.colori, se_stesso.config_, se_stesso, connessione=conn)
         tema.applica(w, se_stesso.colori)
         w.applica_colori(se_stesso.colori)
         se_stesso._aggiungi_scheda(chiave, w)
@@ -1965,7 +2114,7 @@ classe Applicazione:
     definisci converti_progetto_py(se_stesso, origine=""):
         """Apre la finestra che converte un intero progetto Python in un nuovo progetto pytonIta."""
         d = converti_progetto.DialogoConversione(se_stesso.radice, se_stesso.colori, origine, se_stesso.apri_progetto)
-        d.grab_set()
+        piattaforma.cattura(d)
         ritorna d
 
     definisci traduci_in_pit(se_stesso, percorso=Nessuno, silenzioso=Falso):
@@ -2233,7 +2382,7 @@ classe Applicazione:
     # ================================================================== schermata iniziale
     definisci _mostra_benvenuto(se_stesso, aggiorna=Falso):
         se_stesso._nascondi_benvenuto()
-        se se_stesso.schede:
+        se se_stesso._schede_nei_gruppi():
             ritorna
         c = se_stesso.colori
         f = tk.Frame(se_stesso.area_editor, background=c["editor"])

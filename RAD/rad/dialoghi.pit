@@ -8,6 +8,7 @@ da rad.progetto importa MODELLI
 da rad.form_modello importa nome_valido
 da rad importa NOME, VERSIONE
 da rad.piattaforma importa FONT_MONO, FONT_UI, semi, lega_rotella
+da rad importa piattaforma
 
 
 classe DialogoBase(tk.Toplevel):
@@ -49,7 +50,7 @@ classe DialogoBase(tk.Toplevel):
                   foreground="#ffffff", relief="flat", padx=12).pack(side="right", padx=4)
 
     definisci mostra(se_stesso):
-        se_stesso.grab_set()
+        piattaforma.cattura(se_stesso)
         se_stesso.focus_set()
         se_stesso.wait_window()
         ritorna se_stesso.risultato
@@ -330,7 +331,7 @@ classe DialogoInformazioni(DialogoBase):
         tk.Button(barra, text="Chiudi", width=10, relief="flat", background=c["accento"], foreground="#ffffff",
                   activebackground=c["accento"], command=se_stesso.destroy).pack(side="left", padx=4)
         se_stesso.bind("<Return>", lambda evento: se_stesso.destroy())
-        se_stesso.grab_set()
+        piattaforma.cattura(se_stesso)
 
 
 definisci informazioni(genitore, colori=Nessuno, apri_guida=Nessuno):

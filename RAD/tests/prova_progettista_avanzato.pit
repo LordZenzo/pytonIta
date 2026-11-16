@@ -142,7 +142,7 @@ python_ = __import__("shutil").which("python") o __import__("shutil").which("py"
 se python_:
     u = subprocess.run([python_, "-W", "ignore", os.path.join(dest, "prova_py.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=dest, timeout=120,
                        env=dict(os.environ, PYTHONUTF8="1"))
-    stampa("con Python normale:", u.stdout.strip(), u.returncode, u.stderr.strip()[-200:])
+    stampa("con Python normale:", u.stdout.strip(), u.returncode, u.stderr.strip()[-1600:])
 
 # --- contenitori: un riquadro e una Schede con componenti dentro
 cartella3 = tempfile.mkdtemp()

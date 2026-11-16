@@ -89,6 +89,9 @@ SCHEDE = [
         ("ai.url", "Indirizzo dell'API", "testo", Nessuno),
         ("ai.istruzioni_extra", "Istruzioni aggiuntive per l'assistente", "lungo", Nessuno),
     ]),
+    ("Finestre", [
+        ("finestra.schede_in_finestre", "Ogni scheda (file, disegno di finestra, database) in una finestra separata, invece di tutte in una finestra con le schede", "si_no", Nessuno),
+    ]),
     ("Aggiornamenti", [
         ("aggiornamenti.controlla_all_avvio", "Una volta al giorno, all'avvio, controlla se c'è una versione nuova di PitStudio e delle librerie (contatta GitHub)", "si_no", Nessuno),
     ]),

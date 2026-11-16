@@ -14,7 +14,7 @@ importa menu_moderno     # (modelli_codice/menu_moderno.pit: l'anteprima del men
 importa trasparenza      # (modelli_codice/trasparenza.pit: l'etichetta trasparente)
 da rad.stile importa suggerisci come stile_suggerisci
 da rad.form_modello importa Form, TIPI, ORDINE_PALETTE, proprieta_di, nome_valido, colonne_albero, e_visivo, nodi_menu, voci_del_menu, e_contenitore
-da rad.piattaforma importa FONT_MONO, FONT_UI, cursore, lega_rotella
+da rad.piattaforma importa FONT_MONO, FONT_UI, cursore, lega_rotella, cattura
 
 GRIGLIA = 8
 MANIGLIE = {  # nome: (cursore, ancora_x, ancora_y)
@@ -416,7 +416,7 @@ classe DialogoColonne(tk.Toplevel):
 
     definisci mostra(se_stesso):
         se_stesso.update_idletasks()
-        se_stesso.grab_set()
+        cattura(se_stesso)
         se_stesso.wait_window()
         ritorna se_stesso.risultato
 
@@ -762,7 +762,7 @@ classe DialogoMenu(tk.Toplevel):
         se_stesso.destroy()
 
     definisci mostra(se_stesso):
-        se_stesso.grab_set()
+        cattura(se_stesso)
         se_stesso.wait_window()
         ritorna se_stesso.risultato
 
@@ -821,7 +821,7 @@ classe DialogoOrdine(tk.Toplevel):
         se_stesso.destroy()
 
     definisci mostra(se_stesso):
-        se_stesso.grab_set()
+        cattura(se_stesso)
         se_stesso.wait_window()
         ritorna se_stesso.risultato
 
