@@ -1,0 +1,77 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.rotta(\"/x\")\n@app.limita(1, 60)\ndefinisci x():\n    ritorna \"ok\"\n\n\napp.simula(\"/x\", indirizzo=\"1.1.1.1\")\nstampa(app.simula(\"/x\", indirizzo=\"1.1.1.1\").stato)",
+   "giusta": "429",
+   "sbagliate": [
+    {
+     "testo": "200",
+     "indizio": "Il limite è una richiesta al minuto: la seconda è già troppo."
+    },
+    "403",
+    "500"
+   ],
+   "spiegazione": "Dopo la prima richiesta il limite (1 al minuto) è esaurito: la seconda riceve 429, «troppe richieste».",
+   "sezione": "Limiti e blocco degli accessi"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.rotta(\"/chi\")\ndefinisci chi(richiesta):\n    ritorna {\"ip\": richiesta.indirizzo_cliente}\n\n\nstampa(app.simula(\"/chi\", indirizzo=\"10.0.0.2\", intestazioni={\"X-Forwarded-For\": \"9.9.9.9\"}).dati[\"ip\"])",
+   "giusta": "10.0.0.2",
+   "sbagliate": [
+    {
+     "testo": "9.9.9.9",
+     "indizio": "Senza proxy_fidato le intestazioni X-Forwarded-* sono ignorate: chiunque potrebbe scriverle."
+    },
+    "127.0.0.1",
+    "None"
+   ],
+   "spiegazione": "Senza proxy_fidato il sito non si fida di X-Forwarded-For (potrebbe essere falsificato) e usa l'indirizzo di chi si è collegato.",
+   "sezione": "Dietro un proxy HTTPS"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\napp.configura(host_ammessi=[\"esempio.it\"], forza_https=Vero)\n\n\n@app.rotta(\"/x\")\ndefinisci x():\n    ritorna \"ok\"\n\n\nstampa(app.simula(\"/x\", host=\"esempio.it\").stato)",
+   "giusta": "308",
+   "sbagliate": [
+    {
+     "testo": "200",
+     "indizio": "La richiesta simulata è in HTTP e il sito forza HTTPS."
+    },
+    "400",
+    "301"
+   ],
+   "spiegazione": "Con forza_https una richiesta in HTTP viene reindirizzata (308) all'indirizzo https dello stesso sito.",
+   "sezione": "Dietro un proxy HTTPS"
+  },
+  {
+   "domanda": "Perché in produzione l'errore di una pagina mostra ai visitatori solo un codice?",
+   "giusta": "Per non rivelare dettagli interni; i dettagli restano nel registro con lo stesso codice",
+   "sbagliate": [
+    {
+     "testo": "Perché gli errori in produzione non esistono",
+     "indizio": "Esistono eccome: semplicemente non si mostrano a chi visita il sito."
+    },
+    "Per far caricare la pagina più in fretta",
+    "Perché il codice si traduce da solo in italiano"
+   ],
+   "spiegazione": "Un messaggio con nomi di file e di variabili aiuta chi vuole attaccare il sito. Il visitatore vede un codice, tu lo cerchi nel registro e trovi tutto.",
+   "sezione": "Modalità produzione"
+  },
+  {
+   "domanda": "Dove va tenuta la chiave segreta di un sito pubblicato?",
+   "giusta": "In una variabile d'ambiente o in un file .env che non si pubblica",
+   "sbagliate": [
+    {
+     "testo": "Scritta nel programma, così non si perde",
+     "indizio": "Il programma finisce su GitHub e nelle copie: la chiave diventerebbe pubblica."
+    },
+    "In una pagina del sito, nascosta",
+    "Non serve: ogni visitatore ne ha una sua"
+   ],
+   "spiegazione": "Chi conosce la chiave può falsificare le sessioni. Per questo si legge dall'ambiente (configura_da_ambiente) e il file .env non si mette mai su GitHub.",
+   "sezione": "Il controllo prima di pubblicare"
+  }
+ ]
+}

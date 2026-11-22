@@ -6,7 +6,7 @@ importa sqlite3
 importa server_web
 
 QUI = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(QUI, "ospiti.db")
+DATABASE = os.path.join(os.environ.get("SITO_CARTELLA_DATI", QUI), "ospiti.db")
 app = server_web.Applicazione("Libro degli ospiti")
 
 PAGINA = '<!doctype html><meta charset="utf-8"><title>Libro degli ospiti</title>' \
@@ -50,4 +50,5 @@ definisci scrivi(richiesta):
     ritorna server_web.reindirizza("/")
 
 
-app.avvia(porta=8000)
+se __nome__ == "__main__":
+    app.avvia(porta=8000)

@@ -1,0 +1,407 @@
+"""server_web adatto al web: modalità produzione e errori sicuri, controllo prima di pubblicare, proxy, host ammessi, HTTPS, limiti di richieste e blocco degli accessi,
+CORS, file statici (ETag, Range, gzip, flusso), server integrato robusto, waitress, registri su file, /salute e configurazione da ambiente."""
+importa sys, os, io, json, gzip, time, socket, tempfile, signal, contextlib, shutil
+importa http.client
+importa server_web
+da server_web importa Applicazione, ErroreWeb, ErroreProduzione, Risposta, invia_file
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cartella = tempfile.mkdtemp()
+CHIAVE = "una chiave molto lunga e riservata per le prove"
+
+
+definisci sito(**opzioni):
+    app = Applicazione("prova", registro=Falso)
+    app.configura(chiave_segreta=CHIAVE, **opzioni)
+    ritorna app
+
+
+# ======================================================== errori sicuri in produzione + registro + id
+rotto = sito(produzione=Vero, registro_errori=os.path.join(cartella, "logs", "errori.log"), registro_file=os.path.join(cartella, "logs", "accessi.log"))
+rotto.rotta("/guasto")(lambda: 1 / 0)
+rotto.rotta("/api/guasto")(lambda: 1 / 0)
+rotto.rotta("/ciao")(lambda: "ciao")
+scarto = io.StringIO()
+con contextlib.redirect_stderr(scarto):
+    r = rotto.simula("/guasto")
+    r2 = rotto.simula("/api/guasto")
+verifica(r.stato == 500 e "ZeroDivisionError" non in r.testo e "division" non in r.testo e r.intestazioni["X-Request-ID"] in r.testo, "in produzione l'errore non mostra i dettagli ma un codice: " + r.testo)
+verifica(r2.stato == 500 e r2.dati["codice"] == r2.intestazioni["X-Request-ID"] e "ZeroDivisionError" non in r2.testo, "anche per le API (JSON con il codice)")
+verifica("ZeroDivisionError" in scarto.getvalue() e r.intestazioni["X-Request-ID"] in scarto.getvalue(), "i dettagli restano per chi sviluppa (stderr), con il codice")
+log_errori = open(os.path.join(cartella, "logs", "errori.log"), encoding="utf-8").read()
+verifica("ZeroDivisionError" in log_errori e r.intestazioni["X-Request-ID"] in log_errori, "e nel registro degli errori su file")
+rotto.simula("/ciao", indirizzo="5.6.7.8")
+log_accessi = open(os.path.join(cartella, "logs", "accessi.log"), encoding="utf-8").read()
+verifica("5.6.7.8 GET /ciao 200" in log_accessi e "id=" in log_accessi e "ms id=" in log_accessi, "il registro degli accessi: " + log_accessi.splitlines()[-1])
+sviluppo = sito()
+sviluppo.rotta("/guasto")(lambda: 1 / 0)
+con contextlib.redirect_stderr(io.StringIO()):
+    verifica("ZeroDivisionError" in sviluppo.simula("/guasto").testo, "in sviluppo l'errore si vede, per correggerlo")
+verifica(len({rotto.simula("/ciao").intestazioni["X-Request-ID"] per _x in intervallo_di(5)}) == 5, "ogni richiesta ha un codice diverso")
+
+# ======================================================== controllo prima di pubblicare
+base = Applicazione("controllo", registro=Falso)
+base.invia("/accedi")(lambda richiesta: "x")
+problemi = base.controlla_produzione()
+gravi = {p["problema"][:25] per p in problemi se p["gravita"] == "errore"}
+verifica(lunghezza_di(gravi) == 3, "un sito appena creato ha 3 errori (produzione, chiave, host): " + tipo_testo(gravi))
+verifica(any("CSRF" in p["problema"] per p in problemi) e any("accesso/registrazione" in p["problema"] per p in problemi) e any("Secure" in p["problema"] per p in problemi), "e avvisi su CSRF, accesso senza limiti e cookie")
+verifica(all(p["correzione"] per p in problemi), "ogni problema ha la sua correzione")
+prova:
+    base.avvia_produzione(porta=0)
+    verifica(Falso, "avvia_produzione rifiuta un sito con errori")
+eccetto ErroreProduzione come errore:
+    verifica("ERRORE" in str(errore) o "produzione" in str(errore), "avvia_produzione spiega perché non parte")
+a_posto = Applicazione("a_posto", registro=Falso)
+a_posto.configura(chiave_segreta=CHIAVE, produzione=Vero, host_ammessi=["esempio.it"], proxy_fidato=Vero, csrf=Vero, registro_file=os.path.join(cartella, "a.log"))
+a_posto.invia("/accedi")(a_posto.limita(5, 60)(lambda richiesta: "x"))
+verifica([p per p in a_posto.controlla_produzione("127.0.0.1") se p["gravita"] != "nota"] == [], "configurato bene: niente errori né avvisi: " + tipo_testo(a_posto.controlla_produzione("127.0.0.1")))
+verifica(any("tutte le interfacce" in p["problema"] per p in base.controlla_produzione("0.0.0.0")), "ascoltare su 0.0.0.0 senza proxy è segnalato")
+a_posto.configura(proxy_fidato=Vero)
+verifica(any("falsificare" in p["problema"] per p in a_posto.controlla_produzione("0.0.0.0")), "proxy_fidato con il sito raggiungibile da tutti è segnalato")
+a_posto.configura(proxy_fidato=["172.16.0.0/12"])
+verifica(non any("falsificare" in p["problema"] per p in a_posto.controlla_produzione("0.0.0.0")), "con le reti del proxy l'avviso sparisce")
+uscita = io.StringIO()
+con contextlib.redirect_stdout(uscita):
+    base.stampa_controllo_produzione(base.controlla_produzione())
+verifica("[ERRORE]" in uscita.getvalue() e "->" in uscita.getvalue(), "il controllo si stampa in modo leggibile")
+
+# ======================================================== proxy, host ammessi, HTTPS
+dietro = sito(proxy_fidato=Vero)
+dietro.rotta("/chi")(lambda richiesta: {"ip": richiesta.indirizzo_cliente, "https": richiesta.https, "host": richiesta.host, "peer": richiesta.cliente})
+intestazioni_proxy = {"X-Forwarded-For": "9.9.9.9, 1.2.3.4", "X-Forwarded-Proto": "https", "X-Forwarded-Host": "esempio.it", "Host": "interno:8000"}
+r = dietro.simula("/chi", intestazioni=intestazioni_proxy, indirizzo="10.0.0.2")
+verifica(r.dati == {"ip": "1.2.3.4", "https": Vero, "host": "esempio.it", "peer": "10.0.0.2"}, "con un proxy l'IP vero, https e l'host vengono da X-Forwarded-*: " + r.testo)
+dietro.configura(proxy_fidato=2)
+verifica(dietro.simula("/chi", intestazioni=intestazioni_proxy, indirizzo="10.0.0.2").dati["ip"] == "9.9.9.9", "con due proxy davanti si prende il secondo da destra")
+dietro.configura(proxy_fidato=["10.0.0.0/8"])
+verifica(dietro.simula("/chi", intestazioni=intestazioni_proxy, indirizzo="10.1.2.3").dati["ip"] == "1.2.3.4", "solo dalle reti del proxy…")
+r = dietro.simula("/chi", intestazioni=intestazioni_proxy, indirizzo="8.8.8.8")
+verifica(r.dati["ip"] == "8.8.8.8" e r.dati["https"] è Falso e r.dati["host"] == "interno:8000", "…da altri le intestazioni sono ignorate (non si possono falsificare): " + r.testo)
+senza = sito()
+senza.rotta("/chi")(lambda richiesta: {"ip": richiesta.indirizzo_cliente, "https": richiesta.https})
+verifica(senza.simula("/chi", intestazioni=intestazioni_proxy, indirizzo="8.8.8.8").dati == {"ip": "8.8.8.8", "https": Falso}, "senza proxy_fidato X-Forwarded-For non conta")
+
+verificato = sito(host_ammessi=["esempio.it", "*.esempio.it"])
+verificato.rotta("/")(lambda: "ciao")
+verifica(verificato.simula("/", host="esempio.it").stato == 200 e verificato.simula("/", host="www.esempio.it:8080").stato == 200 e verificato.simula("/", host="ESEMPIO.IT").stato == 200, "host ammessi, anche con porta e maiuscole")
+verifica(verificato.simula("/", host="cattivo.it").stato == 400 e verificato.simula("/", host="esempio.it.cattivo.it").stato == 400 e verificato.simula("/").stato == 400, "host non ammessi: 400")
+verifica(verificato.simula("/", host="esempio.it").stato == 200 e verificato.simula("/", host="xesempio.it").stato == 400, "il carattere jolly vuole il punto")
+prova:
+    sito(forza_https=Vero)
+    verifica(Falso, "forza_https senza host_ammessi dà errore")
+eccetto ErroreDiValore:
+    passa
+sicuro = sito(forza_https=Vero, host_ammessi=["esempio.it"], produzione=Vero)
+sicuro.rotta("/pagina")(lambda: "ciao")
+sicuro.salute()
+r = sicuro.simula("/pagina?a=1&b=due", host="esempio.it")
+verifica(r.stato == 308 e r.intestazioni["Location"] == "https://esempio.it/pagina?a=1&b=due", "HTTP viene mandato a HTTPS (con la query): " + tipo_testo(r.intestazioni))
+r = sicuro.simula("/pagina", host="esempio.it", https=Vero)
+verifica(r.stato == 200 e r.intestazioni["Strict-Transport-Security"].startswith("max-age=31536000"), "su HTTPS in produzione compare HSTS")
+verifica(sicuro.simula("/salute", host="altro.it").stato == 200 e sicuro.simula("/salute", host="altro.it").dati["stato"] == "ok", "/salute non è soggetta a host e HTTPS")
+prova_hsts = sito(hsts=600)
+prova_hsts.rotta("/")(lambda: "x")
+verifica(prova_hsts.simula("/", https=Vero).intestazioni["Strict-Transport-Security"] == "max-age=600; includeSubDomains" e "Strict-Transport-Security" non in prova_hsts.simula("/").intestazioni, "hsts configurabile, solo su HTTPS")
+con_csp = sito(csp="default-src 'self'")
+con_csp.rotta("/")(lambda: "x")
+verifica(con_csp.simula("/").intestazioni["Content-Security-Policy"] == "default-src 'self'", "Content-Security-Policy")
+
+# ======================================================== limiti di richieste e blocco degli accessi
+limitato = sito()
+
+
+@limitato.rotta("/accedi")
+@limitato.limita(3, 60)
+definisci accedi_limitato():
+    ritorna "ok"
+
+
+esiti = [limitato.simula("/accedi", indirizzo="1.1.1.1").stato per _x in intervallo_di(5)]
+verifica(esiti == [200, 200, 200, 429, 429], "dopo il limite: 429: " + tipo_testo(esiti))
+r = limitato.simula("/accedi", indirizzo="1.1.1.1")
+verifica(1 <= tipo_intero(r.intestazioni["Retry-After"]) <= 61, "con Retry-After: " + r.intestazioni["Retry-After"])
+verifica(limitato.simula("/accedi", indirizzo="2.2.2.2").stato == 200, "un altro indirizzo ha il suo limite")
+veloce = sito()
+
+
+@veloce.rotta("/x")
+@veloce.limita(1, 1)
+definisci veloce_x():
+    ritorna "ok"
+
+
+veloce.simula("/x", indirizzo="3.3.3.3")
+verifica(veloce.simula("/x", indirizzo="3.3.3.3").stato == 429, "finestra di un secondo: bloccata")
+time.sleep(1.3)
+verifica(veloce.simula("/x", indirizzo="3.3.3.3").stato == 200, "e passata la finestra si riparte")
+con_globale = sito(limite_globale=(4, 60))
+con_globale.rotta("/")(lambda: "ok")
+verifica([con_globale.simula("/", indirizzo="4.4.4.4").stato per _x in intervallo_di(6)] == [200, 200, 200, 200, 429, 429], "limite globale per indirizzo")
+per_utente = sito()
+
+
+@per_utente.rotta("/p")
+@per_utente.limita(2, 60, per="utente")
+definisci per_utente_p(richiesta):
+    ritorna "ok"
+
+
+cliente_a, cliente_b = per_utente.cliente(), per_utente.cliente()
+cliente_a.imposta_sessione(utente="ada")
+cliente_b.imposta_sessione(utente="bruno")
+verifica([cliente_a.ottieni("/p").stato per _x in intervallo_di(3)] == [200, 200, 429] e cliente_b.ottieni("/p").stato == 200, "limite per utente, non per indirizzo")
+bloccante = sito(limite_accessi=(3, 60, 5))
+chiave = "ada|1.2.3.4"
+verifica(bloccante.accesso_fallito(chiave) == 0 e bloccante.accesso_fallito(chiave) == 0 e bloccante.accesso_bloccato(chiave) == 0, "i primi errori non bloccano")
+verifica(bloccante.accesso_fallito(chiave) == 5 e 1 <= bloccante.accesso_bloccato(chiave) <= 6, "al terzo errore la chiave è bloccata")
+verifica(bloccante.accesso_bloccato("bruno|1.2.3.4") == 0, "le altre chiavi no")
+bloccante.accesso_riuscito(chiave)
+verifica(bloccante.accesso_bloccato(chiave) == 0, "un accesso riuscito azzera il blocco")
+altro = sito(limite_accessi=(2, 60, 1))
+altro.accesso_fallito("x")
+altro.accesso_fallito("x")
+verifica(altro.accesso_bloccato("x") > 0, "bloccata…")
+time.sleep(1.3)
+verifica(altro.accesso_bloccato("x") == 0, "…e dopo il blocco di nuovo libera")
+
+# ======================================================== CORS
+api = sito()
+api.rotta("/dati")(lambda: {"a": 1})
+api.cors(["https://app.esempio.it"])
+r = api.simula("/dati", intestazioni={"Origin": "https://app.esempio.it"})
+verifica(r.intestazioni["Access-Control-Allow-Origin"] == "https://app.esempio.it" e "Origin" in r.intestazioni["Vary"], "CORS: origine ammessa")
+verifica("Access-Control-Allow-Origin" non in api.simula("/dati", intestazioni={"Origin": "https://cattivo.it"}).intestazioni, "CORS: origine non ammessa")
+r = api.simula("/dati", "OPTIONS", intestazioni={"Origin": "https://app.esempio.it", "Access-Control-Request-Method": "POST"})
+verifica(r.stato == 204 e "POST" in r.intestazioni["Access-Control-Allow-Methods"] e "Content-Type" in r.intestazioni["Access-Control-Allow-Headers"] e r.intestazioni["Access-Control-Max-Age"] == "600", "CORS: la richiesta preliminare")
+prova:
+    api.cors(["*"], credenziali=Vero)
+    verifica(Falso, "CORS con * e credenziali dà errore")
+eccetto ErroreDiValore:
+    passa
+tutti = sito()
+tutti.rotta("/")(lambda: "x")
+tutti.cors(["*"])
+verifica(tutti.simula("/", intestazioni={"Origin": "https://qualunque.it"}).intestazioni["Access-Control-Allow-Origin"] == "*", "CORS con *")
+
+# ======================================================== file statici: ETag, Range, gzip, flusso
+statici = sito()
+cartella_statici = os.path.join(cartella, "pubblico")
+os.makedirs(os.path.join(cartella_statici, "sotto"))
+contenuto = bytes(range(256)) * 20
+open(os.path.join(cartella_statici, "dati.bin"), "wb").write(contenuto)
+open(os.path.join(cartella_statici, "stile.css"), "w", encoding="utf-8").write("body { color: red; }\n" * 100)
+open(os.path.join(cartella_statici, ".env"), "w", encoding="utf-8").write("SEGRETO=1")
+open(os.path.join(cartella_statici, "sotto", "nota.txt"), "w", encoding="utf-8").write("ciao")
+open(os.path.join(cartella, "fuori.txt"), "w").write("NO")
+statici.statici("/s", cartella_statici)
+r = statici.simula("/s/dati.bin")
+etag = r.intestazioni["ETag"]
+verifica(r.stato == 200 e r.corpo == contenuto e etag.startswith('W/"') e "Last-Modified" in r.intestazioni e r.intestazioni["Accept-Ranges"] == "bytes", "un file statico con ETag e Last-Modified")
+verifica(r.intestazioni["Cache-Control"] == "no-cache", "in sviluppo il browser ricontrolla sempre")
+r = statici.simula("/s/dati.bin", intestazioni={"If-None-Match": etag})
+verifica(r.stato == 304 e r.corpo == b"" e r.intestazioni["ETag"] == etag, "If-None-Match uguale: 304 senza corpo")
+verifica(statici.simula("/s/dati.bin", intestazioni={"If-None-Match": 'W/"altro"'}).stato == 200 e statici.simula("/s/dati.bin", intestazioni={"If-None-Match": "*"}).stato == 304, "etag diverso: 200; «*»: 304")
+ultima = statici.simula("/s/dati.bin").intestazioni["Last-Modified"]
+verifica(statici.simula("/s/dati.bin", intestazioni={"If-Modified-Since": ultima}).stato == 304, "If-Modified-Since: 304")
+verifica(statici.simula("/s/dati.bin", intestazioni={"If-Modified-Since": "Mon, 01 Jan 2001 00:00:00 GMT"}).stato == 200, "…ma se il file è più nuovo: 200")
+r = statici.simula("/s/dati.bin", intestazioni={"Range": "bytes=10-19"})
+verifica(r.stato == 206 e r.corpo == contenuto[10:20] e r.intestazioni["Content-Range"] == f"bytes 10-19/{lunghezza_di(contenuto)}", "Range: 206 con i byte chiesti")
+verifica(statici.simula("/s/dati.bin", intestazioni={"Range": "bytes=-5"}).corpo == contenuto[-5:] e statici.simula("/s/dati.bin", intestazioni={"Range": "bytes=5000-"}).corpo == contenuto[5000:], "Range: ultimi byte e «da qui in poi»")
+verifica(statici.simula("/s/dati.bin", intestazioni={"Range": "bytes=999999-"}).stato == 416 e statici.simula("/s/dati.bin", intestazioni={"Range": "boh"}).stato == 200, "Range oltre la fine: 416; formato strano: ignorato")
+verifica(statici.simula("/s/.env").stato == 404 e statici.simula("/s/%2e%2e/fuori.txt").stato in (403, 404) e statici.simula("/s/sotto/nota.txt").testo == "ciao", "i file nascosti e fuori dalla cartella non si servono")
+statici.configura(produzione=Vero, cache_statici=60)
+verifica(statici.simula("/s/dati.bin").intestazioni["Cache-Control"] == "public, max-age=60", "cache configurabile")
+
+
+@statici.rotta("/scarica/<nome:resto>")
+definisci scarica(nome):
+    ritorna statici.invia_da_cartella(cartella_statici, nome, scarica=Vero)
+
+
+@statici.rotta("/scarica_nome")
+definisci scarica_nome():
+    ritorna invia_file(os.path.join(cartella_statici, "dati.bin"), nome="relazione è finale.bin", scarica=Vero)
+
+
+r = statici.simula("/scarica/sotto%2Fnota.txt")
+verifica(r.testo == "ciao" e r.intestazioni["Content-Disposition"].startswith('attachment; filename="nota.txt"'), "invia_da_cartella con download: " + tipo_testo(r.intestazioni))
+verifica(statici.simula("/scarica/..%2Ffuori.txt").stato in (403, 404) e statici.simula("/scarica/.env").stato == 404, "invia_da_cartella non esce dalla cartella e rifiuta i file nascosti")
+disp = statici.simula("/scarica_nome").intestazioni["Content-Disposition"]
+verifica("filename*=UTF-8''relazione%20%C3%A8%20finale.bin" in disp e 'filename="relazione _ finale.bin"' in disp, "nome del download con lettere accentate: " + disp)
+# compressione
+grande = Applicazione("gzip", registro=Falso)
+grande.rotta("/testo")(lambda: "<p>ciao mondo</p>" * 100)
+grande.rotta("/json")(lambda: {"voci": ["abcdefghij"] * 200})
+grande.rotta("/piccolo")(lambda: "ciao")
+grande.rotta("/immagine")(lambda: Risposta(bytes(range(256)) * 10, tipo="image/png"))
+r = grande.simula("/testo", intestazioni={"Accept-Encoding": "gzip, deflate"})
+verifica(r.intestazioni["Content-Encoding"] == "gzip" e gzip.decompress(r.corpo) == ("<p>ciao mondo</p>" * 100).encode("utf-8") e r.intestazioni["Vary"] == "Accept-Encoding" e lunghezza_di(r.corpo) < 600, "gzip su richiesta, con Vary")
+verifica(json.loads(gzip.decompress(grande.simula("/json", intestazioni={"Accept-Encoding": "gzip"}).corpo))["voci"][0] == "abcdefghij", "gzip anche per il JSON")
+verifica("Content-Encoding" non in grande.simula("/testo").intestazioni e "Content-Encoding" non in grande.simula("/piccolo", intestazioni={"Accept-Encoding": "gzip"}).intestazioni e
+         "Content-Encoding" non in grande.simula("/immagine", intestazioni={"Accept-Encoding": "gzip"}).intestazioni, "niente gzip senza richiesta, per testi piccoli o per le immagini")
+grande.configura(compressione=Falso)
+verifica("Content-Encoding" non in grande.simula("/testo", intestazioni={"Accept-Encoding": "gzip"}).intestazioni, "compressione=Falso")
+
+# ======================================================== il server integrato e quello di produzione, davvero
+vero = sito()
+vero.rotta("/ciao")(lambda: "ciao")
+vero.statici("/s", cartella_statici)
+grosso = os.path.join(cartella_statici, "grosso.bin")
+dati_grossi = os.urandom(3 * 1024 * 1024)
+open(grosso, "wb").write(dati_grossi)
+vero.configura(timeout_connessione=2, connessioni_massime=3)
+server = vero.avvia_in_sottofondo()
+
+
+definisci richiesta_grezza(testo_, porta=Nessuno, attesa=2.0):
+    s_ = socket.create_connection(("127.0.0.1", porta o server.porta), timeout=attesa)
+    s_.sendall(testo_.encode("latin-1"))
+    ricevuti = b""
+    prova:
+        mentre Vero:
+            blocco = s_.recv(65536)
+            se non blocco:
+                interrompi
+            ricevuti += blocco
+    eccetto (socket.timeout, ConnectionError):
+        passa
+    s_.close()
+    ritorna ricevuti
+
+
+prova:
+    cx = http.client.HTTPConnection("127.0.0.1", server.porta, timeout=15)
+    cx.request("GET", "/s/grosso.bin")
+    ris = cx.getresponse()
+    ricevuto = ris.read()
+    verifica(ris.status == 200 e ricevuto == dati_grossi e ris.getheader("Content-Length") == tipo_testo(lunghezza_di(dati_grossi)), "un file di 3 MB arriva intero, a pezzi")
+    verifica(ris.getheader("Server") == "server_web" e "Python" non in tipo_testo(ris.getheader("Server")) e ris.getheader("X-Request-ID"), "l'intestazione Server non rivela la versione di Python")
+    cx.request("GET", "/s/grosso.bin", headers={"Range": "bytes=1000-1999"})
+    ris = cx.getresponse()
+    verifica(ris.status == 206 e ris.read() == dati_grossi[1000:2000], "Range con un server vero")
+    cx.request("HEAD", "/s/grosso.bin")
+    ris = cx.getresponse()
+    verifica(ris.status == 200 e ris.read() == b"" e ris.getheader("Content-Length") == tipo_testo(lunghezza_di(dati_grossi)), "HEAD: lunghezza senza corpo")
+    cx.close()
+    risposta_411 = richiesta_grezza("POST /ciao HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\nciao!\r\n0\r\n\r\n")
+    verifica(b" 411 " in risposta_411.split(b"\r\n")[0], "il trasferimento a pezzi è rifiutato (411): " + risposta_411[:40].decode("latin-1"))
+    # limite di connessioni: due connessioni ferme occupano due posti, la terza e la quarta no
+    ferme = [socket.create_connection(("127.0.0.1", server.porta), timeout=5) per _x in intervallo_di(3)]
+    quarta = b""
+    per _tentativo in intervallo_di(20):                 # il server deve aver accettato le tre connessioni ferme: si riprova finché non risponde 503
+        time.sleep(0.3)
+        quarta = richiesta_grezza("GET /ciao HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n", attesa=3)
+        se b" 503 " in quarta.split(b"\r\n")[0]:
+            interrompi
+    verifica(b" 503 " in quarta.split(b"\r\n")[0], "oltre il limite di connessioni: 503 subito: " + quarta[:40].decode("latin-1"))
+    inizio = time.time()
+    chiuso = Falso
+    prova:
+        ferme[0].settimeout(6)
+        chiuso = ferme[0].recv(10) == b""
+    eccetto (socket.timeout, ConnectionError):
+        chiuso = Falso
+    verifica(chiuso e time.time() - inizio < 5, "una connessione ferma viene chiusa dal timeout (2 s): " + tipo_testo(time.time() - inizio))
+    per f in ferme:
+        f.close()
+    time.sleep(0.3)
+    verifica(b" 200 " in richiesta_grezza("GET /ciao HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n").split(b"\r\n")[0], "liberati i posti il server risponde di nuovo")
+infine:
+    server.ferma()
+
+# waitress
+chiusure = []
+prod = sito(proxy_fidato=Vero)
+prod.rotta("/chi")(lambda richiesta: {"ip": richiesta.indirizzo_cliente, "https": richiesta.https, "id": richiesta.id})
+prod.alla_chiusura(lambda: chiusure.append("chiuso"))
+prod.statici("/s", cartella_statici)
+srv = prod.avvia_produzione_in_sottofondo()
+prova:
+    cx = http.client.HTTPConnection("127.0.0.1", srv.porta, timeout=15)
+    cx.request("GET", "/chi", headers={"X-Forwarded-For": "7.7.7.7", "X-Forwarded-Proto": "https"})
+    ris = cx.getresponse()
+    dati = json.loads(ris.read())
+    verifica(ris.status == 200 e dati["ip"] == "7.7.7.7" e dati["https"] è Vero e ris.getheader("X-Request-ID") == dati["id"], "waitress serve l'applicazione, con proxy_fidato: " + tipo_testo(dati))
+    cx.request("GET", "/s/grosso.bin")
+    ris = cx.getresponse()
+    verifica(ris.status == 200 e ris.read() == dati_grossi, "e i file grandi arrivano interi anche da waitress")
+    cx.request("GET", "/chi", headers={"Cookie": "a=1"})
+    verifica(cx.getresponse().status == 200, "e le richieste in sequenza sulla stessa connessione funzionano")
+    cx.close()
+infine:
+    srv.ferma()
+verifica(chiusure == ["chiuso"], "alla chiusura parte alla_chiusura")
+verifica(prod.richiesta_corrente() è Nessuno, "nessuna richiesta resta «corrente»")
+prova:
+    http.client.HTTPConnection("127.0.0.1", srv.porta, timeout=2).request("GET", "/chi")
+    verifica(Falso, "dopo ferma() il server di produzione non risponde")
+eccetto OSError:
+    passa
+# SIGTERM = arresto pulito: il gestore c'è
+vecchio = signal.getsignal(signal.SIGTERM)
+prod._installa_sigterm()
+gestore = signal.getsignal(signal.SIGTERM)
+verifica(gestore è non vecchio e callable(gestore), "SIGTERM è collegato a un arresto pulito")
+signal.signal(signal.SIGTERM, vecchio)
+
+# ======================================================== /salute e configurazione dall'ambiente
+vivo = sito()
+
+
+@vivo.rotta("/x")
+definisci x_():
+    ritorna "x"
+
+
+stato_db = {"ok": Vero}
+
+
+definisci controlla_db():
+    se non stato_db["ok"]:
+        solleva RuntimeError("database spento")
+
+
+vivo.salute("/salute", controlla_db)
+r = vivo.simula("/salute")
+verifica(r.stato == 200 e r.dati["stato"] == "ok" e r.dati["applicazione"] == "prova" e "secondi" in r.dati, "/salute risponde ok")
+stato_db["ok"] = Falso
+verifica(vivo.simula("/salute").stato == 503 e "RuntimeError" in vivo.simula("/salute").testo, "e 503 quando il controllo fallisce")
+verifica("/salute" non in vivo.openapi()["paths"], "non compare nella documentazione")
+
+file_env = os.path.join(cartella, ".env")
+open(file_env, "w", encoding="utf-8").write('# commento\nSITO_CHIAVE_SEGRETA="una chiave presa dal file .env lunga"\nSITO_PRODUZIONE=1\nSITO_HOST_AMMESSI=esempio.it, www.esempio.it\nSITO_PROXY_FIDATO=10.0.0.0/8,172.16.0.0/12\nSITO_LIMITE_GLOBALE=120/30\nSITO_CSRF=si\nSITO_REGISTRO_FILE=' + os.path.join(cartella, "ambiente.log") + '\n')
+ambiente = Applicazione("ambiente", registro=Falso)
+os.environ["SITO_PRODUZIONE"] = "0"                 # la variabile vera vince sul file
+applicato = ambiente.configura_da_ambiente("SITO_", file_env)
+os.environ.pop("SITO_PRODUZIONE", Nessuno)
+verifica(ambiente.produzione è Falso e ambiente.csrf è Vero e ambiente.host_ammessi == ["esempio.it", "www.esempio.it"] e ambiente.limite_globale == (120, 30), "le regolazioni dall'ambiente e dal file .env: " + tipo_testo(applicato))
+verifica(ambiente._chiave == b"una chiave presa dal file .env lunga" e ambiente._chiave_temporanea è Falso e applicato["chiave_segreta"] == "(riservato)", "la chiave segreta si legge dal file e non viene mostrata")
+verifica(ambiente.proxy_fidato è Vero e lunghezza_di(ambiente._proxy_reti) == 2 e ambiente.registro_file.endswith("ambiente.log"), "reti del proxy e registro")
+altro_ambiente = Applicazione("altro", registro=Falso)
+os.environ["MIO_PROXY_FIDATO"] = "2"
+os.environ["MIO_DIMENSIONE_MASSIMA"] = "1000"
+altro_ambiente.configura_da_ambiente("MIO_")
+os.environ.pop("MIO_PROXY_FIDATO")
+os.environ.pop("MIO_DIMENSIONE_MASSIMA")
+verifica(altro_ambiente._proxy_numero == 2 e altro_ambiente.dimensione_massima == 1000, "prefisso scelto, numeri")
+
+# ======================================================== la documentazione è spenta in produzione
+documentata = sito(produzione=Vero)
+documentata.rotta("/x")(lambda: "x")
+documentata.documentazione()
+verifica(documentata.simula("/docs").stato == 404 e documentata.simula("/openapi.json").stato == 404, "in produzione /docs è spenta")
+documentata.documentazione("/docs", attiva_in_produzione=Vero)
+verifica(documentata.simula("/docs").stato == 200, "…a meno che non la accendi")
+
+shutil.rmtree(cartella, ignore_errors=Vero)
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)

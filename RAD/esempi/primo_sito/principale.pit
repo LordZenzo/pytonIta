@@ -25,4 +25,5 @@ definisci saluta(richiesta):
     ritorna server_web.pagina(PAGINA_SALUTO, stile=STILE, nome=nome)
 
 
-app.avvia(porta=8000)
+se __nome__ == "__main__":
+    app.avvia(porta=8000)

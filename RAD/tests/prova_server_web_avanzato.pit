@@ -490,7 +490,7 @@ verifica(dopo.simula("/").intestazioni["X-Prova"] == "/" e dopo.simula("/xyz").i
 verifica(dopo.simula("/").intestazioni["X-Content-Type-Options"] == "nosniff" e dopo.simula("/").intestazioni["X-Frame-Options"] == "SAMEORIGIN" e
          dopo.simula("/").intestazioni["Referrer-Policy"] == "same-origin", "intestazioni di sicurezza predefinite")
 dopo.configura(intestazioni_sicurezza={"X-Frame-Options": "DENY"})
-verifica(dopo.simula("/").intestazioni == {"X-Prova": "/", "X-Frame-Options": "DENY"}, "intestazioni di sicurezza personalizzate")
+verifica(dopo.simula("/").intestazioni["X-Frame-Options"] == "DENY" e "X-Content-Type-Options" non in dopo.simula("/").intestazioni e "X-Request-ID" in dopo.simula("/").intestazioni, "intestazioni di sicurezza personalizzate")
 prova:
     dopo.configura(chiave_segreta="corta")
     verifica(Falso, "una chiave troppo corta dà errore")

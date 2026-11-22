@@ -56,7 +56,7 @@ importa sqlite3
 importa server_web
 
 QUI = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(QUI, "note.db")
+DATABASE = os.path.join(os.environ.get("SITO_CARTELLA_DATI", QUI), "note.db")        # in produzione (Docker) i dati stanno in una cartella a parte: non si perdono aggiornando
 app = server_web.Applicazione("@@NOME@@")
 app.configura(cartella_pagine=os.path.join(QUI, "pagine"))
 app.statici("/statici", os.path.join(QUI, "statici"))
@@ -120,6 +120,7 @@ definisci elimina_nota(numero_nota):
     ritorna {"eliminata": numero_nota}
 
 
+app.salute()                                  # /salute: per i controlli di stato (Docker, monitoraggio)
 app.documentazione("/docs", "@@NOME@@")
 
 

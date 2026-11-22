@@ -357,6 +357,7 @@ classe Applicazione:
         prog.add_command(label="Converti questo progetto Python in pytonIta…", command=lambda: se_stesso.converti_progetto_py(se_stesso.progetto.cartella se se_stesso.progetto altrimenti ""))
         prog.add_command(label="Esporta il progetto come Python…", command=lambda: se_stesso.esporta_progetto_python())
         prog.add_command(label="Crea l'eseguibile (.exe)…", command=lambda: se_stesso.crea_eseguibile())
+        prog.add_command(label="Prepara per la pubblicazione (sito web)…", command=lambda: se_stesso.prepara_pubblicazione())
         prog.add_command(label="Aggiorna l'albero", command=lambda: se_stesso.pannello_progetto.aggiorna())
         barra.add_cascade(label="Progetto", menu=prog)
 
@@ -2168,6 +2169,19 @@ classe Applicazione:
             ritorna Nessuno
         se_stesso.salva_tutto()
         d = DialogoEseguibile(se_stesso.radice, se_stesso.colori, se_stesso.progetto.cartella)
+        d.mostra()
+        se se_stesso.progetto:
+            se_stesso.pannello_progetto.aggiorna()
+        ritorna d.esito
+
+    definisci prepara_pubblicazione(se_stesso):
+        """Progetto → Prepara per la pubblicazione: scrive la cartella con Docker, Caddy, systemd e le istruzioni per mettere un sito server_web su un server."""
+        se non se_stesso.progetto:
+            messagebox.showinfo("Pubblicazione", "Apri o crea prima un progetto.", parent=se_stesso.radice)
+            ritorna Nessuno
+        se_stesso.salva_tutto()
+        da rad.pubblica importa DialogoPubblicazione
+        d = DialogoPubblicazione(se_stesso.radice, se_stesso.colori, se_stesso.progetto.cartella)
         d.mostra()
         se se_stesso.progetto:
             se_stesso.pannello_progetto.aggiorna()

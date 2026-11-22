@@ -164,10 +164,33 @@ definisci carica(richiesta):
 
 Ogni richiesta scrive una riga nella console (`GET /pagina 200 (3 ms)`): si spegne con `Applicazione(registro=Falso)`.
 
+## Per il web pubblico
+
+`app.avvia()` è per imparare e per strumenti locali. Per un sito su Internet (vedi la [lezione 29](#lezione-29)):
+
+| Cosa | Come |
+|---|---|
+| server di produzione | `app.avvia_produzione(porta=8000, ascolta="127.0.0.1")`: usa **waitress** (incluso), fa prima il controllo e non parte se c'è un errore; si ferma con Ctrl+C o SIGTERM (`docker stop`) |
+| controllo prima di partire | `app.controlla_produzione()` → elenco di `{gravita, problema, correzione}`; `app.stampa_controllo_produzione()` lo scrive leggibile |
+| modalità produzione | `configura(produzione=Vero)`: errori con un **codice** (`X-Request-ID`) invece dei dettagli, `/docs` spenta, statici in cache, HSTS su HTTPS |
+| dietro un proxy HTTPS | `configura(proxy_fidato=Vero)` (o un numero di proxy, o `["10.0.0.0/8"]`): legge `X-Forwarded-For/Proto/Host`; `richiesta.indirizzo_cliente`, `richiesta.https`, `richiesta.host` |
+| nomi e HTTPS | `host_ammessi=["esempio.it", "*.esempio.it"]`, `forza_https=Vero` (308 verso HTTPS), `hsts=secondi`, `csp="default-src 'self'"` |
+| limiti di richieste | `@app.limita(richieste, secondi, per="ip" o "utente")` (429 con `Retry-After`), `configura(limite_globale=(120, 60))` |
+| blocco degli accessi | `app.accesso_fallito(chiave)`, `app.accesso_bloccato(chiave)`, `app.accesso_riuscito(chiave)`, `configura(limite_accessi=(tentativi, finestra, blocco))` |
+| CORS | `app.cors(["https://app.esempio.it"], credenziali=Falso)` (richieste preliminari comprese) |
+| file statici e download | a pezzi (anche grandi), `ETag`/`Last-Modified`/304, `Range`/206, gzip dei testi (`configura(compressione=Falso)` per spegnerlo), `invia_file(percorso, nome=..., scarica=Vero)`, `app.invia_da_cartella(cartella, nome)` (sicuro con nomi dell'utente); i file nascosti (`.env`, `.git`) non si servono mai |
+| registri | `configura(registro_file="logs/accessi.log", registro_errori="logs/errori.log")` con rotazione (5 MB × 5); ogni riga ha l'indirizzo vero e il codice della richiesta |
+| stato del sito | `app.salute("/salute", controlla=funzione)` → `{"stato": "ok"}` o 503; non soggetta a host, HTTPS e limiti |
+| regolazioni dall'ambiente | `app.configura_da_ambiente("SITO_", ".env")`: `SITO_CHIAVE_SEGRETA`, `SITO_PRODUZIONE`, `SITO_HOST_AMMESSI`, `SITO_PROXY_FIDATO`, `SITO_CSRF`, `SITO_FORZA_HTTPS`, `SITO_REGISTRO_FILE`… (le variabili vere vincono sul file) |
+| server integrato più robusto | `timeout_connessione` (chiude le connessioni ferme), `connessioni_massime` (oltre: 503 subito), niente trasferimento a pezzi (411), il nome del server non rivela la versione di Python |
+
+**Progetto → Prepara per la pubblicazione (sito web)…** scrive la cartella `pubblicazione/`: converte il programma in Python e aggiunge `Dockerfile`, `docker-compose.yml` con **Caddy** (HTTPS automatico), `Caddyfile`, un `.env` con una **chiave segreta casuale** (si crea una sola volta, mai sovrascritto), `sito.service` per systemd, un `avvio_produzione.py` e `LEGGIMI_PUBBLICAZIONE.md` con i passi (dominio, server, DNS, firewall, aggiornamenti, copie di sicurezza). Non pubblica niente da sola.
+
 ## Sicurezza
 
-- Il server integrato ascolta **solo su 127.0.0.1** (il tuo computer). `ascolta="0.0.0.0"` lo apre a tutta la rete: solo per provare.
-- **Per un sito pubblico non usare `app.avvia`**: metti l'applicazione dietro un server di produzione (`waitress`, `gunicorn`, `uvicorn`), dietro un proxy con HTTPS (nginx, Caddy…), con `chiave_segreta` vera, `csrf=Vero`, `cookie_sicuro=Vero` e `DEBUG` spento. `server_web` non fa limiti di richieste, non protegge dagli attacchi di forza bruta sull'accesso, non gestisce utenti né permessi complessi: sono cose da aggiungere sopra (o da risolvere con un framework più grande: [FastAPI](#fastapi)).
+- Il server integrato ascolta **solo su 127.0.0.1**. `ascolta="0.0.0.0"` lo apre a tutta la rete: solo per provare.
+- **Per un sito pubblico non usare `app.avvia`**: `avvia_produzione` dietro un proxy HTTPS (Caddy, nginx), con chiave segreta vera, `produzione=Vero`, `host_ammessi`, `csrf=Vero`, limiti sugli accessi e `proxy_fidato` solo se il sito è raggiungibile soltanto dal proxy.
+- `server_web` **non** protegge da tutto: non ha un sistema di utenti e permessi complesso, non fa limiti condivisi tra più processi, non sostituisce un servizio gestito né una verifica di sicurezza. Per siti grandi vale la pena un framework più completo: [FastAPI](#fastapi).
 - Il testo degli utenti non va mai messo in una pagina senza passare dai modelli (`{{ }}` lo rende innocuo); nell'SQL i valori vanno sempre con `?` (vedi la [lezione 26](#lezione-26)).
 
 ## Esportare in Python

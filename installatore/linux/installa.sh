@@ -215,6 +215,8 @@ installa_pitstudio() {
     if [ "$SOLO_PITSTUDIO" = "0" ]; then
         dica "Pillow (serve a PitStudio per le immagini)"
         "$py" -m pip install --quiet pillow || echo "ATTENZIONE: pillow non installato: alcune immagini non si vedranno."
+        dica "waitress (server di produzione per i siti fatti con server_web)"
+        "$py" -m pip install --quiet waitress || echo "ATTENZIONE: waitress non installato: app.avvia_produzione() non funzionerà finché non lo installi (pip install waitress)."
         if [ "$SCIENTIFICHE" = "1" ]; then
             dica "Librerie scientifiche (può richiedere qualche minuto)"
             "$py" -m pip install --quiet numpy pandas scipy matplotlib requests reportlab tksheet || echo "ATTENZIONE: alcune librerie scientifiche non si sono installate."

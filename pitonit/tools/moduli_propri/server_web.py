@@ -27,25 +27,35 @@ Come un framework (stile FastAPI/Flask):
   - modelli di pagina con cicli, condizioni, ereditarieta' (`app.mostra("pagina.html", ...)`) e file inviati con i moduli;
   - documentazione automatica in /docs e /openapi.json (`app.documentazione()`);
   - WSGI (`app` stessa) e ASGI (`app.asgi`) per i server di produzione (waitress, gunicorn, uvicorn...), HTTPS con certificato.
+  - per il web pubblico: modalita' produzione, proxy fidato, host ammessi, limiti di richieste, file statici con ETag/Range/gzip, registri, /salute.
 
 Sicurezza: per default il server ascolta solo sul tuo computer (127.0.0.1). Con ascolta="0.0.0.0" lo vede tutta la rete.
-Per un sito aperto al pubblico usa un server di produzione davanti all'applicazione (vedi `app.asgi` e la guida).
+Per un sito aperto al pubblico: app.configura(produzione=Vero, ...), app.controlla_produzione() e app.avvia_produzione() (waitress) dietro un proxy
+HTTPS; PitStudio prepara la cartella per il server (Docker, Caddy, systemd) con «Progetto → Prepara per la pubblicazione».
 """
 import ast as _ast
 import asyncio as _asincrono
 import base64 as _base64
+import collections as _collezioni
 import copy as _copia
+import email.utils as _email_utili
 import email.parser as _email_parser
 import email.policy as _email_policy
+import gzip as _gzip
 import hashlib as _hashlib
 import hmac as _hmac
 import html as _html
+import ipaddress as _indirizzi
 import inspect as _ispeziona
 import json as _json
+import logging as _registro_py
+import logging.handlers as _registro_gestori
 import mimetypes as _mimetypes
 import os as _os
 import re as _re
 import secrets as _segreti
+import signal as _segnali
+import socketserver as _socketserver
 import ssl as _ssl
 import sys as _sistema
 import threading as _thread
@@ -67,10 +77,11 @@ _locale = _thread.local()                    # la richiesta che sta girando in q
 class ErroreWeb(Exception):
     """Da sollevare in una rotta per rispondere con un errore: `solleva ErroreWeb(404, "Non c'e'")`."""
 
-    def __init__(self, stato=500, messaggio=""):
+    def __init__(self, stato=500, messaggio="", intestazioni=None):
         Exception.__init__(self, messaggio)
         self.stato = stato
         self.messaggio = messaggio or _frase(stato)
+        self.intestazioni = dict(intestazioni or {})          # per esempio {"Retry-After": "30"}
 
 
 class ErroreValidazione(ErroreWeb):
@@ -372,8 +383,13 @@ class Richiesta:
         self.parametri_multipli = query                                # ?a=1&a=2 -> {"a": ["1", "2"]}
         self.intestazioni = intestazioni
         self.corpo = corpo
-        self.cliente = cliente
+        self.cliente = cliente                 # l'indirizzo di chi si e' collegato (con un proxy davanti e' quello del proxy)
+        self.indirizzo_cliente = cliente       # l'indirizzo vero del visitatore (con proxy_fidato legge X-Forwarded-For)
         self.https = False
+        self.id = _segreti.token_hex(6)        # un codice per ritrovare la richiesta nei registri (e nelle pagine d'errore in produzione)
+        self.inizio = _tempo.time()
+        self._host = None
+        self.query_grezza = _url.urlencode(query, doseq=True)
         tipo = (intestazioni.get("Content-Type") or "").split(";")[0].strip().lower()
         self.tipo = tipo
         self._json = None
@@ -387,6 +403,11 @@ class Richiesta:
         except Exception:
             pass
         self.cookie = {k: m.value for k, m in cookie.items()}
+
+    @property
+    def host(self):
+        """Il nome del sito richiesto (con proxy_fidato anche X-Forwarded-Host)."""
+        return self._host or self.intestazioni.get("Host") or ""
 
     @property
     def testo(self):
@@ -475,24 +496,92 @@ class Richiesta:
 
 
 class Risposta:
-    """Una risposta completa. Di solito basta ritornare un testo o un dizionario: serve per tipo, stato, intestazioni e cookie."""
+    """Una risposta completa. Di solito basta ritornare un testo o un dizionario: serve per tipo, stato, intestazioni e cookie.
+    Risposta.da_file(percorso) invia un file a pezzi (anche grande) con ETag, Last-Modified e richieste parziali (Range)."""
 
     def __init__(self, corpo="", stato=200, tipo=None, intestazioni=None):
         self.stato = stato
         self.intestazioni = dict(intestazioni or {})
         self.cookie = []
+        self._file = None
+        self._dimensione_file = 0
+        self._intervallo = None
         if isinstance(corpo, (dict, list)):
             corpo = _json.dumps(corpo, ensure_ascii=False)
             tipo = tipo or "application/json; charset=utf-8"
         if isinstance(corpo, str):
-            self.corpo = corpo.encode("utf-8")
+            self._corpo = corpo.encode("utf-8")
             tipo = tipo or "text/html; charset=utf-8"
         elif corpo is None:
-            self.corpo = b""
+            self._corpo = b""
         else:
-            self.corpo = bytes(corpo)
+            self._corpo = bytes(corpo)
             tipo = tipo or "application/octet-stream"
         self.tipo = tipo or "text/plain; charset=utf-8"
+
+    @classmethod
+    def da_file(cls, percorso, tipo=None, scarica=False, nome=None, cache=None, intestazioni=None):
+        """Invia un file. scarica=Vero (o un nome) fa salvare il file invece di mostrarlo. cache: il valore di Cache-Control (es. "public, max-age=3600").
+        ATTENZIONE: non passare mai un percorso scelto dall'utente: per i file di una cartella usa app.invia_da_cartella."""
+        st = _os.stat(percorso)
+        risposta = cls("", 200, tipo or _tipo_file(percorso), intestazioni)
+        risposta._corpo = None
+        risposta._file = percorso
+        risposta._dimensione_file = st.st_size
+        risposta.intestazioni["ETag"] = f'W/"{st.st_mtime_ns:x}-{st.st_size:x}"'
+        risposta.intestazioni["Last-Modified"] = _email_utili.formatdate(st.st_mtime, usegmt=True)
+        risposta.intestazioni["Accept-Ranges"] = "bytes"
+        if cache is not None:
+            risposta.intestazioni["Cache-Control"] = cache
+        if scarica or nome:
+            visibile = _os.path.basename((nome or percorso).replace("\\", "/"))
+            ascii_ = _re.sub(r"[^A-Za-z0-9._ -]", "_", visibile) or "file"
+            risposta.intestazioni["Content-Disposition"] = f"attachment; filename=\"{ascii_}\"; filename*=UTF-8''{_url.quote(visibile)}"
+        return risposta
+
+    @property
+    def corpo(self):
+        """Il corpo come byte (per un file, lo legge tutto: per le prove)."""
+        if self._file is not None and self._corpo is None:
+            inizio, fine = self._intervallo or (0, self._dimensione_file - 1)
+            with open(self._file, "rb") as f:
+                f.seek(inizio)
+                return f.read(fine - inizio + 1)
+        return self._corpo
+
+    @corpo.setter
+    def corpo(self, valore):
+        self._corpo = valore
+
+    @property
+    def in_flusso(self):
+        return self._file is not None
+
+    @property
+    def lunghezza(self):
+        """Quanti byte verranno inviati."""
+        if self._file is not None:
+            if self._intervallo:
+                return self._intervallo[1] - self._intervallo[0] + 1
+            return self._dimensione_file
+        return len(self._corpo)
+
+    def blocchi(self, dimensione=65536):
+        """Il corpo a pezzi (un file non viene mai letto tutto in memoria)."""
+        if self._file is None:
+            if self._corpo:
+                yield self._corpo
+            return
+        inizio, fine = self._intervallo or (0, self._dimensione_file - 1)
+        with open(self._file, "rb") as f:
+            f.seek(inizio)
+            restante = fine - inizio + 1
+            while restante > 0:
+                pezzo = f.read(min(dimensione, restante))
+                if not pezzo:
+                    break
+                restante -= len(pezzo)
+                yield pezzo
 
     @property
     def testo(self):
@@ -530,6 +619,11 @@ class Risposta:
 
     def togli_cookie(self, nome, percorso="/"):
         return self.imposta_cookie(nome, "", durata=0, percorso=percorso)
+
+
+def invia_file(percorso, nome=None, scarica=False, tipo=None, cache=None):
+    """Una risposta con un file (a pezzi, con ETag e Range). ATTENZIONE: il percorso lo scegli tu, non l'utente (vedi app.invia_da_cartella)."""
+    return Risposta.da_file(percorso, tipo=tipo, scarica=scarica, nome=nome, cache=cache)
 
 
 def reindirizza(indirizzo, stato=302):
@@ -1115,6 +1209,72 @@ def _tipo_file(percorso):
     return tipo + ("; charset=utf-8" if tipo.startswith("text/") or tipo in ("application/javascript", "application/json") else "")
 
 
+class ErroreProduzione(Exception):
+    """Il sito non e' pronto per la produzione (o manca waitress): il messaggio dice cosa fare."""
+
+
+class _Limitatore:
+    """Conta le richieste recenti per chiave (finestra scorrevole). Sta in memoria e funziona con piu' fili."""
+
+    def __init__(self):
+        self._voci = {}
+        self._blocco = _thread.Lock()
+
+    def colpisci(self, chiave, massimo, secondi):
+        """(ammessa, secondi da attendere). Registra la richiesta solo se e' ammessa."""
+        ora = _tempo.monotonic()
+        with self._blocco:
+            voce = self._voci.get(chiave)
+            if voce is None:
+                voce = self._voci[chiave] = (_collezioni.deque(), secondi)
+            coda = voce[0]
+            while coda and coda[0] <= ora - secondi:
+                coda.popleft()
+            if len(coda) >= massimo:
+                return False, max(1, int(coda[0] + secondi - ora) + 1)
+            coda.append(ora)
+            if len(self._voci) > 20000:
+                self._voci = {k: v for k, v in self._voci.items() if v[0] and v[0][-1] > ora - v[1]}
+            return True, 0
+
+
+class _ServerRobusto(_Server):
+    """Il server integrato con un limite alle connessioni contemporanee: oltre il limite risponde 503 subito invece di creare fili all'infinito."""
+    request_queue_size = 128
+
+    def __init__(self, indirizzo, gestore, massimo):
+        self._limite_connessioni = _thread.BoundedSemaphore(max(1, massimo))
+        _Server.__init__(self, indirizzo, gestore)
+
+    def process_request(self, richiesta, indirizzo_cliente):
+        if not self._limite_connessioni.acquire(blocking=False):
+            try:
+                richiesta.settimeout(0.3)
+                try:
+                    richiesta.recv(65536)               # si legge la richiesta (e si scarta): chiudere con dati non letti farebbe perdere la risposta al client
+                except OSError:
+                    pass
+                richiesta.sendall(b"HTTP/1.1 503 Service Unavailable\r\nRetry-After: 1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            except OSError:
+                pass
+            self.shutdown_request(richiesta)
+            return
+        try:
+            _Server.process_request(self, richiesta, indirizzo_cliente)
+        except BaseException:
+            self._limite_connessioni.release()
+            raise
+
+    def process_request_thread(self, richiesta, indirizzo_cliente):
+        try:
+            _Server.process_request_thread(self, richiesta, indirizzo_cliente)
+        finally:
+            self._limite_connessioni.release()
+
+
+MAX_RICHIESTE_PER_CONNESSIONE = 100
+
+
 # =====================================================================================================
 #  L'applicazione
 # =====================================================================================================
@@ -1147,15 +1307,53 @@ class Applicazione(Gruppo):
         self._https = False
         self._documentazione = None
         self._app = self
+        # ---- per il web pubblico
+        self.produzione = False
+        self.proxy_fidato = False
+        self._proxy_reti = None
+        self._proxy_numero = 1
+        self.host_ammessi = []
+        self.forza_https = False
+        self.hsts = None
+        self.csp = None
+        self._cors = None
+        self.compressione = True
+        self.cache_statici = None
+        self.registro_file = None
+        self.registro_errori = None
+        self._log_accessi = None
+        self._log_errori = None
+        self.limite_globale = None
+        self.limite_accessi = (5, 900, 900)
+        self.timeout_connessione = 30
+        self.connessioni_massime = 200
+        self._limiti = _Limitatore()
+        self._tentativi = {}
+        self._blocco_tentativi = _thread.Lock()
+        self._esenti = set()
+        self._avvio_tempo = _tempo.time()
+        self._ascolta = None
 
     # ---- regolazioni
     def configura(self, chiave_segreta=None, durata_sessione=None, csrf=None, cartella_pagine=None, dimensione_massima=None, cookie_sicuro=None,
-                  intestazioni_sicurezza=None):
-        """Le regolazioni del sito, tutte facoltative:
+                  intestazioni_sicurezza=None, produzione=None, proxy_fidato=None, host_ammessi=None, forza_https=None, hsts=None, csp=None,
+                  compressione=None, cache_statici=None, registro_file=None, registro_errori=None, limite_globale=None, limite_accessi=None,
+                  timeout_connessione=None, connessioni_massime=None):
+        """Le regolazioni del sito, tutte facoltative.
+
+        Sessioni e moduli:
           chiave_segreta: il testo con cui si firmano i cookie di sessione (tienilo riservato; senza, le sessioni durano finche' il server resta acceso);
           durata_sessione: secondi (predefinito: 14 giorni);  csrf=Vero: ogni modulo (POST...) deve rimandare il codice di richiesta.token_csrf;
           cartella_pagine: dove sono i modelli di pagina per app.mostra;  dimensione_massima: byte accettati in una richiesta;
-          cookie_sicuro=Vero: i cookie viaggiano solo su HTTPS;  intestazioni_sicurezza: dizionario che sostituisce quelle predefinite."""
+          cookie_sicuro=Vero: i cookie viaggiano solo su HTTPS;  intestazioni_sicurezza: dizionario che sostituisce quelle predefinite.
+        Per il web pubblico (vedi la guida «Pubblicare un sito»):
+          produzione=Vero: gli errori non mostrano dettagli ma un codice, /docs resta spenta, gli statici si ricordano un'ora;
+          proxy_fidato: Vero (c'e' un proxy davanti), un numero di proxy, o un elenco di reti ["10.0.0.0/8"]: legge X-Forwarded-For/Proto/Host;
+          host_ammessi: i nomi con cui il sito puo' essere chiamato, ["esempio.it", "*.esempio.it"] (obbligatorio con forza_https);
+          forza_https=Vero: chi arriva in HTTP viene mandato a HTTPS;  hsts: secondi di Strict-Transport-Security (predefinito un anno su HTTPS in produzione);
+          csp: il valore di Content-Security-Policy;  compressione=Falso: niente gzip;  cache_statici: secondi di cache dei file statici;
+          registro_file / registro_errori: file dei registri (con rotazione);  limite_globale=(richieste, secondi): massimo per indirizzo IP;
+          limite_accessi=(tentativi, finestra, blocco): vedi app.accesso_fallito;  timeout_connessione e connessioni_massime: per il server integrato."""
         if chiave_segreta is not None:
             if len(chiave_segreta) < 16:
                 raise ValueError("la chiave segreta deve avere almeno 16 caratteri (meglio 32 o piu')")
@@ -1173,7 +1371,123 @@ class Applicazione(Gruppo):
             self.cookie_sicuro = bool(cookie_sicuro)
         if intestazioni_sicurezza is not None:
             self.intestazioni_sicurezza = dict(intestazioni_sicurezza)
+        if produzione is not None:
+            self.produzione = bool(produzione)
+        if proxy_fidato is not None:
+            self._imposta_proxy(proxy_fidato)
+        if host_ammessi is not None:
+            self.host_ammessi = [h.strip().lower() for h in ([host_ammessi] if isinstance(host_ammessi, str) else host_ammessi) if h.strip()]
+        if forza_https is not None:
+            self.forza_https = bool(forza_https)
+        if hsts is not None:
+            self.hsts = int(hsts)
+        if csp is not None:
+            self.csp = csp
+        if compressione is not None:
+            self.compressione = bool(compressione)
+        if cache_statici is not None:
+            self.cache_statici = int(cache_statici)
+        if registro_file is not None:
+            self.registro_file = registro_file
+            self._log_accessi = self._crea_registro(registro_file, "accessi")
+        if registro_errori is not None:
+            self.registro_errori = registro_errori
+            self._log_errori = self._crea_registro(registro_errori, "errori")
+        if limite_globale is not None:
+            self.limite_globale = tuple(limite_globale) if limite_globale else None
+        if limite_accessi is not None:
+            self.limite_accessi = tuple(limite_accessi)
+        if timeout_connessione is not None:
+            self.timeout_connessione = int(timeout_connessione)
+        if connessioni_massime is not None:
+            self.connessioni_massime = int(connessioni_massime)
+        if self.forza_https and not self.host_ammessi:
+            raise ValueError("forza_https richiede host_ammessi: senza, un visitatore potrebbe farsi reindirizzare verso un indirizzo qualsiasi")
         return self
+
+    def _imposta_proxy(self, valore):
+        self._proxy_reti, self._proxy_numero = None, 1
+        if valore in (None, False, 0):
+            self.proxy_fidato = False
+        elif valore is True:
+            self.proxy_fidato = True
+        elif isinstance(valore, int):
+            self.proxy_fidato, self._proxy_numero = True, valore
+        else:
+            self.proxy_fidato = True
+            self._proxy_reti = [_indirizzi.ip_network(x, strict=False) for x in valore]
+
+    def _crea_registro(self, percorso, nome):
+        registro = _registro_py.getLogger(f"server_web.{nome}.{id(self)}")
+        registro.setLevel(_registro_py.INFO)
+        registro.propagate = False
+        for gestore in list(registro.handlers):
+            registro.removeHandler(gestore)
+            gestore.close()
+        cartella = _os.path.dirname(_os.path.abspath(percorso))
+        _os.makedirs(cartella, exist_ok=True)
+        gestore = _registro_gestori.RotatingFileHandler(percorso, maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8")
+        gestore.setFormatter(_registro_py.Formatter("%(message)s"))
+        registro.addHandler(gestore)
+        return registro
+
+    def configura_da_ambiente(self, prefisso="SITO_", file_env=None):
+        """Legge le regolazioni dalle variabili d'ambiente (e da un file .env facoltativo, le variabili vere hanno la precedenza): cosi' i segreti
+        non stanno nel codice. Nomi (con il prefisso): CHIAVE_SEGRETA, PRODUZIONE, CSRF, COOKIE_SICURO, FORZA_HTTPS, HOST_AMMESSI (separati da virgole),
+        PROXY_FIDATO (1, un numero, o reti separate da virgole), REGISTRO_FILE, REGISTRO_ERRORI, DIMENSIONE_MASSIMA, DURATA_SESSIONE, LIMITE_GLOBALE (es. 120/60), HSTS, CSP.
+        Ritorna il dizionario di cio' che ha applicato."""
+        valori = {}
+        if file_env and _os.path.exists(file_env):
+            with open(file_env, encoding="utf-8") as f:
+                for riga in f:
+                    riga = riga.strip()
+                    if not riga or riga.startswith("#") or "=" not in riga:
+                        continue
+                    chiave, _, valore = riga.partition("=")
+                    chiave = chiave.strip()
+                    valore = valore.strip()
+                    if len(valore) >= 2 and valore[0] == valore[-1] and valore[0] in "\"'":
+                        valore = valore[1:-1]
+                    valori[chiave] = valore
+        for k, v in _os.environ.items():
+            valori[k] = v
+
+        def leggi(nome):
+            return valori.get(prefisso + nome)
+
+        def vero(testo):
+            return str(testo).strip().lower() in ("1", "true", "si", "s\u00ec", "vero", "yes", "on")
+        applicato = {}
+        opzioni = {}
+        if leggi("CHIAVE_SEGRETA"):
+            opzioni["chiave_segreta"] = leggi("CHIAVE_SEGRETA")
+        for nome, chiave in (("PRODUZIONE", "produzione"), ("CSRF", "csrf"), ("COOKIE_SICURO", "cookie_sicuro"), ("FORZA_HTTPS", "forza_https")):
+            if leggi(nome) is not None:
+                opzioni[chiave] = vero(leggi(nome))
+        if leggi("HOST_AMMESSI"):
+            opzioni["host_ammessi"] = [x for x in leggi("HOST_AMMESSI").split(",") if x.strip()]
+        if leggi("PROXY_FIDATO") is not None:
+            testo = leggi("PROXY_FIDATO").strip()
+            if testo.isdigit():
+                opzioni["proxy_fidato"] = int(testo)
+            elif testo.lower() in ("0", "false", "no", ""):
+                opzioni["proxy_fidato"] = False
+            elif "/" in testo or "." in testo or ":" in testo:
+                opzioni["proxy_fidato"] = [x.strip() for x in testo.split(",") if x.strip()]
+            else:
+                opzioni["proxy_fidato"] = vero(testo)
+        for nome, chiave in (("REGISTRO_FILE", "registro_file"), ("REGISTRO_ERRORI", "registro_errori"), ("CSP", "csp")):
+            if leggi(nome):
+                opzioni[chiave] = leggi(nome)
+        for nome, chiave in (("DIMENSIONE_MASSIMA", "dimensione_massima"), ("DURATA_SESSIONE", "durata_sessione"), ("HSTS", "hsts")):
+            if leggi(nome):
+                opzioni[chiave] = int(leggi(nome))
+        if leggi("LIMITE_GLOBALE"):
+            richieste, _, secondi = leggi("LIMITE_GLOBALE").partition("/")
+            opzioni["limite_globale"] = (int(richieste), int(secondi or 60))
+        self.configura(**opzioni)
+        applicato.update({k: ("(riservato)" if k == "chiave_segreta" else v) for k, v in opzioni.items()})
+        return applicato
 
     # ---- registrazione
     def _aggiungi(self, percorso, metodi, funzione):
@@ -1361,17 +1675,32 @@ class Applicazione(Gruppo):
                  f"<h1>{stato} &middot; {_html.escape(_frase(stato))}</h1><p>{_html.escape(messaggio)}</p></body>")
         return Risposta(corpo, stato)
 
+    def _cache_statici(self):
+        if self.cache_statici is not None:
+            return f"public, max-age={self.cache_statici}" if self.cache_statici > 0 else "no-cache"
+        return "public, max-age=3600" if self.produzione else "no-cache"
+
+    def _percorso_sicuro(self, cartella, relativo):
+        """Il percorso assoluto di un file dentro `cartella`, o None se esce dalla cartella o e' un file nascosto (.env, .git...)."""
+        base = _os.path.abspath(cartella)
+        percorso = _os.path.abspath(_os.path.join(base, relativo))
+        if percorso != base and not percorso.startswith(base + _os.sep):
+            raise ErroreWeb(403, "Percorso non permesso")
+        if any(pezzo.startswith(".") for pezzo in _os.path.relpath(percorso, base).replace("\\", "/").split("/") if pezzo not in (".",)):
+            raise ErroreWeb(404, "File non trovato")
+        return percorso
+
+    def invia_da_cartella(self, cartella, relativo, scarica=False, nome=None):
+        """Invia un file che sta dentro `cartella` (anche se `relativo` arriva dall'utente: non puo' uscire dalla cartella e i file nascosti sono rifiutati)."""
+        percorso = self._percorso_sicuro(cartella, _url.unquote(relativo).lstrip("/\\"))
+        if not _os.path.isfile(percorso):
+            raise ErroreWeb(404, "File non trovato")
+        return Risposta.da_file(percorso, scarica=scarica, nome=nome, cache=self._cache_statici())
+
     def _file_statico(self, richiesta):
         for prefisso, cartella in self._statici:
             if richiesta.percorso.startswith(prefisso):
-                relativo = _url.unquote(richiesta.percorso[len(prefisso):])
-                percorso = _os.path.abspath(_os.path.join(cartella, relativo))
-                if percorso != cartella and not percorso.startswith(cartella + _os.sep):
-                    raise ErroreWeb(403, "Percorso non permesso")
-                if _os.path.isfile(percorso):
-                    with open(percorso, "rb") as f:
-                        return Risposta(f.read(), 200, _tipo_file(percorso))
-                raise ErroreWeb(404, "File non trovato")
+                return self.invia_da_cartella(cartella, richiesta.percorso[len(prefisso):])
         return None
 
     def _controlla_csrf(self, richiesta, rotta):
@@ -1382,8 +1711,78 @@ class Applicazione(Gruppo):
         if not atteso or not _hmac.compare_digest(str(atteso), str(arrivato)):
             raise ErroreWeb(403, "Codice CSRF mancante o sbagliato: il modulo deve contenere {{ campo_csrf }} (oppure l'intestazione X-CSRF-Token)")
 
+    def _applica_proxy(self, richiesta):
+        """Con proxy_fidato: l'indirizzo vero del visitatore, lo schema (http/https) e il nome del sito vengono dalle intestazioni X-Forwarded-*."""
+        richiesta.indirizzo_cliente = richiesta.cliente
+        if not self.proxy_fidato:
+            return
+        if self._proxy_reti is not None:
+            try:
+                indirizzo = _indirizzi.ip_address(richiesta.cliente)
+            except ValueError:
+                return
+            if not any(indirizzo in rete for rete in self._proxy_reti):
+                return
+        inoltrati = [x.strip() for x in (richiesta.intestazioni.get("X-Forwarded-For") or "").split(",") if x.strip()]
+        if len(inoltrati) >= self._proxy_numero:
+            richiesta.indirizzo_cliente = inoltrati[-self._proxy_numero]
+        schema = (richiesta.intestazioni.get("X-Forwarded-Proto") or "").split(",")[0].strip().lower()
+        if schema in ("http", "https"):
+            richiesta.https = schema == "https"
+        ospite = (richiesta.intestazioni.get("X-Forwarded-Host") or "").split(",")[0].strip()
+        if ospite:
+            richiesta._host = ospite
+
+    def _host_ammesso(self, host):
+        nome = host.strip().lower()
+        if nome.startswith("["):
+            nome = nome[1:nome.find("]")] if "]" in nome else nome[1:]
+        elif nome.count(":") == 1:
+            nome = nome.split(":")[0]
+        for modello in self.host_ammessi:
+            if modello == "*" or modello == nome or (modello.startswith("*.") and nome.endswith(modello[1:]) and len(nome) > len(modello) - 1):
+                return True
+        return False
+
+    def _origine_ammessa(self, origine):
+        if not self._cors or not origine:
+            return False
+        return "*" in self._cors["origini"] or origine in self._cors["origini"]
+
+    def _controlli_iniziali(self, richiesta):
+        """Prima di ogni rotta: host ammessi, HTTPS obbligatorio, limite globale, prova preliminare CORS. Ritorna una Risposta o Nessuno."""
+        if richiesta.percorso in self._esenti:
+            return None
+        if self.host_ammessi and not self._host_ammesso(richiesta.host):
+            raise ErroreWeb(400, "Host non ammesso")
+        if self.forza_https and not richiesta.https:
+            destinazione = "https://" + richiesta.host + richiesta.percorso + ("?" + richiesta.query_grezza if richiesta.query_grezza else "")
+            return Risposta("", 308, intestazioni={"Location": destinazione})
+        if self.limite_globale:
+            ammesso, attesa = self._limiti.colpisci(("globale", richiesta.indirizzo_cliente), self.limite_globale[0], self.limite_globale[1])
+            if not ammesso:
+                raise ErroreWeb(429, "Troppe richieste: riprova fra poco", {"Retry-After": str(attesa)})
+        origine = richiesta.intestazioni.get("Origin")
+        if richiesta.metodo == "OPTIONS" and self._cors and origine and richiesta.intestazioni.get("Access-Control-Request-Method"):
+            if self._origine_ammessa(origine):
+                return Risposta("", 204, intestazioni={"Access-Control-Max-Age": str(self._cors["durata"])})
+        return None
+
+    def _errore_interno(self, richiesta, errore):
+        import traceback
+        testo = traceback.format_exc()
+        _sistema.stderr.write(f"[{richiesta.id}] {richiesta.metodo} {richiesta.percorso}\n{testo}")
+        if self._log_errori is not None:
+            self._log_errori.error(f"{_tempo.strftime('%Y-%m-%dT%H:%M:%S%z')} id={richiesta.id} {richiesta.indirizzo_cliente} {richiesta.metodo} {richiesta.percorso}\n{testo}")
+        if self.produzione:
+            return self._pagina_errore(richiesta, 500, f"Errore interno del server. Codice: {richiesta.id}", {"codice": richiesta.id})
+        return self._pagina_errore(richiesta, 500, "Errore nel programma: " + type(errore).__name__ + ": " + str(errore))
+
     def _smista(self, richiesta):
         try:
+            iniziale = self._controlli_iniziali(richiesta)
+            if iniziale is not None:
+                return iniziale
             for prima in self._prima:
                 esito = self._chiama(prima, richiesta, self._argomenti_semplici(prima, richiesta))
                 if esito is not None:
@@ -1412,14 +1811,84 @@ class Applicazione(Gruppo):
         except ErroreValidazione as errore:
             return self._pagina_errore(richiesta, 422, "Dati non validi", {"errori": errore.errori})
         except ErroreWeb as errore:
-            return self._pagina_errore(richiesta, errore.stato, errore.messaggio)
+            risposta = self._pagina_errore(richiesta, errore.stato, errore.messaggio)
+            risposta.intestazioni.update(errore.intestazioni)
+            return risposta
         except Exception as errore:
-            import traceback
-            traceback.print_exc()
-            return self._pagina_errore(richiesta, 500, "Errore nel programma: " + type(errore).__name__ + ": " + str(errore))
+            return self._errore_interno(richiesta, errore)
+
+    def _non_modificata(self, risposta):
+        nuova = Risposta("", 304)
+        for k in ("ETag", "Last-Modified", "Cache-Control", "Vary"):
+            if k in risposta.intestazioni:
+                nuova.intestazioni[k] = risposta.intestazioni[k]
+        nuova.cookie = list(risposta.cookie)
+        return nuova
+
+    def _condizionale(self, richiesta, risposta):
+        """If-None-Match / If-Modified-Since: se il browser ha gia' la versione giusta risponde 304 senza ripetere il file."""
+        if richiesta.metodo not in ("GET", "HEAD") or risposta.stato != 200:
+            return risposta
+        etag, ultima = risposta.intestazioni.get("ETag"), risposta.intestazioni.get("Last-Modified")
+        if not etag and not ultima:
+            return risposta
+        senza_debole = lambda t: t[2:] if t.startswith("W/") else t
+        arrivati = richiesta.intestazioni.get("If-None-Match")
+        if arrivati:
+            elenco = [t.strip() for t in arrivati.split(",")]
+            if etag and ("*" in elenco or any(senza_debole(t) == senza_debole(etag) for t in elenco)):
+                return self._non_modificata(risposta)
+            return risposta
+        posseduta = richiesta.intestazioni.get("If-Modified-Since")
+        if ultima and posseduta:
+            try:
+                if _email_utili.parsedate_to_datetime(ultima).timestamp() <= _email_utili.parsedate_to_datetime(posseduta).timestamp():
+                    return self._non_modificata(risposta)
+            except (TypeError, ValueError):
+                pass
+        return risposta
+
+    def _intervallo(self, richiesta, risposta):
+        """Range: «dammi i byte da a a b» (serve a video, audio, PDF e ai download ripresi)."""
+        if not risposta.in_flusso or richiesta.metodo != "GET" or risposta.stato != 200:
+            return risposta
+        richiesto = richiesta.intestazioni.get("Range")
+        if not richiesto:
+            return risposta
+        m = _re.fullmatch(r"bytes=(\d*)-(\d*)", richiesto.strip())
+        if not m or (not m.group(1) and not m.group(2)):
+            return risposta
+        totale = risposta._dimensione_file
+        if m.group(1) == "":
+            inizio, fine = max(0, totale - int(m.group(2))), totale - 1
+        else:
+            inizio, fine = int(m.group(1)), min(int(m.group(2)) if m.group(2) else totale - 1, totale - 1)
+        if inizio > fine or inizio >= totale:
+            return Risposta("", 416, intestazioni={"Content-Range": f"bytes */{totale}"})
+        risposta._intervallo = (inizio, fine)
+        risposta.stato = 206
+        risposta.intestazioni["Content-Range"] = f"bytes {inizio}-{fine}/{totale}"
+        return risposta
+
+    def _comprimi(self, richiesta, risposta):
+        if (not self.compressione or risposta.in_flusso or risposta.stato in (204, 304, 206) or "Content-Encoding" in risposta.intestazioni
+                or "gzip" not in (richiesta.intestazioni.get("Accept-Encoding") or "").lower()):
+            return
+        tipo = risposta.tipo.split(";")[0].strip().lower()
+        if not (tipo.startswith("text/") or tipo in ("application/json", "application/javascript", "application/xml", "image/svg+xml")):
+            return
+        dati = risposta._corpo
+        if len(dati) < 600 or len(dati) > 5 * 1024 * 1024:
+            return
+        compresso = _gzip.compress(dati, 5, mtime=0)
+        if len(compresso) >= len(dati):
+            return
+        risposta._corpo = compresso
+        risposta.intestazioni["Content-Encoding"] = "gzip"
+        risposta.intestazioni["Vary"] = (risposta.intestazioni["Vary"] + ", Accept-Encoding") if risposta.intestazioni.get("Vary") else "Accept-Encoding"
 
     def _finisci(self, richiesta, risposta):
-        """Dopo la rotta: filtri, cookie di sessione e intestazioni di sicurezza."""
+        """Dopo la rotta: filtri, cookie di sessione, intestazioni di sicurezza, CORS, cache, intervalli e compressione."""
         for dopo in self._dopo:
             try:
                 argomenti = {}
@@ -1433,8 +1902,10 @@ class Applicazione(Gruppo):
                     risposta = self._in_risposta(nuova)
             except ErroreWeb as errore:
                 risposta = self._pagina_errore(richiesta, errore.stato, errore.messaggio)
+            except Exception as errore:
+                risposta = self._errore_interno(richiesta, errore)
         sessione = richiesta._sessione
-        if sessione is not None and (sessione.modificata):
+        if sessione is not None and sessione.modificata:
             sicuro = self.cookie_sicuro or richiesta.https or self._https
             if len(sessione) == 0:
                 risposta.togli_cookie(NOME_COOKIE_SESSIONE)
@@ -1445,26 +1916,201 @@ class Applicazione(Gruppo):
                     risposta = self._pagina_errore(richiesta, errore.stato, errore.messaggio)
         for k, v in self.intestazioni_sicurezza.items():
             risposta.intestazioni.setdefault(k, v)
+        if self.csp:
+            risposta.intestazioni.setdefault("Content-Security-Policy", self.csp)
+        if (richiesta.https or self._https) and (self.hsts or (self.hsts is None and self.produzione)):
+            risposta.intestazioni.setdefault("Strict-Transport-Security", f"max-age={self.hsts or 31536000}; includeSubDomains")
+        origine = richiesta.intestazioni.get("Origin")
+        if self._origine_ammessa(origine):
+            c = self._cors
+            risposta.intestazioni["Access-Control-Allow-Origin"] = "*" if ("*" in c["origini"] and not c["credenziali"]) else origine
+            risposta.intestazioni["Vary"] = (risposta.intestazioni["Vary"] + ", Origin") if risposta.intestazioni.get("Vary") else "Origin"
+            if c["credenziali"]:
+                risposta.intestazioni["Access-Control-Allow-Credentials"] = "true"
+            if richiesta.metodo == "OPTIONS" and richiesta.intestazioni.get("Access-Control-Request-Method"):
+                risposta.intestazioni["Access-Control-Allow-Methods"] = ", ".join(c["metodi"])
+                risposta.intestazioni["Access-Control-Allow-Headers"] = ", ".join(c["intestazioni"])
+        risposta.intestazioni["X-Request-ID"] = richiesta.id
+        if not risposta.in_flusso:
+            risposta.intestazioni.setdefault("Cache-Control", "no-store")
+        risposta = self._condizionale(richiesta, risposta)
+        risposta = self._intervallo(richiesta, risposta)
+        self._comprimi(richiesta, risposta)
         return risposta
+
+    def _registra_accesso(self, richiesta, risposta):
+        ms = int((_tempo.time() - richiesta.inizio) * 1000)
+        if self._log_accessi is not None:
+            self._log_accessi.info(f"{_tempo.strftime('%Y-%m-%dT%H:%M:%S%z')} {richiesta.indirizzo_cliente} {richiesta.metodo} {richiesta.percorso} {risposta.stato} {ms}ms id={richiesta.id}")
+        if self.registro and richiesta.cliente != "simulato":
+            print(f"{richiesta.metodo} {richiesta.percorso} {risposta.stato} ({ms} ms)", flush=True)
 
     def risposta_a(self, richiesta):
         """Trova la rotta giusta per una richiesta e ne ricava la risposta (non scrive nulla sulla rete: si puo' provare anche da soli)."""
         richiesta._app = self
+        self._applica_proxy(richiesta)
         _locale.richiesta = richiesta
         try:
             risposta = self._smista(richiesta)
         finally:
             _locale.richiesta = None
-        return self._finisci(richiesta, risposta)
+        risposta = self._finisci(richiesta, risposta)
+        self._registra_accesso(richiesta, risposta)
+        return risposta
+
+    def _risposta_diretta(self, richiesta, stato, messaggio):
+        """Per gli errori che si decidono prima di leggere la richiesta (corpo troppo grande, trasferimento a pezzi...)."""
+        richiesta._app = self
+        self._applica_proxy(richiesta)
+        risposta = self._finisci(richiesta, self._pagina_errore(richiesta, stato, messaggio))
+        self._registra_accesso(richiesta, risposta)
+        return risposta
+
+    def _uscita(self, richiesta, risposta):
+        """Le intestazioni da inviare e se c'e' un corpo: ([(nome, valore)], invia_corpo)."""
+        senza_corpo = risposta.stato in (204, 304) or 100 <= risposta.stato < 200
+        intestazioni = []
+        if not senza_corpo:
+            intestazioni += [("Content-Type", risposta.tipo), ("Content-Length", str(risposta.lunghezza))]
+        intestazioni += [(k, v) for k, v in risposta.intestazioni.items() if k.lower() not in ("content-length", "content-type")]
+        intestazioni += [("Set-Cookie", c) for c in risposta.cookie]
+        return intestazioni, (not senza_corpo and richiesta.metodo != "HEAD")
+
+    # ---- limiti di richieste e blocco degli accessi
+    def limita(self, richieste, secondi=60, per="ip"):
+        """Decoratore (sotto @app.rotta): al massimo `richieste` ogni `secondi` secondi per ogni indirizzo IP (per="utente": per ogni utente che ha fatto l'accesso).
+        Oltre il limite la risposta e' 429 con Retry-After. Serve soprattutto sulle pagine di accesso e di registrazione.
+        I contatori stanno nella memoria del programma: con piu' processi ognuno ha i suoi."""
+        import functools
+
+        def applica(f):
+            @functools.wraps(f)
+            def limitata(*a, **k):
+                richiesta = self.richiesta_corrente()
+                if richiesta is not None:
+                    soggetto = richiesta.utente if (per == "utente" and richiesta.utente is not None) else richiesta.indirizzo_cliente
+                    ammesso, attesa = self._limiti.colpisci((f.__module__, f.__qualname__, soggetto), richieste, secondi)
+                    if not ammesso:
+                        raise ErroreWeb(429, "Troppe richieste: riprova fra poco", {"Retry-After": str(attesa)})
+                return f(*a, **k)
+            limitata._senza_csrf = getattr(f, "_senza_csrf", False)
+            limitata._limitata = True
+            return limitata
+        return applica
+
+    def accesso_bloccato(self, chiave):
+        """I secondi che mancano alla fine del blocco di questa chiave (di solito nome utente + indirizzo), o 0 se non e' bloccata."""
+        with self._blocco_tentativi:
+            voce = self._tentativi.get(chiave)
+            if voce and voce["bloccato_fino"] > _tempo.time():
+                return int(voce["bloccato_fino"] - _tempo.time()) + 1
+        return 0
+
+    def accesso_fallito(self, chiave):
+        """Registra un tentativo di accesso sbagliato. Dopo `tentativi` errori entro `finestra` secondi la chiave resta bloccata per `blocco` secondi
+        (app.configura(limite_accessi=(tentativi, finestra, blocco))). Ritorna i secondi di blocco (0 se non e' ancora bloccata)."""
+        massimo, finestra, blocco = self.limite_accessi
+        ora = _tempo.time()
+        with self._blocco_tentativi:
+            if len(self._tentativi) > 20000:
+                self._tentativi = {k: v for k, v in self._tentativi.items() if v["bloccato_fino"] > ora or ora - v["inizio"] < finestra}
+            voce = self._tentativi.get(chiave)
+            if voce is None or (ora - voce["inizio"] > finestra and voce["bloccato_fino"] <= ora):
+                voce = {"conteggio": 0, "inizio": ora, "bloccato_fino": 0}
+                self._tentativi[chiave] = voce
+            voce["conteggio"] += 1
+            if voce["conteggio"] >= massimo:
+                voce["bloccato_fino"] = ora + blocco
+                voce["conteggio"] = 0
+                voce["inizio"] = ora
+                return blocco
+        return 0
+
+    def accesso_riuscito(self, chiave):
+        """Azzera i tentativi sbagliati di questa chiave."""
+        with self._blocco_tentativi:
+            self._tentativi.pop(chiave, None)
+
+    def cors(self, origini, metodi=("GET", "POST", "PUT", "PATCH", "DELETE"), intestazioni=("Content-Type", "Authorization", "X-CSRF-Token"), credenziali=False, durata=600):
+        """Permette a pagine di altri siti (le `origini`, per esempio ["https://app.esempio.it"]) di chiamare questa API dal browser. "*" = tutti (senza cookie)."""
+        if credenziali and "*" in origini:
+            raise ValueError("con credenziali=Vero bisogna elencare le origini: \"*\" non e' permesso")
+        self._cors = {"origini": list(origini), "metodi": list(metodi), "intestazioni": list(intestazioni), "credenziali": bool(credenziali), "durata": int(durata)}
+
+    def salute(self, percorso="/salute", controlla=None):
+        """Una pagina per controllare che il sito sia vivo (per Docker, i bilanciatori, i servizi di monitoraggio): {"stato": "ok"}. `controlla` e' una funzione facoltativa
+        (per esempio apre il database): se solleva un errore la risposta e' 503. Non e' soggetta a host, HTTPS e limiti."""
+        app = self
+
+        def stato_salute():
+            if controlla is not None:
+                try:
+                    controlla()
+                except Exception as errore:
+                    raise ErroreWeb(503, "Non pronto: " + type(errore).__name__)
+            return {"stato": "ok", "applicazione": app.nome, "secondi": int(_tempo.time() - app._avvio_tempo)}
+        rotta = self._aggiungi(percorso, ("GET", "HEAD"), stato_salute)
+        rotta.nascosta = True
+        self._esenti.add(percorso)
+
+    # ---- controllo prima di pubblicare
+    def controlla_produzione(self, ascolta=None):
+        """Cosa manca per pubblicare il sito: un elenco di {gravita, problema, correzione}. gravita: "errore" (non pubblicare cosi'), "attenzione", "nota"."""
+        problemi = []
+
+        def segna(gravita, problema, correzione):
+            problemi.append({"gravita": gravita, "problema": problema, "correzione": correzione})
+        ascolta = ascolta if ascolta is not None else self._ascolta
+        if not self.produzione:
+            segna("errore", "Il sito non e' in modalita' produzione: un errore mostrerebbe ai visitatori i dettagli interni.", "app.configura(produzione=Vero)")
+        if self._chiave_temporanea:
+            segna("errore", "La chiave segreta e' temporanea: le sessioni si perdono a ogni riavvio e non reggono con piu' processi.",
+                  "app.configura(chiave_segreta=...) con un testo lungo e riservato (meglio da una variabile d'ambiente: app.configura_da_ambiente())")
+        if not self.host_ammessi:
+            segna("errore", "Mancano gli host ammessi: il sito risponderebbe a qualsiasi nome (usato per falsificare link e reindirizzamenti).", "app.configura(host_ammessi=[\"esempio.it\"])")
+        scrivono = [r for r in self._rotte if not r.nascosta and any(m not in ("GET", "HEAD", "OPTIONS") for m in r.metodi) and not r.senza_csrf]
+        if scrivono and not self.csrf:
+            segna("attenzione", "Ci sono rotte che modificano dati (POST/PUT/DELETE) ma la protezione CSRF e' spenta.", "app.configura(csrf=Vero) (e {{ campo_csrf }} nei moduli)")
+        if not (self.cookie_sicuro or self.proxy_fidato or self._https):
+            segna("attenzione", "I cookie di sessione non sono marcati «Secure» e il sito non sa di essere in HTTPS.",
+                  "metti un proxy HTTPS davanti con app.configura(proxy_fidato=Vero), oppure cookie_sicuro=Vero")
+        if ascolta in ("0.0.0.0", "::") and not self.proxy_fidato:
+            segna("attenzione", "Il sito ascolta su tutte le interfacce senza un proxy davanti: niente HTTPS e IP dei visitatori non affidabili.", "usa ascolta=\"127.0.0.1\" dietro un proxy (Caddy, nginx) con proxy_fidato=Vero")
+        if self.proxy_fidato and self._proxy_reti is None and ascolta in ("0.0.0.0", "::"):
+            segna("attenzione", "proxy_fidato=Vero con il sito raggiungibile da tutti: chi si collega direttamente puo' falsificare X-Forwarded-For.",
+                  "non pubblicare la porta del sito (solo il proxy la raggiunge) o elenca le reti del proxy: proxy_fidato=[\"172.16.0.0/12\"]")
+        sensibili = [r for r in self._rotte if any(p in r.modello.lower() for p in ("accedi", "login", "password", "registra", "iscriviti", "reimposta")) and any(m == "POST" for m in r.metodi)]
+        senza_limite = [r for r in sensibili if not getattr(r.funzione, "_limitata", False)]
+        if senza_limite and not self.limite_globale:
+            segna("attenzione", "Le pagine di accesso/registrazione (" + ", ".join(sorted({r.modello for r in senza_limite})) + ") non hanno un limite di tentativi.",
+                  "@app.limita(5, 60) sulla rotta, e app.accesso_fallito(chiave) / app.accesso_bloccato(chiave) per bloccare chi indovina le password")
+        if self._documentazione:
+            segna("nota", "La documentazione automatica e' attiva: in produzione e' spenta a meno che non la accendi (attiva_in_produzione=Vero).", "tienila spenta se l'API non e' pubblica")
+        if not self.registro_file:
+            segna("nota", "Non c'e' un registro degli accessi su file.", "app.configura(registro_file=\"logs/accessi.log\", registro_errori=\"logs/errori.log\")")
+        if (self._https or self.proxy_fidato) and self.hsts is None and not self.produzione:
+            segna("nota", "HSTS (obbliga il browser a usare sempre HTTPS) parte da solo solo in produzione.", "app.configura(hsts=31536000)")
+        return problemi
+
+    def stampa_controllo_produzione(self, problemi=None, ascolta=None):
+        """Scrive il risultato di controlla_produzione in modo leggibile."""
+        problemi = problemi if problemi is not None else self.controlla_produzione(ascolta)
+        if not problemi:
+            print("Controllo per la produzione: tutto a posto.", flush=True)
+        for p in problemi:
+            etichetta = {"errore": "ERRORE", "attenzione": "ATTENZIONE", "nota": "nota"}[p["gravita"]]
+            print(f"  [{etichetta}] {p['problema']}\n      -> {p['correzione']}", flush=True)
+        return problemi
 
     # ---- provare senza rete
-    def simula(self, percorso, metodo="GET", json=None, form=None, intestazioni=None, cookie=None, file=None):
+    def simula(self, percorso, metodo="GET", json=None, form=None, intestazioni=None, cookie=None, file=None, indirizzo=None, https=False, host=None):
         """Prova una rotta senza accendere il server e senza rete: ritorna la Risposta (stato, testo, dati, intestazioni).
 
             r = app.simula("/saluta/Ada")           r.stato -> 200,  r.dati -> {"messaggio": "Ciao Ada"}
             r = app.simula("/voci", "POST", json={"titolo": "pane"})
             r = app.simula("/modulo", "POST", form={"nome": "Ada"})
-        Serve per imparare e per i test automatici del tuo sito. Per provare un percorso intero (accesso, sessione, cookie) usa app.cliente()."""
+        Serve per imparare e per i test automatici del tuo sito. Per provare un percorso intero (accesso, sessione, cookie) usa app.cliente().
+        indirizzo="1.2.3.4" finge un altro visitatore (per i limiti di richieste), https=Vero e host="esempio.it" fingono la connessione."""
         parti = _url.urlsplit(percorso)
         intestazioni = dict(intestazioni or {})
         corpo = b""
@@ -1487,7 +2133,10 @@ class Applicazione(Gruppo):
             intestazioni["Content-Type"] = "application/x-www-form-urlencoded"
         if cookie:
             intestazioni["Cookie"] = "; ".join(f"{k}={v}" for k, v in cookie.items())
-        richiesta = Richiesta(metodo.upper(), _url.unquote(parti.path), _url.parse_qs(parti.query, keep_blank_values=True), intestazioni, corpo, "simulato")
+        if host:
+            intestazioni["Host"] = host
+        richiesta = Richiesta(metodo.upper(), _url.unquote(parti.path), _url.parse_qs(parti.query, keep_blank_values=True), intestazioni, corpo, indirizzo or "simulato")
+        richiesta.https = bool(https)
         return self.risposta_a(richiesta)
 
     def cliente(self):
@@ -1529,18 +2178,26 @@ class Applicazione(Gruppo):
                 voce[metodo.lower()] = operazione
         return {"openapi": "3.0.3", "info": {"title": titolo or self.nome, "version": versione}, "paths": percorsi}
 
-    def documentazione(self, percorso="/docs", titolo=None, versione="1.0"):
-        """Attiva la documentazione automatica: `percorso` (pagina leggibile) e `/openapi.json` (da aprire con Swagger, Postman...)."""
+    def documentazione(self, percorso="/docs", titolo=None, versione="1.0", attiva_in_produzione=False):
+        """Attiva la documentazione automatica: `percorso` (pagina leggibile) e `/openapi.json` (da aprire con Swagger, Postman...).
+        In produzione resta spenta (risponde 404) a meno che non scrivi attiva_in_produzione=Vero: l'elenco delle rotte aiuta chi attacca."""
         app = self
 
+        def visibile():
+            if app.produzione and not attiva_in_produzione:
+                raise ErroreWeb(404, "Pagina non trovata")
+
         def pagina_docs():
+            visibile()
             return _pagina_documentazione(app.openapi(titolo, versione), percorso)
 
         def schema_json():
+            visibile()
             return app.openapi(titolo, versione)
+        self._rotte = [r for r in self._rotte if not getattr(r, "e_documentazione", False)]        # richiamarla di nuovo sostituisce la precedente
         r1 = self._aggiungi(percorso, ("GET",), pagina_docs)
         r2 = self._aggiungi("/openapi.json", ("GET",), schema_json)
-        r1.nascosta = r2.nascosta = True
+        r1.nascosta = r2.nascosta = r1.e_documentazione = r2.e_documentazione = True
         self._documentazione = percorso
 
     # ---- server
@@ -1549,39 +2206,54 @@ class Applicazione(Gruppo):
 
         class Gestore(_Gestore):
             protocol_version = "HTTP/1.1"
+            server_version = "server_web"
+            sys_version = ""
+
+            def version_string(self):
+                return "server_web"
+            timeout = app.timeout_connessione
+
+            def setup(self):
+                _Gestore.setup(self)
+                self._conta = 0
 
             def _servi(self):
-                inizio = _tempo.time()
+                self._conta += 1
                 url = _url.urlsplit(self.path)
                 limite = app.dimensione_massima if app.dimensione_massima is not None else DIMENSIONE_MASSIMA
                 try:
                     lunghezza = int(self.headers.get("Content-Length") or 0)
                 except ValueError:
                     lunghezza = 0
-                if lunghezza > limite:
-                    richiesta = Richiesta(self.command, _url.unquote(url.path), {}, self.headers, b"", self.client_address[0])
-                    richiesta._app = app
-                    risposta = app._finisci(richiesta, app._pagina_errore(richiesta, 413, "Richiesta troppo grande"))
+                vuota = Richiesta(self.command, _url.unquote(url.path), _url.parse_qs(url.query, keep_blank_values=True), self.headers, b"", self.client_address[0])
+                vuota.https = app._https
+                if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+                    richiesta, risposta = vuota, app._risposta_diretta(vuota, 411, "Il trasferimento a pezzi non e' supportato: serve Content-Length")
+                    self.close_connection = True
+                elif lunghezza < 0 or lunghezza > limite:
+                    richiesta, risposta = vuota, app._risposta_diretta(vuota, 413, "Richiesta troppo grande")
                     self.close_connection = True
                 else:
-                    corpo = self.rfile.read(lunghezza) if lunghezza > 0 else b""
+                    try:
+                        corpo = self.rfile.read(lunghezza) if lunghezza > 0 else b""
+                    except (TimeoutError, OSError):
+                        self.close_connection = True
+                        return
                     richiesta = Richiesta(self.command, _url.unquote(url.path), _url.parse_qs(url.query, keep_blank_values=True), self.headers, corpo,
                                           self.client_address[0])
                     richiesta.https = app._https
                     risposta = app.risposta_a(richiesta)
+                intestazioni, invia_corpo = app._uscita(richiesta, risposta)
                 self.send_response(risposta.stato)
-                self.send_header("Content-Type", risposta.tipo)
-                self.send_header("Content-Length", str(len(risposta.corpo)))
-                self.send_header("Cache-Control", "no-store")
-                for k, v in risposta.intestazioni.items():
+                for k, v in intestazioni:
                     self.send_header(k, v)
-                for c in risposta.cookie:
-                    self.send_header("Set-Cookie", c)
+                if self._conta >= MAX_RICHIESTE_PER_CONNESSIONE:
+                    self.send_header("Connection", "close")
+                    self.close_connection = True
                 self.end_headers()
-                if self.command != "HEAD" and risposta.stato not in (204, 304):
-                    self.wfile.write(risposta.corpo)
-                if app.registro:
-                    print(f"{self.command} {self.path} {risposta.stato} ({int((_tempo.time() - inizio) * 1000)} ms)", flush=True)
+                if invia_corpo:
+                    for pezzo in risposta.blocchi():
+                        self.wfile.write(pezzo)
 
             do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = do_OPTIONS = _servi
 
@@ -1589,7 +2261,7 @@ class Applicazione(Gruppo):
                 pass
 
         _Server.allow_reuse_address = True
-        server = _Server((ascolta, porta), Gestore)
+        server = _ServerRobusto((ascolta, porta), Gestore, self.connessioni_massime)
         server.daemon_threads = True
         if certificato:
             contesto = _ssl.SSLContext(_ssl.PROTOCOL_TLS_SERVER)
@@ -1599,9 +2271,23 @@ class Applicazione(Gruppo):
             self._https = True
         return server
 
+    def _installa_sigterm(self):
+        """Lo spegnimento da parte del sistema (docker stop, systemctl stop) diventa un arresto pulito, come Ctrl+C."""
+        if _thread.current_thread() is not _thread.main_thread():
+            return
+
+        def termina(numero, quadro):
+            raise KeyboardInterrupt()
+        try:
+            _segnali.signal(_segnali.SIGTERM, termina)
+        except (ValueError, OSError, AttributeError):
+            pass
+
     def avvia(self, porta=8000, ascolta="127.0.0.1", apri_browser=False, certificato=None, chiave=None):
-        """Accende il server e resta qui finche' non lo spegni (Ctrl+C, oppure «Ferma» in PitStudio). Scrive l'indirizzo, cosi' si puo' cliccare.
+        """Accende il server integrato e resta qui finche' non lo spegni (Ctrl+C, SIGTERM, oppure «Ferma» in PitStudio). Scrive l'indirizzo, cosi' si puo' cliccare.
+        E' pensato per imparare e per strumenti locali: per un sito pubblico usa avvia_produzione().
         Con certificato="cert.pem" e chiave="chiave.pem" il sito e' in HTTPS (https://...): serve un certificato (per provare: mkcert o openssl)."""
+        self._ascolta = ascolta
         server = self._crea_server(porta, ascolta, certificato, chiave)
         schema = "https" if certificato else "http"
         indirizzo = f"{schema}://{'127.0.0.1' if ascolta in ('0.0.0.0', '') else ascolta}:{server.server_address[1]}/"
@@ -1614,6 +2300,7 @@ class Applicazione(Gruppo):
             funzione()
         if apri_browser:
             _thread.Timer(0.4, lambda: _browser.open(indirizzo)).start()
+        self._installa_sigterm()
         try:
             server.serve_forever(poll_interval=0.2)
         except KeyboardInterrupt:
@@ -1633,6 +2320,53 @@ class Applicazione(Gruppo):
         filo.start()
         return ServerAvviato(server, filo, "https" if certificato else "http", self)
 
+    # ---- il server di produzione (waitress)
+    def _crea_server_produzione(self, porta, ascolta, filo=8, **opzioni):
+        try:
+            from waitress.server import create_server
+        except ImportError:
+            raise ErroreProduzione("Per pubblicare serve waitress, il server di produzione: e' incluso in PitStudio; se manca installalo con `pip install waitress` "
+                                   "(in PitStudio: pannello Pacchetti).")
+        limite = self.dimensione_massima if self.dimensione_massima is not None else DIMENSIONE_MASSIMA
+        parametri = dict(host=ascolta, port=porta, threads=filo, ident="server_web", channel_timeout=self.timeout_connessione,
+                         max_request_body_size=limite, connection_limit=self.connessioni_massime,
+                         clear_untrusted_proxy_headers=False)          # le intestazioni X-Forwarded-* le legge server_web stessa (proxy_fidato)
+        parametri.update(opzioni)
+        return create_server(self, **parametri)
+
+    def avvia_produzione(self, porta=8000, ascolta="127.0.0.1", filo=8, ignora_controlli=False, **opzioni_waitress):
+        """Accende il sito con waitress, un server di produzione (Windows, Linux, macOS), dietro un proxy HTTPS (Caddy, nginx...).
+        Prima fa il controllo di controlla_produzione(): se c'e' un ERRORE non parte (ignora_controlli=Vero per partire lo stesso, a tuo rischio).
+        Si ferma con Ctrl+C o con SIGTERM (docker stop, systemctl stop): chiude le richieste in corso e poi esce."""
+        self._ascolta = ascolta
+        problemi = self.controlla_produzione(ascolta)
+        self.stampa_controllo_produzione(problemi)
+        if not ignora_controlli and any(p["gravita"] == "errore" for p in problemi):
+            raise ErroreProduzione("Il sito non e' pronto per la produzione (vedi gli ERRORE qui sopra). Correggili, oppure avvia_produzione(ignora_controlli=Vero).")
+        server = self._crea_server_produzione(porta, ascolta, filo, **opzioni_waitress)
+        print(f"Sito in produzione su http://{ascolta}:{server.effective_port}/  (waitress, {filo} fili; per spegnerlo: Ctrl+C o SIGTERM)", flush=True)
+        for funzione in self._all_avvio:
+            funzione()
+        self._installa_sigterm()
+        try:
+            server.run()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            server.close()
+            print("Server spento.", flush=True)
+            for funzione in self._alla_chiusura:
+                funzione()
+
+    def avvia_produzione_in_sottofondo(self, porta=0, ascolta="127.0.0.1", filo=4, **opzioni_waitress):
+        """Come avvia_produzione ma senza bloccare e senza controlli (per le prove). Ritorna un oggetto con .indirizzo, .porta e .ferma()."""
+        server = self._crea_server_produzione(porta, ascolta, filo, **opzioni_waitress)
+        for funzione in self._all_avvio:
+            funzione()
+        esecuzione = _thread.Thread(target=server.run, daemon=True)
+        esecuzione.start()
+        return _ServerProduzione(server, esecuzione, self)
+
     # ---- WSGI e ASGI: per i server di produzione
     def __call__(self, ambiente, avvia_risposta):
         """Interfaccia WSGI: l'applicazione stessa si puo' dare a waitress, gunicorn, mod_wsgi...  (es.: waitress.serve(app, port=8000))."""
@@ -1649,24 +2383,20 @@ class Applicazione(Gruppo):
             intestazioni["Content-Type"] = ambiente["CONTENT_TYPE"]
         percorso = (ambiente.get("PATH_INFO") or "/").encode("latin-1", "replace").decode("utf-8", "replace")
         query = _url.parse_qs(ambiente.get("QUERY_STRING") or "", keep_blank_values=True)
-        if lunghezza > limite:
-            richiesta = Richiesta(ambiente.get("REQUEST_METHOD", "GET"), percorso, query, intestazioni, b"", ambiente.get("REMOTE_ADDR", ""))
-            richiesta._app = self
-            risposta = self._finisci(richiesta, self._pagina_errore(richiesta, 413, "Richiesta troppo grande"))
+        metodo = ambiente.get("REQUEST_METHOD", "GET")
+        cliente = ambiente.get("REMOTE_ADDR", "")
+        if lunghezza < 0 or lunghezza > limite:
+            richiesta = Richiesta(metodo, percorso, query, intestazioni, b"", cliente)
+            richiesta.https = ambiente.get("wsgi.url_scheme") == "https"
+            risposta = self._risposta_diretta(richiesta, 413, "Richiesta troppo grande")
         else:
             corpo = ambiente["wsgi.input"].read(lunghezza) if lunghezza > 0 else b""
-            richiesta = Richiesta(ambiente.get("REQUEST_METHOD", "GET"), percorso, query, intestazioni, corpo, ambiente.get("REMOTE_ADDR", ""))
+            richiesta = Richiesta(metodo, percorso, query, intestazioni, corpo, cliente)
             richiesta.https = ambiente.get("wsgi.url_scheme") == "https"
             risposta = self.risposta_a(richiesta)
-        senza_corpo = richiesta.metodo == "HEAD" or risposta.stato in (204, 304)
-        intestazioni_risposta = [("Cache-Control", "no-store")]
-        if risposta.stato not in (204, 304):
-            intestazioni_risposta += [("Content-Type", risposta.tipo), ("Content-Length", str(len(risposta.corpo)))]
-        intestazioni_risposta += list(risposta.intestazioni.items()) + [("Set-Cookie", c) for c in risposta.cookie]
-        avvia_risposta(f"{risposta.stato} {_frase(risposta.stato)}", intestazioni_risposta)
-        if self.registro:
-            print(f"{richiesta.metodo} {percorso} {risposta.stato}", flush=True)
-        return [b"" if senza_corpo else risposta.corpo]
+        uscita, invia_corpo = self._uscita(richiesta, risposta)
+        avvia_risposta(f"{risposta.stato} {_frase(risposta.stato)}", uscita)
+        return risposta.blocchi() if invia_corpo else iter(())
 
     @property
     def asgi(self):
@@ -1714,16 +2444,44 @@ class Applicazione(Gruppo):
 
             def lavora():
                 if troppo_grande:
-                    richiesta._app = app
-                    return app._finisci(richiesta, app._pagina_errore(richiesta, 413, "Richiesta troppo grande"))
+                    return app._risposta_diretta(richiesta, 413, "Richiesta troppo grande")
                 return app.risposta_a(richiesta)
             risposta = await _asincrono.to_thread(lavora)
-            testata = [(b"content-type", risposta.tipo.encode("latin-1")), (b"content-length", str(len(risposta.corpo)).encode()), (b"cache-control", b"no-store")]
-            testata += [(k.lower().encode("latin-1"), v.encode("latin-1")) for k, v in risposta.intestazioni.items()]
-            testata += [(b"set-cookie", c.encode("latin-1")) for c in risposta.cookie]
-            await invia({"type": "http.response.start", "status": risposta.stato, "headers": testata})
-            await invia({"type": "http.response.body", "body": b"" if richiesta.metodo == "HEAD" or risposta.stato in (204, 304) else risposta.corpo})
+            uscita, invia_corpo = app._uscita(richiesta, risposta)
+            await invia({"type": "http.response.start", "status": risposta.stato,
+                         "headers": [(k.lower().encode("latin-1"), v.encode("latin-1")) for k, v in uscita]})
+            if invia_corpo:
+                pezzi = risposta.blocchi()
+                while True:
+                    pezzo = await _asincrono.to_thread(next, pezzi, None)
+                    if pezzo is None:
+                        break
+                    await invia({"type": "http.response.body", "body": pezzo, "more_body": True})
+            await invia({"type": "http.response.body", "body": b""})
         return applicazione
+
+
+class _ServerProduzione:
+    """Un server waitress acceso in sottofondo (per le prove)."""
+
+    def __init__(self, server, filo, app):
+        self._server = server
+        self._filo = filo
+        self._app = app
+        self.porta = server.effective_port
+        self.indirizzo = f"http://127.0.0.1:{self.porta}"
+
+    def ferma(self):
+        self._server.close()
+        self._filo.join(10)
+        for funzione in self._app._alla_chiusura:
+            funzione()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *errori):
+        self.ferma()
 
 
 class ServerAvviato:
@@ -1763,8 +2521,8 @@ class ClienteProva:
         self.app = app
         self.cookie = {}
 
-    def richiedi(self, metodo, percorso, json=None, form=None, intestazioni=None, file=None, segui=False):
-        risposta = self.app.simula(percorso, metodo, json=json, form=form, intestazioni=intestazioni, cookie=self.cookie, file=file)
+    def richiedi(self, metodo, percorso, json=None, form=None, intestazioni=None, file=None, segui=False, **altro):
+        risposta = self.app.simula(percorso, metodo, json=json, form=form, intestazioni=intestazioni, cookie=self.cookie, file=file, **altro)
         for nome, valore in risposta.cookie_impostati.items():
             if any("max-age=0" in c.lower() for c in risposta.cookie if c.startswith(nome + "=")):
                 self.cookie.pop(nome, None)

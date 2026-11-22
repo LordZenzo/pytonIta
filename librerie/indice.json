@@ -1324,14 +1324,14 @@
   },
   {
    "nome": "server_web",
-   "versione": "1.3",
+   "versione": "1.6",
    "categoria": "Rete",
    "descrizione": "Server web in poche righe: rotte con tipi, modelli di dati, sessioni, accessi, CSRF, pagine con cicli, file inviati, OpenAPI, WSGI/ASGI, HTTPS.",
    "originale": "server_web",
    "file": [
     {
      "percorso": "server_web.py",
-     "sha256": "ef0cd6cdd0b4cbf7750754d3237de67f2c1b4bc0575af19823e806a5a77bd107"
+     "sha256": "a6fa6be856aa2fd149e00f4af1a932f1a6d81fb83ec4da2094fe0d88ce8a2623"
     }
    ]
   },

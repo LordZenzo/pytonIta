@@ -1,0 +1,386 @@
+"""Prepara per la pubblicazione un progetto fatto con server_web: converte il programma in Python e scrive accanto tutto quello che serve per metterlo su un server
+(Docker con Caddy per l'HTTPS automatico, oppure systemd): Dockerfile, docker-compose.yml, Caddyfile, .env con una chiave segreta vera, avvio di produzione, istruzioni.
+
+Non pubblica niente da solo e non tocca il tuo computer: scrive una cartella (<progetto>/pubblicazione) che si copia sul server.
+"""
+importa os
+importa re
+importa secrets
+importa shutil
+importa tkinter come tk
+da tkinter importa ttk, messagebox
+
+da rad importa esporta_python
+da rad.dialoghi importa DialogoBase
+da rad.piattaforma importa FONT_MONO, FONT_UI, semi
+da rad importa piattaforma
+
+CARTELLA_USCITA = "pubblicazione"
+RE_APPLICAZIONE = re.compile(r"^(\w+)\s*=\s*(?:server_web\.)?Applicazione\(", re.M)
+RE_AVVIO_SCOPERTO = re.compile(r"^(\w+\.avvia(?:_produzione)?\(.*\))[ \t]*$", re.M)
+RETI_PRIVATE = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+
+
+classe Opzioni:
+    """Come preparare la pubblicazione."""
+
+    definisci __inizializza__(se_stesso, dominio="esempio.it", applicazione="", modulo="", fili=8, systemd=Vero, porta=8000):
+        se_stesso.dominio = dominio.strip().lower()
+        se_stesso.applicazione = applicazione.strip()
+        se_stesso.modulo = modulo.strip()
+        se_stesso.fili = fili
+        se_stesso.systemd = systemd
+        se_stesso.porta = porta
+
+
+definisci nome_sicuro(nome):
+    ritorna re.sub(r"[^a-z0-9_-]+", "-", nome.lower()).strip("-") o "sito"
+
+
+definisci trova_applicazione(testo):
+    """Il nome della variabile che contiene server_web.Applicazione(...), o None."""
+    m = RE_APPLICAZIONE.search(testo)
+    ritorna m.group(1) se m altrimenti Nessuno
+
+
+definisci proteggi_avvio(testo):
+    """Le righe «app.avvia(...)» a inizio riga (fuori da un controllo) vengono messe dentro «if __name__ == "__main__":»: il server di produzione importa il file e
+    non deve partire due volte. Ritorna (testo nuovo, quante righe ha cambiato)."""
+    cambiate = [0]
+
+    definisci cambia(m):
+        cambiate[0] += 1
+        ritorna 'if __name__ == "__main__":\n    ' + m.group(1)
+    ritorna RE_AVVIO_SCOPERTO.sub(cambia, testo), cambiate[0]
+
+
+definisci _scrivi(percorso, testo_, nuovo_solo=Falso):
+    """Scrive un file di testo (fine riga \\n). Con nuovo_solo non tocca un file che esiste. Ritorna True se l'ha scritto."""
+    se nuovo_solo e os.path.exists(percorso):
+        ritorna Falso
+    os.makedirs(os.path.dirname(percorso), exist_ok=Vero)
+    con open(percorso, "w", encoding="utf-8", newline="\n") come f:
+        f.write(testo_)
+    ritorna Vero
+
+
+DOCKERFILE = '''FROM python:3.13-slim
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+WORKDIR /srv/sito
+RUN useradd --system --uid 10001 --home-dir /srv/sito sito
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app/ ./app/
+RUN mkdir -p /srv/dati /srv/logs && chown -R sito /srv/dati /srv/logs /srv/sito
+USER sito
+WORKDIR /srv/sito/app
+EXPOSE {porta}
+# lo stato del sito: se /salute non risponde, Docker riavvia il contenitore (serve app.salute() nel programma)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD python -c "import os,urllib.request;urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('PORTA','{porta}')+'/salute',timeout=4)" || exit 1
+CMD ["python", "avvio_produzione.py"]
+'''
+
+COMPOSE = '''# Il sito (waitress) e Caddy davanti, che prende da solo il certificato HTTPS (Let's Encrypt).
+# Avvio:  docker compose up -d --build        Registro:  docker compose logs -f sito        Spegnimento:  docker compose down
+services:
+  sito:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORTA: "{porta}"
+      ASCOLTA: "0.0.0.0"
+      SITO_CARTELLA_DATI: /srv/dati
+      SITO_REGISTRO_FILE: /srv/logs/accessi.log
+      SITO_REGISTRO_ERRORI: /srv/logs/errori.log
+    volumes:
+      - dati:/srv/dati        # i dati del sito (database, file caricati): sopravvivono agli aggiornamenti
+      - logs:/srv/logs
+    expose:
+      - "{porta}"             # solo Caddy lo raggiunge: la porta NON e' pubblicata fuori
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - sito
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_dati:/data
+      - caddy_config:/config
+volumes:
+  dati:
+  logs:
+  caddy_dati:
+  caddy_config:
+'''
+
+CADDYFILE = '''{dominio} {{
+    encode gzip zstd
+    reverse_proxy sito:{porta}
+}}
+'''
+
+AVVIO = '''"""Avvio di produzione: carica il sito, legge le regolazioni dall'ambiente (SITO_*), controlla che sia pronto e lo serve con waitress."""
+import importlib
+import os
+
+modulo = importlib.import_module("{modulo}")
+applicazione = modulo.{applicazione}
+applicazione.configura_da_ambiente("SITO_")
+applicazione.avvia_produzione(porta=int(os.environ.get("PORTA", "{porta}")), ascolta=os.environ.get("ASCOLTA", "127.0.0.1"),
+                              filo=int(os.environ.get("FILI", "{fili}")))
+'''
+
+ENV = '''# Le regolazioni del sito (lette da app.configura_da_ambiente("SITO_")). QUESTO FILE E' RISERVATO: non copiarlo su GitHub, non spedirlo.
+SITO_PRODUZIONE=1
+SITO_CHIAVE_SEGRETA={chiave}
+SITO_HOST_AMMESSI={dominio},www.{dominio}
+SITO_PROXY_FIDATO={reti}
+SITO_CSRF=1
+SITO_FORZA_HTTPS=1
+'''
+
+ENV_SYSTEMD = '''# Per l'avvio con systemd (senza Docker): copia queste righe nel file .env accanto all'applicazione, con una chiave tua.
+SITO_PRODUZIONE=1
+SITO_CHIAVE_SEGRETA={chiave}
+SITO_HOST_AMMESSI={dominio},www.{dominio}
+SITO_PROXY_FIDATO=1
+SITO_CSRF=1
+SITO_FORZA_HTTPS=1
+SITO_CARTELLA_DATI=/opt/{id}/dati
+SITO_REGISTRO_FILE=/opt/{id}/logs/accessi.log
+SITO_REGISTRO_ERRORI=/opt/{id}/logs/errori.log
+PORTA={porta}
+ASCOLTA=127.0.0.1
+'''
+
+SYSTEMD = '''[Unit]
+Description={nome}
+After=network.target
+
+[Service]
+User={id}
+WorkingDirectory=/opt/{id}/app
+EnvironmentFile=/opt/{id}/.env
+ExecStart=/opt/{id}/venv/bin/python avvio_produzione.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/{id}/dati /opt/{id}/logs
+
+[Install]
+WantedBy=multi-user.target
+'''
+
+DOCKERIGNORE = '''.env
+.git
+__pycache__
+*.pyc
+*.log
+'''
+
+LEGGIMI = '''# Pubblicare {nome}
+
+Questa cartella è stata preparata da PitStudio (*Progetto → Prepara per la pubblicazione*). Contiene il tuo sito convertito in Python (`app/`) e tutto quello che serve per metterlo
+su un server. **Prima di tutto, tre regole**: (1) il file `.env` è riservato (contiene la chiave segreta: non metterlo su GitHub né nelle email); (2) la porta del sito (`{porta}`) non va mai
+aperta su Internet: ci arriva solo il proxy (Caddy); (3) tieni aggiornati il server e le copie di sicurezza dei dati.
+
+## Cosa serve
+- Un **dominio** (`{dominio}`) e un **server**: un VPS con Linux (Ubuntu, Debian…) da pochi euro al mese va benissimo, con un indirizzo IP pubblico.
+- Nel DNS del dominio un record **A** che porta `{dominio}` (e `www.{dominio}`) all'indirizzo IP del server.
+
+## Strada 1 · Docker con Caddy (consigliata: HTTPS automatico)
+1. Sul server installa Docker: `curl -fsSL https://get.docker.com | sh`.
+2. Copia **tutta questa cartella** sul server (per esempio con `scp -r pubblicazione utente@server:~/sito` o con `rsync`).
+3. Sul server: `cd sito && docker compose up -d --build`.
+4. Apri `https://{dominio}`: la prima volta Caddy ottiene da solo il certificato (serve che le porte 80 e 443 siano libere e il DNS già a posto).
+5. Il registro: `docker compose logs -f sito`; i file `accessi.log` ed `errori.log` sono nel volume `logs`. Gli errori mostrano ai visitatori solo un **codice**: cercalo nel registro per trovare i dettagli.
+6. Aggiornare il sito: copia la nuova cartella `app/` e rifai `docker compose up -d --build`. I dati (volume `dati`) restano.
+7. Copia di sicurezza dei dati: `docker run --rm -v sito_dati:/dati -v $(pwd):/copia alpine tar czf /copia/dati.tgz -C /dati .` (il nome del volume può cambiare: `docker volume ls`).
+
+Il firewall del server: lascia aperte solo le porte 22 (SSH), 80 e 443 (`ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw enable`).
+
+## Strada 2 · systemd (senza Docker)
+1. Sul server installa Python 3.13, un proxy HTTPS (Caddy o nginx) e crea un utente: `adduser --system --group {id}`.
+2. Copia `app/` e `requirements.txt` in `/opt/{id}/`, crea le cartelle `dati` e `logs` e un ambiente: `python3 -m venv /opt/{id}/venv && /opt/{id}/venv/bin/pip install -r /opt/{id}/requirements.txt`.
+3. Copia `.env.systemd.example` come `/opt/{id}/.env`, metti una chiave segreta tua (`python3 -c "import secrets; print(secrets.token_urlsafe(32))"`) e proteggilo: `chmod 600 /opt/{id}/.env`.
+4. Copia `sito.service` in `/etc/systemd/system/{id}.service`, poi `systemctl enable --now {id}`.
+5. Configura il proxy per portare `{dominio}` a `127.0.0.1:{porta}` con HTTPS (con Caddy bastano due righe: `{dominio} {{ reverse_proxy 127.0.0.1:{porta} }}`).
+
+## Cosa fa il sito in produzione
+- `avvio_produzione.py` carica il sito, legge le regolazioni dall'ambiente (`SITO_*`), esegue il **controllo prima di pubblicare** (se c'è un ERRORE non parte) e lo serve con **waitress**.
+- Gli errori non mostrano dettagli ai visitatori; `/docs` è spenta; i cookie sono «Secure» dietro HTTPS; HTTP viene mandato a HTTPS; solo `{dominio}` è ammesso come host.
+- `/salute` serve a Docker per sapere se il sito è vivo (se il programma ha `app.salute()`).
+- I dati che il sito scrive (database, file caricati) vanno in `SITO_CARTELLA_DATI`: nel programma usa `os.environ.get("SITO_CARTELLA_DATI", cartella_del_programma)`.
+
+## Cosa NON fa
+Non è un servizio gestito e non sostituisce una verifica di sicurezza: se il sito tratta dati personali o pagamenti, fai controllare la configurazione da chi se ne intende.
+Aggiornamenti del sistema, copie di sicurezza e monitoraggio sono compiti tuoi.
+'''
+
+
+definisci _file_py_principale(destinazione_app, principale):
+    ritorna os.path.join(destinazione_app, principale)
+
+
+definisci genera(origine, destinazione, opzioni, scrivi=Nessuno):
+    """Prepara la cartella di pubblicazione. Ritorna un dizionario: ok, errore, cartella, file (elenco), avvisi, modulo, applicazione, chiave_creata."""
+    scrivi = scrivi o (lambda testo_: Nessuno)
+    risultato = {"ok": Falso, "errore": "", "cartella": destinazione, "file": [], "avvisi": [], "modulo": "", "applicazione": "", "chiave_creata": Falso}
+    prova:
+        app_dir = os.path.join(destinazione, "app")
+        se os.path.exists(app_dir):
+            shutil.rmtree(app_dir)
+        os.makedirs(destinazione, exist_ok=Vero)
+        scrivi("1/3  Converto il progetto in Python…")
+        r = esporta_python.esporta(origine, app_dir)
+        se r["errori"]:
+            risultato["errore"] = "Alcuni file non si convertono in Python:\n" + "\n".join(f"  {f}: {elemento}" per f, elemento in r["errori"][:5])
+            ritorna risultato
+        principale = r["principale"]
+        percorso_principale = os.path.join(app_dir, principale)
+        se non os.path.exists(percorso_principale):
+            risultato["errore"] = f"Non trovo il file principale ({principale})."
+            ritorna risultato
+        testo_principale = open(percorso_principale, encoding="utf-8").read()
+        se "server_web" non in testo_principale e "fastapi_it" non in testo_principale:
+            risultato["avvisi"].append("Il file principale non usa server_web né fastapi_it: la pubblicazione è pensata per i siti e le API web.")
+        modulo = opzioni.modulo o os.path.splitext(principale)[0].replace("/", ".").replace("\\", ".")
+        applicazione = opzioni.applicazione o trova_applicazione(testo_principale) o ""
+        se non applicazione:
+            risultato["errore"] = ("Non trovo il nome dell'applicazione nel file principale: cerco una riga come «app = server_web.Applicazione(...)». "
+                                   "Scrivi il nome nel campo «Applicazione».")
+            ritorna risultato
+        se "fastapi_it" in testo_principale e "server_web.Applicazione" non in testo_principale:
+            risultato["avvisi"].append("Con fastapi_it l'applicazione FastAPI è «" + applicazione + ".app»: l'avvio di produzione usa waitress (WSGI), quindi per FastAPI avvia uvicorn "
+                                       "(cambia il comando in avvio_produzione.py: uvicorn.run(" + applicazione + ".app, host=..., port=...)).")
+        nuovo_testo, cambiate = proteggi_avvio(testo_principale)
+        se cambiate:
+            con open(percorso_principale, "w", encoding="utf-8", newline="\n") come f:
+                f.write(nuovo_testo)
+            risultato["avvisi"].append(f"Nella copia per il server ho messo {cambiate} riga/righe «avvia(...)» dentro «if __name__ == \"__main__\":», perché il server di produzione importa il file. Il tuo progetto non è cambiato.")
+        se "salute(" non in testo_principale:
+            risultato["avvisi"].append("Il programma non ha app.salute(): il controllo di stato di Docker non avrà una pagina da guardare. Aggiungi «app.salute()» (rispondera' su /salute).")
+        se "SITO_CARTELLA_DATI" non in testo_principale e (".db" in testo_principale o "sqlite" in testo_principale):
+            risultato["avvisi"].append("Il programma usa un database: perché i dati non si perdano a ogni aggiornamento, salvalo in os.environ.get(\"SITO_CARTELLA_DATI\", cartella_del_programma).")
+        scrivi("2/3  Scrivo i file per il server…")
+        nome = os.path.basename(os.path.normpath(origine))
+        id_ = nome_sicuro(nome)
+        valori = dict(nome=nome, id=id_, dominio=opzioni.dominio, porta=opzioni.porta, modulo=modulo, applicazione=applicazione, fili=opzioni.fili, reti=RETI_PRIVATE)
+        # requisiti: quelli del programma più waitress
+        righe_req = []
+        percorso_req = os.path.join(app_dir, "requirements.txt")
+        se os.path.exists(percorso_req):
+            righe_req = [riga.rstrip() per riga in open(percorso_req, encoding="utf-8")]
+        se non any(riga.lower().startswith("waitress") per riga in righe_req):
+            righe_req.append("waitress")
+        _scrivi(os.path.join(destinazione, "requirements.txt"), "\n".join(righe_req).strip() + "\n")
+        _scrivi(os.path.join(app_dir, "avvio_produzione.py"), AVVIO.format(**valori))
+        _scrivi(os.path.join(destinazione, "Dockerfile"), DOCKERFILE.format(**valori))
+        _scrivi(os.path.join(destinazione, "docker-compose.yml"), COMPOSE.format(**valori))
+        _scrivi(os.path.join(destinazione, "Caddyfile"), CADDYFILE.format(**valori))
+        _scrivi(os.path.join(destinazione, ".dockerignore"), DOCKERIGNORE)
+        chiave = secrets.token_urlsafe(32)
+        valori["chiave"] = chiave
+        risultato["chiave_creata"] = _scrivi(os.path.join(destinazione, ".env"), ENV.format(**valori), nuovo_solo=Vero)
+        _scrivi(os.path.join(destinazione, ".env.example"), ENV.format(**dict(valori, chiave="(scrivi qui una chiave lunga e casuale)")))
+        se opzioni.systemd:
+            _scrivi(os.path.join(destinazione, ".env.systemd.example"), ENV_SYSTEMD.format(**valori))
+            _scrivi(os.path.join(destinazione, "sito.service"), SYSTEMD.format(**valori))
+        _scrivi(os.path.join(destinazione, "LEGGIMI_PUBBLICAZIONE.md"), LEGGIMI.format(**valori))
+        scrivi("3/3  Fatto.")
+        risultato.update(ok=Vero, modulo=modulo, applicazione=applicazione)
+        per radice, _c, nomi in os.walk(destinazione):
+            per n in nomi:
+                risultato["file"].append(os.path.relpath(os.path.join(radice, n), destinazione).replace(os.sep, "/"))
+        risultato["file"].sort()
+    eccetto Exception come errore:
+        risultato["errore"] = f"{type(errore).__name__}: {errore}"
+    ritorna risultato
+
+
+classe DialogoPubblicazione(DialogoBase):
+    """Prepara la cartella per la pubblicazione di un sito: dominio e nome dell'applicazione, poi «Prepara»."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, origine):
+        DialogoBase.__init__(se_stesso, genitore, "Prepara per la pubblicazione", colori, 760, 620)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.origine = origine
+        se_stesso.esito = Nessuno
+        c = colori
+        se_stesso.var_dominio = tk.StringVar(value="esempio.it")
+        se_stesso.var_applicazione = tk.StringVar()
+        se_stesso.var_systemd = tk.BooleanVar(value=Vero)
+        se_stesso.grid_columnconfigure(1, weight=1)
+        se_stesso.grid_rowconfigure(5, weight=1)
+        tk.Label(se_stesso, text="Metti il tuo sito su Internet", font=semi(14), anchor="w", background=c["pannello"], foreground=c["primo_piano"]).grid(row=0, column=0, columnspan=2, sticky="we", padx=16, pady=(14, 0))
+        tk.Label(se_stesso, wraplength=700, justify="left", anchor="w", background=c["pannello"], foreground=c["tenue"],
+                 text="Converto il programma in Python e scrivo la cartella «pubblicazione» con Docker, Caddy (HTTPS automatico), systemd, una chiave segreta vera e le istruzioni passo passo. "
+                      "Non pubblico niente: la cartella si copia sul tuo server. Servono un dominio e un server (VPS).").grid(row=1, column=0, columnspan=2, sticky="we", padx=16, pady=(2, 8))
+        se_stesso.riga("Dominio del sito:", se_stesso.campo(se_stesso.var_dominio, 34), 2)
+        se_stesso.riga("Applicazione (facoltativo):", se_stesso.campo(se_stesso.var_applicazione, 34), 3)
+        tk.Checkbutton(se_stesso, text="Scrivi anche i file per systemd (avvio senza Docker)", variable=se_stesso.var_systemd, background=c["pannello"], foreground=c["primo_piano"],
+                       activebackground=c["pannello"], selectcolor=c["casella"], anchor="w").grid(row=4, column=0, columnspan=2, sticky="we", padx=16)
+        corpo = tk.Frame(se_stesso, background=c["pannello"])
+        corpo.grid(row=5, column=0, columnspan=2, sticky="nsew", padx=16, pady=8)
+        se_stesso.registro = tk.Text(corpo, height=12, wrap="word", font=(FONT_MONO, 10), background=c["editor"], foreground=c["editor_testo"], relief="flat", state="disabled")
+        barra = ttk.Scrollbar(corpo, orient="vertical", command=se_stesso.registro.yview)
+        se_stesso.registro.configure(yscrollcommand=barra.set)
+        se_stesso.registro.pack(side="left", fill="both", expand=Vero)
+        barra.pack(side="right", fill="y")
+        fondo = tk.Frame(se_stesso, background=c["pannello"])
+        fondo.grid(row=6, column=0, columnspan=2, sticky="e", padx=14, pady=10)
+        tk.Button(fondo, text="Chiudi", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        se_stesso.pulsante_cartella = tk.Button(fondo, text="Apri la cartella", command=se_stesso._apri, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12, state="disabled")
+        se_stesso.pulsante_cartella.pack(side="right", padx=4)
+        se_stesso.pulsante_prepara = tk.Button(fondo, text="Prepara", command=se_stesso.prepara, background=c["accento"], foreground="#ffffff", relief="flat", padx=14)
+        se_stesso.pulsante_prepara.pack(side="right", padx=4)
+        se_stesso._scrivi("Scrivi il dominio e premi «Prepara». Il file .env con la chiave segreta si crea una volta sola e non viene mai sovrascritto.")
+
+    definisci _scrivi(se_stesso, riga):
+        se_stesso.registro.configure(state="normal")
+        se_stesso.registro.insert("end", riga + "\n")
+        se_stesso.registro.see("end")
+        se_stesso.registro.configure(state="disabled")
+
+    definisci opzioni(se_stesso):
+        ritorna Opzioni(se_stesso.var_dominio.get() o "esempio.it", se_stesso.var_applicazione.get(), "", 8, bool(se_stesso.var_systemd.get()))
+
+    definisci prepara(se_stesso):
+        destinazione = os.path.join(se_stesso.origine, CARTELLA_USCITA)
+        se_stesso.registro.configure(state="normal")
+        se_stesso.registro.delete("1.0", "end")
+        se_stesso.registro.configure(state="disabled")
+        se_stesso.update_idletasks()
+        se_stesso.esito = genera(se_stesso.origine, destinazione, se_stesso.opzioni(), se_stesso._scrivi)
+        se_stesso._mostra_esito()
+
+    definisci _mostra_esito(se_stesso):
+        esito = se_stesso.esito
+        se non esito["ok"]:
+            se_stesso._scrivi("")
+            se_stesso._scrivi("NON RIUSCITO: " + esito["errore"])
+            ritorna
+        se_stesso._scrivi("")
+        se_stesso._scrivi(f"Pronto: {esito['cartella']}")
+        se_stesso._scrivi("Contiene: " + ", ".join(nome_file per nome_file in esito["file"] se non nome_file.startswith("app/")) + " e la cartella app/ con il tuo sito.")
+        se esito["chiave_creata"]:
+            se_stesso._scrivi("È stato creato il file .env con una chiave segreta nuova: è riservato, non copiarlo su GitHub.")
+        per avviso in esito["avvisi"]:
+            se_stesso._scrivi("⚠ " + avviso)
+        se_stesso._scrivi("")
+        se_stesso._scrivi("Prossimo passo: apri LEGGIMI_PUBBLICAZIONE.md.")
+        se_stesso.pulsante_cartella.configure(state="normal")
+
+    definisci _apri(se_stesso):
+        se se_stesso.esito e se_stesso.esito.get("cartella"):
+            prova:
+                piattaforma.apri(se_stesso.esito["cartella"])
+            eccetto Exception:
+                passa

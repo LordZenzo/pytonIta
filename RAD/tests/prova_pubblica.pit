@@ -1,0 +1,154 @@
+"""Prepara per la pubblicazione: la cartella scritta (Docker, Caddy, systemd, .env, avvio), l'avvio di produzione che parte davvero, i controlli e la finestra."""
+importa sys, os, tempfile, json, subprocess, time, socket, shutil, http.client
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad.tema importa colori
+da rad importa pubblica
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ---- funzioni pure
+verifica(pubblica.trova_applicazione("importa server_web\nsito = server_web.Applicazione('x')\n") == "sito" e pubblica.trova_applicazione("app = Applicazione()") == "app" e pubblica.trova_applicazione("x = 1") è Nessuno, "trova il nome dell'applicazione")
+testo_, n = pubblica.proteggi_avvio("app = 1\napp.avvia(porta=8000)\nif __name__ == '__main__':\n    app.avvia(porta=1)\napp.avvia_produzione()\n")
+verifica(n == 2 e testo_ == "app = 1\nif __name__ == \"__main__\":\n    app.avvia(porta=8000)\nif __name__ == '__main__':\n    app.avvia(porta=1)\nif __name__ == \"__main__\":\n    app.avvia_produzione()\n", "l'avvio scoperto va dentro il controllo, quello già protetto resta: " + testo_)
+verifica(pubblica.nome_sicuro("Il Mio Sito!") == "il-mio-sito" e pubblica.nome_sicuro("???") == "sito", "nome sicuro per i file")
+
+# ---- un progetto vero
+cartella = tempfile.mkdtemp()
+progetto = Progetto.nuovo(os.path.join(cartella, "Il Mio Sito"), "Il Mio Sito", "sito_web")
+destinazione = os.path.join(progetto.cartella, "pubblicazione")
+passi = []
+risultato = pubblica.genera(progetto.cartella, destinazione, pubblica.Opzioni("MioSito.IT", "", "", 4, Vero), passi.append)
+verifica(risultato["ok"], "la preparazione riesce: " + risultato["errore"])
+verifica(risultato["applicazione"] == "app" e risultato["modulo"] == "principale", "riconosce il modulo e l'applicazione: " + tipo_testo((risultato["modulo"], risultato["applicazione"])))
+verifica(any("1/3" in x per x in passi) e any("Fatto" in x per x in passi), "racconta i passi")
+atteso = {"Dockerfile", "docker-compose.yml", "Caddyfile", "requirements.txt", ".env", ".env.example", ".env.systemd.example", "sito.service", ".dockerignore", "LEGGIMI_PUBBLICAZIONE.md",
+          "app/principale.py", "app/avvio_produzione.py", "app/server_web.py"}
+verifica(atteso <= set(risultato["file"]), "i file scritti: mancano " + tipo_testo(sorted(atteso - set(risultato["file"]))))
+
+
+definisci leggi(nome):
+    ritorna open(os.path.join(destinazione, nome), encoding="utf-8").read()
+
+
+verifica("python:3.13" in leggi("Dockerfile") e "USER sito" in leggi("Dockerfile") e "HEALTHCHECK" in leggi("Dockerfile") e 'CMD ["python", "avvio_produzione.py"]' in leggi("Dockerfile") e "{porta}" non in leggi("Dockerfile"), "Dockerfile: utente senza privilegi, controllo di stato, avvio di produzione")
+verifica("mioSito.it".lower() in leggi("Caddyfile") e "reverse_proxy sito:8000" in leggi("Caddyfile") e leggi("Caddyfile").count("{") == 1, "Caddyfile con il dominio: " + leggi("Caddyfile"))
+compose = leggi("docker-compose.yml")
+verifica("caddy:2" in compose e '"443:443"' in compose e "expose:" in compose e '- "8000"' in compose e "dati:/srv/dati" in compose e '"8000:8000"' non in compose, "docker-compose: Caddy pubblico, il sito no, i dati in un volume")
+env = leggi(".env")
+chiave = [riga.split("=", 1)[1] per riga in env.splitlines() se riga.startswith("SITO_CHIAVE_SEGRETA=")][0]
+verifica(lunghezza_di(chiave) >= 32 e "(scrivi" non in chiave e "SITO_HOST_AMMESSI=miositoit" non in env e "SITO_HOST_AMMESSI=miosito.it,www.miosito.it" in env e "SITO_PRODUZIONE=1" in env e "SITO_PROXY_FIDATO=10.0.0.0/8" in env, "il .env ha una chiave vera e le regolazioni: " + env)
+verifica("scrivi qui" in leggi(".env.example") e chiave non in leggi(".env.example"), "l'esempio non contiene la chiave vera")
+verifica(risultato["chiave_creata"] è Vero, "dice che ha creato la chiave")
+# il .env non si sovrascrive
+open(os.path.join(destinazione, ".env"), "a", encoding="utf-8").write("SITO_MIA=1\n")
+risultato2 = pubblica.genera(progetto.cartella, destinazione, pubblica.Opzioni("miosito.it", "", "", 4, Falso), passi.append)
+verifica(risultato2["ok"] e risultato2["chiave_creata"] è Falso e "SITO_MIA=1" in leggi(".env") e chiave in leggi(".env"), "rigenerando, il .env resta com'è")
+verifica(any(riga.startswith("waitress") per riga in leggi("requirements.txt").splitlines()) e leggi("requirements.txt").count("waitress") == 1, "requirements.txt contiene waitress una volta sola: " + leggi("requirements.txt"))
+verifica("[Service]" in leggi("sito.service") e "NoNewPrivileges=true" in leggi("sito.service") e "/opt/il-mio-sito/app" in leggi("sito.service"), "systemd: unità con le protezioni")
+verifica("docker compose up -d --build" in leggi("LEGGIMI_PUBBLICAZIONE.md") e "miosito.it" in leggi("LEGGIMI_PUBBLICAZIONE.md") e "{dominio}" non in leggi("LEGGIMI_PUBBLICAZIONE.md"), "le istruzioni sono compilate")
+verifica(non any("salute" in avviso o "SITO_CARTELLA_DATI" in avviso per avviso in risultato["avvisi"]), "il modello ha già /salute e la cartella dei dati: nessun avviso su questo: " + tipo_testo(risultato["avvisi"]))
+verifica(non os.path.exists(os.path.join(destinazione, "app", ".env")) e "SITO_CHIAVE_SEGRETA" non in leggi("app/principale.py"), "la chiave non finisce nel codice")
+verifica('if __name__ == "__main__":' in leggi("app/principale.py"), "il programma ha già la protezione dell'avvio")
+
+# ---- l'avvio di produzione generato parte davvero (waitress), controlla la configurazione e serve il sito
+definisci porta_libera():
+    s_ = socket.socket()
+    s_.bind(("127.0.0.1", 0))
+    p = s_.getsockname()[1]
+    s_.close()
+    ritorna p
+
+
+dati = os.path.join(cartella, "dati")
+porta = porta_libera()
+ambiente = dict(os.environ, PORTA=tipo_testo(porta), ASCOLTA="127.0.0.1", SITO_PRODUZIONE="1", SITO_CHIAVE_SEGRETA="una chiave lunga e riservata per provare l'avvio",
+                SITO_HOST_AMMESSI="miosito.it", SITO_PROXY_FIDATO="1", SITO_CSRF="1", SITO_FORZA_HTTPS="1", SITO_REGISTRO_FILE=os.path.join(cartella, "logs", "accessi.log"))
+processo = subprocess.Popen([sys.executable, "-u", os.path.join(destinazione, "app", "avvio_produzione.py")], cwd=os.path.join(destinazione, "app"), env=ambiente,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=Vero, encoding="utf-8")
+righe = []
+scadenza = time.time() + 30
+mentre time.time() < scadenza:
+    riga = processo.stdout.readline()
+    righe.append(riga)
+    se "Sito in produzione" in riga o processo.poll() è non Nessuno:
+        interrompi
+prova:
+    verifica(any("Sito in produzione" in x per x in righe), "l'avvio di produzione parte: " + "".join(righe)[-400:])
+    cx = http.client.HTTPConnection("127.0.0.1", porta, timeout=10)
+    cx.request("GET", "/salute", headers={"Host": "qualsiasi"})
+    ris = cx.getresponse()
+    verifica(ris.status == 200 e json.loads(ris.read())["stato"] == "ok", "/salute risponde anche con un host qualsiasi")
+    cx.request("GET", "/", headers={"Host": "miosito.it"})
+    ris = cx.getresponse()
+    ris.read()
+    verifica(ris.status == 308 e ris.getheader("Location") == "https://miosito.it/", "da HTTP si viene mandati a HTTPS: " + tipo_testo(ris.status))
+    cx.request("GET", "/", headers={"Host": "miosito.it", "X-Forwarded-Proto": "https", "X-Forwarded-For": "5.5.5.5"})
+    ris = cx.getresponse()
+    corpo = ris.read().decode("utf-8")
+    verifica(ris.status == 200 e "<title>Il Mio Sito</title>" in corpo e ris.getheader("Strict-Transport-Security") e ris.getheader("X-Frame-Options") == "SAMEORIGIN", "dietro il proxy (HTTPS finto) il sito risponde, con HSTS")
+    cx.request("GET", "/", headers={"Host": "cattivo.it", "X-Forwarded-Proto": "https"})
+    ris = cx.getresponse()
+    ris.read()
+    verifica(ris.status == 400, "un host non ammesso: 400")
+    cx.request("GET", "/docs", headers={"Host": "miosito.it", "X-Forwarded-Proto": "https"})
+    ris = cx.getresponse()
+    ris.read()
+    verifica(ris.status == 404, "in produzione /docs è spenta")
+    cx.request("GET", "/api/note", headers={"Host": "miosito.it", "X-Forwarded-Proto": "https", "X-Forwarded-For": "5.5.5.5"})
+    ris = cx.getresponse()
+    verifica(ris.status == 200 e json.loads(ris.read()) == [], "l'API funziona")
+    cx.close()
+    time.sleep(0.3)
+    log = open(os.path.join(cartella, "logs", "accessi.log"), encoding="utf-8").read()
+    verifica("5.5.5.5 GET /api/note 200" in log, "il registro ha l'indirizzo vero del visitatore: " + log[-200:])
+infine:
+    processo.kill()
+    processo.wait(10)
+# un sito non configurato per la produzione non parte
+ambiente_sbagliato = dict(ambiente, SITO_PRODUZIONE="0", PORTA=tipo_testo(porta_libera()))
+r_ = subprocess.run([sys.executable, "-u", os.path.join(destinazione, "app", "avvio_produzione.py")], cwd=os.path.join(destinazione, "app"), env=ambiente_sbagliato,
+                    capture_output=Vero, text=Vero, encoding="utf-8", timeout=60)
+verifica(r_.returncode != 0 e "ERRORE" in r_.stdout e "produzione" in (r_.stdout + r_.stderr), "senza produzione=1 il controllo blocca l'avvio: " + r_.stdout[-300:])
+
+# ---- errori: nessun'applicazione riconoscibile
+vuoto = Progetto.nuovo(os.path.join(cartella, "Vuoto"), "Vuoto", "console")
+r3 = pubblica.genera(vuoto.cartella, os.path.join(vuoto.cartella, "pubblicazione"), pubblica.Opzioni(), Nessuno)
+verifica(non r3["ok"] e "applicazione" in r3["errore"].lower(), "un progetto che non è un sito dà un errore chiaro: " + r3["errore"])
+
+# ---- la finestra e il menu
+cfg = Configurazione(os.path.join(cartella, "c.json"))
+radice = tk.Tk()
+radice.geometry("1200x760+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+app.apri_progetto(progetto.cartella)
+radice.update()
+barra = radice.nametowidget(radice.cget("menu"))
+voci = []
+per i in intervallo_di(barra.index("end") + 1):
+    se barra.type(i) == "cascade" e barra.entrycget(i, "label") == "Progetto":
+        menu = radice.nametowidget(barra.entrycget(i, "menu"))
+        voci = [menu.entrycget(j, "label") per j in intervallo_di(menu.index("end") + 1) se menu.type(j) in ("command", "checkbutton")]
+verifica("Prepara per la pubblicazione (sito web)…" in voci, "la voce c'è nel menu Progetto")
+finestra = pubblica.DialogoPubblicazione(radice, colori(cfg), progetto.cartella)
+finestra.var_dominio.set("prova.it")
+finestra.prepara()
+radice.update()
+verifica(finestra.esito["ok"] e finestra.pulsante_cartella.cget("state") == "normal" e "Pronto" in finestra.registro.get("1.0", "end"), "la finestra prepara e mostra l'esito")
+verifica("prova.it" in open(os.path.join(progetto.cartella, "pubblicazione", "Caddyfile"), encoding="utf-8").read(), "con il dominio scritto")
+finestra.destroy()
+radice.destroy()
+shutil.rmtree(cartella, ignore_errors=Vero)
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)
