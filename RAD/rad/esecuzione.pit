@@ -17,6 +17,7 @@ da rad.piattaforma importa FONT_MONO
 da rad importa piattaforma
 
 _RE_LINK = re.compile(r'File "([^"]+)", (?:riga|line) (\d+)')
+_RE_WEB = re.compile(r"https?://(?:127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\]):\d+[^\s'\"<>)\]]*")       # l'indirizzo di un sito che gira sul tuo computer
 _FLAG_NASCONDI = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
@@ -267,6 +268,9 @@ classe Console(tk.Frame):
         se_stesso.t.tag_bind("link", "<Button-1>", se_stesso._clic_link)
         se_stesso.t.tag_bind("link", "<Enter>", lambda evento_tk: se_stesso.t.configure(cursor="hand2"))
         se_stesso.t.tag_bind("link", "<Leave>", lambda evento_tk: se_stesso.t.configure(cursor=""))
+        se_stesso.t.tag_bind("link_web", "<Button-1>", se_stesso._clic_web)
+        se_stesso.t.tag_bind("link_web", "<Enter>", lambda evento_tk: se_stesso.t.configure(cursor="hand2"))
+        se_stesso.t.tag_bind("link_web", "<Leave>", lambda evento_tk: se_stesso.t.configure(cursor=""))
 
     definisci applica_colori(se_stesso, c):
         se_stesso.colori = c
@@ -280,6 +284,7 @@ classe Console(tk.Frame):
         se_stesso.t.tag_configure("ok", foreground=c["ok"])
         se_stesso.t.tag_configure("suggerimento", foreground=c["avviso"], lmargin1=4, lmargin2=22, spacing1=4, spacing3=4)
         se_stesso.t.tag_configure("link", foreground=c["accento"], underline=Vero)
+        se_stesso.t.tag_configure("link_web", foreground=c["accento"], underline=Vero)
         se_stesso.t.tag_configure("utente", foreground=c["avviso"])
         per w in (se_stesso.barra, se_stesso.riga_input):
             w.configure(background=c["pannello"])
@@ -303,8 +308,33 @@ classe Console(tk.Frame):
             a = f"{inizio}+{m.start()}c"
             b = f"{inizio}+{m.end()}c"
             t.tag_add("link", a, b)
+        # l'indirizzo di un sito (un programma con un server web): un clic lo apre nel browser
+        per m in _RE_WEB.finditer(testo_):
+            t.tag_add("link_web", f"{inizio}+{m.start()}c", f"{inizio}+{m.end()}c")
+            se_stesso.ultimo_indirizzo_web = m.group(0)
         t.configure(state="disabled")
         t.see("end")
+
+    definisci _clic_web(se_stesso, evento_tk):
+        t = se_stesso.t
+        indice = t.index(f"@{evento_tk.x},{evento_tk.y}")
+        intervalli = t.tag_ranges("link_web")
+        per i in intervallo_di(0, lunghezza_di(intervalli), 2):
+            se t.compare(intervalli[i], "<=", indice) e t.compare(indice, "<", intervalli[i + 1]):
+                se_stesso.apri_indirizzo(t.get(intervalli[i], intervalli[i + 1]))
+                ritorna
+
+    definisci apri_indirizzo(se_stesso, indirizzo):
+        """Apre un indirizzo nel browser (i test sostituiscono questa funzione)."""
+        importa webbrowser
+        webbrowser.open(indirizzo)
+
+    definisci apri_ultimo_sito(se_stesso):
+        """Apre nel browser l'ultimo indirizzo di sito scritto dal programma. Ritorna l'indirizzo, o None se non ce n'e'."""
+        indirizzo = getattr(se_stesso, "ultimo_indirizzo_web", Nessuno)
+        se indirizzo:
+            se_stesso.apri_indirizzo(indirizzo)
+        ritorna indirizzo
 
     definisci pulisci(se_stesso):
         se_stesso.t.configure(state="normal")
@@ -337,6 +367,7 @@ classe Console(tk.Frame):
             se_stesso._lavoro = Nessuno
         se_stesso._errori_recenti = ""
         se_stesso._visto_output = Falso
+        se_stesso.ultimo_indirizzo_web = Nessuno
         se_stesso._cartella_esecuzione = cartella
         se_stesso._e_python = any(tipo_testo(a).lower().endswith((".py", ".pyw")) per a in argomenti)
         se_stesso.scrivi(f"▶ {descrizione o ' '.join(argomenti)}\n", "info")

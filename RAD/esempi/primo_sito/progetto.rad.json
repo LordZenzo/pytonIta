@@ -1,0 +1,8 @@
+{
+  "nome": "Il mio primo sito",
+  "principale": "principale.pit",
+  "descrizione": "Un sito con una pagina e un modulo: scrivi il tuo nome e il server ti saluta. Si apre nel browser.",
+  "argomenti": "server_web, rotte, modulo HTML (POST), pagine con segnaposti",
+  "creato": "",
+  "modello": "esempio"
+}

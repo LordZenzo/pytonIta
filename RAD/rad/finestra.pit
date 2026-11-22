@@ -391,6 +391,7 @@ classe Applicazione:
         esegui.add_command(label="Verifica compatibilità Windows / Linux…", command=se_stesso.verifica_compatibilita)
         esegui.add_command(label="Prova su Linux (WSL)", command=se_stesso.prova_su_linux)
         esegui.add_command(label="Linux di Windows: stato e guida…", command=se_stesso.finestra_linux)
+        esegui.add_command(label="Apri il sito nel browser", command=se_stesso.apri_sito)
         esegui.add_command(label="Pulisci la console", command=lambda: se_stesso.console.pulisci())
         barra.add_cascade(label="Esegui", menu=esegui)
 
@@ -1585,6 +1586,13 @@ classe Applicazione:
             w.esegui()
         altrimenti:
             se_stesso.info("Apri un file .pit o .py da eseguire (o imposta il file principale).")
+
+    definisci apri_sito(se_stesso):
+        """Esegui → Apri il sito nel browser: l'indirizzo che il programma (un sito o un'API) ha scritto nella console. Ritorna l'indirizzo o None."""
+        indirizzo = se_stesso.console.apri_ultimo_sito()
+        se non indirizzo:
+            se_stesso.info("Nessun sito in esecuzione: premi F5 su un programma con un server web (per esempio un progetto «Sito web o API»).")
+        ritorna indirizzo
 
     definisci mostra_console(se_stesso):
         """Apre il pannello della console se è chiuso (chi esegue un programma vuole vederne l'output)."""

@@ -16,6 +16,14 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.41
+
+- **Il web con pytonIta: `server_web`.** Un modulo nuovo per creare un server web con poche righe: rotte con pezzi variabili (`/utente/<nome>`, `/articolo/<n:numero>`), risposte in HTML o JSON, moduli (`richiesta.form`) e dati JSON (`richiesta.json`), cookie, file statici, pagine con segnaposti rese innocue (`pagina`, `carica_pagina`), pagine d'errore tue, filtri prima di ogni richiesta. `app.simula(...)` prova le rotte senza rete (utile per i test). Il server ascolta solo su 127.0.0.1; un errore nel programma dà 500 e il server continua. Guida: «Siti web e API con server_web».
+- **Nuovo progetto → «Sito web o API (server)»**: un sito completo da guardare e cambiare (pagina, API di note con SQLite, stili e script).
+- **L'indirizzo di un sito nella console è un link**: un clic lo apre nel browser; *Esegui → Apri il sito nel browser* apre l'ultimo indirizzo scritto dal programma.
+- **Due lezioni nuove** (25 «Il web: il tuo primo server», 26 «Un sito con i dati») con quiz ed esercizi, e due esempi nella galleria (categoria «Web»): *Il mio primo sito* e *Libro degli ospiti*.
+- Il modulo si esporta in Python come `suono`, `multimedia`, `ffmpeg` e `lettore`: viene copiato accanto al programma.
+
 ## Novità della 2.40
 
 - **Verifica di compatibilità Windows / Linux** (*Esegui → Verifica compatibilità Windows / Linux…*): sceglie il sistema di arrivo e controlla ogni file `.pit` e `.py` del progetto senza eseguirlo. Segnala i moduli e le funzioni di un solo sistema (`winreg`, `os.startfile`, `ctypes.windll`, `os.fork`...), i comandi di shell (`cls`, `taskkill`, `ls`, `sudo`...), i percorsi scritti a mano (`C:\...`, `/home/...`), le opzioni delle finestre e i moduli di PitStudio solo-Windows; per ogni voce c'è il suggerimento per rimediare e un doppio clic apre il file alla riga. Il codice dentro `se sys.platform == "win32":` (anche negato, o con ritorno anticipato) non si segnala; dentro `prova … eccetto` è solo una nota.

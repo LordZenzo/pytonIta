@@ -36,7 +36,7 @@
 | `rapporti_pdf.stili` | `reportlab.lib.styles` | 2 | 11 |
 | `rapporti_pdf.allineamento` | `reportlab.lib.enums` | 4 | 0 |
 | `rapporti_pdf.documento` | `reportlab.platypus` | 10 | 199 |
-| `rapporti_pdf.caratteri` | `reportlab.pdfbase.pdfmetrics` | 3 | 20 |
+| `rapporti_pdf.caratteri` | `reportlab.pdfbase.pdfmetrics` | 3 | 21 |
 | `rapporti_pdf.caratteri_ttf` | `reportlab.pdfbase.ttfonts` | 1 | 30 |
 | `interfaccia` | `tkinter` | 247 | 495 |
 | `interfaccia.tema` | `tkinter.ttk` | 68 | 71 |
@@ -102,19 +102,19 @@
 | `numerico` | `numpy` | 108 | 230 |
 | `numerico.casuale` | `numpy.random` | 18 | 52 |
 | `numerico.algebra_lineare` | `numpy.linalg` | 12 | 5 |
-| `tabelle` | `pandas` | 88 | 529 |
+| `tabelle` | `pandas` | 88 | 526 |
 | `scienza` | `scipy` | 0 | 4 |
 | `scienza.ottimizzazione` | `scipy.optimize` | 8 | 10 |
-| `scienza.statistica` | `scipy.stats` | 13 | 30 |
-| `scienza.interpolazione` | `scipy.interpolate` | 3 | 34 |
+| `scienza.statistica` | `scipy.stats` | 13 | 25 |
+| `scienza.interpolazione` | `scipy.interpolate` | 3 | 28 |
 | `scienza.integrazione` | `scipy.integrate` | 4 | 9 |
 | `scienza.algebra_lineare` | `scipy.linalg` | 6 | 3 |
-| `grafici` | `matplotlib` | 1 | 7 |
-| `grafici.disegno` | `matplotlib.pyplot` | 39 | 427 |
-| `grafici.assi` | `matplotlib.axes` | 29 | 87 |
-| `grafici.figura` | `matplotlib.figure` | 11 | 259 |
+| `grafici` | `matplotlib` | 1 | 0 |
+| `grafici.disegno` | `matplotlib.pyplot` | 39 | 0 |
+| `grafici.assi` | `matplotlib.axes` | 29 | 0 |
+| `grafici.figura` | `matplotlib.figure` | 11 | 0 |
 | `foglio_tk` | `tksheet` | 9 | 781 |
-| `immagini` | `PIL.Image` | 23 | 79 |
+| `immagini` | `PIL.Image` | 23 | 82 |
 | `asincronia` | `asyncio` | 56 | 104 |
 | `esecutori` | `concurrent.futures` | 21 | 7 |
 | `multiprocesso` | `multiprocessing` | 24 | 10 |
@@ -155,4 +155,4 @@
 | `parole_chiave` | `keyword` | 3 | 0 |
 | `gettext_traduzioni` | `gettext` | 2 | 4 |
 
-Totale alias: **8765**. Il nome originale resta sempre disponibile.
+Totale alias: **7975**. Il nome originale resta sempre disponibile.

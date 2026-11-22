@@ -126,6 +126,7 @@ CATALOGO = {
     "multimedia": ("Audio e video", "Conversioni, tagli e informazioni sui file audio e video con ffmpeg; scarica ffmpeg se manca."),
     "ffmpeg": ("Audio e video", "ffmpeg e ffprobe comandati a catena: filtri, codec, sonda dei file, avanzamento, ricette (richiede ffmpeg)."),
     "lettore": ("Audio e video", "Riproduce audio e video con VLC (mpv in arrivo), anche dentro una finestra tkinter (richiede VLC)."),
+    "server_web": ("Rete", "Un server web in poche righe: pagine, API in JSON, file statici, moduli HTML; si prova dal browser."),
     "test_unitari": ("Test", "unittest: scrivere ed eseguire test automatici."),
     "test_documentazione": ("Test", "Test scritti negli esempi della documentazione."),
 }

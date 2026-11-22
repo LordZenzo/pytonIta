@@ -17,7 +17,7 @@ from pit2py_tabelle import cartelle_lib         # noqa: E402
 IGNORA = {"__pycache__", ".git", ".rad", ".claude", ".idea", ".vscode", "node_modules"}
 SALTA_FILE = (".form.json", ".mattonelle.json")         # sorgenti dei progettisti: servono solo a PitStudio
 MANIFESTO = "progetto.rad.json"
-MODULI_PROPRI = ("suono", "multimedia", "ffmpeg", "lettore")      # moduli di pytonIta senza equivalente in Python: si copiano accanto al programma
+MODULI_PROPRI = ("suono", "multimedia", "ffmpeg", "lettore", "server_web")      # moduli di pytonIta senza equivalente in Python: si copiano accanto al programma
 
 # modulo -> pacchetto di PyPI, quando i nomi sono diversi e il pacchetto non e' installato con pitonit
 PYPI = {"numpy": "numpy", "pandas": "pandas", "scipy": "scipy", "matplotlib": "matplotlib", "requests": "requests",

@@ -1,0 +1,120 @@
+"""Il modello di progetto «Sito web o API»: i file creati, il sito che parte davvero e funziona, e l'indirizzo cliccabile nella console di PitStudio."""
+importa sys, os, tempfile, json, subprocess, re, shutil
+importa http.client
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto, MODELLI
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+cartella = tempfile.mkdtemp()
+verifica("sito_web" in MODELLI e "Sito web" in MODELLI["sito_web"], "il modello è tra i tipi di progetto")
+progetto = Progetto.nuovo(os.path.join(cartella, "Il Mio Sito"), "Il Mio Sito", "sito_web")
+file_attesi = {"principale.pit", "pagine/index.html", "statici/stile.css", "statici/app.js", "LEGGIMI.md", "progetto.rad.json"}
+creati = set()
+per radice, _cartelle, nomi in os.walk(progetto.cartella):
+    per n in nomi:
+        creati.add(os.path.relpath(os.path.join(radice, n), progetto.cartella).replace(os.sep, "/"))
+verifica(file_attesi <= creati, "i file del progetto: " + tipo_testo(sorted(creati)))
+verifica(progetto.manifesto["principale"] == "principale.pit" e progetto.manifesto["modello"] == "sito_web", "il file principale è impostato")
+codice = open(progetto.assoluto("principale.pit"), encoding="utf-8").read()
+verifica("Il Mio Sito" in codice e "@@NOME@@" non in codice, "il nome del progetto finisce nel codice")
+verifica("textContent" in open(progetto.assoluto("statici/app.js"), encoding="utf-8").read(), "il testo delle note non può diventare codice (textContent)")
+
+# ---- il controllo di PitStudio sul codice del modello: nessun errore grave, e compila
+importa _controlla
+errori_gravi, avvisi, _righe = _controlla.analizza(codice.encode("utf-8"), "principale.pit")
+verifica(non errori_gravi, "il controllo statico non trova errori gravi: " + tipo_testo(errori_gravi))
+compile(codice, "principale.pit", "exec")
+
+# ---- parte davvero: stessa porta 0 al posto di 8000, così non rischia di trovarla occupata
+copia = os.path.join(progetto.cartella, "prova_porta.pit")
+open(copia, "w", encoding="utf-8").write(codice.replace("porta=8000", "porta=0"))
+p = subprocess.Popen([sys.executable, "-u", copia], cwd=progetto.cartella, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=Vero, encoding="utf-8")
+riga = p.stdout.readline()
+m = re.search(r"http://127\.0\.0\.1:(\d+)/", riga)
+verifica(m è non Nessuno, "il sito scrive il suo indirizzo: " + riga)
+
+
+definisci chiedi(metodo, percorso, dati=Nessuno):
+    c = http.client.HTTPConnection("127.0.0.1", int(m.group(1)), timeout=10)
+    intestazioni = {"Content-Type": "application/json"} se dati è non Nessuno altrimenti {}
+    c.request(metodo, percorso, body=json.dumps(dati) se dati è non Nessuno altrimenti Nessuno, headers=intestazioni)
+    r = c.getresponse()
+    corpo = r.read()
+    c.close()
+    ritorna r.status, corpo
+
+
+prova:
+    se m:
+        s, b = chiedi("GET", "/")
+        verifica(s == 200 e b"<title>Il Mio Sito</title>" in b e b"/statici/app.js" in b, "la pagina principale con il titolo")
+        s, b = chiedi("GET", "/statici/stile.css")
+        verifica(s == 200 e b"font-family" in b, "il file di stile")
+        s, b = chiedi("GET", "/api/note")
+        verifica(s == 200 e json.loads(b) == [], "all'inizio non ci sono note")
+        s, b = chiedi("POST", "/api/note", {"testo": "<b>prima</b>"})
+        verifica(s == 201 e json.loads(b)["testo"] == "<b>prima</b>", "si aggiunge una nota")
+        s, b = chiedi("POST", "/api/note", {"testo": "   "})
+        verifica(s == 400, "una nota vuota è rifiutata")
+        s, b = chiedi("POST", "/api/note", {"testo": "seconda"})
+        s, b = chiedi("GET", "/api/note")
+        elenco = json.loads(b)
+        verifica([n["testo"] per n in elenco] == ["seconda", "<b>prima</b>"], "l'elenco, la più recente in cima: " + tipo_testo(elenco))
+        s, b = chiedi("DELETE", f"/api/note/{elenco[0]['id']}")
+        verifica(s == 200, "si elimina una nota")
+        s, b = chiedi("GET", "/api/note")
+        verifica([n["testo"] per n in json.loads(b)] == ["<b>prima</b>"], "e non c'è più")
+        verifica(os.path.exists(os.path.join(progetto.cartella, "note.db")), "le note stanno in un database SQLite nel progetto")
+infine:
+    p.kill()
+    p.wait(10)
+
+# ---- PitStudio: l'indirizzo nella console è cliccabile e c'è «Apri il sito nel browser»
+cfg = Configurazione(os.path.join(cartella, "c.json"))
+radice = tk.Tk()
+radice.geometry("1300x760+20+20")
+app = Applicazione(radice, cfg)
+radice.update()
+app.apri_progetto(progetto.cartella)
+radice.update()
+aperti = []
+app.console.apri_indirizzo = lambda indirizzo: aperti.append(indirizzo)
+verifica(app.apri_sito() è Nessuno e lunghezza_di(aperti) == 0, "senza un sito in esecuzione «Apri il sito» non fa nulla")
+app.console.scrivi("Server in ascolto su http://127.0.0.1:8000/  (per spegnerlo: Ctrl+C o Ferma)\n", "info")
+radice.update()
+verifica(app.console.ultimo_indirizzo_web == "http://127.0.0.1:8000/", "la console ricorda l'indirizzo: " + tipo_testo(app.console.ultimo_indirizzo_web))
+intervalli = app.console.t.tag_ranges("link_web")
+verifica(lunghezza_di(intervalli) == 2 e app.console.t.get(intervalli[0], intervalli[1]) == "http://127.0.0.1:8000/", "l'indirizzo è sottolineato come link")
+app.console.scrivi("la guida è su https://esempio.it/pagina\n", "out")
+verifica(lunghezza_di(app.console.t.tag_ranges("link_web")) == 2, "gli indirizzi di Internet non sono presi per il sito locale")
+# clic sul link
+app.console.t.update()
+x, y, _l, _h = app.console.t.bbox(intervalli[0])
+evento = tk.Event()
+evento.x, evento.y = x + 2, y + 2
+app.console._clic_web(evento)
+verifica(aperti == ["http://127.0.0.1:8000/"], "un clic sul link apre il browser: " + tipo_testo(aperti))
+aperti.clear()
+verifica(app.apri_sito() == "http://127.0.0.1:8000/" e aperti == ["http://127.0.0.1:8000/"], "Esegui → Apri il sito nel browser")
+barra = radice.nametowidget(radice.cget("menu"))
+voci = []
+per i in intervallo_di(barra.index("end") + 1):
+    se barra.type(i) == "cascade" e barra.entrycget(i, "label") == "Esegui":
+        m_esegui = radice.nametowidget(barra.entrycget(i, "menu"))
+        voci = [m_esegui.entrycget(j, "label") per j in intervallo_di(m_esegui.index("end") + 1) se m_esegui.type(j) in ("command", "checkbutton")]
+verifica("Apri il sito nel browser" in voci, "la voce c'è nel menu Esegui")
+radice.destroy()
+shutil.rmtree(cartella, ignore_errors=Vero)
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)

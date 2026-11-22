@@ -1,0 +1,14 @@
+{
+  "id": "primo_sito",
+  "titolo": "Il mio primo sito",
+  "descrizione": "Un sito con una pagina e un modulo: scrivi il tuo nome e il server ti saluta. Si apre nel browser.",
+  "livello": "Principiante",
+  "categoria": "Web",
+  "impara": [
+    "server_web",
+    "rotte",
+    "modulo HTML (POST)",
+    "pagine con segnaposti"
+  ],
+  "principale": "principale.pit"
+}

@@ -4,7 +4,7 @@ importa os
 importa shutil
 
 CARTELLA_ESEMPI = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "esempi")
-ORDINE_CATEGORIE = ["Console", "Finestre", "Database"]
+ORDINE_CATEGORIE = ["Console", "Finestre", "Database", "Web"]
 ORDINE_LIVELLI = {"Principiante": 0, "Intermedio": 1, "Avanzato": 2}
 
 

@@ -1,0 +1,84 @@
+"""Gli esempi web della galleria («Il mio primo sito» e «Libro degli ospiti»): compaiono nella galleria e, avviati davvero, rispondono come promettono."""
+importa sys, os, tempfile, shutil, subprocess, re, http.client, urllib.parse
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+da rad importa esempi
+importa _controlla
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+elenco = {voce["id"]: voce per voce in esempi.elenco_esempi()}
+verifica("primo_sito" in elenco e "libro_degli_ospiti" in elenco, "i due esempi sono nella galleria: " + tipo_testo(sorted(elenco)))
+verifica(elenco["primo_sito"]["categoria"] == "Web" e elenco["libro_degli_ospiti"]["categoria"] == "Web", "categoria Web")
+verifica(esempi.ORDINE_CATEGORIE[-1] == "Web", "la categoria Web è in fondo")
+
+
+definisci avvia(id_):
+    """Copia l'esempio in una cartella temporanea e lo avvia su una porta libera. Ritorna (processo, porta, cartella)."""
+    cartella = tempfile.mkdtemp()
+    destinazione = os.path.join(cartella, id_)
+    shutil.copytree(elenco[id_]["cartella"], destinazione)
+    script = os.path.join(destinazione, elenco[id_]["principale"])
+    codice = open(script, encoding="utf-8").read()
+    errori_gravi, _avvisi, _righe = _controlla.analizza(codice.encode("utf-8"), script)
+    verifica(non errori_gravi, f"{id_}: il controllo statico non trova errori gravi: {errori_gravi}")
+    open(script, "w", encoding="utf-8").write(codice.replace("porta=8000", "porta=0"))
+    p = subprocess.Popen([sys.executable, "-u", script], cwd=destinazione, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=Vero, encoding="utf-8")
+    m = re.search(r"http://127\.0\.0\.1:(\d+)/", p.stdout.readline())
+    verifica(m è non Nessuno, f"{id_}: il sito scrive il suo indirizzo")
+    ritorna p, int(m.group(1)) se m altrimenti 0, cartella
+
+
+definisci chiedi(porta, metodo, percorso, modulo=Nessuno):
+    c = http.client.HTTPConnection("127.0.0.1", porta, timeout=10)
+    corpo = urllib.parse.urlencode(modulo) se modulo è non Nessuno altrimenti Nessuno
+    c.request(metodo, percorso, body=corpo, headers={"Content-Type": "application/x-www-form-urlencoded"} se corpo altrimenti {})
+    r = c.getresponse()
+    ritorna r.status, r.getheader("Location"), r.read().decode("utf-8")
+
+
+# ---- Il mio primo sito
+p, porta, cartella = avvia("primo_sito")
+prova:
+    s, _l, pagina_ = chiedi(porta, "GET", "/")
+    verifica(s == 200 e '<form method="post" action="/saluta">' in pagina_, "la pagina ha il modulo")
+    s, _l, pagina_ = chiedi(porta, "POST", "/saluta", {"nome": "Ada"})
+    verifica(s == 200 e "Piacere di conoscerti, Ada!" in pagina_, "il saluto personalizzato")
+    s, _l, pagina_ = chiedi(porta, "POST", "/saluta", {"nome": "<script>x</script>"})
+    verifica("<script>x</script>" non in pagina_ e "&lt;script&gt;" in pagina_, "il nome è reso innocuo")
+    s, _l, pagina_ = chiedi(porta, "POST", "/saluta", {"nome": ""})
+    verifica("sconosciuto" in pagina_, "senza nome: «sconosciuto»")
+infine:
+    p.kill()
+    p.wait(10)
+    shutil.rmtree(cartella, ignore_errors=Vero)
+
+# ---- Libro degli ospiti
+p, porta, cartella = avvia("libro_degli_ospiti")
+prova:
+    s, _l, pagina_ = chiedi(porta, "GET", "/")
+    verifica(s == 200 e "Libro degli ospiti" in pagina_ e "<li>" non in pagina_, "all'inizio il libro è vuoto")
+    s, dove, _p = chiedi(porta, "POST", "/scrivi", {"autore": "Ada", "messaggio": "Che bel sito!"})
+    verifica(s == 302 e dove == "/", "dopo il messaggio si torna alla pagina")
+    chiedi(porta, "POST", "/scrivi", {"autore": "", "messaggio": "<b>grassetto?</b>"})
+    s, _l, pagina_ = chiedi(porta, "GET", "/")
+    verifica("<strong>Ada</strong>: Che bel sito!" in pagina_, "il messaggio compare nell'elenco")
+    verifica("&lt;b&gt;grassetto?&lt;/b&gt;" in pagina_ e "<b>grassetto?</b>" non in pagina_, "i simboli < > sono mostrati come testo")
+    verifica("<strong>anonimo</strong>" in pagina_, "senza nome: anonimo")
+    verifica(pagina_.index("grassetto") < pagina_.index("Che bel sito"), "il più recente è in cima")
+    s, _l, _p = chiedi(porta, "POST", "/scrivi", {"autore": "x", "messaggio": "  "})
+    verifica(s == 400, "un messaggio vuoto è rifiutato")
+    verifica(os.path.exists(os.path.join(cartella, "libro_degli_ospiti", "ospiti.db")), "i messaggi sono nel database")
+infine:
+    p.kill()
+    p.wait(10)
+    shutil.rmtree(cartella, ignore_errors=Vero)
+
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)

@@ -1,0 +1,78 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.rotta(\"/ciao/<nome>\")\ndefinisci ciao(nome):\n    ritorna {\"saluto\": nome}\n\n\nstampa(app.simula(\"/ciao/Ada\").dati[\"saluto\"])",
+   "giusta": "Ada",
+   "sbagliate": [
+    {
+     "testo": "{'saluto': 'Ada'}",
+     "indizio": ".dati è il dizionario intero; con [\"saluto\"] si prende solo il valore."
+    },
+    "/ciao/Ada",
+    "200"
+   ],
+   "spiegazione": "Il pezzo <nome> dell'indirizzo diventa il parametro nome; .dati[\"saluto\"] legge il valore dal JSON della risposta.",
+   "sezione": "Pezzi variabili nell'indirizzo"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.rotta(\"/\")\ndefinisci home():\n    ritorna \"ciao\"\n\n\nstampa(app.simula(\"/non-esiste\").stato)",
+   "giusta": "404",
+   "sbagliate": [
+    {
+     "testo": "200",
+     "indizio": "200 è per le rotte che esistono: qui l'indirizzo non è registrato."
+    },
+    "500",
+    "405"
+   ],
+   "spiegazione": "Un indirizzo senza rotta riceve lo stato 404, «non trovato». Il 500 è per gli errori del programma, il 405 per il metodo sbagliato.",
+   "sezione": "Errori e stati"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.rotta(\"/somma/<a:numero>/<b:numero>\")\ndefinisci somma(a, b):\n    ritorna {\"somma\": a + b}\n\n\nstampa(app.simula(\"/somma/2/3\").dati)",
+   "giusta": "{'somma': 5}",
+   "sbagliate": [
+    {
+     "testo": "{'somma': '23'}",
+     "indizio": "Con :numero i pezzi arrivano come interi, quindi si sommano. Senza, sarebbero testi da incollare."
+    },
+    "5",
+    "{'somma': 23}"
+   ],
+   "spiegazione": "<a:numero> converte il pezzo in intero: 2 + 3 fa 5, e la funzione ritorna un dizionario, che diventa JSON.",
+   "sezione": "Pezzi variabili nell'indirizzo"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.invia(\"/modulo\")\ndefinisci modulo():\n    ritorna \"ricevuto\"\n\n\nstampa(app.simula(\"/modulo\").stato)",
+   "giusta": "405",
+   "sbagliate": [
+    {
+     "testo": "404",
+     "indizio": "L'indirizzo esiste: è il metodo (GET invece di POST) a non essere ammesso."
+    },
+    "200",
+    "ricevuto"
+   ],
+   "spiegazione": "@app.invia collega l'indirizzo al metodo POST: una richiesta GET trova la rotta ma non il metodo, e riceve 405.",
+   "sezione": "Moduli e JSON"
+  },
+  {
+   "domanda": "Chi può aprire un sito avviato con app.avvia(porta=8000), senza altre opzioni?",
+   "giusta": "Solo chi usa il tuo computer (127.0.0.1)",
+   "sbagliate": [
+    {
+     "testo": "Qualunque computer della rete",
+     "indizio": "Succede solo con ascolta=\"0.0.0.0\", che va usato con cautela."
+    },
+    "Chiunque su Internet",
+    "Nessuno: serve prima un hosting"
+   ],
+   "spiegazione": "Per prudenza il server ascolta solo su 127.0.0.1, cioè sul tuo computer. Per aprirlo alla rete si chiede ascolta=\"0.0.0.0\", e solo per provare.",
+   "sezione": "Attenzione: chi può vederlo"
+  }
+ ]
+}

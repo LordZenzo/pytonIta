@@ -1,0 +1,14 @@
+{
+  "id": "libro_degli_ospiti",
+  "titolo": "Libro degli ospiti",
+  "descrizione": "Un libro degli ospiti sul web: chi visita la pagina lascia un messaggio, che resta salvato in un database SQLite.",
+  "livello": "Intermedio",
+  "categoria": "Web",
+  "impara": [
+    "server_web",
+    "SQLite",
+    "moduli HTML e reindirizzamento",
+    "testi resi innocui (sicurezza)"
+  ],
+  "principale": "principale.pit"
+}

@@ -28,6 +28,7 @@ MODELLI = {
     "vuoto": "Progetto vuoto",
     "libreria": "Libreria (pacchetto)",
     "python": "Programma Python classico (.py)",
+    "sito_web": "Sito web o API (server)",
 }
 
 PROGRAMMA_CONSOLE = '''"""{nome} - programma da console pytonIta."""
@@ -43,6 +44,144 @@ definisci principale():
 se __nome__ == "__main__":
     principale()
 '''
+
+
+PRINCIPALE_SITO_WEB = '''"""@@NOME@@ - un sito web fatto con pytonIta: pagine, un'API in JSON e file statici.
+
+Premi F5: il server si accende e nella console compare l'indirizzo (http://127.0.0.1:8000/): cliccalo, oppure usa
+Esegui → Apri il sito nel browser. Per spegnere il server premi Maiusc+F5 (Ferma).
+Cartelle:  pagine/  = pagine HTML con {{ segnaposti }}       statici/  = stili, immagini e script"""
+importa os
+importa sqlite3
+importa server_web
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(QUI, "note.db")
+app = server_web.Applicazione("@@NOME@@")
+app.statici("/statici", os.path.join(QUI, "statici"))
+
+
+definisci collegati():
+    """Apre il database delle note (lo crea se manca). Ogni richiesta ne apre uno suo."""
+    collegamento = sqlite3.connect(DATABASE)
+    collegamento.row_factory = sqlite3.Row
+    collegamento.execute("CREATE TABLE IF NOT EXISTS note (id INTEGER PRIMARY KEY AUTOINCREMENT, testo TEXT NOT NULL)")
+    ritorna collegamento
+
+
+@app.rotta("/")
+definisci home():
+    ritorna server_web.carica_pagina(os.path.join(QUI, "pagine", "index.html"), titolo="@@NOME@@")
+
+
+@app.rotta("/api/note", metodi=["GET", "POST"])
+definisci note(richiesta):
+    """GET: l'elenco delle note.  POST con {"testo": "..."}: ne aggiunge una."""
+    db = collegati()
+    prova:
+        se richiesta.metodo == "POST":
+            testo = tipo_testo((richiesta.json o {}).get("testo", "")).strip()
+            se non testo:
+                ritorna server_web.json_risposta({"errore": "scrivi qualcosa"}, 400)
+            cursore = db.execute("INSERT INTO note (testo) VALUES (?)", (testo,))
+            db.commit()
+            ritorna ({"id": cursore.lastrowid, "testo": testo}, 201)
+        ritorna [dict(riga) per riga in db.execute("SELECT id, testo FROM note ORDER BY id DESC")]
+    infine:
+        db.close()
+
+
+@app.elimina_rotta("/api/note/<numero_nota:numero>")
+definisci elimina_nota(numero_nota):
+    db = collegati()
+    prova:
+        db.execute("DELETE FROM note WHERE id = ?", (numero_nota,))
+        db.commit()
+    infine:
+        db.close()
+    ritorna {"eliminata": numero_nota}
+
+
+se __nome__ == "__main__":
+    app.avvia(porta=8000)
+'''
+
+PAGINA_SITO_WEB = '''<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ titolo }}</title>
+  <link rel="stylesheet" href="/statici/stile.css">
+</head>
+<body>
+  <main>
+    <h1>{{ titolo }}</h1>
+    <p>Un piccolo sito fatto con pytonIta. Le note si salvano in un database SQLite.</p>
+    <form id="modulo">
+      <input id="testo" placeholder="Scrivi una nota" autocomplete="off" required>
+      <button>Aggiungi</button>
+    </form>
+    <ul id="elenco"></ul>
+  </main>
+  <script src="/statici/app.js"></script>
+</body>
+</html>
+'''
+
+STILE_SITO_WEB = '''body { font-family: system-ui, sans-serif; background: #f4f6f9; color: #222; margin: 0; }
+main { max-width: 36rem; margin: 3rem auto; padding: 0 1rem; }
+h1 { margin-bottom: .2rem; }
+form { display: flex; gap: .5rem; margin: 1.2rem 0; }
+input { flex: 1; padding: .6rem; border: 1px solid #b8c0cc; border-radius: 6px; font-size: 1rem; }
+button { padding: .6rem 1rem; border: 0; border-radius: 6px; background: #1a62d6; color: #fff; font-size: 1rem; cursor: pointer; }
+ul { list-style: none; padding: 0; }
+li { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: .6rem .8rem; margin-bottom: .4rem; border-radius: 6px; }
+li button { background: #c62828; padding: .3rem .6rem; font-size: .85rem; }
+'''
+
+SCRIPT_SITO_WEB = '''const elenco = document.getElementById("elenco");
+const modulo = document.getElementById("modulo");
+const campo = document.getElementById("testo");
+
+async function carica() {
+  const risposta = await fetch("/api/note");
+  const note = await risposta.json();
+  elenco.replaceChildren();
+  for (const nota of note) {
+    const riga = document.createElement("li");
+    const testo = document.createElement("span");
+    testo.textContent = nota.testo;          // textContent: il testo non puo' diventare codice
+    const elimina = document.createElement("button");
+    elimina.textContent = "Elimina";
+    elimina.onclick = async () => { await fetch("/api/note/" + nota.id, { method: "DELETE" }); carica(); };
+    riga.append(testo, elimina);
+    elenco.append(riga);
+  }
+}
+
+modulo.onsubmit = async (evento) => {
+  evento.preventDefault();
+  await fetch("/api/note", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ testo: campo.value }) });
+  campo.value = "";
+  carica();
+};
+
+carica();
+'''
+
+
+definisci file_sito_web(nome):
+    """I file di un progetto «sito web o API»: un'applicazione piccola ma completa (pagina, API JSON con SQLite, stili e script)."""
+    ritorna {
+        "principale.pit": PRINCIPALE_SITO_WEB.replace("@@NOME@@", nome),
+        "pagine/index.html": PAGINA_SITO_WEB,
+        "statici/stile.css": STILE_SITO_WEB,
+        "statici/app.js": SCRIPT_SITO_WEB,
+        "LEGGIMI.md": f"# {nome}\n\nUn sito web con pytonIta (modulo `server_web`).\n\n- **F5** accende il server: nella console compare l'indirizzo, cliccalo (oppure *Esegui → Apri il sito nel browser*).\n"
+                      "- **Maiusc+F5** lo spegne.\n- `principale.pit`: le rotte (indirizzi) e l'API; `pagine/`: l'HTML; `statici/`: stili e script.\n"
+                      "- Il server ascolta solo su questo computer (127.0.0.1): non è visibile da Internet.\n",
+    }
 
 
 PROGRAMMA_PYTHON = '''"""{nome} - programma Python classico (eseguito da pitonit)."""
@@ -265,6 +404,10 @@ classe Progetto:
             altrimenti:
                 prog = mattonelle_modello.programma_di_esempio("principale")
             mattonelle_modello.salva_programma(prog, cartella)
+            p.manifesto["principale"] = "principale.pit"
+        altrimenti_se modello == "sito_web":
+            per relativo, contenuto in file_sito_web(nome).items():
+                p.crea_file(relativo, contenuto)
             p.manifesto["principale"] = "principale.pit"
         altrimenti_se modello == "python":
             p.crea_file("principale.py", PROGRAMMA_PYTHON.format(nome=nome))

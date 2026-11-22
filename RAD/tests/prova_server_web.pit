@@ -1,0 +1,268 @@
+"""Il modulo server_web: rotte, parametri, JSON, moduli, errori, file statici, cookie, avvio in sottofondo e avvio da riga di comando (server vero su 127.0.0.1)."""
+importa sys, os, tempfile, json, subprocess, re, time
+importa http.client
+importa urllib.request, urllib.error
+importa server_web
+da server_web importa Applicazione, Risposta, ErroreWeb, reindirizza, json_risposta, pagina, Richiesta
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci chiedi(server, percorso, metodo="GET", dati=Nessuno, intestazioni=Nessuno, segui=Vero):
+    """(stato, intestazioni, corpo) con http.client, senza seguire i reindirizzamenti."""
+    c = http.client.HTTPConnection("127.0.0.1", server.porta, timeout=10)
+    corpo = dati
+    se isinstance(dati, (dict, list)):
+        corpo = json.dumps(dati)
+        intestazioni = dict(intestazioni o {}, **{"Content-Type": "application/json"})
+    se isinstance(dati, str):
+        corpo = dati.encode("utf-8")
+    c.request(metodo, percorso, body=corpo, headers=intestazioni o {})
+    r = c.getresponse()
+    testo_ = r.read()
+    risultato = (r.status, {k: v per k, v in r.getheaders()}, testo_)
+    c.close()
+    ritorna risultato
+
+
+cartella = tempfile.mkdtemp()
+os.makedirs(os.path.join(cartella, "pubblico", "sotto"))
+open(os.path.join(cartella, "pubblico", "stile.css"), "w", encoding="utf-8").write("body { color: red; }")
+open(os.path.join(cartella, "pubblico", "sotto", "a.txt"), "w", encoding="utf-8").write("dentro")
+open(os.path.join(cartella, "segreto.txt"), "w", encoding="utf-8").write("NON DEVE USCIRE")
+open(os.path.join(cartella, "modello.html"), "w", encoding="utf-8").write("<p>{{ nome }} e {{ codice|grezzo }}</p>")
+
+app = Applicazione("prova", registro=Falso)
+
+
+@app.rotta("/")
+definisci home():
+    ritorna "<h1>Ciao</h1>"
+
+
+@app.rotta("/saluta/<nome>")
+definisci saluta(nome):
+    ritorna {"messaggio": "Ciao " + nome}
+
+
+@app.rotta("/somma/<a:numero>/<b:numero>")
+definisci somma(a, b):
+    ritorna {"somma": a + b, "tipo": tipo_testo(type(a).__name__)}
+
+
+@app.rotta("/file/<percorso:resto>")
+definisci file_(percorso):
+    ritorna percorso
+
+
+@app.rotta("/parametri")
+definisci parametri(richiesta):
+    ritorna {"p": richiesta.parametri, "m": richiesta.parametri_multipli, "metodo": richiesta.metodo}
+
+
+@app.invia("/modulo")
+definisci modulo(richiesta):
+    ritorna {"form": richiesta.form, "nome": richiesta.valore("nome")}
+
+
+@app.rotta("/voci", metodi=["GET", "POST"])
+definisci voci(richiesta):
+    se richiesta.metodo == "POST":
+        dati = richiesta.json
+        se non isinstance(dati, dict) o "titolo" non in dati:
+            ritorna json_risposta({"errore": "manca il titolo"}, 400)
+        ritorna ({"creata": dati["titolo"]}, 201)
+    ritorna [{"titolo": "uno"}]
+
+
+@app.rotta("/vai")
+definisci vai():
+    ritorna reindirizza("/")
+
+
+@app.rotta("/errore")
+definisci rotto():
+    ritorna 1 / 0
+
+
+@app.rotta("/teiera")
+definisci teiera():
+    solleva ErroreWeb(418, "sono una teiera")
+
+
+@app.rotta("/cookie")
+definisci cookie(richiesta):
+    r = Risposta({"visto": richiesta.cookie.get("utente")})
+    r.imposta_cookie("utente", "lorenzo", durata=60)
+    ritorna r
+
+
+@app.rotta("/vuota")
+definisci vuota():
+    ritorna Nessuno
+
+
+@app.rotta("/pagina")
+definisci con_pagina():
+    ritorna server_web.carica_pagina(os.path.join(cartella, "modello.html"), nome="<b>x</b>", codice="<i>y</i>")
+
+
+@app.errore(404)
+definisci non_trovato():
+    ritorna "<h1>Qui non c'è niente</h1>"
+
+
+app.statici("/statici", os.path.join(cartella, "pubblico"))
+server = app.avvia_in_sottofondo()
+verifica(server.porta > 0 e server.indirizzo.startswith("http://127.0.0.1:"), "il server parte su una porta libera: " + server.indirizzo)
+prova:
+    s, h, b = chiedi(server, "/")
+    verifica(s == 200 e b == b"<h1>Ciao</h1>" e "text/html" in h["Content-Type"], f"una pagina HTML: {s} {b}")
+    s, h, b = chiedi(server, "/saluta/Lorenzo")
+    verifica(s == 200 e json.loads(b) == {"messaggio": "Ciao Lorenzo"} e "application/json" in h["Content-Type"], "un dizionario diventa JSON")
+    s, h, b = chiedi(server, "/saluta/Mario%20Rossi")
+    verifica(json.loads(b)["messaggio"] == "Ciao Mario Rossi", "il pezzo variabile è decodificato")
+    s, h, b = chiedi(server, "/somma/20/-3")
+    verifica(json.loads(b) == {"somma": 17, "tipo": "int"}, "un parametro numero arriva come intero: " + tipo_testo(b))
+    s, h, b = chiedi(server, "/somma/venti/3")
+    verifica(s == 404, "un numero sbagliato non corrisponde alla rotta")
+    s, h, b = chiedi(server, "/file/a/b/c.txt")
+    verifica(b == b"a/b/c.txt", "il parametro «resto» comprende le barre")
+    s, h, b = chiedi(server, "/parametri?x=1&y=due&x=3")
+    d = json.loads(b)
+    verifica(d["p"] == {"x": "1", "y": "due"} e d["m"]["x"] == ["1", "3"], "i parametri dell'indirizzo: " + tipo_testo(d))
+    s, h, b = chiedi(server, "/modulo", "POST", "nome=Ada+Lovelace&età=36", {"Content-Type": "application/x-www-form-urlencoded"})
+    verifica(json.loads(b)["form"]["nome"] == "Ada Lovelace" e json.loads(b)["nome"] == "Ada Lovelace", "un modulo HTML inviato con POST: " + tipo_testo(b))
+    s, h, b = chiedi(server, "/voci", "POST", {"titolo": "comprare il pane"})
+    verifica(s == 201 e json.loads(b) == {"creata": "comprare il pane"}, "POST JSON con stato 201")
+    s, h, b = chiedi(server, "/voci", "POST", {"altro": 1})
+    verifica(s == 400 e "titolo" in json.loads(b)["errore"], "risposta 400 scelta dalla rotta")
+    s, h, b = chiedi(server, "/voci", "POST", "{non json", {"Content-Type": "application/json"})
+    verifica(s == 400 e "JSON" in b.decode("utf-8"), "un JSON rotto dà 400 senza far cadere il server: " + tipo_testo(b))
+    s, h, b = chiedi(server, "/voci")
+    verifica(json.loads(b) == [{"titolo": "uno"}], "una lista diventa JSON")
+    s, h, b = chiedi(server, "/modulo")
+    verifica(s == 405 e "POST" in h["Allow"], "metodo non permesso: 405 con Allow")
+    s, h, b = chiedi(server, "/voci", "OPTIONS")
+    verifica(s == 204 e "GET" in h["Allow"] e "POST" in h["Allow"], "OPTIONS dice cosa si può fare")
+    s, h, b = chiedi(server, "/", "HEAD")
+    verifica(s == 200 e b == b"" e h["Content-Length"] == "13", "HEAD senza corpo")
+    s, h, b = chiedi(server, "/vai")
+    verifica(s == 302 e h["Location"] == "/", "reindirizza")
+    s, h, b = chiedi(server, "/non/esiste")
+    verifica(s == 404 e "Qui non c'è niente".encode("utf-8") in b, "la pagina 404 personalizzata")
+    s, h, b = chiedi(server, "/api/niente")
+    verifica(s == 404, "un indirizzo sconosciuto sotto /api dà 404")
+    importa io, contextlib
+    scarto = io.StringIO()
+    con contextlib.redirect_stderr(scarto):
+        s, h, b = chiedi(server, "/errore")
+    verifica("ZeroDivisionError" in scarto.getvalue(), "l'errore della rotta viene scritto per chi programma")
+    verifica(s == 500 e b"ZeroDivisionError" in b, "un errore nella rotta dà 500 e il server resta in piedi")
+    s, h, b = chiedi(server, "/")
+    verifica(s == 200, "dopo l'errore il server risponde ancora")
+    s, h, b = chiedi(server, "/teiera")
+    verifica(s == 418 e b"teiera" in b, "ErroreWeb con lo stato scelto")
+    s, h, b = chiedi(server, "/vuota")
+    verifica(s == 204 e b == b"", "Nessuno = 204")
+    s, h, b = chiedi(server, "/cookie")
+    verifica("utente=lorenzo" in h.get("Set-Cookie", "") e "Max-Age=60" in h["Set-Cookie"] e "HttpOnly" in h["Set-Cookie"], "imposta un cookie: " + h.get("Set-Cookie", ""))
+    s, h, b = chiedi(server, "/cookie", intestazioni={"Cookie": "utente=ada; altro=1"})
+    verifica(json.loads(b) == {"visto": "ada"}, "legge i cookie")
+    s, h, b = chiedi(server, "/pagina")
+    verifica(b == b"<p>&lt;b&gt;x&lt;/b&gt; e <i>y</i></p>", "pagina(): protegge il testo, «grezzo» no: " + tipo_testo(b))
+    # file statici
+    s, h, b = chiedi(server, "/statici/stile.css")
+    verifica(s == 200 e b == b"body { color: red; }" e h["Content-Type"].startswith("text/css"), "file statico con il tipo giusto: " + h.get("Content-Type", ""))
+    s, h, b = chiedi(server, "/statici/sotto/a.txt")
+    verifica(b == b"dentro", "file statico in una sottocartella")
+    s, h, b = chiedi(server, "/statici/mancante.css")
+    verifica(s == 404, "file statico mancante")
+    per percorso in ("/statici/../segreto.txt", "/statici/%2e%2e/segreto.txt", "/statici/..%2fsegreto.txt", "/statici/sotto/../../segreto.txt"):
+        s, h, b = chiedi(server, percorso)
+        verifica(b"NON DEVE USCIRE" non in b, f"il percorso {percorso} non porta fuori dalla cartella (stato {s})")
+    # richiesta troppo grande
+    originale = server_web.DIMENSIONE_MASSIMA
+    server_web.DIMENSIONE_MASSIMA = 50
+    s, h, b = chiedi(server, "/voci", "POST", "x" * 500, {"Content-Type": "text/plain"})
+    server_web.DIMENSIONE_MASSIMA = originale
+    verifica(s == 413, "un corpo troppo grande dà 413: " + tipo_testo(s))
+    # il filtro «prima di ogni richiesta»
+    @app.prima_di_ogni_richiesta
+    definisci blocca(richiesta):
+        se richiesta.percorso == "/riservato":
+            ritorna ("Vietato", 403)
+
+    s, h, b = chiedi(server, "/riservato")
+    verifica(s == 403 e b == b"Vietato", "prima_di_ogni_richiesta può rispondere al posto della rotta")
+    s, h, b = chiedi(server, "/")
+    verifica(s == 200, "e lascia passare il resto")
+infine:
+    server.ferma()
+prova:
+    chiedi(server, "/")
+    verifica(Falso, "dopo ferma() il server non risponde più")
+eccetto OSError:
+    passa
+
+# ---- simula: provare le rotte senza server
+r = app.simula("/saluta/Ada")
+verifica(r.stato == 200 e r.dati == {"messaggio": "Ciao Ada"} e r.testo.startswith("{"), "simula: stato, testo e dati")
+r = app.simula("/voci", "POST", json={"titolo": "pane"})
+verifica(r.stato == 201 e r.dati == {"creata": "pane"}, "simula con JSON")
+r = app.simula("/modulo", "POST", form={"nome": "Ada"})
+verifica(r.dati["nome"] == "Ada", "simula con un modulo")
+r = app.simula("/cookie", cookie={"utente": "bruno"})
+verifica(r.dati == {"visto": "bruno"}, "simula con un cookie")
+r = app.simula("/parametri?x=1")
+verifica(r.dati["p"] == {"x": "1"}, "simula con parametri nell'indirizzo")
+verifica(app.simula("/non/esiste").stato == 404 e app.simula("/modulo").stato == 405, "simula: 404 e 405")
+
+verifica(pagina("<p>{{ testo }} {{ modello }}</p>", testo="a", modello="b") == "<p>a b</p>", "i segnaposti possono chiamarsi testo o modello")
+
+# ---- rotte non valide e funzioni senza richiesta
+prova:
+    app.rotta("senza_barra")
+    verifica(Falso, "un indirizzo senza / iniziale dà errore")
+eccetto ErroreDiValore:
+    passa
+prova:
+    app.rotta("/x/<n:strano>")(lambda n: n)
+    verifica(Falso, "un tipo di parametro sconosciuto dà errore")
+eccetto ErroreDiValore:
+    passa
+
+# ---- avvio da riga di comando: l'indirizzo compare e si può cliccare; si ferma con Ctrl+C / kill
+script = os.path.join(cartella, "sito.pit")
+open(script, "w", encoding="utf-8").write('''importa server_web
+app = server_web.Applicazione()
+
+@app.rotta("/")
+definisci home():
+    ritorna "ciao dal sito"
+
+app.avvia(porta=0)
+''')
+p = subprocess.Popen([sys.executable, "-u", script], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=Vero, encoding="utf-8")
+riga = p.stdout.readline()
+m = re.search(r"http://127\.0\.0\.1:(\d+)/", riga)
+verifica(m è non Nessuno, "avvia() scrive l'indirizzo cliccabile: " + riga)
+se m:
+    c = http.client.HTTPConnection("127.0.0.1", int(m.group(1)), timeout=10)
+    c.request("GET", "/")
+    r = c.getresponse()
+    verifica(r.status == 200 e r.read() == b"ciao dal sito", "il server avviato da riga di comando risponde")
+    c.close()
+    riga_registro = p.stdout.readline()
+    verifica("GET / 200" in riga_registro, "ogni richiesta lascia una riga nel registro: " + riga_registro)
+p.kill()
+p.wait(10)
+
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)

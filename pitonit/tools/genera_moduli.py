@@ -189,7 +189,7 @@ def main():
         f.write('"""Generato da tools/genera_moduli.py: modulo originale -> modulo italiano."""\n')
         f.write(f'MAPPA = {mappa!r}\n')
         propri = sorted(k for k, s in tutti.items() if s.get('propria'))
-        f.write('# moduli scritti a mano (suono, multimedia, ffmpeg, lettore): non sono alias di una libreria, ma si importano come gli altri\n')
+        f.write('# moduli scritti a mano (suono, multimedia, ffmpeg, lettore, server_web): non sono alias di una libreria, ma si importano come gli altri\n')
         f.write(f'PROPRI = {propri!r}\n')
     with open(os.path.join(os.path.dirname(DIZ), 'non_tradotti.txt'), 'w', encoding='utf-8') as f:
         for w, n in sorted(IGNOTE.items(), key=lambda x: -x[1]):

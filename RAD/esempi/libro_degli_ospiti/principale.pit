@@ -1,0 +1,53 @@
+"""Libro degli ospiti: i messaggi restano in un database SQLite (ospiti.db).
+
+Premi F5 e clicca l'indirizzo nella console. Prova a scrivere un messaggio con dei simboli come <b>: la pagina li mostra come testo, senza eseguirli."""
+importa os
+importa sqlite3
+importa server_web
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(QUI, "ospiti.db")
+app = server_web.Applicazione("Libro degli ospiti")
+
+PAGINA = '<!doctype html><meta charset="utf-8"><title>Libro degli ospiti</title>' \
+         '<style>body { font-family: sans-serif; max-width: 34rem; margin: 3rem auto; padding: 0 1rem; } li { margin: .5rem 0; }</style>' \
+         '<h1>Libro degli ospiti</h1><form method="post" action="/scrivi"><input name="autore" placeholder="Il tuo nome"> ' \
+         '<input name="messaggio" placeholder="Un messaggio" size="30" required> <button>Lascia un messaggio</button></form>' \
+         '<ul>{{ elenco|grezzo }}</ul>'
+
+RIGA = "<li><strong>{{ autore }}</strong>: {{ messaggio }}</li>"
+
+
+definisci collegati():
+    collegamento = sqlite3.connect(DATABASE)
+    collegamento.execute("CREATE TABLE IF NOT EXISTS ospiti (id INTEGER PRIMARY KEY AUTOINCREMENT, autore TEXT, messaggio TEXT NOT NULL)")
+    ritorna collegamento
+
+
+@app.rotta("/")
+definisci home():
+    db = collegati()
+    prova:
+        righe = db.execute("SELECT autore, messaggio FROM ospiti ORDER BY id DESC").fetchall()
+    infine:
+        db.close()
+    # ogni riga passa da pagina(): autore e messaggio sono resi innocui; solo l'elenco (HTML nostro) è «grezzo»
+    elenco = "".join(server_web.pagina(RIGA, autore=autore o "anonimo", messaggio=messaggio) per autore, messaggio in righe)
+    ritorna server_web.pagina(PAGINA, elenco=elenco)
+
+
+@app.invia("/scrivi")
+definisci scrivi(richiesta):
+    messaggio = richiesta.form.get("messaggio", "").strip()
+    se non messaggio:
+        solleva server_web.ErroreWeb(400, "Scrivi un messaggio")
+    db = collegati()
+    prova:
+        db.execute("INSERT INTO ospiti (autore, messaggio) VALUES (?, ?)", (richiesta.form.get("autore", "").strip(), messaggio))
+        db.commit()
+    infine:
+        db.close()
+    ritorna server_web.reindirizza("/")
+
+
+app.avvia(porta=8000)

@@ -1,6 +1,6 @@
 # Impara a programmare
 
-Questo percorso ti porta da zero a un programma completo, **scrivendo codice in italiano**. Sono 24 lezioni brevi: ognuna spiega una cosa sola, ti mostra esempi da provare e finisce con qualche **esercizio** (le soluzioni sono in fondo, ma prima prova da solo!).
+Questo percorso ti porta da zero a un programma completo, **scrivendo codice in italiano**. Sono 26 lezioni brevi: ognuna spiega una cosa sola, ti mostra esempi da provare e finisce con qualche **esercizio** (le soluzioni sono in fondo, ma prima prova da solo!).
 
 ## Come si studia
 
@@ -13,7 +13,7 @@ Questo percorso ti porta da zero a un programma completo, **scrivendo codice in 
 
 ## Il quiz e il professore
 
-Dal menu *Aiuto → Lezioni (con quiz e professore)…* (o dalla finestra che compare all'avvio, scegliendo «Iniziare una lezione») trovi l'elenco delle 24 lezioni con i tuoi progressi.
+Dal menu *Aiuto → Lezioni (con quiz e professore)…* (o dalla finestra che compare all'avvio, scegliendo «Iniziare una lezione») trovi l'elenco delle 26 lezioni con i tuoi progressi.
 
 - **Leggi la lezione**: apre la guida su quella lezione.
 - **Fai il quiz**: da 4 a 7 domande a risposte multiple, una alla volta, anche del tipo «Che cosa stampa questo programma?». Se sbagli ti dice perché e quale sezione rileggere. Con almeno l'80% di risposte giuste la lezione è superata (✔) e ti consiglia la successiva. Il quiz funziona **senza AI**.
@@ -49,6 +49,8 @@ Dal menu *Aiuto → Lezioni (con quiz e professore)…* (o dalla finestra che co
 | 22 | [Moduli e pacchetti](#lezione-22) | dividere il programma in più file |
 | 23 | [Programmare a mattonelle](#lezione-23) | costruire programmi a blocchi |
 | 24 | [Progetto finale](#lezione-24) | un gioco completo |
+| 25 | [Il web: il tuo primo server](#lezione-25) | un server web con pagine, rotte e JSON |
+| 26 | [Un sito con i dati](#lezione-26) | database, moduli, cookie e sicurezza |
 
 ## Un consiglio
 

@@ -1,0 +1,78 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\nstampa(server_web.pagina(\"<i>{{ x }}</i>\", x=\"<b>\"))",
+   "giusta": "<i>&lt;b&gt;</i>",
+   "sbagliate": [
+    {
+     "testo": "<i><b></i>",
+     "indizio": "pagina() rende innocui < e >: non restano tali."
+    },
+    "<i>{{ x }}</i>",
+    "<i></i>"
+   ],
+   "spiegazione": "pagina() sostituisce il segnaposto con il valore, ma trasforma < e > in &lt; e &gt;: il browser mostra il testo invece di eseguirlo.",
+   "sezione": "Pagine con segnaposti"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\nstampa(server_web.pagina(\"{{ t|grezzo }}\", t=\"<b>\"))",
+   "giusta": "<b>",
+   "sbagliate": [
+    {
+     "testo": "&lt;b&gt;",
+     "indizio": "Il filtro |grezzo spegne la protezione."
+    },
+    "niente",
+    "{{ t|grezzo }}"
+   ],
+   "spiegazione": "|grezzo inserisce il valore così com'è: va usato solo per HTML scritto da te, mai per il testo degli utenti.",
+   "sezione": "Pagine con segnaposti"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.rotta(\"/c\")\ndefinisci c(richiesta):\n    ritorna {\"n\": richiesta.cookie.get(\"n\")}\n\n\nstampa(app.simula(\"/c\", cookie={\"n\": \"3\"}).dati)",
+   "giusta": "{'n': '3'}",
+   "sbagliate": [
+    {
+     "testo": "{'n': 3}",
+     "indizio": "I cookie arrivano sempre come testo: il 3 ha le virgolette."
+    },
+    "{'n': None}",
+    "3"
+   ],
+   "spiegazione": "richiesta.cookie è un dizionario di testi: il valore del cookie n è '3' (un testo).",
+   "sezione": "Cookie e file statici"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.rotta(\"/vai\")\ndefinisci vai():\n    ritorna server_web.reindirizza(\"/\")\n\n\nstampa(app.simula(\"/vai\").stato)",
+   "giusta": "302",
+   "sbagliate": [
+    {
+     "testo": "200",
+     "indizio": "200 è una pagina; qui il browser viene mandato altrove."
+    },
+    "404",
+    "301"
+   ],
+   "spiegazione": "reindirizza risponde 302: il browser segue l'indirizzo Location e carica un'altra pagina.",
+   "sezione": "Salvare i dati"
+  },
+  {
+   "domanda": "Perché nelle query SQL i valori dell'utente si passano con ? invece di incollarli nel testo?",
+   "giusta": "Perché così il valore resta un dato e non può cambiare la domanda al database",
+   "sbagliate": [
+    {
+     "testo": "Perché è più veloce",
+     "indizio": "La velocità non c'entra: è una questione di sicurezza."
+    },
+    "Perché SQLite non accetta i testi lunghi",
+    "Perché i valori vanno scritti in maiuscolo"
+   ],
+   "spiegazione": "Con il ? il testo dell'utente è solo un valore. Incollato nella stringa potrebbe contenere pezzi di SQL (iniezione SQL) e restituire o cancellare dati che non dovrebbe.",
+   "sezione": "Sicurezza: due regole d'oro"
+  }
+ ]
+}

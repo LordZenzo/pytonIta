@@ -1,0 +1,28 @@
+"""Il mio primo sito: una pagina con un modulo, e un saluto per chi lo compila.
+
+Premi F5, poi clicca l'indirizzo che compare nella console (http://127.0.0.1:8000/). Per spegnere il server: Maiusc+F5."""
+importa server_web
+
+app = server_web.Applicazione("Il mio primo sito")
+
+STILE = "body { font-family: sans-serif; max-width: 30rem; margin: 3rem auto; padding: 0 1rem; }"
+
+PAGINA_INIZIALE = '<!doctype html><meta charset="utf-8"><title>Il mio primo sito</title><style>{{ stile|grezzo }}</style>' \
+                  '<h1>Ciao!</h1><form method="post" action="/saluta"><label>Come ti chiami? <input name="nome" autofocus></label> <button>Invia</button></form>'
+
+PAGINA_SALUTO = '<!doctype html><meta charset="utf-8"><title>Saluto</title><style>{{ stile|grezzo }}</style>' \
+                '<h1>Piacere di conoscerti, {{ nome }}!</h1><p><a href="/">Torna indietro</a></p>'
+
+
+@app.rotta("/")
+definisci home():
+    ritorna server_web.pagina(PAGINA_INIZIALE, stile=STILE)
+
+
+@app.invia("/saluta")
+definisci saluta(richiesta):
+    nome = richiesta.form.get("nome", "").strip() o "sconosciuto"
+    ritorna server_web.pagina(PAGINA_SALUTO, stile=STILE, nome=nome)
+
+
+app.avvia(porta=8000)

@@ -625,4 +625,97 @@ Apri `mascheracontatti.pit` e scegli *Esegui → Esegui il file corrente*.
 - `fonte_dati.pit` collega la tabella alla finestra: è usabile anche in altre finestre.
 """)
 
+
+# ====================================================================== web
+c = nuovo_esempio("primo_sito", "Il mio primo sito", "Un sito con una pagina e un modulo: scrivi il tuo nome e il server ti saluta. Si apre nel browser.",
+                  "Principiante", "Web", ["server_web", "rotte", "modulo HTML (POST)", "pagine con segnaposti"])
+scrivi(c, "principale.pit", '''
+"""Il mio primo sito: una pagina con un modulo, e un saluto per chi lo compila.
+
+Premi F5, poi clicca l'indirizzo che compare nella console (http://127.0.0.1:8000/). Per spegnere il server: Maiusc+F5."""
+importa server_web
+
+app = server_web.Applicazione("Il mio primo sito")
+
+STILE = "body { font-family: sans-serif; max-width: 30rem; margin: 3rem auto; padding: 0 1rem; }"
+
+PAGINA_INIZIALE = '<!doctype html><meta charset="utf-8"><title>Il mio primo sito</title><style>{{ stile|grezzo }}</style>' \\
+                  '<h1>Ciao!</h1><form method="post" action="/saluta"><label>Come ti chiami? <input name="nome" autofocus></label> <button>Invia</button></form>'
+
+PAGINA_SALUTO = '<!doctype html><meta charset="utf-8"><title>Saluto</title><style>{{ stile|grezzo }}</style>' \\
+                '<h1>Piacere di conoscerti, {{ nome }}!</h1><p><a href="/">Torna indietro</a></p>'
+
+
+@app.rotta("/")
+definisci home():
+    ritorna server_web.pagina(PAGINA_INIZIALE, stile=STILE)
+
+
+@app.invia("/saluta")
+definisci saluta(richiesta):
+    nome = richiesta.form.get("nome", "").strip() o "sconosciuto"
+    ritorna server_web.pagina(PAGINA_SALUTO, stile=STILE, nome=nome)
+
+
+app.avvia(porta=8000)
+''')
+
+c = nuovo_esempio("libro_degli_ospiti", "Libro degli ospiti", "Un libro degli ospiti sul web: chi visita la pagina lascia un messaggio, che resta salvato in un database SQLite.",
+                  "Intermedio", "Web", ["server_web", "SQLite", "moduli HTML e reindirizzamento", "testi resi innocui (sicurezza)"])
+scrivi(c, "principale.pit", '''
+"""Libro degli ospiti: i messaggi restano in un database SQLite (ospiti.db).
+
+Premi F5 e clicca l'indirizzo nella console. Prova a scrivere un messaggio con dei simboli come <b>: la pagina li mostra come testo, senza eseguirli."""
+importa os
+importa sqlite3
+importa server_web
+
+QUI = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(QUI, "ospiti.db")
+app = server_web.Applicazione("Libro degli ospiti")
+
+PAGINA = '<!doctype html><meta charset="utf-8"><title>Libro degli ospiti</title>' \\
+         '<style>body { font-family: sans-serif; max-width: 34rem; margin: 3rem auto; padding: 0 1rem; } li { margin: .5rem 0; }</style>' \\
+         '<h1>Libro degli ospiti</h1><form method="post" action="/scrivi"><input name="autore" placeholder="Il tuo nome"> ' \\
+         '<input name="messaggio" placeholder="Un messaggio" size="30" required> <button>Lascia un messaggio</button></form>' \\
+         '<ul>{{ elenco|grezzo }}</ul>'
+
+RIGA = "<li><strong>{{ autore }}</strong>: {{ messaggio }}</li>"
+
+
+definisci collegati():
+    collegamento = sqlite3.connect(DATABASE)
+    collegamento.execute("CREATE TABLE IF NOT EXISTS ospiti (id INTEGER PRIMARY KEY AUTOINCREMENT, autore TEXT, messaggio TEXT NOT NULL)")
+    ritorna collegamento
+
+
+@app.rotta("/")
+definisci home():
+    db = collegati()
+    prova:
+        righe = db.execute("SELECT autore, messaggio FROM ospiti ORDER BY id DESC").fetchall()
+    infine:
+        db.close()
+    # ogni riga passa da pagina(): autore e messaggio sono resi innocui; solo l'elenco (HTML nostro) è «grezzo»
+    elenco = "".join(server_web.pagina(RIGA, autore=autore o "anonimo", messaggio=messaggio) per autore, messaggio in righe)
+    ritorna server_web.pagina(PAGINA, elenco=elenco)
+
+
+@app.invia("/scrivi")
+definisci scrivi(richiesta):
+    messaggio = richiesta.form.get("messaggio", "").strip()
+    se non messaggio:
+        solleva server_web.ErroreWeb(400, "Scrivi un messaggio")
+    db = collegati()
+    prova:
+        db.execute("INSERT INTO ospiti (autore, messaggio) VALUES (?, ?)", (richiesta.form.get("autore", "").strip(), messaggio))
+        db.commit()
+    infine:
+        db.close()
+    ritorna server_web.reindirizza("/")
+
+
+app.avvia(porta=8000)
+''')
+
 print("esempi creati")

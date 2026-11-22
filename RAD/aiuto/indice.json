@@ -150,6 +150,16 @@
   "gruppo": "Imparare a programmare"
  },
  {
+  "id": "lezione-25",
+  "titolo": "25. Il web: il tuo primo server",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-26",
+  "titolo": "26. Un sito con i dati",
+  "gruppo": "Imparare a programmare"
+ },
+ {
   "id": "editor",
   "titolo": "L'editor di codice",
   "gruppo": "Programmare"
@@ -212,6 +222,11 @@
  {
   "id": "aggiornamenti",
   "titolo": "Aggiornamenti e librerie online",
+  "gruppo": "Programmare"
+ },
+ {
+  "id": "server-web",
+  "titolo": "Siti web e API con server_web",
   "gruppo": "Programmare"
  },
  {
