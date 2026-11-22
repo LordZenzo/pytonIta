@@ -387,6 +387,10 @@ classe Applicazione:
         esegui.add_command(label="Togli tutti i punti di arresto", command=se_stesso.togli_punti_arresto)
         esegui.add_separator()
         esegui.add_command(label="Controlla la sintassi", command=se_stesso.controlla_corrente)
+        esegui.add_separator()
+        esegui.add_command(label="Verifica compatibilità Windows / Linux…", command=se_stesso.verifica_compatibilita)
+        esegui.add_command(label="Prova su Linux (WSL)", command=se_stesso.prova_su_linux)
+        esegui.add_command(label="Linux di Windows: stato e guida…", command=se_stesso.finestra_linux)
         esegui.add_command(label="Pulisci la console", command=lambda: se_stesso.console.pulisci())
         barra.add_cascade(label="Esegui", menu=esegui)
 
@@ -1241,6 +1245,8 @@ classe Applicazione:
         ritorna w
 
     definisci apri_file_a_riga(se_stesso, percorso, riga):
+        da rad importa wsl
+        percorso = wsl.percorso_windows(percorso)          # l'errore di un programma provato su Linux cita /mnt/c/...
         se non os.path.isabs(percorso) e se_stesso.progetto:
             percorso = os.path.join(se_stesso.progetto.cartella, percorso)
         w = se_stesso.apri_file(percorso, riga)
@@ -1580,7 +1586,13 @@ classe Applicazione:
         altrimenti:
             se_stesso.info("Apri un file .pit o .py da eseguire (o imposta il file principale).")
 
+    definisci mostra_console(se_stesso):
+        """Apre il pannello della console se è chiuso (chi esegue un programma vuole vederne l'output)."""
+        se non se_stesso._console_visibile():
+            se_stesso._commuta("console")
+
     definisci esegui_file(se_stesso, percorso):
+        se_stesso.mostra_console()
         se se_stesso.config_.ottieni("esecuzione.salva_prima", Vero):
             se_stesso.salva_tutto()
         argomenti = [se_stesso.config_.interprete(), "-u", percorso]
@@ -1608,6 +1620,75 @@ classe Applicazione:
         infine:
             os.environ.pop("PITSTUDIO_ANTEPRIMA", Nessuno)
 
+    # ---- compatibilità Windows / Linux e prova su Linux (WSL)
+    definisci verifica_compatibilita(se_stesso):
+        """Esegui → Verifica compatibilità: legge il progetto e segnala ciò che non funzionerebbe sull'altro sistema."""
+        se non se_stesso.progetto:
+            se_stesso.info("Apri prima un progetto da controllare.")
+            ritorna Nessuno
+        se_stesso.salva_tutto()
+        da rad.compatibilita_ui importa DialogoCompatibilita
+        finestra = DialogoCompatibilita(se_stesso.radice, se_stesso.colori, se_stesso.progetto.cartella, apri_a_riga=se_stesso.apri_file_a_riga,
+                                        prova_linux=se_stesso.prova_su_linux, guida_linux=se_stesso.finestra_linux)
+        finestra.focus_set()
+        ritorna finestra
+
+    definisci finestra_linux(se_stesso):
+        """Esegui → Linux di Windows: cosa c'è, cosa manca e i comandi da copiare."""
+        da rad.compatibilita_ui importa DialogoLinux
+        finestra = DialogoLinux(se_stesso.radice, se_stesso.colori, preferita=se_stesso.config_.ottieni("esecuzione.distribuzione_linux", "") o "",
+                                avvia_prova=lambda stato_: se_stesso.prova_su_linux(stato_),
+                                salva_scelta=lambda nome: (se_stesso.config_.imposta("esecuzione.distribuzione_linux", nome), se_stesso.config_.salva()))
+        finestra.focus_set()
+        ritorna finestra
+
+    definisci prova_su_linux(se_stesso, stato_pronto=Nessuno):
+        """Esegui → Prova su Linux: lancia il file principale (o quello corrente) nel Linux di Windows, con l'interprete pitonit di Linux.
+        Se Linux non è pronto apre la guida; stato_pronto è il risultato di wsl.stato già letto (dalla finestra della guida)."""
+        da rad importa wsl
+        p = se_stesso.progetto.percorso_principale() se se_stesso.progetto e se_stesso.progetto.percorso_principale() altrimenti se_stesso._percorso_di(se_stesso._scheda_corrente())
+        se non p o non p.lower().endswith((".pit", ".py", ".pyw")):
+            se_stesso.info("Apri un file .pit o .py da provare su Linux (o imposta il file principale).")
+            ritorna Falso
+        se stato_pronto è non Nessuno:
+            se_stesso._esegui_in_linux(stato_pronto, p)
+            ritorna Vero
+        preferita = se_stesso.config_.ottieni("esecuzione.distribuzione_linux", "") o ""
+        se_stesso.info("Controllo il Linux di Windows…")
+        esecuzione.in_secondo_piano(se_stesso.radice, lambda: wsl.stato(preferita), lambda riuscito, risultato: se_stesso._dopo_stato_linux(riuscito, risultato, p))
+        ritorna Vero
+
+    definisci _dopo_stato_linux(se_stesso, riuscito, stato_, percorso):
+        se non riuscito:
+            se_stesso.info(f"Non sono riuscito a controllare il Linux di Windows: {stato_}")
+            ritorna
+        se stato_["problema"]:
+            se_stesso.info(stato_["messaggio"])
+            se stato_["problema"] != "non_windows":
+                se_stesso.finestra_linux()
+            ritorna
+        se_stesso._esegui_in_linux(stato_, percorso)
+
+    definisci _esegui_in_linux(se_stesso, stato_, percorso):
+        da rad importa wsl
+        se_stesso.mostra_console()
+        se se_stesso.config_.ottieni("esecuzione.salva_prima", Vero):
+            se_stesso.salva_tutto()
+        extra = (se_stesso.config_.ottieni("esecuzione.argomenti", "") o "")
+        se se_stesso.progetto e percorso == se_stesso.progetto.percorso_principale():
+            extra = (extra + " " + se_stesso.progetto.manifesto.get("argomenti", "")).strip()
+        prova:
+            argomenti_programma = shlex.split(extra, posix=Falso) se extra altrimenti []
+        eccetto ValueError:
+            argomenti_programma = extra.split()
+        cartella = se_stesso.progetto.cartella se se_stesso.progetto e se_stesso.progetto.contiene(percorso) altrimenti os.path.dirname(percorso)
+        per w in se_stesso.schede.values():
+            se isinstance(w, Editor):
+                w.cancella_errori()
+        comando = wsl.comando_prova(stato_["distribuzione"], stato_["interprete"], percorso, cartella, argomenti_programma, stato_.get("grafica", Falso))
+        se_stesso._ultimo_eseguito = os.path.abspath(percorso)
+        se_stesso.console.esegui(comando, cartella, f"{os.path.basename(percorso)} su Linux ({stato_['distribuzione']})")
+
     definisci prova_in_corso(se_stesso, percorso):
         """True se questo file è il programma che sta girando adesso (la prova di una finestra)."""
         ritorna getattr(se_stesso, "_ultimo_eseguito", Nessuno) == os.path.abspath(percorso) e se_stesso.console.esecutore.in_esecuzione
@@ -1631,11 +1712,12 @@ classe Applicazione:
         se_stesso.info("Programma in esecuzione…" se in_corso altrimenti "Programma terminato")
 
     definisci esecuzione_finita(se_stesso, codice):
+        da rad importa wsl come wsl_mod
         se codice != 0 e se_stesso.progetto:
             testo_ = se_stesso.console.t.get("1.0", "end")
             trovati = tipo_lista(re.finditer(r'File "([^"]+)", (?:riga|line) (\d+)', testo_))
             per m in reversed(trovati):
-                p = m.group(1)
+                p = wsl_mod.percorso_windows(m.group(1))
                 se os.path.exists(p) e se_stesso.progetto.contiene(p):
                     w = se_stesso.schede.get(os.path.abspath(p))
                     se isinstance(w, Editor):

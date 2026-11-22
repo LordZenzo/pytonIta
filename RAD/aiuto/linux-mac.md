@@ -37,6 +37,10 @@ Poi:
 
 Su Linux viene creata anche la voce «PitStudio» nel menu delle applicazioni.
 
+## Provare su Linux senza lasciare Windows
+
+Se usi Windows, il Linux di Windows (WSL) ti permette di vedere come si comporta un programma su Linux con un clic: *Esegui → Prova su Linux (WSL)*. Insieme alla verifica del codice è spiegato in [Compatibilità Windows / Linux](#compatibilita-linux).
+
 ## Aggiornamenti
 
 *Aiuto → Controlla aggiornamenti* funziona anche qui: scarica i sorgenti della nuova Release, lancia `installa.sh --solo-pitstudio` sull'installazione in uso e propone di riavviare. L'interprete non viene ricompilato: se una versione futura cambia l'interprete, le note della Release lo diranno e basterà rilanciare `installa.sh` per intero.

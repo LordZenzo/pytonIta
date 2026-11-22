@@ -5,7 +5,10 @@
 - **F5** (o il pulsante blu **Esegui**) esegue il **file principale** del progetto; se non c'è, il file della scheda aperta.
 - *Esegui → Esegui il file corrente* esegue il file che stai guardando.
 - **Maiusc+F5** (o il pulsante quadrato) ferma il programma, anche se ha lanciato altri processi.
+- *Esegui → Prova su Linux (WSL)* esegue lo stesso programma dentro il Linux di Windows, e *Esegui → Verifica compatibilità Windows / Linux…* controlla il codice senza eseguirlo: vedi [Compatibilità Windows / Linux](#compatibilita-linux).
 - Prima di eseguire PitStudio **salva tutto** (si può disattivare nelle [impostazioni](#impostazioni)).
+
+Se la console è chiusa, eseguire un programma la apre.
 
 I programmi girano con **pitonit** in un processo separato, nella cartella del progetto: se il programma apre finestre, le vedi comparire normalmente.
 

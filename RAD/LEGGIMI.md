@@ -16,6 +16,14 @@ PitStudio è scritto in pytonIta (file `.pit`) e gira con l'interprete `pitonit`
 | **Assistente AI** | chat con Claude che *usa l'ambiente*: legge e scrive file, modifica il codice, controlla la sintassi, esegue i programmi, apre file, disegna finestre nel progettista, esplora le librerie italiane. Conferme configurabili prima di scrivere/eseguire |
 | **Impostazioni** | tutto è configurabile (Strumenti → Impostazioni): editor, tema (scuro/chiaro + colori personalizzati), esecuzione, AI, scorciatoie. Salvate in `~\.rad\config.json` |
 
+## Novità della 2.40
+
+- **Verifica di compatibilità Windows / Linux** (*Esegui → Verifica compatibilità Windows / Linux…*): sceglie il sistema di arrivo e controlla ogni file `.pit` e `.py` del progetto senza eseguirlo. Segnala i moduli e le funzioni di un solo sistema (`winreg`, `os.startfile`, `ctypes.windll`, `os.fork`...), i comandi di shell (`cls`, `taskkill`, `ls`, `sudo`...), i percorsi scritti a mano (`C:\...`, `/home/...`), le opzioni delle finestre e i moduli di PitStudio solo-Windows; per ogni voce c'è il suggerimento per rimediare e un doppio clic apre il file alla riga. Il codice dentro `se sys.platform == "win32":` (anche negato, o con ritorno anticipato) non si segnala; dentro `prova … eccetto` è solo una nota.
+- **Prova su Linux** (*Esegui → Prova su Linux (WSL)*): esegue il programma nel Linux di Windows con l'interprete pitonit di Linux e mostra l'output nella console, con i link agli errori. Le finestre grafiche compaiono sul desktop di Windows grazie a WSLg.
+- **Linux di Windows: stato e guida** (*Esegui → Linux di Windows: stato e guida…*): controlla se ci sono WSL, una distribuzione e pytonIta dentro Linux; se manca qualcosa mostra i comandi da copiare (`wsl --install -d Ubuntu`, gli strumenti per compilare, `installa.sh`). Non installa nulla da solo.
+- **Eseguire un programma apre la console se è chiusa** (dalla 2.39 la console parte chiusa e l'esecuzione non la apriva).
+- Guida nuova: «Compatibilità Windows / Linux e «Prova su Linux»».
+
 ## Novità della 2.39
 
 - **Schede di PitStudio: una finestra con le schede, oppure una finestra per scheda.** Si sceglie da *Visualizza → Ogni scheda in una finestra separata* o *Impostazioni → Finestre*; ogni file (editor, disegno di finestra, visore, database) si apre nella sua finestra, con la barra dei menu di PitStudio, le scorciatoie, il titolo col pallino delle modifiche e la posizione ricordata. *Stacca in una finestra* (tasto destro sulla linguetta) e *Riporta nella finestra principale* spostano una scheda; si possono mescolare schede e finestre.

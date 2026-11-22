@@ -220,6 +220,11 @@
   "gruppo": "Programmare"
  },
  {
+  "id": "compatibilita-linux",
+  "titolo": "Compatibilità Windows / Linux e «Prova su Linux»",
+  "gruppo": "Programmare"
+ },
+ {
   "id": "progettista",
   "titolo": "Il progettista di finestre",
   "gruppo": "Costruire senza scrivere codice"

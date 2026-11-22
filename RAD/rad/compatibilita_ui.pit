@@ -1,0 +1,221 @@
+"""Le finestre della verifica di compatibilità Windows/Linux e del «Prova su Linux» (WSL)."""
+importa os
+importa tkinter come tk
+da tkinter importa ttk
+
+da rad.dialoghi importa DialogoBase
+da rad.comandi_ui importa PannelloComandi
+da rad importa compatibilita, esecuzione, wsl
+da rad.piattaforma importa FONT_UI, semi
+
+
+classe DialogoCompatibilita(DialogoBase):
+    """Sceglie il sistema di arrivo (Windows o Linux) e mostra, file per file, ciò che lì non funzionerebbe. Un doppio clic apre il file alla riga.
+
+    La finestra non blocca PitStudio: si può lasciare aperta, correggere il codice e premere di nuovo «Controlla».
+    apri_a_riga(percorso, riga): apre il file nell'editor; prova_linux(): lancia «Prova su Linux»; guida_linux(): apre la finestra di Linux di Windows."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, cartella, apri_a_riga=Nessuno, prova_linux=Nessuno, guida_linux=Nessuno, sistema_iniziale=Nessuno):
+        DialogoBase.__init__(se_stesso, genitore, "Verifica di compatibilità Windows / Linux", colori, 860, 560)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso.minsize(680, 440)
+        se_stesso.cartella = cartella
+        se_stesso._apri_a_riga = apri_a_riga
+        se_stesso._prova_linux = prova_linux
+        se_stesso._guida_linux = guida_linux
+        se_stesso.problemi = []
+        se_stesso.risultato_analisi = Nessuno
+        c = colori
+        se_stesso.configure(background=c["pannello"])
+        tk.Label(se_stesso, text="Il mio codice funziona anche su un altro sistema?", font=semi(14), anchor="w",
+                 background=c["pannello"], foreground=c["primo_piano"]).pack(fill="x", padx=18, pady=(14, 0))
+        tk.Label(se_stesso, wraplength=800, justify="left", anchor="w", background=c["pannello"], foreground=c["tenue"],
+                 text="Leggo i file .pit e .py del progetto senza eseguirli e segnalo i comandi, i moduli e i percorsi che esistono solo su un sistema. "
+                      "Il codice dentro un controllo come «se sys.platform == \"win32\":» è considerato scritto apposta e non si segnala.").pack(fill="x", padx=18, pady=(2, 8))
+        riga = tk.Frame(se_stesso, background=c["pannello"])
+        riga.pack(fill="x", padx=18)
+        tk.Label(riga, text="Sistema di arrivo:", background=c["pannello"], foreground=c["primo_piano"]).pack(side="left")
+        iniziale = sistema_iniziale o ("Linux" se compatibilita.sistema_corrente() == "Windows" altrimenti "Windows")
+        se_stesso.var_sistema = tk.StringVar(value=iniziale)
+        se_stesso.scelta_sistema = ttk.Combobox(riga, textvariable=se_stesso.var_sistema, values=list(compatibilita.SISTEMI), state="readonly", width=10)
+        se_stesso.scelta_sistema.pack(side="left", padx=8)
+        se_stesso.scelta_sistema.bind("<<ComboboxSelected>>", lambda evento: se_stesso.controlla())
+        se_stesso.var_note = tk.BooleanVar(value=Vero)
+        tk.Checkbutton(riga, text="Mostra anche le note", variable=se_stesso.var_note, command=se_stesso._riempi, background=c["pannello"],
+                       foreground=c["primo_piano"], selectcolor=c["casella"], activebackground=c["pannello"], activeforeground=c["primo_piano"]).pack(side="left", padx=12)
+        se_stesso.controlla_btn = tk.Button(riga, text="Controlla", command=se_stesso.controlla, background=c["accento"], foreground="#ffffff", relief="flat", padx=14)
+        se_stesso.controlla_btn.pack(side="right")
+        se_stesso.sintesi = tk.Label(se_stesso, text="", anchor="w", background=c["pannello"], foreground=c["primo_piano"], font=(FONT_UI, 10, "bold"))
+        se_stesso.sintesi.pack(fill="x", padx=18, pady=(10, 2))
+        corpo = tk.Frame(se_stesso, background=c["pannello"])
+        corpo.pack(fill="both", expand=Vero, padx=18)
+        se_stesso.albero = ttk.Treeview(corpo, columns=("gravita", "posizione", "messaggio"), show="headings", selectmode="browse", height=10)
+        se_stesso.albero.heading("gravita", text="Esito")
+        se_stesso.albero.heading("posizione", text="Dove")
+        se_stesso.albero.heading("messaggio", text="Problema")
+        se_stesso.albero.column("gravita", width=120, stretch=Falso)
+        se_stesso.albero.column("posizione", width=190, stretch=Falso)
+        se_stesso.albero.column("messaggio", width=480)
+        se_stesso.albero.tag_configure("errore", foreground=c["errore"])
+        se_stesso.albero.tag_configure("attenzione", foreground=c["avviso"])
+        se_stesso.albero.tag_configure("nota", foreground=c["tenue"])
+        barra = ttk.Scrollbar(corpo, orient="vertical", command=se_stesso.albero.yview)
+        se_stesso.albero.configure(yscrollcommand=barra.set)
+        se_stesso.albero.pack(side="left", fill="both", expand=Vero)
+        barra.pack(side="right", fill="y")
+        se_stesso.albero.bind("<<TreeviewSelect>>", lambda evento: se_stesso._mostra_dettaglio())
+        se_stesso.albero.bind("<Double-1>", lambda evento: se_stesso.apri_selezionato())
+        se_stesso.albero.bind("<Return>", lambda evento: se_stesso.apri_selezionato())
+        se_stesso.dettaglio = tk.Label(se_stesso, text="Scegli una voce per leggere come rimediare. Doppio clic: apre il file alla riga.", wraplength=800,
+                                        justify="left", anchor="nw", height=3, background=c["pannello"], foreground=c["tenue"])
+        se_stesso.dettaglio.pack(fill="x", padx=18, pady=(8, 0))
+        pulsanti = tk.Frame(se_stesso, background=c["pannello"])
+        pulsanti.pack(fill="x", padx=14, pady=12)
+        tk.Button(pulsanti, text="Chiudi", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        se_stesso.apri_btn = tk.Button(pulsanti, text="Apri alla riga", command=se_stesso.apri_selezionato, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12)
+        se_stesso.apri_btn.pack(side="right", padx=4)
+        se se_stesso._guida_linux:
+            tk.Button(pulsanti, text="Linux di Windows…", command=se_stesso._guida_linux, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="left", padx=4)
+        se se_stesso._prova_linux:
+            tk.Button(pulsanti, text="Prova su Linux", command=se_stesso._prova_linux, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="left", padx=4)
+        se_stesso.controlla()
+
+    definisci controlla(se_stesso):
+        """Rilegge i file del progetto e aggiorna l'elenco."""
+        se_stesso.sintesi.configure(text="Controllo in corso…")
+        se_stesso.update_idletasks()
+        se_stesso.risultato_analisi = compatibilita.analizza_progetto(se_stesso.cartella, se_stesso.var_sistema.get())
+        se_stesso.problemi = se_stesso.risultato_analisi["problemi"]
+        se_stesso._riempi()
+
+    definisci _visibili(se_stesso):
+        mostra_note = bool(se_stesso.var_note.get())
+        ordine = {g: i per i, g in enumerate(compatibilita.GRAVITA)}
+        elenco = [p per p in se_stesso.problemi se mostra_note o p["gravita"] != "nota"]
+        ritorna sorted(elenco, key=lambda p: (ordine[p["gravita"]], p["file"], p["riga"]))
+
+    definisci _riempi(se_stesso):
+        se_stesso.albero.delete(*se_stesso.albero.get_children())
+        se_stesso._righe = {}
+        per p in se_stesso._visibili():
+            iid = se_stesso.albero.insert("", "end", values=(compatibilita.ETICHETTA_GRAVITA[p["gravita"]], f"{p['file']}:{p['riga']}", p["messaggio"]), tags=(p["gravita"],))
+            se_stesso._righe[iid] = p
+        se_stesso.sintesi.configure(text=compatibilita.riassunto(se_stesso.risultato_analisi))
+        se_stesso.dettaglio.configure(text="Scegli una voce per leggere come rimediare. Doppio clic: apre il file alla riga.")
+
+    definisci _selezionato(se_stesso):
+        scelta = se_stesso.albero.selection()
+        ritorna se_stesso._righe.get(scelta[0]) se scelta altrimenti Nessuno
+
+    definisci _mostra_dettaglio(se_stesso):
+        p = se_stesso._selezionato()
+        se p:
+            se_stesso.dettaglio.configure(text=p["messaggio"] + ("\n" + p["suggerimento"] se p["suggerimento"] altrimenti ""))
+
+    definisci apri_selezionato(se_stesso):
+        p = se_stesso._selezionato()
+        se p e se_stesso._apri_a_riga:
+            se_stesso._apri_a_riga(os.path.join(se_stesso.cartella, p["file"]), p["riga"])
+
+
+classe DialogoLinux(DialogoBase):
+    """Linux di Windows (WSL): dice cosa c'è e cosa manca, con i comandi da copiare, e «Prova ora» lancia il programma in Linux.
+
+    leggi_stato(preferita) ritorna il dizionario di wsl.stato (si può sostituire: i test lo fanno); avvia_prova(stato): esegue il programma."""
+
+    definisci __inizializza__(se_stesso, genitore, colori, preferita="", avvia_prova=Nessuno, salva_scelta=Nessuno, leggi_stato=Nessuno):
+        DialogoBase.__init__(se_stesso, genitore, "Linux di Windows (WSL): stato e guida", colori, 700, 640)
+        se_stesso.resizable(Vero, Vero)
+        se_stesso._prova = avvia_prova
+        se_stesso._salva_scelta = salva_scelta
+        se_stesso._leggi_stato = leggi_stato o wsl.stato
+        se_stesso.preferita = preferita
+        se_stesso.stato = Nessuno
+        se_stesso._lavoro = Falso
+        c = colori
+        se_stesso.configure(background=c["pannello"])
+        tk.Label(se_stesso, text="Provare il programma su Linux", font=semi(14), anchor="w", background=c["pannello"], foreground=c["primo_piano"]).pack(fill="x", padx=18, pady=(14, 0))
+        tk.Label(se_stesso, wraplength=650, justify="left", anchor="w", background=c["pannello"], foreground=c["tenue"],
+                 text="Windows può avere dentro un vero Linux (WSL). Con «Prova su Linux» PitStudio esegue il programma lì, con l'interprete pitonit di Linux, "
+                      "e mostra il risultato nella console; le finestre grafiche compaiono sul desktop di Windows (WSLg).").pack(fill="x", padx=18, pady=(2, 8))
+        se_stesso.situazione = tk.Label(se_stesso, wraplength=650, justify="left", anchor="w", background=c["pannello"], foreground=c["primo_piano"], font=(FONT_UI, 10, "bold"))
+        se_stesso.situazione.pack(fill="x", padx=18)
+        se_stesso.dettagli = tk.Label(se_stesso, wraplength=650, justify="left", anchor="w", background=c["pannello"], foreground=c["tenue"])
+        se_stesso.dettagli.pack(fill="x", padx=18, pady=(2, 0))
+        se_stesso.riga_scelta = tk.Frame(se_stesso, background=c["pannello"])
+        se_stesso.riga_scelta.pack(fill="x", padx=18, pady=(6, 0))
+        tk.Label(se_stesso.riga_scelta, text="Distribuzione:", background=c["pannello"], foreground=c["primo_piano"]).pack(side="left")
+        se_stesso.var_distribuzione = tk.StringVar()
+        se_stesso.scelta = ttk.Combobox(se_stesso.riga_scelta, textvariable=se_stesso.var_distribuzione, state="readonly", width=24)
+        se_stesso.scelta.pack(side="left", padx=8)
+        se_stesso.scelta.bind("<<ComboboxSelected>>", lambda evento: se_stesso._cambiata())
+        se_stesso.cornice_comandi = tk.Frame(se_stesso, background=c["pannello"])
+        se_stesso.cornice_comandi.pack(fill="both", expand=Vero, padx=18)
+        pulsanti = tk.Frame(se_stesso, background=c["pannello"])
+        pulsanti.pack(side="bottom", fill="x", padx=14, pady=12)
+        tk.Button(pulsanti, text="Chiudi", command=se_stesso.destroy, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12).pack(side="right", padx=4)
+        se_stesso.prova_btn = tk.Button(pulsanti, text="Prova ora", command=se_stesso._prova_ora, background=c["accento"], foreground="#ffffff", relief="flat", padx=12, state="disabled")
+        se_stesso.prova_btn.pack(side="right", padx=4)
+        se_stesso.ricontrolla_btn = tk.Button(pulsanti, text="Controlla di nuovo", command=se_stesso.controlla, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12)
+        se_stesso.ricontrolla_btn.pack(side="right", padx=4)
+        se_stesso.controlla()
+
+    definisci controlla(se_stesso):
+        """Rilegge la situazione di WSL (può richiedere qualche secondo: la distribuzione deve avviarsi)."""
+        se se_stesso._lavoro:
+            ritorna
+        se_stesso._lavoro = Vero
+        se_stesso.situazione.configure(text="Controllo il Linux di Windows…")
+        se_stesso.dettagli.configure(text="")
+        se_stesso.ricontrolla_btn.configure(state="disabled")
+        se_stesso.prova_btn.configure(state="disabled")
+        preferita = se_stesso.var_distribuzione.get() o se_stesso.preferita
+        esecuzione.in_secondo_piano(se_stesso, lambda: se_stesso._leggi_stato(preferita), se_stesso._finito)
+
+    definisci _finito(se_stesso, riuscito, risultato):
+        se_stesso._lavoro = Falso
+        se non se_stesso.winfo_exists():
+            ritorna
+        se_stesso.ricontrolla_btn.configure(state="normal")
+        se non riuscito:
+            se_stesso.situazione.configure(text="Non sono riuscito a controllare il Linux di Windows.")
+            se_stesso.dettagli.configure(text=tipo_testo(risultato))
+            ritorna
+        se_stesso.mostra_stato(risultato)
+
+    definisci mostra_stato(se_stesso, stato):
+        """Aggiorna la finestra con un risultato di wsl.stato."""
+        se_stesso.stato = stato
+        nomi = [d["nome"] per d in stato["distribuzioni"]]
+        se_stesso.scelta.configure(values=nomi)
+        se stato["distribuzione"]:
+            se_stesso.var_distribuzione.set(stato["distribuzione"])
+        se_stesso.riga_scelta.pack_forget()
+        se lunghezza_di(nomi) > 1:
+            se_stesso.riga_scelta.pack(fill="x", padx=18, pady=(6, 0), before=se_stesso.cornice_comandi)
+        per w in se_stesso.cornice_comandi.winfo_children():
+            w.destroy()
+        problema = stato["problema"]
+        se problema è Nessuno:
+            se_stesso.situazione.configure(text=f"Pronto: Linux ({stato['distribuzione']}) ha pytonIta.")
+            se_stesso.dettagli.configure(text=f"Interprete: {stato['interprete']}\n" + ("Finestre grafiche: sì (WSLg)." se stato["grafica"] altrimenti
+                                                                                 "Finestre grafiche: non disponibili (manca WSLg: servono WSL 2 e «wsl --update»). I programmi a console funzionano."))
+            se_stesso.prova_btn.configure(state="normal")
+        altrimenti:
+            se_stesso.situazione.configure(text=stato["messaggio"])
+            se_stesso.dettagli.configure(text="Per poter provare i programmi su Linux servono questi passi. Copia i comandi e incollali nel terminale indicato, poi premi «Controlla di nuovo».")
+            voci = wsl.comandi_installazione(stato["distribuzione"] o wsl.DISTRIBUZIONE_PREDEFINITA, problema) se problema != "non_windows" altrimenti []
+            se voci:
+                PannelloComandi(se_stesso.cornice_comandi, se_stesso.colori, voci, 640).pack(fill="both", expand=Vero)
+            se_stesso.prova_btn.configure(state="disabled")
+
+    definisci _cambiata(se_stesso):
+        se se_stesso._salva_scelta:
+            se_stesso._salva_scelta(se_stesso.var_distribuzione.get())
+        se_stesso.preferita = se_stesso.var_distribuzione.get()
+        se_stesso.controlla()
+
+    definisci _prova_ora(se_stesso):
+        se se_stesso._prova e se_stesso.stato e se_stesso.stato["problema"] è Nessuno:
+            se_stesso.destroy()
+            se_stesso._prova(se_stesso.stato)

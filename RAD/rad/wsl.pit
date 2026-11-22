@@ -1,0 +1,200 @@
+"""Linux di Windows (WSL): c'è? c'è una distribuzione? c'è pytonIta dentro? Poi il comando per eseguire un programma del progetto in Linux.
+
+Serve al pulsante «Prova su Linux» (Esegui → Prova su Linux): il programma gira nella distribuzione scelta, con l'interprete pitonit di Linux,
+sulla stessa cartella del progetto (Windows la mostra a Linux sotto /mnt/c/...). Le finestre grafiche compaiono sul desktop di Windows grazie a WSLg
+(Windows 11 e Windows 10 recente, con WSL 2).
+
+Nulla qui dentro installa qualcosa da solo: se manca Linux, PitStudio mostra i comandi da copiare (comandi_installazione).
+"""
+importa os
+importa re
+importa shutil
+importa subprocess
+importa sys
+
+WINDOWS = sys.platform == "win32"
+_FLAG_NASCONDI = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+DISTRIBUZIONE_PREDEFINITA = "Ubuntu"
+IGNORATE = ("docker-desktop", "docker-desktop-data", "rancher-desktop", "rancher-desktop-data")        # distribuzioni di servizio: non servono a noi
+PERCORSI_INTERPRETE = ('$HOME/.local/pytonita/bin/pitonit', '/opt/pytonita/bin/pitonit', '/usr/local/bin/pitonit')
+URL_PROGETTO = "https://github.com/LordZenzo/pytonIta"
+
+PROBLEMI = {
+    "non_windows": "«Prova su Linux» serve su Windows: qui sei già su Linux.",
+    "wsl_assente": "Il Linux di Windows (WSL) non è installato.",
+    "senza_distribuzioni": "Non risulta nessuna distribuzione Linux in WSL (per esempio Ubuntu), o il Linux di Windows non è attivo.",
+    "senza_pytonita": "In questa distribuzione manca pytonIta (l'interprete pitonit per Linux).",
+}
+
+
+definisci _lancia(argomenti, tempo_massimo=20):
+    """Esegue un comando e ritorna (codice, byte dell'output). Se non parte: (-1, b"")."""
+    prova:
+        r = subprocess.run(argomenti, capture_output=Vero, timeout=tempo_massimo, creationflags=_FLAG_NASCONDI, stdin=subprocess.DEVNULL)
+    eccetto (OSError, subprocess.SubprocessError):
+        ritorna (-1, b"")
+    ritorna (r.returncode, r.stdout o b"")
+
+
+definisci programma_wsl():
+    """Il percorso di wsl.exe, o None se non c'è (o se non siamo su Windows)."""
+    se non WINDOWS:
+        ritorna Nessuno
+    trovato = shutil.which("wsl.exe")
+    se trovato:
+        ritorna trovato
+    sistema = os.environ.get("SystemRoot")
+    candidato = os.path.join(sistema, "System32", "wsl.exe") se sistema altrimenti ""
+    ritorna candidato se candidato e os.path.exists(candidato) altrimenti Nessuno
+
+
+definisci _decodifica_wsl(dati):
+    """I comandi di gestione di wsl.exe scrivono in UTF-16; l'output dei programmi Linux invece è UTF-8."""
+    se b"\x00" in dati:
+        testo_ = dati.decode("utf-16-le", "replace")
+    altrimenti:
+        testo_ = dati.decode("utf-8", "replace")
+    ritorna testo_.replace("\ufeff", "").replace("\x00", "")
+
+
+definisci leggi_distribuzioni(testo_):
+    """Interpreta l'output di «wsl -l -v»: [{nome, stato, versione, predefinita}] (senza le distribuzioni di servizio)."""
+    trovate = []
+    per riga in testo_.splitlines():
+        parole = riga.replace("*", " ", 1).split()
+        se lunghezza_di(parole) < 3 o non parole[-1].isdigit():
+            continua                      # l'intestazione («NAME STATE VERSION», anche tradotta) e i messaggi
+        nome = " ".join(parole[:-2])
+        se nome.lower() in IGNORATE:
+            continua
+        trovate.append({"nome": nome, "stato": parole[-2], "versione": int(parole[-1]), "predefinita": riga.lstrip().startswith("*")})
+    ritorna trovate
+
+
+definisci distribuzioni():
+    """Le distribuzioni Linux installate in WSL (vuoto se WSL manca)."""
+    programma = programma_wsl()
+    se non programma:
+        ritorna []
+    codice, dati = _lancia([programma, "-l", "-v"])
+    ritorna leggi_distribuzioni(_decodifica_wsl(dati)) se codice == 0 altrimenti []
+
+
+definisci _in_distribuzione(distribuzione, comando_sh, tempo_massimo=20):
+    """Esegue una riga di shell dentro la distribuzione. Ritorna (codice, testo)."""
+    programma = programma_wsl()
+    se non programma:
+        ritorna (-1, "")
+    codice, dati = _lancia([programma, "-d", distribuzione, "--", "sh", "-c", comando_sh], tempo_massimo)
+    ritorna (codice, _decodifica_wsl(dati).strip())
+
+
+definisci trova_interprete(distribuzione):
+    """Il percorso di pitonit dentro la distribuzione (come lo vede Linux), o None."""
+    cerca = "for p in " + " ".join(f'"{p}"' per p in PERCORSI_INTERPRETE) + '; do [ -x "$p" ] && { echo "$p"; exit 0; }; done; command -v pitonit'
+    codice, testo_ = _in_distribuzione(distribuzione, cerca, 60)           # la prima volta la distribuzione deve avviarsi
+    riga = testo_.splitlines()[0].strip() se codice == 0 e testo_ altrimenti ""
+    ritorna riga o Nessuno
+
+
+definisci ha_grafica(distribuzione):
+    """True se la distribuzione ha WSLg, che fa comparire le finestre di Linux sul desktop di Windows."""
+    codice, testo_ = _in_distribuzione(distribuzione, "[ -d /mnt/wslg ] && echo si")
+    ritorna codice == 0 e testo_.endswith("si")
+
+
+definisci percorso_linux(percorso):
+    """Il percorso di un file di Windows come lo vede Linux in WSL: C:\\Progetti\\a.pit → /mnt/c/Progetti/a.pit; \\\\wsl$\\Ubuntu\\home\\x → /home/x."""
+    p = os.path.abspath(percorso).replace("\\", "/")
+    m = re.match(r"^//(?:wsl\$|wsl\.localhost)/[^/]+(/.*)?$", p, re.IGNORECASE)
+    se m:
+        ritorna m.group(1) o "/"
+    m = re.match(r"^([A-Za-z]):(/.*)?$", p)
+    se m:
+        ritorna "/mnt/" + m.group(1).lower() + (m.group(2) o "")
+    ritorna p
+
+
+definisci percorso_windows(percorso):
+    """L'inverso di percorso_linux: /mnt/c/Progetti/a.pit diventa C:\\Progetti\\a.pit (gli errori di un programma in Linux citano i file così).
+    Un percorso che non sta sotto /mnt/<lettera>/ si lascia com'è."""
+    m = re.match(r"^/mnt/([A-Za-z])(/.*)?$", percorso)
+    se WINDOWS e m:
+        ritorna m.group(1).upper() + ":" + (m.group(2) o "/").replace("/", "\\")
+    ritorna percorso
+
+
+definisci scegli_distribuzione(elenco, preferita=""):
+    """Quale distribuzione usare: la preferita (se c'è), poi la predefinita di WSL, poi la prima con WSL 2, poi la prima."""
+    se non elenco:
+        ritorna Nessuno
+    per d in elenco:
+        se preferita e d["nome"].lower() == preferita.lower():
+            ritorna d
+    per d in elenco:
+        se d["predefinita"]:
+            ritorna d
+    per d in elenco:
+        se d["versione"] == 2:
+            ritorna d
+    ritorna elenco[0]
+
+
+definisci stato(preferita=""):
+    """La situazione, in un dizionario: {problema (una chiave di PROBLEMI, o None se si può provare), messaggio, distribuzioni, distribuzione, interprete, grafica}."""
+    risultato = {"problema": Nessuno, "messaggio": "", "distribuzioni": [], "distribuzione": Nessuno, "interprete": Nessuno, "grafica": Falso}
+    se non WINDOWS:
+        risultato["problema"] = "non_windows"
+    altrimenti_se non programma_wsl():
+        risultato["problema"] = "wsl_assente"
+    altrimenti:
+        risultato["distribuzioni"] = distribuzioni()
+        scelta = scegli_distribuzione(risultato["distribuzioni"], preferita)
+        se scelta è Nessuno:
+            risultato["problema"] = "senza_distribuzioni"
+        altrimenti:
+            risultato["distribuzione"] = scelta["nome"]
+            risultato["interprete"] = trova_interprete(scelta["nome"])
+            risultato["grafica"] = scelta["versione"] == 2 e ha_grafica(scelta["nome"])
+            se non risultato["interprete"]:
+                risultato["problema"] = "senza_pytonita"
+    risultato["messaggio"] = PROBLEMI.get(risultato["problema"], "")
+    ritorna risultato
+
+
+definisci comando_prova(distribuzione, interprete, percorso_file, cartella, argomenti=(), grafica=Falso):
+    """La riga di comando che esegue il programma in Linux: ritorna la lista di parole da dare a Popen (percorsi di Windows come arrivano)."""
+    ambiente = ["PYTHONUNBUFFERED=1", "PYTHONIOENCODING=utf-8"]
+    se grafica:
+        ambiente.append("DISPLAY=:0")
+    ritorna [programma_wsl() o "wsl.exe", "-d", distribuzione, "--cd", percorso_linux(cartella), "--", "env"] + ambiente + \
+           [interprete, "-u", percorso_linux(percorso_file)] + lista_di_testi(argomenti)
+
+
+definisci lista_di_testi(valori):
+    ritorna [tipo_testo(v) per v in valori]
+
+
+definisci comandi_installazione(distribuzione=DISTRIBUZIONE_PREDEFINITA, problema=Nessuno):
+    """I comandi da copiare per preparare Linux, nel formato di comandi_ui.PannelloComandi: [{etichetta, comando, nota}].
+
+    problema: quali passi servono (una chiave di PROBLEMI); Nessuno = tutti."""
+    tutti = problema è Nessuno
+    voci = []
+    se tutti o problema in ("wsl_assente", "senza_distribuzioni"):
+        voci.append({"etichetta": "1. Installare il Linux di Windows con Ubuntu (da PowerShell o dal Prompt dei comandi, «Esegui come amministratore»)",
+                     "comando": f"wsl --install -d {distribuzione}",
+                     "nota": "Poi riavvia il PC. Alla prima apertura di Ubuntu scegli un nome utente e una password per Linux (la password ti servirà per «sudo»). "
+                             "Serve Windows 10 (versione 2004 o più recente) oppure Windows 11, e la virtualizzazione attiva nel BIOS."})
+    se tutti o problema in ("wsl_assente", "senza_distribuzioni", "senza_pytonita"):
+        voci.append({"etichetta": "2. Aggiornare WSL (per le finestre grafiche di Linux sul desktop di Windows)",
+                     "comando": "wsl --update",
+                     "nota": "Serve per WSLg, che fa comparire le finestre dei programmi Linux accanto a quelle di Windows. Senza, i programmi a finestre non si vedono; quelli a console sì."})
+        voci.append({"etichetta": f"3. In Linux ({distribuzione}): installare gli strumenti per compilare pytonIta",
+                     "comando": "sudo apt update && sudo apt install -y build-essential git curl python3-tk tk-dev libssl-dev libffi-dev zlib1g-dev libbz2-dev "
+                                "libsqlite3-dev liblzma-dev libreadline-dev uuid-dev",
+                     "nota": f"Apri {distribuzione} dal menu Start (o con «wsl -d {distribuzione}») e incolla il comando."})
+        voci.append({"etichetta": f"4. In Linux ({distribuzione}): scaricare e installare pytonIta (compila l'interprete, da 5 a 15 minuti)",
+                     "comando": f"git clone {URL_PROGETTO} ~/pytonIta && sh ~/pytonIta/installatore/linux/installa.sh",
+                     "nota": "Installa in ~/.local/pytonita. Finito, torna in PitStudio e premi «Controlla di nuovo»."})
+    ritorna voci

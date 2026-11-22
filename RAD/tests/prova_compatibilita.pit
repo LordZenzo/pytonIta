@@ -1,0 +1,320 @@
+"""Verifica di compatibilità Windows/Linux (analisi del codice) e «Prova su Linux» (WSL: rilevamento, percorsi, comando, guida, menu).
+WSL è simulato: i comandi di wsl.exe sono sostituiti da risposte finte, così il test gira anche dove WSL non c'è."""
+importa sys, os, tempfile, time
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+importa tkinter come tk
+da rad.config importa Configurazione
+da rad.finestra importa Applicazione
+da rad.progetto importa Progetto
+da rad importa compatibilita, wsl
+da rad.compatibilita_ui importa DialogoCompatibilita, DialogoLinux
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci righe(problemi, gravita=Nessuno):
+    ritorna sorted({p["riga"] per p in problemi se gravita è Nessuno o p["gravita"] == gravita})
+
+
+# ======================================================== analisi del codice
+CODICE = r'''
+import os, subprocess, winreg, sys
+import os as sistema
+from os import startfile
+r"""documento con C:\Windows"""
+os.startfile("a.txt")
+sistema.startfile("b")
+if sys.platform == "win32":
+    import msvcrt
+    os.startfile("ok")
+else:
+    os.system("ls")
+try:
+    import winsound
+except ImportError:
+    pass
+os.system("cls")
+subprocess.run(["taskkill", "/F"])
+f = r"C:\Users\io\x.txt"
+g = r"dati\file.txt"
+fin.iconbitmap("a.ico")
+fin.state("zoomed")
+fin.attributes("-toolwindow", True)
+open("x.txt")
+open("y.txt", "rb")
+open("z.txt", encoding="utf-8")
+suono.ripeti("a.wav")
+tipo_carattere = "Segoe UI"
+'''
+linux = compatibilita.analizza_sorgente(CODICE.encode("utf-8"), "Linux", "t.py")
+windows = compatibilita.analizza_sorgente(CODICE.encode("utf-8"), "Windows", "t.py")
+per r, g in ((2, "errore"), (4, "errore"), (6, "errore"), (7, "errore"), (17, "errore"), (18, "errore"), (19, "errore"), (20, "attenzione"), (21, "attenzione"),
+             (22, "errore"), (23, "errore"), (24, "nota"), (27, "errore"), (28, "nota")):
+    verifica(r in righe(linux, g), f"Linux: riga {r} segnalata come «{g}»: {[(p['riga'], p['gravita']) per p in linux se p['riga'] == r]}")
+verifica(5 non in righe(linux), "il docstring con C:\\Windows non si segnala")
+verifica(9 non in righe(linux) e 10 non in righe(linux) e 12 non in righe(linux), "dentro «if sys.platform == win32» non si segnala per Linux, e l'else non è un problema")
+verifica(14 in righe(linux, "nota") e 14 non in righe(linux, "errore"), "winsound dentro try/except ImportError è solo una nota")
+verifica(25 non in righe(linux) e 26 non in righe(linux) e 3 non in righe(linux), "open in binario o con encoding non si segnala")
+verifica(all(p["suggerimento"] o p["gravita"] == "nota" per p in linux), "ogni problema ha un suggerimento")
+verifica(righe(windows, "errore") == [], "il codice scritto per Windows verso Windows non ha errori: " + tipo_testo(righe(windows, "errore")))
+verifica(righe(windows) == [24], "verso Windows resta solo la nota su open: " + tipo_testo(righe(windows)))
+
+CODICE_LINUX = '''
+import fcntl, os, signal, subprocess
+x = os.getuid()
+os.fork()
+signal.SIGKILL
+os.system("clear")
+subprocess.run(["sudo", "apt", "install", "x"])
+subprocess.run("grep a b", shell=True)
+p = "/home/utente/dati"
+q = "/tmp/lavoro"
+n = "/dev/null"
+if os.name != "nt":
+    os.getuid()
+    os.system("ls")
+if sys.platform == "win32":
+    pass
+else:
+    os.system("ls")
+'''
+w2 = compatibilita.analizza_sorgente(CODICE_LINUX.encode("utf-8"), "Windows", "u.py")
+per r in (2, 3, 4, 5, 6, 7, 8, 9, 10, 11):
+    verifica(r in righe(w2, "errore"), f"Windows: riga {r} segnalata: {righe(w2)}")
+verifica(13 non in righe(w2) e 14 non in righe(w2) e 18 non in righe(w2), "dentro «if os.name != 'nt'» e nell'else di win32 non si segnala per Windows: " + tipo_testo(righe(w2)))
+verifica(righe(compatibilita.analizza_sorgente(CODICE_LINUX.encode("utf-8"), "Linux", "u.py"), "errore") == [], "il codice di Linux verso Linux non ha errori")
+
+# lo stesso in pytonIta (.pit): parole chiave italiane e import con alias
+pit = compatibilita.analizza_sorgente("importa os come sistema\nse non sistema.path:\n    passa\nsistema.startfile('a')\n".encode("utf-8"), "Linux", "a.pit")
+verifica(righe(pit, "errore") == [4], "in un .pit l'alias di os viene riconosciuto: " + tipo_testo(righe(pit)))
+errore_sintassi = compatibilita.analizza_sorgente(b"def (:\n", "Linux", "b.py")
+verifica(lunghezza_di(errore_sintassi) == 1 e errore_sintassi[0]["categoria"] == "sintassi", "un file con errore di sintassi dà una sola nota")
+prova:
+    compatibilita.analizza_sorgente(b"x=1", "Mac", "c.py")
+    verifica(Falso, "un sistema sconosciuto dà errore")
+eccetto ErroreDiValore:
+    passa
+
+# ritorno anticipato e prova…eccetto
+GUARDIA = '''
+import ctypes, sys
+def solo_windows():
+    if sys.platform != "win32":
+        return None
+    return ctypes.windll.user32
+def con_ripiego():
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)
+    except Exception:
+        pass
+def senza_guardia():
+    return ctypes.windll.user32
+'''
+g = compatibilita.analizza_sorgente(GUARDIA.encode("utf-8"), "Linux", "g.py")
+verifica(righe(g, "errore") == [13], "solo la funzione senza guardia dà errore (dopo «if non win32: return» il resto è per Windows): " + tipo_testo([(p["riga"], p["gravita"]) per p in g]))
+verifica(righe(g, "nota") == [9], "dentro try/except Exception è una nota: " + tipo_testo(righe(g, "nota")))
+
+# ---- intero progetto
+cartella = tempfile.mkdtemp()
+os.makedirs(os.path.join(cartella, "sotto"))
+os.makedirs(os.path.join(cartella, ".nascosta"))
+os.makedirs(os.path.join(cartella, "__pycache__"))
+per nome, testo_ in (("principale.pit", "importa os\nos.startfile('x')\n"), (os.path.join("sotto", "altro.py"), "import winreg\n"),
+                     (os.path.join(".nascosta", "no.py"), "import winreg\n"), (os.path.join("__pycache__", "no.py"), "import winreg\n"), ("note.txt", "winreg")):
+    open(os.path.join(cartella, nome), "w", encoding="utf-8").write(testo_)
+risultato = compatibilita.analizza_progetto(cartella, "Linux")
+verifica(risultato["file"] == 2 e risultato["per_gravita"]["errore"] == 2, "il progetto: due file controllati, due errori: " + tipo_testo(risultato["per_gravita"]) + " " + tipo_testo(risultato["file"]))
+verifica(sorted(p["file"] per p in risultato["problemi"]) == ["principale.pit", "sotto/altro.py"], "i file sono nominati col percorso relativo: " + tipo_testo([p["file"] per p in risultato["problemi"]]))
+verifica("2 cose non funzionano" in compatibilita.riassunto(risultato), "il riassunto: " + compatibilita.riassunto(risultato))
+verifica("tutto sembra compatibile con Windows" in compatibilita.riassunto({"sistema": "Windows", "file": 1, "problemi": [], "per_gravita": {}}), "il riassunto senza problemi")
+
+# ======================================================== WSL (simulato)
+originali = (wsl._lancia, wsl.programma_wsl, wsl.WINDOWS)
+wsl.WINDOWS = Vero
+wsl.programma_wsl = lambda: "wsl.exe"
+scenario = {"distribuzioni": "", "codice_elenco": 0, "interprete": "", "wslg": Falso, "chiamate": []}
+
+
+definisci finto(argomenti, tempo_massimo=20):
+    scenario["chiamate"].append(argomenti)
+    se "-l" in argomenti:
+        ritorna (scenario["codice_elenco"], scenario["distribuzioni"].encode("utf-16-le"))
+    comando_sh = argomenti[-1]
+    se "pitonit" in comando_sh:
+        ritorna (0, (scenario["interprete"] + "\n").encode("utf-8") se scenario["interprete"] altrimenti b"")
+    se "/mnt/wslg" in comando_sh:
+        ritorna (0, b"si\n" se scenario["wslg"] altrimenti b"")
+    ritorna (1, b"")
+
+
+wsl._lancia = finto
+ELENCO = "  NOME            STATO           VERSIONE\n* Ubuntu          Running         2\n  docker-desktop  Stopped         2\n  Debian          Stopped         1\n"
+d = wsl.leggi_distribuzioni(ELENCO)
+verifica([x["nome"] per x in d] == ["Ubuntu", "Debian"], "si leggono le distribuzioni e si ignora docker-desktop: " + tipo_testo(d))
+verifica(d[0]["predefinita"] e non d[1]["predefinita"] e d[0]["versione"] == 2 e d[1]["versione"] == 1, "predefinita e versione")
+verifica(wsl.leggi_distribuzioni("Il sottosistema Windows per Linux non ha distribuzioni installate.\n") == [], "il messaggio «nessuna distribuzione» non è una distribuzione")
+verifica(wsl.scegli_distribuzione(d, "debian")["nome"] == "Debian" e wsl.scegli_distribuzione(d)["nome"] == "Ubuntu" e wsl.scegli_distribuzione([]) è Nessuno, "scelta della distribuzione")
+
+verifica(wsl.percorso_linux(r"C:\Progetti\Mio Gioco\a.pit") == "/mnt/c/Progetti/Mio Gioco/a.pit", "C:\\... diventa /mnt/c/...: " + wsl.percorso_linux(r"C:\Progetti\Mio Gioco\a.pit"))
+verifica(wsl.percorso_linux("D:\\") == "/mnt/d" o wsl.percorso_linux("D:\\") == "/mnt/d/", "radice di un disco")
+verifica(wsl.percorso_linux(r"\\wsl$\Ubuntu\home\lorenzo\p") == "/home/lorenzo/p" e wsl.percorso_linux(r"\\wsl.localhost\Debian\tmp") == "/tmp", "i percorsi dentro Linux restano di Linux")
+verifica(wsl.percorso_windows("/mnt/c/Progetti/a.pit") == "C:\\Progetti\\a.pit" e wsl.percorso_windows("/home/x/a.pit") == "/home/x/a.pit", "e il percorso inverso")
+
+# nessuna distribuzione
+scenario["codice_elenco"] = -1
+scenario["distribuzioni"] = "Il sottosistema Windows per Linux non ha distribuzioni installate.\n"
+s = wsl.stato()
+verifica(s["problema"] == "senza_distribuzioni" e s["messaggio"] e s["distribuzione"] è Nessuno, "senza distribuzioni lo dice")
+# distribuzione senza pytonIta
+scenario["codice_elenco"] = 0
+scenario["distribuzioni"] = ELENCO
+s = wsl.stato()
+verifica(s["problema"] == "senza_pytonita" e s["distribuzione"] == "Ubuntu" e s["interprete"] è Nessuno, "senza pytonIta lo dice: " + tipo_testo(s))
+# tutto pronto, con e senza grafica
+scenario["interprete"] = "/home/lorenzo/.local/pytonita/bin/pitonit"
+s = wsl.stato()
+verifica(s["problema"] è Nessuno e s["interprete"] == scenario["interprete"] e s["grafica"] è Falso, "pronto, senza WSLg")
+scenario["wslg"] = Vero
+verifica(wsl.stato()["grafica"] è Vero, "con WSLg la grafica c'è")
+verifica(wsl.stato("Debian")["grafica"] è Falso, "con WSL 1 (Debian) niente WSLg")
+# WSL assente
+wsl.programma_wsl = lambda: Nessuno
+verifica(wsl.stato()["problema"] == "wsl_assente", "senza wsl.exe: WSL assente")
+wsl.programma_wsl = lambda: "wsl.exe"
+wsl.WINDOWS = Falso
+verifica(wsl.stato()["problema"] == "non_windows", "su Linux «Prova su Linux» non serve")
+wsl.WINDOWS = Vero
+
+comando = wsl.comando_prova("Ubuntu", "/home/lorenzo/.local/pytonita/bin/pitonit", r"C:\P\gioco.pit", r"C:\P", ["--demo", "x y"], Vero)
+verifica(comando[:6] == ["wsl.exe", "-d", "Ubuntu", "--cd", "/mnt/c/P", "--"], "il comando WSL: " + tipo_testo(comando))
+verifica(comando[-3:] == ["-u", "/mnt/c/P/gioco.pit", "--demo"] o comando[-4:] == ["-u", "/mnt/c/P/gioco.pit", "--demo", "x y"], "il programma e i suoi argomenti: " + tipo_testo(comando))
+verifica("DISPLAY=:0" in comando e "PYTHONUNBUFFERED=1" in comando, "ambiente per la grafica e l'output subito")
+verifica("DISPLAY=:0" non in wsl.comando_prova("Ubuntu", "/x/pitonit", r"C:\P\g.pit", r"C:\P"), "senza grafica niente DISPLAY")
+
+per problema, passi in ((Nessuno, 4), ("wsl_assente", 4), ("senza_distribuzioni", 4), ("senza_pytonita", 3)):
+    voci = wsl.comandi_installazione("Ubuntu", problema)
+    verifica(lunghezza_di(voci) == passi, f"guida per «{problema}»: {passi} passi, trovati {lunghezza_di(voci)}")
+verifica(wsl.comandi_installazione("Ubuntu", "senza_distribuzioni")[0]["comando"] == "wsl --install -d Ubuntu", "il primo comando installa Ubuntu")
+verifica("installa.sh" in wsl.comandi_installazione("Ubuntu", "senza_pytonita")[-1]["comando"] e "apt install" in wsl.comandi_installazione("Ubuntu", "senza_pytonita")[1]["comando"], "e gli altri compilano pytonIta")
+
+# ======================================================== finestre e menu
+cfg = Configurazione(os.path.join(cartella, "c.json"))
+radice = tk.Tk()
+radice.geometry("1300x760+20+20")
+progetto = Progetto.nuovo(os.path.join(cartella, "P"), "P", "console")
+progetto.crea_file("principale.pit", "importa os\nos.system('cls')\nos.startfile('a.txt')\n")
+app = Applicazione(radice, cfg)
+radice.update()
+app.apri_progetto(progetto.cartella)
+radice.update()
+
+# ---- il menu Esegui
+barra = radice.nametowidget(radice.cget("menu"))
+esegui_menu = Nessuno
+per i in intervallo_di(barra.index("end") + 1):
+    se barra.type(i) == "cascade" e barra.entrycget(i, "label") == "Esegui":
+        esegui_menu = radice.nametowidget(barra.entrycget(i, "menu"))
+verifica(esegui_menu è non Nessuno, "c'è il menu Esegui")
+voci_menu = [esegui_menu.entrycget(i, "label") per i in intervallo_di(esegui_menu.index("end") + 1) se esegui_menu.type(i) in ("command", "checkbutton")]
+per voce in ("Verifica compatibilità Windows / Linux…", "Prova su Linux (WSL)", "Linux di Windows: stato e guida…"):
+    verifica(voce in voci_menu, f"Esegui → {voce}")
+
+# ---- chi esegue un programma vede la console, anche se partita chiusa
+verifica(app._console_visibile() è Falso, "la console parte chiusa")
+chiamate_console = []
+app.console.esegui = lambda argomenti, cartella_, descrizione="": chiamate_console.append((argomenti, cartella_, descrizione)) o Vero
+app.esegui_file(os.path.join(progetto.cartella, "principale.pit"))
+radice.update()
+verifica(app._console_visibile() è Vero e lunghezza_di(chiamate_console) == 1, "eseguire un file apre la console")
+
+# ---- la finestra della verifica
+saltati = []
+aperti = []
+dialogo = app.verifica_compatibilita()
+radice.update()
+verifica(isinstance(dialogo, DialogoCompatibilita), "il menu apre la finestra della verifica")
+dialogo._apri_a_riga = lambda percorso, riga: aperti.append((percorso, riga))
+verifica(dialogo.var_sistema.get() == "Linux", "da Windows il sistema di arrivo proposto è Linux")
+voci_albero = dialogo.albero.get_children()
+verifica(lunghezza_di(voci_albero) >= 2, "l'elenco mostra i problemi: " + tipo_testo(lunghezza_di(voci_albero)))
+verifica("2 cose non funzionano" in dialogo.sintesi.cget("text") o "cose non funzionano" in dialogo.sintesi.cget("text"), "la sintesi: " + dialogo.sintesi.cget("text"))
+dialogo.albero.selection_set(voci_albero[0])
+dialogo._mostra_dettaglio()
+verifica(dialogo.dettaglio.cget("text").count("\n") >= 1, "scegliendo una voce compare il suggerimento")
+dialogo.apri_selezionato()
+verifica(lunghezza_di(aperti) == 1 e aperti[0][0].replace("\\", "/").endswith("P/principale.pit") e aperti[0][1] == 2, "doppio clic: apre il file alla riga del problema: " + tipo_testo(aperti))
+dialogo.var_sistema.set("Windows")
+dialogo.controlla()
+verifica(lunghezza_di([p per p in dialogo.problemi se p["gravita"] == "errore"]) == 0, "per Windows gli stessi file non hanno errori")
+dialogo.var_note.set(Falso)
+dialogo._riempi()
+verifica(all(dialogo.albero.item(i, "tags")[0] != "nota" per i in dialogo.albero.get_children()), "senza «mostra anche le note» non compaiono")
+dialogo.destroy()
+
+# ---- Prova su Linux: guida se manca qualcosa
+finestre_linux = []
+originale_finestra_linux = app.finestra_linux
+app.finestra_linux = lambda: finestre_linux.append(1)
+scenario["distribuzioni"] = "Il sottosistema Windows per Linux non ha distribuzioni installate.\n"
+scenario["codice_elenco"] = -1
+app.prova_su_linux()
+scadenza = time.time() + 10
+mentre non finestre_linux e time.time() < scadenza:
+    radice.update()
+    time.sleep(0.02)
+verifica(finestre_linux, "senza Linux, «Prova su Linux» apre la guida")
+app.finestra_linux = originale_finestra_linux
+
+# ---- Prova su Linux: tutto pronto
+scenario["codice_elenco"] = 0
+scenario["distribuzioni"] = ELENCO
+chiamate_console.clear()
+app.prova_su_linux()
+scadenza = time.time() + 10
+mentre non chiamate_console e time.time() < scadenza:
+    radice.update()
+    time.sleep(0.02)
+verifica(lunghezza_di(chiamate_console) == 1, "con Linux pronto il programma parte")
+se chiamate_console:
+    argomenti, cartella_, descrizione = chiamate_console[0]
+    verifica(argomenti[:4] == ["wsl.exe", "-d", "Ubuntu", "--cd"] e argomenti[-2:] == ["-u", wsl.percorso_linux(os.path.join(progetto.cartella, "principale.pit"))] e "DISPLAY=:0" in argomenti,
+             "il comando passato alla console: " + tipo_testo(argomenti))
+    verifica("su Linux (Ubuntu)" in descrizione, "la console dice dove gira: " + descrizione)
+
+# ---- la finestra «Linux di Windows»
+scenario["distribuzioni"] = "Il sottosistema Windows per Linux non ha distribuzioni installate.\n"
+scenario["codice_elenco"] = -1
+provati = []
+linux = app.finestra_linux()
+linux._prova = lambda stato_: provati.append(stato_)
+scadenza = time.time() + 10
+mentre linux._lavoro e time.time() < scadenza:
+    radice.update()
+    time.sleep(0.02)
+verifica(isinstance(linux, DialogoLinux) e linux.stato e linux.stato["problema"] == "senza_distribuzioni", "la finestra legge lo stato")
+verifica(linux.prova_btn.cget("state") == "disabled" e lunghezza_di(linux.cornice_comandi.winfo_children()) == 1, "senza Linux: i comandi da copiare e «Prova ora» spento")
+verifica("non risulta nessuna distribuzione" in linux.situazione.cget("text").lower(), "dice cosa manca: " + linux.situazione.cget("text"))
+scenario["codice_elenco"] = 0
+scenario["distribuzioni"] = ELENCO
+linux.controlla()
+scadenza = time.time() + 10
+mentre linux._lavoro e time.time() < scadenza:
+    radice.update()
+    time.sleep(0.02)
+verifica(linux.stato["problema"] è Nessuno e linux.prova_btn.cget("state") == "normal" e lunghezza_di(linux.cornice_comandi.winfo_children()) == 0, "pronto: «Prova ora» acceso e niente comandi")
+verifica("Pronto" in linux.situazione.cget("text") e "WSLg" in linux.dettagli.cget("text"), "dice che è pronto e che c'è la grafica: " + linux.dettagli.cget("text"))
+linux._prova_ora()
+radice.update()
+verifica(lunghezza_di(provati) == 1 e provati[0]["distribuzione"] == "Ubuntu", "«Prova ora» lancia il programma")
+
+wsl._lancia, wsl.programma_wsl, wsl.WINDOWS = originali
+app.chiudi_tutte_le_schede()
+radice.destroy()
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)

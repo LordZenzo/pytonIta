@@ -1,0 +1,468 @@
+"""Verifica di compatibilità tra Windows e Linux: legge il codice del progetto (senza eseguirlo) e dice cosa non funzionerebbe sull'altro sistema.
+
+Si sceglie il sistema di arrivo («Windows» o «Linux»; macOS si comporta come Linux per quasi tutto) e per ogni file .pit e .py si cercano:
+  - moduli e funzioni che esistono solo su uno dei due sistemi (winreg, os.startfile, ctypes.windll, fcntl, os.fork...);
+  - comandi di shell di un solo sistema (cls, dir, taskkill... oppure ls, grep, sudo...) in os.system e subprocess;
+  - percorsi scritti a mano (C:\\..., /home/...) e con la barra rovesciata;
+  - opzioni delle finestre che esistono solo su un sistema (iconbitmap, "-toolwindow", "zoomed"...);
+  - i moduli di PitStudio che funzionano solo su Windows (suono.ripeti, ffmpeg.cattura_schermo...).
+Il codice dentro un controllo come «se sys.platform == "win32":» è considerato scritto apposta per quel sistema e non si segnala;
+un «importa» dentro «prova: ... eccetto ImportError» è solo una nota (il programma ha già un ripiego).
+"""
+importa ast
+importa os
+importa re
+importa shlex
+
+SISTEMI = ("Windows", "Linux")
+GRAVITA = ("errore", "attenzione", "nota")          # dalla più alla meno seria
+ETICHETTA_GRAVITA = {"errore": "Non funziona", "attenzione": "Può non funzionare", "nota": "Da sapere"}
+
+CARTELLE_SALTATE = {"__pycache__", "build", "dist", "venv", "env", "node_modules", "site-packages"}
+
+# ---- moduli
+MODULI_SOLO_WINDOWS = {
+    "winreg": "Il registro di Windows non esiste su Linux: per le impostazioni usa un file JSON (modulo json) nella cartella del programma.",
+    "_winreg": "Il registro di Windows non esiste su Linux: per le impostazioni usa un file JSON.",
+    "msvcrt": "Per leggere un tasto senza invio usa input(), oppure termios/tty su Linux, con un ripiego a msvcrt su Windows.",
+    "_winapi": "Interfaccia interna di Windows: su Linux non c'è.",
+    "winsound": "Per i suoni usa il modulo «suono» di pytonIta, che funziona anche su Linux.",
+    "wmi": "WMI è solo Windows: per le informazioni sul sistema usa os, platform o shutil.",
+    "win32api": "pywin32 è solo Windows.", "win32con": "pywin32 è solo Windows.", "win32gui": "pywin32 è solo Windows.",
+    "win32com": "pywin32 è solo Windows.", "win32file": "pywin32 è solo Windows.", "win32process": "pywin32 è solo Windows.",
+    "win32service": "pywin32 è solo Windows.", "win32clipboard": "Per gli appunti usa tkinter: clipboard_clear e clipboard_append.",
+    "pythoncom": "pywin32 è solo Windows.", "pywintypes": "pywin32 è solo Windows.", "comtypes": "COM è solo Windows.",
+}
+MODULI_SOLO_LINUX = {
+    "fcntl": "Su Windows non c'è: per bloccare un file usa un file «.lock» creato con os.open(..., os.O_EXCL).",
+    "termios": "Su Windows non c'è: per leggere un tasto senza invio usa msvcrt (solo Windows) con un ripiego.",
+    "tty": "Su Windows non c'è.", "pty": "Su Windows non c'è.",
+    "pwd": "Su Windows non c'è: per il nome utente usa getpass.getuser().",
+    "grp": "Su Windows non c'è.", "resource": "Su Windows non c'è: i limiti di memoria si gestiscono da PitStudio.",
+    "syslog": "Su Windows non c'è: usa il modulo logging.", "crypt": "Su Windows non c'è.", "spwd": "Su Windows non c'è.",
+    "posix": "Su Windows non c'è: usa il modulo os.", "curses": "Su Windows non c'è di serie: per un'interfaccia usa tkinter.",
+}
+
+# ---- funzioni e costanti: (modulo, nome) -> spiegazione
+ATTRIBUTI_SOLO_WINDOWS = {
+    ("os", "startfile"): "Per aprire un file con il suo programma su Linux serve xdg-open: usa PitStudio.piattaforma.apri oppure subprocess.run([\"xdg-open\", percorso]).",
+    ("ctypes", "windll"): "windll non esiste su Linux: metti l'uso dentro «se sys.platform == \"win32\":».",
+    ("ctypes", "WinDLL"): "WinDLL non esiste su Linux.", ("ctypes", "oledll"): "oledll non esiste su Linux.",
+    ("ctypes", "WinError"): "WinError non esiste su Linux.",
+    ("ctypes", "GetLastError"): "GetLastError non esiste su Linux.", ("ctypes", "FormatError"): "FormatError non esiste su Linux.",
+    ("subprocess", "STARTUPINFO"): "STARTUPINFO è solo Windows: usa getattr(subprocess, \"STARTUPINFO\", None).",
+    ("subprocess", "STARTF_USESHOWWINDOW"): "È solo Windows: usa getattr(subprocess, \"STARTF_USESHOWWINDOW\", 0).",
+    ("subprocess", "CREATE_NEW_CONSOLE"): "È solo Windows: usa getattr(subprocess, \"CREATE_NEW_CONSOLE\", 0).",
+    ("subprocess", "CREATE_NO_WINDOW"): "È solo Windows: usa getattr(subprocess, \"CREATE_NO_WINDOW\", 0).",
+    ("subprocess", "DETACHED_PROCESS"): "È solo Windows: usa getattr(subprocess, \"DETACHED_PROCESS\", 0).",
+    ("subprocess", "CREATE_NEW_PROCESS_GROUP"): "È solo Windows: usa getattr(subprocess, \"CREATE_NEW_PROCESS_GROUP\", 0).",
+    ("signal", "CTRL_C_EVENT"): "È solo Windows.", ("signal", "CTRL_BREAK_EVENT"): "È solo Windows.",
+    ("os", "O_BINARY"): "È solo Windows: usa getattr(os, \"O_BINARY\", 0).",
+    ("sys", "getwindowsversion"): "È solo Windows.",
+    ("asyncio", "WindowsSelectorEventLoopPolicy"): "È solo Windows.", ("asyncio", "ProactorEventLoop"): "È solo Windows.",
+    ("suono", "ripeti"): "suono.ripeti funziona solo su Windows: su Linux usa suono.suona.",
+    ("suono", "avviso"): "suono.avviso (il suono di sistema) funziona solo su Windows.",
+    ("ffmpeg", "cattura_schermo"): "ffmpeg.cattura_schermo funziona solo su Windows.",
+}
+ATTRIBUTI_SOLO_LINUX = {
+    ("os", "fork"): "Su Windows non c'è: per un secondo processo usa subprocess o multiprocessing.",
+    ("os", "getuid"): "Su Windows non c'è.", ("os", "geteuid"): "Su Windows non c'è: per sapere se sei amministratore usa ctypes.windll.shell32.IsUserAnAdmin().",
+    ("os", "getgid"): "Su Windows non c'è.", ("os", "getpgid"): "Su Windows non c'è.", ("os", "killpg"): "Su Windows non c'è: usa taskkill /T.",
+    ("os", "setsid"): "Su Windows non c'è.", ("os", "chown"): "Su Windows non c'è.", ("os", "uname"): "Su Windows non c'è: usa platform.uname().",
+    ("os", "getloadavg"): "Su Windows non c'è.", ("os", "nice"): "Su Windows non c'è.", ("os", "mkfifo"): "Su Windows non c'è.",
+    ("os", "sched_getaffinity"): "Su Windows non c'è: usa os.cpu_count().", ("os", "geteuid"): "Su Windows non c'è.",
+    ("signal", "SIGKILL"): "Su Windows non c'è: per fermare un processo usa p.terminate() o p.kill().", ("signal", "SIGALRM"): "Su Windows non c'è.",
+    ("signal", "SIGHUP"): "Su Windows non c'è.", ("signal", "SIGUSR1"): "Su Windows non c'è.", ("signal", "SIGUSR2"): "Su Windows non c'è.",
+    ("signal", "SIGSTOP"): "Su Windows non c'è.", ("signal", "SIGCONT"): "Su Windows non c'è.", ("signal", "alarm"): "Su Windows non c'è.",
+    ("time", "tzset"): "Su Windows non c'è.",
+}
+
+# ---- comandi di shell
+COMANDI_SOLO_WINDOWS = {
+    "cls": "su Linux si chiama «clear»", "dir": "su Linux si chiama «ls»", "type": "su Linux si chiama «cat»", "copy": "su Linux si chiama «cp»",
+    "del": "su Linux si chiama «rm»", "move": "su Linux si chiama «mv»", "ren": "su Linux si chiama «mv»", "md": "su Linux si chiama «mkdir»",
+    "rd": "su Linux si chiama «rmdir»", "pause": "non esiste su Linux: usa input()", "color": "non esiste su Linux", "ver": "su Linux si usa «uname -a»",
+    "tasklist": "su Linux si usa «ps»", "taskkill": "su Linux si usa «kill»", "ipconfig": "su Linux si usa «ip addr»", "notepad": "non esiste su Linux",
+    "explorer": "su Linux si usa «xdg-open»", "start": "su Linux si usa «xdg-open»", "cmd": "non esiste su Linux: usa «sh»",
+    "powershell": "non c'è di serie su Linux", "wmic": "non esiste su Linux", "systeminfo": "non esiste su Linux", "findstr": "su Linux si chiama «grep»",
+    "where": "su Linux si chiama «which»", "attrib": "non esiste su Linux", "xcopy": "su Linux si usa «cp -r»", "robocopy": "su Linux si usa «rsync»",
+    "chcp": "non esiste su Linux", "assoc": "non esiste su Linux", "reg": "non esiste su Linux", "sc": "non esiste su Linux",
+}
+COMANDI_SOLO_LINUX = {
+    "ls": "su Windows si chiama «dir»", "cat": "su Windows si chiama «type»", "grep": "su Windows si chiama «findstr»", "clear": "su Windows si chiama «cls»",
+    "rm": "su Windows si chiama «del»", "cp": "su Windows si chiama «copy»", "mv": "su Windows si chiama «move»", "chmod": "non esiste su Windows",
+    "chown": "non esiste su Windows", "sudo": "non esiste su Windows", "apt": "non esiste su Windows (usa winget)", "apt-get": "non esiste su Windows (usa winget)",
+    "dnf": "non esiste su Windows (usa winget)", "pacman": "non esiste su Windows (usa winget)", "which": "su Windows si chiama «where»",
+    "ps": "su Windows si usa «tasklist»", "kill": "su Windows si usa «taskkill»", "pkill": "su Windows si usa «taskkill»", "df": "non esiste su Windows",
+    "du": "non esiste su Windows", "touch": "non esiste su Windows", "ln": "non esiste su Windows", "xdg-open": "su Windows si usa «start»",
+    "uname": "non esiste su Windows (usa platform.uname())", "sed": "non esiste su Windows", "awk": "non esiste su Windows", "tar": "su Windows 10 e 11 c'è, ma con opzioni diverse",
+    "nano": "non esiste su Windows", "vi": "non esiste su Windows", "vim": "non esiste su Windows", "top": "non esiste su Windows",
+    "free": "non esiste su Windows", "ifconfig": "su Windows si usa «ipconfig»", "bash": "non c'è di serie su Windows", "sh": "non esiste su Windows",
+    "man": "non esiste su Windows", "open": "è un comando di macOS: su Windows si usa «start»",
+}
+FUNZIONI_COMANDO = {("os", "system"), ("os", "popen"), ("subprocess", "run"), ("subprocess", "call"), ("subprocess", "check_call"),
+                    ("subprocess", "check_output"), ("subprocess", "Popen"), ("subprocess", "getoutput"), ("subprocess", "getstatusoutput")}
+
+# ---- opzioni delle finestre
+OPZIONI_FINESTRA_SOLO_WINDOWS = {"-toolwindow": "È solo Windows: su Linux l'opzione è «-type».", "-transparentcolor": "È solo Windows: su Linux non c'è.",
+                                 "-disabled": "È solo Windows."}
+OPZIONI_FINESTRA_SOLO_LINUX = {"-zoomed": "È solo Linux: su Windows si usa state(\"zoomed\").", "-type": "È solo Linux (X11)."}
+CARATTERI_SOLO_WINDOWS = {"segoe ui", "consolas", "segoe ui symbol", "segoe fluent icons", "segoe ui semibold", "segoe ui emoji", "cascadia code", "cascadia mono"}
+
+_RE_PERCORSO_WINDOWS = re.compile(r"^[A-Za-z]:[\\/]")
+_RE_PERCORSO_RETE = re.compile(r"^\\\\[^\\]+\\")
+_RE_PERCORSO_LINUX = re.compile(r"^/(home|usr|etc|tmp|var|opt|mnt|dev|bin|sbin|proc|sys|root|media|run)(/|$)")
+_RE_BARRE_ROVESCIATE = re.compile(r"^[\w .-]+(\\[\w .-]+)+\.\w{1,5}$")
+
+
+definisci sistema_corrente():
+    """«Windows» o «Linux» (macOS conta come Linux), cioè il sistema su cui gira PitStudio."""
+    ritorna "Windows" se os.name == "nt" altrimenti "Linux"
+
+
+definisci _albero(sorgente, nome, linguaggio):
+    flag = ast.PyCF_ONLY_AST
+    se linguaggio == "pit":
+        prova:
+            importa _controlla
+            flag |= _controlla.FLAG_ITALIANO
+        eccetto (ImportError, AttributeError):
+            passa
+    ritorna compile(sorgente, nome, "exec", flag, dont_inherit=Vero)
+
+
+definisci _sistema_del_controllo(test):
+    """Cosa dice un «se»: ('win' o 'unix') = il ramo «allora» è scritto per quel sistema; None = non è un controllo del sistema."""
+    prova:
+        testo_ = ast.unparse(test).lower()
+    eccetto Exception:
+        ritorna Nessuno
+    se non any(p in testo_ per p in ("platform", "os.name", "windows", "linux", "darwin", "posix", "win32", "'nt'", '"nt"')):
+        ritorna Nessuno
+    negato = "!=" in testo_ o testo_.startswith("not ") o " not in " in testo_
+    se "win" in testo_ o "'nt'" in testo_ o '"nt"' in testo_:
+        ritorna "unix" se negato altrimenti "win"
+    se "linux" in testo_ o "darwin" in testo_ o "posix" in testo_:
+        ritorna "win" se negato altrimenti "unix"
+    ritorna Nessuno
+
+
+definisci _opposto(sistema_):
+    ritorna {"win": "unix", "unix": "win"}.get(sistema_)
+
+
+definisci _testo_costante(nodo):
+    se isinstance(nodo, ast.Constant) e isinstance(nodo.value, str):
+        ritorna nodo.value
+    se isinstance(nodo, ast.JoinedStr):
+        pezzi = []
+        per v in nodo.values:
+            se isinstance(v, ast.Constant) e isinstance(v.value, str):
+                pezzi.append(v.value)
+            altrimenti:
+                pezzi.append("")
+        ritorna "".join(pezzi)
+    ritorna Nessuno
+
+
+definisci _primo_comando(nodo):
+    """La prima parola del comando passato a os.system / subprocess (stringa o lista di stringhe), minuscola e senza percorso."""
+    testo_ = _testo_costante(nodo)
+    se testo_ è Nessuno e isinstance(nodo, (ast.List, ast.Tuple)) e nodo.elts:
+        testo_ = _testo_costante(nodo.elts[0])
+    se non testo_:
+        ritorna Nessuno
+    prova:
+        parole = shlex.split(testo_, posix=Falso)
+    eccetto ValueError:
+        parole = testo_.split()
+    se non parole:
+        ritorna Nessuno
+    parola = parole[0].strip("\"'").replace("\\", "/").split("/")[-1].lower()
+    se parola.endswith((".exe", ".bat", ".cmd")):
+        ritorna parola
+    ritorna parola
+
+
+classe _Visitatore:
+    definisci __inizializza__(se_stesso, sistema_, nome):
+        se_stesso.sistema = sistema_
+        se_stesso.nome = nome
+        se_stesso.problemi = []
+        se_stesso.alias = {}            # nome usato nel codice -> modulo vero (importa os come sistema)
+        se_stesso._ctx = Nessuno          # 'win' / 'unix' dentro un controllo del sistema
+        se_stesso._protetto = Falso       # dentro prova: ... eccetto ImportError
+
+    # ---- registrazione
+    definisci _segna(se_stesso, nodo, gravita, categoria, messaggio, suggerimento=""):
+        se se_stesso._protetto e categoria in ("modulo", "funzione"):
+            gravita = "nota"
+            messaggio += " (c'è un ripiego: è dentro «prova… eccetto», se qui non esiste il programma continua)"
+        se_stesso.problemi.append({"file": se_stesso.nome, "riga": getattr(nodo, "lineno", 1), "colonna": getattr(nodo, "col_offset", 0),
+                                   "gravita": gravita, "categoria": categoria, "messaggio": messaggio, "suggerimento": suggerimento})
+
+    @property
+    definisci _arrivo_e_linux(se_stesso):
+        ritorna se_stesso.sistema == "Linux"
+
+    definisci _ignora(se_stesso, scritto_per):
+        """True se il codice è scritto apposta per un sistema che non è quello di arrivo («win» = solo Windows, «unix» = solo Linux)."""
+        ritorna se_stesso._ctx è non Nessuno e se_stesso._ctx == scritto_per
+
+    # ---- visita
+    definisci visita(se_stesso, nodo):
+        metodo = getattr(se_stesso, "_v_" + nodo.__class__.__name__, Nessuno)
+        se metodo:
+            se metodo(nodo) è Falso:
+                ritorna
+        se_stesso._figli(nodo)
+
+    definisci _figli(se_stesso, nodo):
+        per _campo, valore in ast.iter_fields(nodo):
+            se isinstance(valore, list) e valore e isinstance(valore[0], ast.stmt):
+                se_stesso._blocco(valore)                # un blocco di istruzioni (corpo di una funzione, di un ciclo...): vale la regola del ritorno anticipato
+            altrimenti_se isinstance(valore, list):
+                per figlio in valore:
+                    se isinstance(figlio, ast.AST):
+                        se_stesso.visita(figlio)
+            altrimenti_se isinstance(valore, ast.AST):
+                se_stesso.visita(valore)
+
+    definisci _blocco(se_stesso, nodi, ctx=Nessuno, protetto=Nessuno):
+        vecchio = (se_stesso._ctx, se_stesso._protetto)
+        se ctx è non Nessuno:
+            se_stesso._ctx = ctx
+        se protetto è non Nessuno:
+            se_stesso._protetto = protetto
+        per n in nodi:
+            se_stesso.visita(n)
+            # «se sys.platform != "win32": ritorna»: da lì in poi il blocco vale solo per l'altro sistema
+            se isinstance(n, ast.If) e non n.orelse e n.body e isinstance(n.body[-1], (ast.Return, ast.Raise, ast.Continue, ast.Break)):
+                ramo = _sistema_del_controllo(n.test)
+                se ramo è non Nessuno:
+                    se_stesso._ctx = _opposto(ramo)
+        se_stesso._ctx, se_stesso._protetto = vecchio
+
+    definisci _v_If(se_stesso, nodo):
+        se_stesso.visita(nodo.test)
+        ramo = _sistema_del_controllo(nodo.test)
+        se_stesso._blocco(nodo.body, ramo)
+        se_stesso._blocco(nodo.orelse, _opposto(ramo))
+        ritorna Falso
+
+    definisci _v_IfExp(se_stesso, nodo):
+        se_stesso.visita(nodo.test)
+        ramo = _sistema_del_controllo(nodo.test)
+        se_stesso._blocco([nodo.body], ramo)
+        se_stesso._blocco([nodo.orelse], _opposto(ramo))
+        ritorna Falso
+
+    definisci _v_Try(se_stesso, nodo):
+        protegge = Falso
+        per gestore in nodo.handlers:
+            tipi = []
+            se gestore.type è Nessuno:
+                protegge = Vero
+            altrimenti_se isinstance(gestore.type, ast.Tuple):
+                tipi = [ast.unparse(t) per t in gestore.type.elts]
+            altrimenti:
+                tipi = [ast.unparse(gestore.type)]
+            se any(t in ("ImportError", "ModuleNotFoundError", "Exception", "AttributeError", "OSError", "NotImplementedError") per t in tipi):
+                protegge = Vero
+        se_stesso._blocco(nodo.body, protetto=protegge o se_stesso._protetto)
+        per gestore in nodo.handlers:
+            se_stesso._blocco(gestore.body)
+        se_stesso._blocco(nodo.orelse)
+        se_stesso._blocco(nodo.finalbody)
+        ritorna Falso
+
+    definisci _v_Expr(se_stesso, nodo):
+        se isinstance(nodo.value, ast.Constant) e isinstance(nodo.value.value, str):
+            ritorna Falso             # un docstring non è codice
+
+    definisci _controlla_modulo(se_stesso, nodo, nome_modulo):
+        radice = nome_modulo.split(".")[0]
+        se se_stesso._arrivo_e_linux e radice in MODULI_SOLO_WINDOWS e non se_stesso._ignora("win"):
+            se_stesso._segna(nodo, "errore", "modulo", f"Il modulo «{radice}» esiste solo su Windows.", MODULI_SOLO_WINDOWS[radice])
+        altrimenti_se non se_stesso._arrivo_e_linux e radice in MODULI_SOLO_LINUX e non se_stesso._ignora("unix"):
+            se_stesso._segna(nodo, "errore", "modulo", f"Il modulo «{radice}» esiste solo su Linux e macOS.", MODULI_SOLO_LINUX[radice])
+
+    definisci _v_Import(se_stesso, nodo):
+        per a in nodo.names:
+            se_stesso.alias[a.asname o a.name.split(".")[0]] = a.name.split(".")[0]
+            se_stesso._controlla_modulo(nodo, a.name)
+
+    definisci _v_ImportFrom(se_stesso, nodo):
+        se nodo.module e nodo.level == 0:
+            se_stesso._controlla_modulo(nodo, nodo.module)
+            per a in nodo.names:
+                se_stesso._controlla_nome_importato(nodo, nodo.module.split(".")[0], a.name)
+
+    definisci _controlla_nome_importato(se_stesso, nodo, modulo, nome_):
+        """«da os importa startfile»: stessa regola di os.startfile."""
+        se se_stesso._arrivo_e_linux:
+            spiegazione = ATTRIBUTI_SOLO_WINDOWS.get((modulo, nome_))
+            se spiegazione e non se_stesso._ignora("win"):
+                se_stesso._segna(nodo, "errore", "funzione", f"«{modulo}.{nome_}» esiste solo su Windows.", spiegazione)
+        altrimenti:
+            spiegazione = ATTRIBUTI_SOLO_LINUX.get((modulo, nome_))
+            se spiegazione e non se_stesso._ignora("unix"):
+                se_stesso._segna(nodo, "errore", "funzione", f"«{modulo}.{nome_}» esiste solo su Linux e macOS.", spiegazione)
+
+    definisci _v_Attribute(se_stesso, nodo):
+        se isinstance(nodo.value, ast.Name):
+            modulo = se_stesso.alias.get(nodo.value.id, nodo.value.id)
+            se_stesso._controlla_nome_importato(nodo, modulo, nodo.attr)
+
+    definisci _v_Call(se_stesso, nodo):
+        funzione = nodo.func
+        se isinstance(funzione, ast.Attribute):
+            se isinstance(funzione.value, ast.Name):
+                modulo = se_stesso.alias.get(funzione.value.id, funzione.value.id)
+                se (modulo, funzione.attr) in FUNZIONI_COMANDO e nodo.args:
+                    se_stesso._controlla_comando(nodo, _primo_comando(nodo.args[0]))
+            se funzione.attr in ("attributes", "wm_attributes") e nodo.args:
+                se_stesso._controlla_opzione_finestra(nodo, _testo_costante(nodo.args[0]))
+            se funzione.attr in ("state", "wm_state") e nodo.args e _testo_costante(nodo.args[0]) == "zoomed":
+                se se_stesso._arrivo_e_linux e non se_stesso._ignora("win"):
+                    se_stesso._segna(nodo, "errore", "finestra", "state(\"zoomed\") (finestra ingrandita) funziona solo su Windows.",
+                                     "Su Linux usa attributes(\"-zoomed\", True); metti i due casi dentro un controllo di sys.platform.")
+            se funzione.attr == "iconbitmap" e nodo.args e se_stesso._arrivo_e_linux e non se_stesso._ignora("win"):
+                se_stesso._segna(nodo, "attenzione", "finestra", "iconbitmap con un file .ico funziona solo su Windows.",
+                                 "Su Linux si usa iconphoto con un'immagine PNG (tk.PhotoImage).")
+            se funzione.attr == "open" e isinstance(funzione.value, ast.Name) e funzione.value.id == "io":
+                se_stesso._controlla_open(nodo)
+        altrimenti_se isinstance(funzione, ast.Name) e funzione.id == "open":
+            se_stesso._controlla_open(nodo)
+
+    definisci _controlla_open(se_stesso, nodo):
+        modalita = ""
+        se lunghezza_di(nodo.args) > 1:
+            modalita = _testo_costante(nodo.args[1]) o ""
+        per parola in nodo.keywords:
+            se parola.arg == "mode":
+                modalita = _testo_costante(parola.value) o ""
+            se parola.arg == "encoding":
+                ritorna
+        se "b" in modalita:
+            ritorna
+        se_stesso._segna(nodo, "nota", "codifica", "open() senza encoding=: Windows e Linux usano codifiche diverse (cp1252 contro UTF-8) per i file di testo.",
+                         "Scrivi encoding=\"utf-8\" e il file si legge uguale ovunque.")
+
+    definisci _controlla_comando(se_stesso, nodo, comando):
+        se non comando:
+            ritorna
+        se se_stesso._arrivo_e_linux e non se_stesso._ignora("win"):
+            se comando.endswith((".exe", ".bat", ".cmd")):
+                se_stesso._segna(nodo, "errore", "comando", f"Il comando «{comando}» è un programma di Windows.", "Su Linux i programmi non hanno l'estensione .exe.")
+            altrimenti_se comando in COMANDI_SOLO_WINDOWS:
+                se_stesso._segna(nodo, "errore", "comando", f"Il comando «{comando}» è di Windows.", COMANDI_SOLO_WINDOWS[comando].capitalize() + ".")
+        altrimenti_se non se_stesso._arrivo_e_linux e non se_stesso._ignora("unix"):
+            se comando in COMANDI_SOLO_LINUX:
+                se_stesso._segna(nodo, "errore", "comando", f"Il comando «{comando}» è di Linux.", COMANDI_SOLO_LINUX[comando].capitalize() + ".")
+
+    definisci _controlla_opzione_finestra(se_stesso, nodo, opzione):
+        se non opzione:
+            ritorna
+        se se_stesso._arrivo_e_linux e opzione in OPZIONI_FINESTRA_SOLO_WINDOWS e non se_stesso._ignora("win"):
+            se_stesso._segna(nodo, "errore", "finestra", f"L'opzione di finestra «{opzione}» funziona solo su Windows.", OPZIONI_FINESTRA_SOLO_WINDOWS[opzione])
+        altrimenti_se non se_stesso._arrivo_e_linux e opzione in OPZIONI_FINESTRA_SOLO_LINUX e non se_stesso._ignora("unix"):
+            se_stesso._segna(nodo, "errore", "finestra", f"L'opzione di finestra «{opzione}» funziona solo su Linux.", OPZIONI_FINESTRA_SOLO_LINUX[opzione])
+
+    definisci _v_Constant(se_stesso, nodo):
+        se non isinstance(nodo.value, str) o lunghezza_di(nodo.value) > 260:
+            ritorna
+        valore = nodo.value
+        se se_stesso._arrivo_e_linux e non se_stesso._ignora("win"):
+            se _RE_PERCORSO_WINDOWS.match(valore) o _RE_PERCORSO_RETE.match(valore):
+                se_stesso._segna(nodo, "errore", "percorso", f"Percorso di Windows scritto a mano: «{valore[:60]}».",
+                                 "Su Linux non ci sono le lettere dei dischi: usa un percorso relativo al programma (os.path.dirname(__file__)) o os.path.expanduser(\"~\").")
+            altrimenti_se _RE_BARRE_ROVESCIATE.match(valore):
+                se_stesso._segna(nodo, "attenzione", "percorso", f"Percorso con la barra rovesciata: «{valore[:60]}».",
+                                 "Usa la barra normale / (va bene anche su Windows) oppure os.path.join.")
+            altrimenti_se valore.lower() in CARATTERI_SOLO_WINDOWS:
+                se_stesso._segna(nodo, "nota", "carattere", f"Il carattere «{valore}» c'è solo su Windows.",
+                                 "Su Linux Tk ne sceglie un altro da solo; per essere sicuri usa quello di piattaforma.FONT_UI o FONT_MONO.")
+        altrimenti_se non se_stesso._arrivo_e_linux e non se_stesso._ignora("unix"):
+            se valore == "/dev/null":
+                se_stesso._segna(nodo, "errore", "percorso", "«/dev/null» non esiste su Windows.", "Usa os.devnull.")
+            altrimenti_se _RE_PERCORSO_LINUX.match(valore):
+                se_stesso._segna(nodo, "errore", "percorso", f"Percorso di Linux scritto a mano: «{valore[:60]}».",
+                                 "Su Windows queste cartelle non esistono: usa tempfile.gettempdir(), os.path.expanduser(\"~\") o un percorso relativo.")
+
+
+definisci analizza_sorgente(sorgente, sistema_, nome="<codice>", linguaggio=Nessuno):
+    """Elenco dei problemi di compatibilità di un testo di codice per il sistema di arrivo (SISTEMI).
+
+    Ritorna [{file, riga, colonna, gravita, categoria, messaggio, suggerimento}] ordinato per riga.
+    Se il codice ha un errore di sintassi ritorna un solo problema di categoria «sintassi»."""
+    se sistema_ non in SISTEMI:
+        solleva ErroreDiValore(f"sistema sconosciuto: {sistema_!r}")
+    se linguaggio è Nessuno:
+        linguaggio = "py" se nome.lower().endswith((".py", ".pyw")) altrimenti "pit"
+    prova:
+        albero = _albero(sorgente, nome, linguaggio)
+    eccetto (ErroreDiSintassi, ErroreDiValore) come errore:
+        riga = getattr(errore, "lineno", 1) o 1
+        ritorna [{"file": nome, "riga": riga, "colonna": 0, "gravita": "nota", "categoria": "sintassi",
+                  "messaggio": "Il file ha un errore di sintassi: non l'ho potuto controllare.", "suggerimento": "Correggi l'errore (Esegui → Controlla la sintassi) e riprova."}]
+    visitatore = _Visitatore(sistema_, nome)
+    visitatore.visita(albero)
+    visti = set()
+    risultato = []
+    per p in sorted(visitatore.problemi, key=lambda p: (p["riga"], p["colonna"])):
+        chiave = (p["riga"], p["categoria"], p["messaggio"])
+        se chiave in visti:
+            continua
+        visti.add(chiave)
+        risultato.append(p)
+    ritorna risultato
+
+
+definisci file_da_controllare(cartella):
+    """I file .pit e .py del progetto (senza le cartelle nascoste, le copie di lavoro e i pacchetti installati)."""
+    trovati = []
+    per radice, cartelle, nomi in os.walk(cartella):
+        cartelle[:] = [c per c in cartelle se non c.startswith(".") e c.lower() non in CARTELLE_SALTATE]
+        per n in sorted(nomi):
+            se n.lower().endswith((".pit", ".py", ".pyw")):
+                trovati.append(os.path.join(radice, n))
+    ritorna sorted(trovati)
+
+
+definisci analizza_progetto(cartella, sistema_, percorsi=Nessuno):
+    """Controlla tutti i file del progetto (o solo «percorsi»). Ritorna {sistema, problemi, file, illeggibili, per_gravita}.
+
+    Nei problemi «file» è il percorso relativo alla cartella del progetto."""
+    elenco = percorsi se percorsi è non Nessuno altrimenti file_da_controllare(cartella)
+    problemi = []
+    illeggibili = []
+    per percorso in elenco:
+        prova:
+            con open(percorso, "rb") come f:
+                dati = f.read()
+        eccetto OSError:
+            illeggibili.append(percorso)
+            continua
+        relativo = os.path.relpath(percorso, cartella).replace(os.sep, "/")
+        problemi += analizza_sorgente(dati, sistema_, relativo)
+    conteggio = {g: lunghezza_di([p per p in problemi se p["gravita"] == g]) per g in GRAVITA}
+    ritorna {"sistema": sistema_, "problemi": problemi, "file": lunghezza_di(elenco), "illeggibili": illeggibili, "per_gravita": conteggio}
+
+
+definisci riassunto(risultato):
+    """Una frase che dice com'è andata la verifica."""
+    c = risultato["per_gravita"]
+    sistema_ = risultato["sistema"]
+    n = risultato["file"]
+    file_ = "1 file" se n == 1 altrimenti f"{n} file"
+    se non risultato["problemi"]:
+        ritorna f"Controllati {file_}: tutto sembra compatibile con {sistema_}."
+    parti = []
+    se c["errore"]:
+        parti.append(f"{c['errore']} {'cosa non funziona' se c['errore'] == 1 altrimenti 'cose non funzionano'}")
+    se c["attenzione"]:
+        parti.append(f"{c['attenzione']} da controllare")
+    se c["nota"]:
+        parti.append(f"{c['nota']} da sapere")
+    ritorna f"Controllati {file_} per {sistema_}: " + ", ".join(parti) + "."
