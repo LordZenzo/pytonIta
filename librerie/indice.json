@@ -496,6 +496,19 @@
    ]
   },
   {
+   "nome": "fastapi_it",
+   "versione": "1.0",
+   "categoria": "Rete",
+   "descrizione": "FastAPI con i nomi italiani: API e siti piu' grandi, documentazione automatica (richiede fastapi e uvicorn).",
+   "originale": "fastapi_it",
+   "file": [
+    {
+     "percorso": "fastapi_it.py",
+     "sha256": "e8f509cdefc56c3fdef3e8b60a81db5d8b64c007736f8ba83d71919680abfdb2"
+    }
+   ]
+  },
+  {
    "nome": "ffmpeg",
    "versione": "1.0",
    "categoria": "Audio e video",
@@ -1311,14 +1324,14 @@
   },
   {
    "nome": "server_web",
-   "versione": "1.1",
+   "versione": "1.3",
    "categoria": "Rete",
-   "descrizione": "Un server web in poche righe: pagine, API in JSON, file statici, moduli HTML; si prova dal browser.",
+   "descrizione": "Server web in poche righe: rotte con tipi, modelli di dati, sessioni, accessi, CSRF, pagine con cicli, file inviati, OpenAPI, WSGI/ASGI, HTTPS.",
    "originale": "server_web",
    "file": [
     {
      "percorso": "server_web.py",
-     "sha256": "ebb1f0d7b562c25c77d63667589e1f304aff9ffd25682030ea060d9a767bd881"
+     "sha256": "ef0cd6cdd0b4cbf7750754d3237de67f2c1b4bc0575af19823e806a5a77bd107"
     }
    ]
   },

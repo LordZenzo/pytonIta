@@ -1,0 +1,169 @@
+"""fastapi_it: FastAPI con i nomi italiani. Se fastapi e uvicorn non ci sono si installano in una cartella temporanea (serve internet); se non si riesce il test si salta.
+Senza i pacchetti il modulo si importa lo stesso e spiega cosa installare."""
+importa sys, os, json, tempfile, subprocess, http.client, shutil
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+# ---- senza FastAPI: il modulo si importa e dà un messaggio chiaro (provato in un processo a parte, senza la cartella dei pacchetti)
+nudo = subprocess.run([sys.executable, "-c", "import sys\nsys.modules['fastapi'] = None\nimport fastapi_it\ntry:\n    fastapi_it.Applicazione()\nexcept fastapi_it.MancaFastAPI as e:\n    print('MANCA:', e)\n"],
+                      capture_output=Vero, text=Vero, encoding="utf-8", timeout=60)
+verifica("MANCA:" in nudo.stdout e "fastapi" in nudo.stdout e "uvicorn" in nudo.stdout, "senza FastAPI il messaggio dice cosa installare: " + nudo.stdout + nudo.stderr[-200:])
+
+# ---- con FastAPI
+cartella_pacchetti = Nessuno
+prova:
+    importa fastapi
+    importa uvicorn
+eccetto ImportError:
+    cartella_pacchetti = tempfile.mkdtemp()
+    r = subprocess.run([sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "-q", "--target", cartella_pacchetti, "fastapi", "uvicorn"],
+                       capture_output=Vero, text=Vero, encoding="utf-8", timeout=600)
+    se r.returncode != 0:
+        stampa("(FastAPI non installato e non riesco a scaricarlo: prova saltata)", r.stderr[-200:])
+        shutil.rmtree(cartella_pacchetti, ignore_errors=Vero)
+        sys.exit(0)
+    sys.path.insert(0, cartella_pacchetti)
+
+importa fastapi_it
+importa server_web
+da fastapi_it importa Applicazione, Modello, ErroreWeb, reindirizza, json_risposta
+
+
+classe Voce(Modello):
+    titolo: tipo_testo
+    quantita: tipo_intero = 1
+
+
+app = Applicazione("Prova", "1.2", "Un'API di prova", registro=Falso)
+ARCHIVIO = []
+
+
+@app.ottieni("/voci/{numero}")
+definisci leggi_voce(numero: tipo_intero, dettagli: bool = Falso):
+    ritorna {"numero": numero, "dettagli": dettagli}
+
+
+@app.invia("/voci", stato=201, riassunto="Crea una voce")
+definisci crea_voce(voce: Voce):
+    ARCHIVIO.append(voce.a_dizionario())
+    ritorna voce.a_dizionario()
+
+
+@app.ottieni("/articolo/<n:numero>")
+definisci articolo(n: tipo_intero):
+    ritorna {"articolo": n}
+
+
+@app.ottieni("/file/<percorso:resto>")
+definisci file_(percorso: tipo_testo):
+    ritorna {"percorso": percorso}
+
+
+@app.ottieni("/errore/{codice}")
+definisci errore_voluto(codice: tipo_intero):
+    solleva ErroreWeb(codice, "voluto")
+
+
+@app.ottieni("/vai")
+definisci vai():
+    ritorna reindirizza("/voci/1")
+
+
+@app.elimina_rotta("/voci/{numero}")
+definisci cancella_voce(numero: tipo_intero):
+    ritorna json_risposta({"eliminata": numero}, 202)
+
+
+api = app.gruppo("/api")
+
+
+@api.ottieni("/ciao")
+definisci ciao_api():
+    ritorna {"gruppo": Vero}
+
+
+@api.invia("/doppio", stato=200)
+definisci doppio_api(voce: Voce):
+    ritorna {"doppio": voce.quantita * 2}
+
+
+classica = server_web.Applicazione("classica", registro=Falso)
+classica.rotta("/saluta/<nome>")(lambda nome: {"da": "server_web", "nome": nome})
+app.monta("/classica", classica)
+
+server = app.avvia_in_sottofondo()
+
+
+definisci chiedi(metodo, percorso, dati=Nessuno):
+    cx = http.client.HTTPConnection("127.0.0.1", server.porta, timeout=15)
+    cx.request(metodo, percorso, body=json.dumps(dati) se dati è non Nessuno altrimenti Nessuno, headers={"Content-Type": "application/json"} se dati è non Nessuno altrimenti {})
+    r = cx.getresponse()
+    corpo = r.read()
+    cx.close()
+    ritorna r.status, (json.loads(corpo) se corpo.startswith((b"{", b"[")) altrimenti corpo.decode("utf-8", "replace")), dict(r.getheaders())
+
+
+prova:
+    verifica(server.indirizzo.startswith("http://127.0.0.1:") e server.porta > 0, "il server parte su una porta libera: " + server.indirizzo)
+    s, d, _h = chiedi("GET", "/voci/5?dettagli=true")
+    verifica(s == 200 e d == {"numero": 5, "dettagli": Vero}, f"parametri tipizzati: {s} {d}")
+    s, d, _h = chiedi("GET", "/voci/cinque")
+    verifica(s == 422 e "detail" in d, f"un tipo sbagliato dà 422 (come FastAPI): {s} {d}")
+    s, d, _h = chiedi("POST", "/voci", {"titolo": "pane", "quantita": 3})
+    verifica(s == 201 e d == {"titolo": "pane", "quantita": 3} e ARCHIVIO == [{"titolo": "pane", "quantita": 3}], f"modello valido e stato 201: {s} {d}")
+    s, d, _h = chiedi("POST", "/voci", {"quantita": 3})
+    verifica(s == 422 e "titolo" in json.dumps(d), f"campo mancante: 422: {s} {d}")
+    s, d, _h = chiedi("GET", "/articolo/9")
+    verifica(s == 200 e d == {"articolo": 9}, f"il percorso alla maniera di server_web <n:numero> funziona: {s} {d}")
+    s, d, _h = chiedi("GET", "/file/a/b/c.txt")
+    verifica(s == 200 e d == {"percorso": "a/b/c.txt"}, f"e <p:resto> prende anche le barre: {s} {d}")
+    s, d, _h = chiedi("GET", "/errore/418")
+    verifica(s == 418 e d == {"detail": "voluto"}, f"ErroreWeb: {s} {d}")
+    s, d, h = chiedi("GET", "/vai")
+    verifica(s == 307 o s == 302, f"reindirizza: {s}")
+    s, d, _h = chiedi("DELETE", "/voci/4")
+    verifica(s == 202 e d == {"eliminata": 4}, f"elimina_rotta e json_risposta: {s} {d}")
+    s, d, _h = chiedi("GET", "/api/ciao")
+    verifica(s == 200 e d == {"gruppo": Vero}, f"un gruppo di rotte: {s} {d}")
+    s, d, _h = chiedi("POST", "/api/doppio", {"titolo": "x", "quantita": 21})
+    verifica(s == 200 e d == {"doppio": 42}, f"modello in un gruppo: {s} {d}")
+    s, d, _h = chiedi("GET", "/classica/saluta/Ada")
+    verifica(s == 200 e d == {"da": "server_web", "nome": "Ada"}, f"un'applicazione server_web montata dentro FastAPI: {s} {d}")
+    s, d, _h = chiedi("GET", "/openapi.json")
+    verifica(s == 200 e d["info"] == {"title": "Prova", "version": "1.2", "description": "Un'API di prova"} e "/voci/{numero}" in d["paths"] e "/api/ciao" in d["paths"], "la documentazione OpenAPI automatica")
+    verifica(d["paths"]["/voci"]["post"]["summary"] == "Crea una voce", "l'opzione italiana «riassunto» arriva a FastAPI")
+    s, d, _h = chiedi("GET", "/docs")
+    verifica(s == 200 e "swagger" in d.lower(), "la pagina /docs")
+infine:
+    server.ferma()
+verifica(Voce(titolo="x").a_dizionario() == {"titolo": "x", "quantita": 1} e Voce.da_dati({"titolo": "y", "quantita": 2}).quantita == 2, "a_dizionario e da_dati")
+
+# ---- l'applicazione server_web si può dare a uvicorn (ASGI) senza FastAPI di mezzo
+importa uvicorn, threading, time
+configurazione = uvicorn.Config(classica.asgi, host="127.0.0.1", port=0, log_level="warning")
+secondo = uvicorn.Server(configurazione)
+filo = threading.Thread(target=secondo.run, daemon=Vero)
+filo.start()
+scadenza = time.time() + 15
+mentre non secondo.started e time.time() < scadenza:
+    time.sleep(0.02)
+porta = secondo.servers[0].sockets[0].getsockname()[1]
+cx = http.client.HTTPConnection("127.0.0.1", porta, timeout=15)
+cx.request("GET", "/saluta/Bruno")
+risposta = cx.getresponse()
+verifica(risposta.status == 200 e json.loads(risposta.read()) == {"da": "server_web", "nome": "Bruno"}, "uvicorn.run(app.asgi): un'applicazione server_web servita da uvicorn")
+cx.close()
+secondo.should_exit = Vero
+filo.join(10)
+
+se cartella_pacchetti:
+    shutil.rmtree(cartella_pacchetti, ignore_errors=Vero)
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)

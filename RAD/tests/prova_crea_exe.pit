@@ -8,6 +8,15 @@ da rad.config importa Configurazione
 da rad.tema importa colori
 da rad importa crea_exe
 
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
 base = tempfile.mkdtemp()
 origine = os.path.join(base, "Saluto")
 os.makedirs(os.path.join(origine, "immagini"))
@@ -52,15 +61,79 @@ stampa("pulsanti con suggerimento:", all(getattr(b, "_suggerimento", Nessuno) pe
 d.destroy()
 radice.destroy()
 
-# costruzione vera (lenta: scarica PyInstaller la prima volta)
+# quale interprete costruisce: quello di PitStudio (pitonit) se c'è, altrimenti il Python del computer
+proprio = crea_exe.interprete_proprio()
+verifica(proprio è non Nessuno e os.path.basename(proprio).lower().startswith("pitonit"), "l'interprete di PitStudio si trova: " + tipo_testo(proprio))
+modo, quale = crea_exe.scegli_costruttore("auto")
+verifica(modo == "proprio" e quale == proprio, "di solito si costruisce con l'interprete di PitStudio: " + tipo_testo((modo, quale)))
+verifica(crea_exe.scegli_costruttore("sistema")[0] in ("sistema", Nessuno), "scegliendo il Python del computer non si usa pitonit")
+verifica(crea_exe.pip_disponibile(proprio), "pitonit ha pip")
+verifica(crea_exe.cartella_librerie(origine).endswith(os.path.join(".rad", "build", "librerie")), "le librerie di costruzione stanno in .rad/build")
+
+# l'avvio che registra gli errori (senza costruire nulla): programma che si ferma con un errore, che esce con un codice, e un errore in un filo e in una finestra
+definisci prova_avvio(corpo):
+    cartella = tempfile.mkdtemp()
+    shutil.copy2(crea_exe.MODELLO_AVVIO, os.path.join(cartella, "_avvio_pit.py"))
+    open(os.path.join(cartella, "_avvio_pit.json"), "w", encoding="utf-8").write(json.dumps({"nome": "Mio Programma", "id": "Mio_Programma", "versione": "2.5", "modulo": "principale"}))
+    open(os.path.join(cartella, "principale.py"), "w", encoding="utf-8").write(corpo)
+    registro = os.path.join(cartella, "stato")
+    ambiente = dict(os.environ, LOCALAPPDATA=registro, XDG_STATE_HOME=registro, PITSTUDIO_SENZA_AVVISI="1")
+    r = subprocess.run([sys.executable, "-u", os.path.join(cartella, "_avvio_pit.py")], capture_output=Vero, text=Vero, encoding="utf-8", cwd=cartella, env=ambiente, timeout=60)
+    file_registro = os.path.join(registro, "Mio_Programma", "errori.log")
+    ritorna r, (open(file_registro, encoding="utf-8").read() se os.path.exists(file_registro) altrimenti Nessuno)
+
+
+r, log = prova_avvio("print('prima')\nraise ValueError('boom')\n")
+verifica(r.returncode == 1 e "prima" in r.stdout e "ValueError: boom" in r.stderr, f"l'errore si vede ancora e il codice è 1: {r.returncode} {r.stderr[-200:]}")
+verifica(log è non Nessuno e "ValueError: boom" in log e "Mio Programma 2.5" in log e "principale.py" in log, "l'errore resta nel registro con nome e versione: " + tipo_testo(log))
+r, log = prova_avvio("import sys\nsys.exit(3)\n")
+verifica(r.returncode == 3 e log è Nessuno, "sys.exit(3) esce con 3 e non scrive nel registro")
+r, log = prova_avvio("print('tutto bene')\n")
+verifica(r.returncode == 0 e "tutto bene" in r.stdout e log è Nessuno, "un programma senza errori non lascia tracce")
+r, log = prova_avvio("import threading\nt = threading.Thread(target=lambda: 1 / 0)\nt.start()\nt.join()\nprint('continua')\n")
+verifica(r.returncode == 0 e "continua" in r.stdout e log è non Nessuno e "ZeroDivisionError" in log e "filo" in log, "un errore dentro un filo è registrato e il programma continua: " + tipo_testo(log))
+r, log = prova_avvio("import tkinter\nr = tkinter.Tk()\nr.withdraw()\ndef guasto():\n    raise KeyError('nel pulsante')\nr.after(10, guasto)\nr.after(80, r.destroy)\nr.mainloop()\nprint('chiusa')\n")
+verifica(r.returncode == 0 e "chiusa" in r.stdout e log è non Nessuno e "KeyError" in log e "[finestra]" in log, "un errore dentro un pulsante di tkinter è registrato: " + tipo_testo(log) + r.stderr[-200:])
+verifica(prova_avvio("raise RuntimeError('x')\n")[1].count("===") == 2, "una voce del registro per errore")
+
+# il comando di PyInstaller parte dall'avvio e include il programma
+c3 = crea_exe.comando_pyinstaller("py.exe", "App", "_avvio_pit.py", "dist", "lavoro", "build", o2, [], Nessuno, ["principale"])
+verifica(c3[-1] == "_avvio_pit.py" e "--hidden-import" in c3 e c3[c3.index("--hidden-import") + 1] == "principale", "PyInstaller parte da _avvio_pit.py e include il programma")
+
+# costruzione vera (lenta: scarica PyInstaller la prima volta; si fa con RAD_PROVA_EXE=1, e la verifica completa di rilascio lo imposta)
 se os.environ.get("RAD_PROVA_EXE") == "1":
+    per interprete in ("auto", "sistema"):
+        se interprete == "sistema" e non crea_exe.trova_python():
+            stampa("(Python del computer non trovato: salto la costruzione con quello)")
+            continua
+        righe = []
+        esito = crea_exe.costruisci(origine, crea_exe.Opzioni("Saluto", un_file=Vero, senza_console=Falso, interprete=interprete), righe.append)
+        stampa(f"costruzione ({interprete}):", esito["ok"], esito["errore"], esito["exe"] e os.path.basename(esito["exe"]))
+        stampa("ultime righe:", righe[-2:])
+        verifica(esito["ok"], f"la costruzione con «{interprete}» riesce: {esito['errore']}")
+        verifica(interprete != "auto" o any("interprete di PitStudio" in riga per riga in righe), "con «auto» il registro dice che usa l'interprete di PitStudio")
+        se esito["ok"]:
+            u = subprocess.run([esito["exe"], "Anna"], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120)
+            stampa("l'eseguibile gira da solo:", repr(u.stdout.strip()), u.returncode)
+            verifica(u.returncode == 0 e "Ciao, Anna!" in u.stdout, f"l'eseguibile costruito con «{interprete}» gira: {u.stdout!r} {u.stderr[-200:]}")
+    # un programma costruito che va in errore: il codice di uscita non è 0 e l'errore è nel registro
+    errore_origine = os.path.join(base, "Guasto")
+    os.makedirs(errore_origine)
+    open(os.path.join(errore_origine, "progetto.rad.json"), "w", encoding="utf-8").write(json.dumps({"nome": "Guasto", "principale": "principale.pit"}))
+    open(os.path.join(errore_origine, "principale.pit"), "w", encoding="utf-8").write('stampa("parto")\nsolleva ErroreDiValore("guasto di prova")\n')
     righe = []
-    esito = crea_exe.costruisci(origine, crea_exe.Opzioni("Saluto", un_file=Vero, senza_console=Falso), righe.append)
-    stampa("costruzione:", esito["ok"], esito["errore"], esito["exe"] e os.path.basename(esito["exe"]))
-    stampa("ultime righe:", righe[-2:])
+    esito = crea_exe.costruisci(errore_origine, crea_exe.Opzioni("Guasto", un_file=Vero, senza_console=Falso), righe.append)
+    verifica(esito["ok"], f"la costruzione del programma «Guasto» riesce: {esito['errore']}")
+    verifica(any("errori.log" in riga per riga in righe), "il registro dice che gli errori saranno registrati")
     se esito["ok"]:
-        u = subprocess.run([esito["exe"], "Anna"], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120)
-        stampa("l'eseguibile gira da solo:", repr(u.stdout.strip()), u.returncode)
+        spazio = os.path.join(base, "stato")
+        u = subprocess.run([esito["exe"]], capture_output=Vero, text=Vero, encoding="utf-8", timeout=120,
+                           env=dict(os.environ, LOCALAPPDATA=spazio, XDG_STATE_HOME=spazio, PITSTUDIO_SENZA_AVVISI="1"))
+        percorso_log = os.path.join(spazio, "Guasto", "errori.log")
+        verifica(u.returncode == 1 e "parto" in u.stdout, f"il programma costruito con un errore esce con codice 1: {u.returncode} {u.stdout!r}")
+        verifica(os.path.exists(percorso_log) e "guasto di prova" in open(percorso_log, encoding="utf-8").read(), "e nel registro c'è l'errore: " + percorso_log)
 altrimenti:
     stampa("(costruzione vera saltata: imposta RAD_PROVA_EXE=1 per provarla)")
 shutil.rmtree(base, ignore_errors=Vero)
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)

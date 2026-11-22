@@ -126,7 +126,8 @@ CATALOGO = {
     "multimedia": ("Audio e video", "Conversioni, tagli e informazioni sui file audio e video con ffmpeg; scarica ffmpeg se manca."),
     "ffmpeg": ("Audio e video", "ffmpeg e ffprobe comandati a catena: filtri, codec, sonda dei file, avanzamento, ricette (richiede ffmpeg)."),
     "lettore": ("Audio e video", "Riproduce audio e video con VLC (mpv in arrivo), anche dentro una finestra tkinter (richiede VLC)."),
-    "server_web": ("Rete", "Un server web in poche righe: pagine, API in JSON, file statici, moduli HTML; si prova dal browser."),
+    "server_web": ("Rete", "Server web in poche righe: rotte con tipi, modelli di dati, sessioni, accessi, CSRF, pagine con cicli, file inviati, OpenAPI, WSGI/ASGI, HTTPS."),
+    "fastapi_it": ("Rete", "FastAPI con i nomi italiani: API e siti piu' grandi, documentazione automatica (richiede fastapi e uvicorn)."),
     "test_unitari": ("Test", "unittest: scrivere ed eseguire test automatici."),
     "test_documentazione": ("Test", "Test scritti negli esempi della documentazione."),
 }

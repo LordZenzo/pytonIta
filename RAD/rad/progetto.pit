@@ -46,10 +46,10 @@ se __nome__ == "__main__":
 '''
 
 
-PRINCIPALE_SITO_WEB = '''"""@@NOME@@ - un sito web fatto con pytonIta: pagine, un'API in JSON e file statici.
+PRINCIPALE_SITO_WEB = '''"""@@NOME@@ - un sito web fatto con pytonIta: pagine, un'API in JSON documentata e file statici.
 
 Premi F5: il server si accende e nella console compare l'indirizzo (http://127.0.0.1:8000/): cliccalo, oppure usa
-Esegui → Apri il sito nel browser. Per spegnere il server premi Maiusc+F5 (Ferma).
+Esegui → Apri il sito nel browser. La documentazione automatica dell'API è in /docs. Per spegnere il server premi Maiusc+F5 (Ferma).
 Cartelle:  pagine/  = pagine HTML con {{ segnaposti }}       statici/  = stili, immagini e script"""
 importa os
 importa sqlite3
@@ -58,7 +58,13 @@ importa server_web
 QUI = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(QUI, "note.db")
 app = server_web.Applicazione("@@NOME@@")
+app.configura(cartella_pagine=os.path.join(QUI, "pagine"))
 app.statici("/statici", os.path.join(QUI, "statici"))
+
+
+classe NuovaNota(server_web.Modello):
+    """Cio' che il browser invia per creare una nota: il JSON viene controllato prima di arrivare alla funzione."""
+    testo: tipo_testo
 
 
 definisci collegati():
@@ -71,28 +77,40 @@ definisci collegati():
 
 @app.rotta("/")
 definisci home():
-    ritorna server_web.carica_pagina(os.path.join(QUI, "pagine", "index.html"), titolo="@@NOME@@")
+    ritorna app.mostra("index.html", titolo="@@NOME@@")
 
 
-@app.rotta("/api/note", metodi=["GET", "POST"])
-definisci note(richiesta):
-    """GET: l'elenco delle note.  POST con {"testo": "..."}: ne aggiunge una."""
+api = app.gruppo("/api")
+
+
+@api.ottieni("/note")
+definisci elenco_note():
+    """L'elenco delle note, la più recente per prima."""
     db = collegati()
     prova:
-        se richiesta.metodo == "POST":
-            testo = tipo_testo((richiesta.json o {}).get("testo", "")).strip()
-            se non testo:
-                ritorna server_web.json_risposta({"errore": "scrivi qualcosa"}, 400)
-            cursore = db.execute("INSERT INTO note (testo) VALUES (?)", (testo,))
-            db.commit()
-            ritorna ({"id": cursore.lastrowid, "testo": testo}, 201)
         ritorna [dict(riga) per riga in db.execute("SELECT id, testo FROM note ORDER BY id DESC")]
     infine:
         db.close()
 
 
-@app.elimina_rotta("/api/note/<numero_nota:numero>")
+@api.invia("/note")
+definisci aggiungi_nota(nota: NuovaNota):
+    """Aggiunge una nota."""
+    testo = nota.testo.strip()
+    se non testo:
+        ritorna server_web.json_risposta({"errore": "scrivi qualcosa"}, 400)
+    db = collegati()
+    prova:
+        cursore = db.execute("INSERT INTO note (testo) VALUES (?)", (testo,))
+        db.commit()
+        ritorna ({"id": cursore.lastrowid, "testo": testo}, 201)
+    infine:
+        db.close()
+
+
+@api.elimina_rotta("/note/<numero_nota:numero>")
 definisci elimina_nota(numero_nota):
+    """Elimina una nota."""
     db = collegati()
     prova:
         db.execute("DELETE FROM note WHERE id = ?", (numero_nota,))
@@ -100,6 +118,9 @@ definisci elimina_nota(numero_nota):
     infine:
         db.close()
     ritorna {"eliminata": numero_nota}
+
+
+app.documentazione("/docs", "@@NOME@@")
 
 
 se __nome__ == "__main__":
@@ -180,7 +201,7 @@ definisci file_sito_web(nome):
         "statici/app.js": SCRIPT_SITO_WEB,
         "LEGGIMI.md": f"# {nome}\n\nUn sito web con pytonIta (modulo `server_web`).\n\n- **F5** accende il server: nella console compare l'indirizzo, cliccalo (oppure *Esegui → Apri il sito nel browser*).\n"
                       "- **Maiusc+F5** lo spegne.\n- `principale.pit`: le rotte (indirizzi) e l'API; `pagine/`: l'HTML; `statici/`: stili e script.\n"
-                      "- Il server ascolta solo su questo computer (127.0.0.1): non è visibile da Internet.\n",
+                      "- `/docs` mostra la documentazione automatica dell'API (e `/openapi.json` quella per Swagger o Postman).\n- Il server ascolta solo su questo computer (127.0.0.1): non è visibile da Internet.\n",
     }
 
 

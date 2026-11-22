@@ -1,0 +1,78 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\napp.configura(chiave_segreta=\"una chiave lunga e riservata per imparare\")\n\n\n@app.rotta(\"/v\")\ndefinisci v(richiesta):\n    richiesta.sessione[\"n\"] = richiesta.sessione.get(\"n\", 0) + 1\n    ritorna {\"n\": richiesta.sessione[\"n\"]}\n\n\ncliente = app.cliente()\nstampa(cliente.ottieni(\"/v\").dati[\"n\"] + cliente.ottieni(\"/v\").dati[\"n\"])",
+   "giusta": "3",
+   "sbagliate": [
+    {
+     "testo": "2",
+     "indizio": "Le due richieste sono dello stesso cliente: la sessione ricorda, quindi vengono 1 e poi 2."
+    },
+    "1",
+    "0"
+   ],
+   "spiegazione": "Il cliente ricorda il cookie di sessione: la prima richiesta dà 1, la seconda 2, e 1 + 2 fa 3.",
+   "sezione": "Sessioni"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\nstampa(server_web.verifica_password(\"a\", server_web.cifra_password(\"b\")))",
+   "giusta": "Falso",
+   "sbagliate": [
+    {
+     "testo": "Vero",
+     "indizio": "La password cifrata è quella di «b»: «a» non corrisponde."
+    },
+    "None",
+    "b"
+   ],
+   "spiegazione": "verifica_password confronta la password scritta con quella cifrata: qui sono diverse, quindi Falso.",
+   "sezione": "Password e accesso"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\napp.configura(chiave_segreta=\"una chiave lunga e riservata per imparare\", csrf=Vero)\n\n\n@app.invia(\"/salva\")\ndefinisci salva():\n    ritorna \"salvato\"\n\n\ncliente = app.cliente()\nstampa(cliente.invia(\"/salva\").stato)",
+   "giusta": "403",
+   "sbagliate": [
+    {
+     "testo": "200",
+     "indizio": "Con csrf=Vero un POST senza il codice viene rifiutato."
+    },
+    "401",
+    "405"
+   ],
+   "spiegazione": "Il modulo non porta il codice CSRF, quindi il server risponde 403 (vietato) senza far partire la rotta.",
+   "sezione": "Il codice CSRF"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\nstampa(server_web.pagina(\"{% se n > 1 %}tanti{% altrimenti %}pochi{% fine %}\", n=1))",
+   "giusta": "pochi",
+   "sbagliate": [
+    {
+     "testo": "tanti",
+     "indizio": "1 > 1 è falso: si passa a «altrimenti»."
+    },
+    "niente",
+    "n"
+   ],
+   "spiegazione": "La condizione 1 > 1 è falsa, quindi si mostra il ramo «altrimenti».",
+   "sezione": "Modelli di pagina"
+  },
+  {
+   "domanda": "Cosa serve in più di app.avvia() per un sito aperto al pubblico su Internet?",
+   "giusta": "Un server di produzione, HTTPS (spesso con un proxy) e una chiave segreta vera",
+   "sbagliate": [
+    {
+     "testo": "Niente: avvia() basta, basta usare 0.0.0.0",
+     "indizio": "0.0.0.0 apre il sito alla rete ma non lo rende sicuro per il pubblico."
+    },
+    "Solo togliere le password",
+    "Un secondo computer con lo stesso programma"
+   ],
+   "spiegazione": "avvia() è pensato per imparare e per strumenti locali. In pubblico servono un server di produzione (waitress, gunicorn, uvicorn), HTTPS, chiave segreta riservata, csrf e limiti di tentativi.",
+   "sezione": "Mettere il sito in produzione"
+  }
+ ]
+}

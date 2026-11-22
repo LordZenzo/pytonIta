@@ -1,7 +1,7 @@
 """Crea un eseguibile (.exe) del progetto: lo esporta come Python e lo impacchetta con PyInstaller in un ambiente separato.
 
-Serve un Python 3 normale installato (python.org): PitStudio lo usa soltanto per costruire; chi riceve l'.exe non ha bisogno di nulla.
-L'ambiente di costruzione (venv con PyInstaller e le librerie del progetto) sta in <progetto>/.rad/build e si riusa alle volte successive.
+Per costruire PitStudio usa il proprio interprete (pitonit): non serve installare Python. In alternativa si può scegliere un Python 3 normale (python.org).
+Chi riceve l'.exe non ha bisogno di nulla. L'ambiente di costruzione (PyInstaller e le librerie del progetto) sta in <progetto>/.rad/build e si riusa alle volte successive.
 
 Oltre all'.exe (Windows): le informazioni di versione (nome, versione, autore: si vedono in «Proprietà → Dettagli»), un programma di installazione
 Setup_<nome>.exe (fatto con lo stesso PyInstaller, vedi modelli_codice/setup_modello.py) e la firma facoltativa con signtool.
@@ -24,6 +24,7 @@ da rad.piattaforma importa FONT_MONO
 da rad importa piattaforma
 
 MODELLO_SETUP = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice", "setup_modello.py")
+MODELLO_AVVIO = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "modelli_codice", "avvio_programma.py")
 URL_MARCA_TEMPORALE = "http://timestamp.digicert.com"       # serve a far restare valida la firma anche dopo la scadenza del certificato
 
 NASCONDI_CONSOLE = 0x08000000 se os.name == "nt" altrimenti 0          # CREATE_NO_WINDOW
@@ -31,12 +32,13 @@ FILE_NON_DATI = ("requirements.txt", "installa_librerie.bat", "installa_librerie
 
 
 VOCI_DATI = ("nella cartella dell'utente (consigliato)", "accanto al programma (versione portatile)")
+VOCI_INTERPRETE = ("l'interprete di PitStudio (consigliato: non serve altro)", "il Python 3 installato sul computer")
 
 
 classe Opzioni:
     """Come costruire l'eseguibile."""
 
-    definisci __inizializza__(se_stesso, nome, un_file=Vero, senza_console=Vero, icona="", versione="1.0.0", autore="", descrizione="", crea_setup=Falso, firma=Nessuno, dati_accanto=Falso):
+    definisci __inizializza__(se_stesso, nome, un_file=Vero, senza_console=Vero, icona="", versione="1.0.0", autore="", descrizione="", crea_setup=Falso, firma=Nessuno, dati_accanto=Falso, interprete="auto", registro_errori=Vero):
         se_stesso.nome = nome
         se_stesso.un_file = un_file
         se_stesso.senza_console = senza_console
@@ -47,6 +49,8 @@ classe Opzioni:
         se_stesso.crea_setup = crea_setup
         se_stesso.firma = firma                  # Nessuno oppure {"pfx": file, "password": testo, "soggetto": nome del certificato, "marca": url}
         se_stesso.dati_accanto = dati_accanto    # database: Falso = nella cartella dei dati dell'utente (consigliato), Vero = accanto all'exe (versione portatile)
+        se_stesso.registro_errori = registro_errori      # Vero = l'exe registra gli errori in errori.log e avvisa (vedi modelli_codice/avvio_programma.py)
+        se_stesso.interprete = interprete        # «auto» (quello di PitStudio, altrimenti il Python del computer), «proprio» o «sistema»
 
 
 # ---------------------------------------------------------------- informazioni di versione (Windows)
@@ -173,6 +177,47 @@ definisci trova_python():
     ritorna Nessuno
 
 
+definisci interprete_proprio():
+    """Il percorso dell'interprete pitonit di PitStudio (con pip), con cui si può costruire un eseguibile senza Python sul computer; Nessuno se non si trova."""
+    base = os.path.basename(sys.executable).lower()
+    cartelle = []
+    se base.startswith("pitstudio"):
+        cartelle = [sys.prefix, sys.base_prefix]
+    altrimenti_se base.startswith("pitonit"):
+        cartelle = [os.path.dirname(os.path.abspath(sys.executable))]
+    per cartella in cartelle:
+        per nome in ("pitonit.exe", "pitonit"):                # la versione da console: PyInstaller ne legge l'uscita
+            candidato = os.path.join(cartella, nome)
+            se os.path.isfile(candidato):
+                ritorna candidato
+    ritorna Nessuno
+
+
+definisci pip_disponibile(interprete):
+    prova:
+        r = subprocess.run([interprete, "-m", "pip", "--version"], capture_output=Vero, timeout=60, creationflags=NASCONDI_CONSOLE)
+    eccetto (OSError, subprocess.SubprocessError):
+        ritorna Falso
+    ritorna r.returncode == 0
+
+
+definisci scegli_costruttore(scelta="auto"):
+    """Con quale interprete costruire: ("proprio", percorso) o ("sistema", comando) o (Nessuno, "")."""
+    proprio = interprete_proprio() se scelta in ("auto", "proprio") altrimenti Nessuno
+    se proprio e pip_disponibile(proprio):
+        ritorna ("proprio", proprio)
+    se scelta != "proprio":
+        python = trova_python()
+        se python:
+            ritorna ("sistema", python)
+    ritorna (Nessuno, "")
+
+
+definisci cartella_librerie(origine):
+    """Dove, nella modalità «proprio», si installano PyInstaller e le librerie del progetto (pip --target)."""
+    ritorna os.path.join(cartella_build(origine), "librerie")
+
+
 definisci cartella_build(origine):
     ritorna os.path.join(origine, ".rad", "build")
 
@@ -208,7 +253,7 @@ definisci usa_tkinter(sorgente):
     ritorna Falso
 
 
-definisci comando_pyinstaller(python, nome, principale, dist, lavoro, specifica, opzioni, dati, file_versione=Nessuno):
+definisci comando_pyinstaller(python, nome, principale, dist, lavoro, specifica, opzioni, dati, file_versione=Nessuno, moduli_nascosti=()):
     """La riga di comando di PyInstaller (funzione pura: si può provare senza costruire nulla)."""
     c = [python, "-m", "PyInstaller", "--noconfirm", "--clean", "--name", nome, "--distpath", dist, "--workpath", lavoro, "--specpath", specifica,
          "--onefile" se opzioni.un_file altrimenti "--onedir", "--windowed" se opzioni.senza_console altrimenti "--console"]
@@ -218,6 +263,8 @@ definisci comando_pyinstaller(python, nome, principale, dist, lavoro, specifica,
         c += ["--version-file", file_versione]
     per origine, destinazione in dati:
         c += ["--add-data", f"{origine}{os.pathsep}{destinazione}"]
+    per modulo in moduli_nascosti:
+        c += ["--hidden-import", modulo]
     c.append(principale)
     ritorna c
 
@@ -234,11 +281,11 @@ definisci _maschera(testo_, nascondi):
     ritorna testo_
 
 
-definisci _esegui(comando, scrivi, cwd, fermato, nascondi=()):
+definisci _esegui(comando, scrivi, cwd, fermato, nascondi=(), ambiente=Nessuno):
     """Lancia un comando mostrando l'uscita riga per riga (le parole in `nascondi`, come le password, diventano ***). Ritorna il codice di uscita."""
     scrivi(_maschera("$ " + " ".join(f'"{x}"' se " " in x altrimenti x per x in comando[:12]) + (" …" se lunghezza_di(comando) > 12 altrimenti ""), nascondi))
     processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=Vero, encoding="utf-8", errors="replace", cwd=cwd,
-                                creationflags=NASCONDI_CONSOLE)
+                                creationflags=NASCONDI_CONSOLE, env=ambiente)
     per riga in processo.stdout:
         scrivi(_maschera(riga.rstrip(), nascondi))
         se fermato e fermato():
@@ -313,7 +360,7 @@ definisci nome_sicuro(nome):
     ritorna "".join(c per c in nome se c.isalnum() o c in "_-") o "programma"
 
 
-definisci costruisci_setup(python, build, dist, exe, opzioni, scrivi, fermato=Nessuno):
+definisci costruisci_setup(python, build, dist, exe, opzioni, scrivi, fermato=Nessuno, ambiente=Nessuno):
     """Il programma di installazione Setup_<nome>.exe: un Setup (setup_modello.py) con dentro il programma. Ritorna il suo percorso."""
     lavoro = os.path.join(build, "setup")
     se os.path.exists(lavoro):
@@ -342,7 +389,7 @@ definisci costruisci_setup(python, build, dist, exe, opzioni, scrivi, fermato=Ne
     se os.name == "nt":
         c += ["--version-file", scrivi_file_versione(build, opzioni, nome_setup + ".exe", "Installazione di " + opzioni.nome)]
     c.append(os.path.join(lavoro, "setup_programma.py"))
-    se _esegui(c, scrivi, lavoro, fermato) != 0:
+    se _esegui(c, scrivi, lavoro, fermato, ambiente=ambiente) != 0:
         solleva RuntimeError("PyInstaller non è riuscito a costruire il programma di installazione: leggi il registro qui sopra.")
     percorso = os.path.join(dist, nome_setup + (".exe" se os.name == "nt" altrimenti ""))
     se non os.path.exists(percorso):
@@ -354,11 +401,12 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
     """Costruisce l'eseguibile. scrivi(testo) riceve l'avanzamento. Ritorna un dizionario: ok, exe, errore, cartella, setup, avvisi."""
     risultato = {"ok": Falso, "exe": "", "errore": "", "cartella": "", "setup": "", "avvisi": []}
     prova:
-        python = trova_python()
-        se non python:
-            risultato["errore"] = ("Non trovo Python sul computer. Installa Python 3 da https://www.python.org/downloads/ "
-                                   "(spunta «Add python.exe to PATH») e riprova.")
+        modo, python = scegli_costruttore(getattr(opzioni, "interprete", "auto"))
+        se modo è Nessuno:
+            risultato["errore"] = ("Non riesco a costruire: l'interprete di PitStudio non è raggiungibile e sul computer non c'è Python 3. "
+                                   "Reinstalla PitStudio, oppure installa Python 3 da https://www.python.org/downloads/ (spunta «Add python.exe to PATH»).")
             ritorna risultato
+        ambiente = Nessuno
         build = cartella_build(origine)
         sorgente = os.path.join(build, "sorgente")
         aggiorna_fonte_dati(origine, scrivi)
@@ -379,22 +427,40 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
         se non os.path.exists(principale):
             risultato["errore"] = f"Non trovo il file principale ({r['principale']})."
             ritorna risultato
-        venv = os.path.join(build, "venv")
-        py = python_del_venv(origine)
-        se non os.path.exists(py):
-            scrivi("2/4  Preparo l'ambiente di costruzione (solo la prima volta)…")
-            se _esegui(python + ["-m", "venv", venv], scrivi, build, fermato) != 0:
-                risultato["errore"] = "Non sono riuscito a creare l'ambiente di costruzione."
-                ritorna risultato
-        altrimenti:
-            scrivi("2/4  Uso l'ambiente di costruzione già pronto.")
+        ingresso, nascosti = principale, []
+        modulo_principale = os.path.splitext(r["principale"])[0]
+        se getattr(opzioni, "registro_errori", Vero) e r["principale"].endswith(".py") e r["principale"] == os.path.basename(r["principale"]) e modulo_principale.isidentifier():
+            # il programma parte da avvio_programma.py: registra gli errori in errori.log e, senza console, avvisa invece di chiudersi in silenzio
+            shutil.copy2(MODELLO_AVVIO, os.path.join(sorgente, "_avvio_pit.py"))
+            con open(os.path.join(sorgente, "_avvio_pit.json"), "w", encoding="utf-8") come f:
+                json.dump({"nome": opzioni.nome, "id": nome_sicuro(opzioni.nome), "versione": opzioni.versione, "modulo": modulo_principale}, f, ensure_ascii=Falso)
+            ingresso, nascosti = os.path.join(sorgente, "_avvio_pit.py"), [modulo_principale]
+            scrivi("     gli errori del programma saranno registrati in errori.log (e mostrati con un avviso, se il programma non ha la finestra nera).")
         pacchetti = ["pyinstaller"]
         requisiti = os.path.join(sorgente, "requirements.txt")
+        se modo == "proprio":
+            py = python
+            librerie = cartella_librerie(origine)
+            os.makedirs(librerie, exist_ok=Vero)
+            ambiente = dict(os.environ, PITONIT_PERCORSI=librerie)         # pitonit trova qui PyInstaller e le librerie del progetto
+            ambiente.pop("PYTHONPATH", Nessuno)
+            scrivi("2/4  Uso l'interprete di PitStudio: non serve installare Python.")
+            comando = [py, "-m", "pip", "install", "--disable-pip-version-check", "-q", "--target", librerie] + pacchetti
+        altrimenti:
+            venv = os.path.join(build, "venv")
+            py = python_del_venv(origine)
+            se non os.path.exists(py):
+                scrivi("2/4  Preparo l'ambiente di costruzione (solo la prima volta)…")
+                se _esegui(python + ["-m", "venv", venv], scrivi, build, fermato) != 0:
+                    risultato["errore"] = "Non sono riuscito a creare l'ambiente di costruzione."
+                    ritorna risultato
+            altrimenti:
+                scrivi("2/4  Uso l'ambiente di costruzione già pronto.")
+            comando = [py, "-m", "pip", "install", "--disable-pip-version-check", "-q"] + pacchetti
         scrivi("3/4  Installo PyInstaller e le librerie del progetto (serve internet la prima volta)…")
-        comando = [py, "-m", "pip", "install", "--disable-pip-version-check", "-q"] + pacchetti
         se os.path.exists(requisiti):
             comando += ["-r", requisiti]
-        se _esegui(comando, scrivi, build, fermato) != 0:
+        se _esegui(comando, scrivi, build, fermato, ambiente=ambiente) != 0:
             risultato["errore"] = "Installazione delle librerie non riuscita: controlla la connessione a internet e leggi il registro qui sopra."
             ritorna risultato
         scrivi("4/4  Costruisco l'eseguibile (può richiedere qualche minuto)…")
@@ -403,8 +469,8 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
         file_versione = Nessuno
         se os.name == "nt":
             file_versione = scrivi_file_versione(build, opzioni, opzioni.nome + ".exe", opzioni.descrizione)
-        comando = comando_pyinstaller(py, opzioni.nome, principale, dist, os.path.join(build, "lavoro"), build, opzioni, dati_da_aggiungere(sorgente), file_versione)
-        se _esegui(comando, scrivi, sorgente, fermato) != 0:
+        comando = comando_pyinstaller(py, opzioni.nome, ingresso, dist, os.path.join(build, "lavoro"), build, opzioni, dati_da_aggiungere(sorgente), file_versione, nascosti)
+        se _esegui(comando, scrivi, sorgente, fermato, ambiente=ambiente) != 0:
             risultato["errore"] = "PyInstaller non è riuscito a costruire l'eseguibile: leggi il registro qui sopra."
             ritorna risultato
         exe = os.path.join(dist, opzioni.nome + ".exe") se opzioni.un_file altrimenti os.path.join(dist, opzioni.nome, opzioni.nome + ".exe")
@@ -424,7 +490,7 @@ definisci costruisci(origine, opzioni, scrivi, fermato=Nessuno):
                 risultato["avvisi"].append("Il programma di installazione si crea solo su Windows.")
             altrimenti:
                 scrivi("Costruisco il programma di installazione (Setup)…")
-                risultato["setup"] = costruisci_setup(py, build, dist, exe, opzioni, scrivi, fermato)
+                risultato["setup"] = costruisci_setup(py, build, dist, exe, opzioni, scrivi, fermato, ambiente)
                 scrivi(f"Fatto: {risultato['setup']}  ({os.path.getsize(risultato['setup']) / 1048576:.1f} MB)")
                 se opzioni.firma:
                     scrivi("Firmo il programma di installazione…")
@@ -471,11 +537,12 @@ classe DialogoEseguibile(DialogoBase):
         se_stesso.var_descrizione = tk.StringVar(value=salvate.get("descrizione", ""))
         se_stesso.var_setup = tk.BooleanVar(value=bool(salvate.get("setup", Falso)))
         se_stesso.var_dati = tk.StringVar(value=VOCI_DATI[1] se salvate.get("dati_accanto") altrimenti VOCI_DATI[0])
+        se_stesso.var_interprete = tk.StringVar(value=VOCI_INTERPRETE[1] se salvate.get("interprete") == "sistema" altrimenti VOCI_INTERPRETE[0])
         se_stesso.var_firma = tk.BooleanVar(value=Falso)
         se_stesso.var_pfx = tk.StringVar(value=salvate.get("pfx", ""))
         se_stesso.var_password = tk.StringVar()
         se_stesso.grid_columnconfigure(1, weight=1)
-        se_stesso.grid_rowconfigure(14, weight=1)
+        se_stesso.grid_rowconfigure(15, weight=1)
         tk.Label(se_stesso, text="Il programma viene convertito in Python e impacchettato con PyInstaller: chi lo riceve non ha bisogno di Python.",
                  background=c["pannello"], foreground=c["tenue"], anchor="w", wraplength=720, justify="left").grid(row=0, column=0, columnspan=3, sticky="we", padx=14, pady=(12, 6))
         se_stesso.riga("Nome del programma:", se_stesso.campo(se_stesso.var_nome, 28), 1)
@@ -500,6 +567,9 @@ classe DialogoEseguibile(DialogoBase):
         se_stesso.riga("Database SQLite del programma:", lambda p: scelta_dati, 8)
         suggerisci(scelta_dati, "Dove il programma costruito tiene il suo database: nella cartella dell'utente (%APPDATA%) non si perde reinstallando; accanto al programma "
                                 "si porta con una chiavetta (serve una cartella dove si può scrivere). Il programma ha comunque il menu «Dati» per trovare, copiare e ripristinare i dati", c)
+        scelta_interprete = ttk.Combobox(se_stesso, textvariable=se_stesso.var_interprete, values=tipo_lista(VOCI_INTERPRETE), state="readonly", width=46)
+        se_stesso.riga("Costruisci con:", lambda p: scelta_interprete, 14)
+        suggerisci(scelta_interprete, "Con l'interprete di PitStudio non serve installare Python. Scegli il Python del computer solo se ti serve una versione precisa", c)
         se_stesso.casella_setup = tk.Checkbutton(se_stesso, text="Crea anche il programma di installazione (Setup_<nome>.exe): installa, crea i collegamenti e si disinstalla da «App» di Windows",
                                                  variable=se_stesso.var_setup, background=c["pannello"], foreground=c["primo_piano"], activebackground=c["pannello"],
                                                  selectcolor=c["casella"], anchor="w", justify="left", wraplength=720)
@@ -523,16 +593,16 @@ classe DialogoEseguibile(DialogoBase):
         suggerisci(se_stesso.casella_un_file, "Con la spunta: un unico file; senza: una cartella con l'.exe e i suoi file", c)
         suggerisci(se_stesso.casella_console, "Per i programmi che usano input()/print() lascia la finestra nera (togli la spunta)", c)
         corpo = tk.Frame(se_stesso, background=c["pannello"])
-        corpo.grid(row=14, column=0, columnspan=3, sticky="nsew", padx=14, pady=8)
+        corpo.grid(row=15, column=0, columnspan=3, sticky="nsew", padx=14, pady=8)
         se_stesso.registro = tk.Text(corpo, height=14, font=(FONT_MONO, 9), background=c["editor"], foreground=c["primo_piano"], relief="flat", state="disabled", wrap="none")
         barra = ttk.Scrollbar(corpo, orient="vertical", command=se_stesso.registro.yview)
         se_stesso.registro.configure(yscrollcommand=barra.set)
         barra.pack(side="right", fill="y")
         se_stesso.registro.pack(side="left", fill="both", expand=Vero)
         se_stesso.progresso = ttk.Progressbar(se_stesso, mode="indeterminate")
-        se_stesso.progresso.grid(row=15, column=0, columnspan=3, sticky="we", padx=14)
+        se_stesso.progresso.grid(row=16, column=0, columnspan=3, sticky="we", padx=14)
         fondo = tk.Frame(se_stesso, background=c["pannello"])
-        fondo.grid(row=16, column=0, columnspan=3, sticky="e", padx=14, pady=10)
+        fondo.grid(row=17, column=0, columnspan=3, sticky="e", padx=14, pady=10)
         se_stesso.pulsante_chiudi = tk.Button(fondo, text="Chiudi", command=se_stesso._chiudi, background=c["pulsante"], foreground=c["primo_piano"], relief="flat", padx=12)
         se_stesso.pulsante_chiudi.pack(side="right", padx=4)
         se_stesso.pulsante_cartella = tk.Button(fondo, text="Apri la cartella", command=se_stesso._apri_cartella, background=c["pulsante"], foreground=c["primo_piano"],
@@ -547,8 +617,8 @@ classe DialogoEseguibile(DialogoBase):
         suggerisci(se_stesso.pulsante_ferma, "Interrompe la costruzione", c)
         se_stesso.protocol("WM_DELETE_WINDOW", se_stesso._chiudi)
         se_stesso._scrivi("Pronto. La prima volta serve internet e qualche minuto (si scarica PyInstaller); le volte dopo è molto più veloce.")
-        se non trova_python():
-            se_stesso._scrivi("ATTENZIONE: non trovo Python 3 sul computer. Installalo da https://www.python.org/downloads/ (con «Add python.exe to PATH»).")
+        se non interprete_proprio() e non trova_python():
+            se_stesso._scrivi("ATTENZIONE: non trovo né l'interprete di PitStudio né Python 3 sul computer. Reinstalla PitStudio o installa Python da https://www.python.org/downloads/ (con «Add python.exe to PATH»).")
 
     definisci _nota_firma(se_stesso):
         se trova_signtool():
@@ -580,7 +650,8 @@ classe DialogoEseguibile(DialogoBase):
             firma = {"pfx": se_stesso.var_pfx.get().strip(), "password": se_stesso.var_password.get(), "marca": URL_MARCA_TEMPORALE}
         ritorna Opzioni(nome, se_stesso.var_un_file.get(), se_stesso.var_senza_console.get(), se_stesso.var_icona.get().strip(),
                         se_stesso.var_versione.get().strip() o "1.0.0", se_stesso.var_autore.get().strip(), se_stesso.var_descrizione.get().strip(),
-                        se_stesso.var_setup.get(), firma, se_stesso.var_dati.get() == VOCI_DATI[1])
+                        se_stesso.var_setup.get(), firma, se_stesso.var_dati.get() == VOCI_DATI[1],
+                        "sistema" se se_stesso.var_interprete.get() == VOCI_INTERPRETE[1] altrimenti "auto")
 
     definisci _avvia(se_stesso):
         se se_stesso.thread è non Nessuno e se_stesso.thread.is_alive():
@@ -588,7 +659,8 @@ classe DialogoEseguibile(DialogoBase):
         opzioni = se_stesso.opzioni()
         # si ricordano le scelte (non la password) nel manifesto del progetto
         salva_impostazioni(se_stesso.origine, {"versione": opzioni.versione, "autore": opzioni.autore, "descrizione": opzioni.descrizione,
-                                               "setup": opzioni.crea_setup, "pfx": se_stesso.var_pfx.get().strip(), "dati_accanto": opzioni.dati_accanto})
+                                               "setup": opzioni.crea_setup, "pfx": se_stesso.var_pfx.get().strip(), "dati_accanto": opzioni.dati_accanto,
+                                               "interprete": opzioni.interprete})
         se_stesso.ferma_richiesto = Falso
         se_stesso.esito = Nessuno
         se_stesso.registro.configure(state="normal")

@@ -36,6 +36,7 @@ differenze
 enumerazioni
 esecutori
 espressioni_regolari
+fastapi_it
 ffmpeg
 file_temporanei
 flussi

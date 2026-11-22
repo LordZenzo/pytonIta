@@ -8,6 +8,7 @@ Passi:
   3. verifica dei moduli italiani (verifica_moduli.pit);
   4. tutti i test di PitStudio (tests/prova_*.pit): codice di uscita 0 e nessuna riga ERRORE:/PROVE FALLITE/Traceback.
 Con --rapida si saltano i test di PitStudio (passo 4).
+Il test prova_crea_exe costruisce davvero degli eseguibili (serve internet e qualche minuto): con --senza-exe lo si salta.
 Codice di uscita: 0 se tutto passa.
 """
 import glob
@@ -246,8 +247,11 @@ if not RAPIDA:
     for numero, t in enumerate(test, 1):
         av.inizia("t:" + os.path.basename(t), f"test {numero}/{len(test)}: {os.path.basename(t)}")
         try:
+            # la costruzione vera di un eseguibile (scarica PyInstaller, impacchetta, avvia il programma costruito) fa parte della verifica di rilascio
+            costruzione = os.path.basename(t) == "prova_crea_exe.pit" and "--senza-exe" not in sys.argv
             r = subprocess.run([PIT, "-u", t], capture_output=True, text=True, encoding="utf-8",
-                               errors="replace", cwd=RAD, timeout=170)
+                               errors="replace", cwd=RAD, timeout=900 if costruzione else 170,
+                               env=dict(os.environ, RAD_PROVA_EXE="1") if costruzione else None)
             uscita = r.stdout + r.stderr
             codice = r.returncode
         except subprocess.TimeoutExpired:

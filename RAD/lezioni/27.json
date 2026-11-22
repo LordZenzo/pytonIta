@@ -1,0 +1,78 @@
+{
+ "domande": [
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.rotta(\"/p/<n>\")\ndefinisci p(n: tipo_intero):\n    ritorna {\"n\": n}\n\n\nstampa(app.simula(\"/p/abc\").stato)",
+   "giusta": "422",
+   "sbagliate": [
+    {
+     "testo": "404",
+     "indizio": "L'indirizzo esiste: è il valore «abc» che non è un intero."
+    },
+    "400",
+    "200"
+   ],
+   "spiegazione": "La rotta corrisponde, ma «abc» non si può convertire in intero: il server risponde 422 (dati non validi) senza far partire la funzione.",
+   "sezione": "Parametri con tipo"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\napp = server_web.Applicazione(registro=Falso)\n\n\n@app.rotta(\"/x\")\ndefinisci x(n: tipo_intero):\n    ritorna {\"doppio\": n * 2}\n\n\nstampa(app.simula(\"/x?n=5\").dati)",
+   "giusta": "{'doppio': 10}",
+   "sbagliate": [
+    {
+     "testo": "{'doppio': '55'}",
+     "indizio": "Con il tipo tipo_intero il valore arriva come numero, non come testo."
+    },
+    "{'doppio': 5}",
+    "{'n': 5}"
+   ],
+   "spiegazione": "n arriva già convertito in intero (5), quindi n * 2 vale 10.",
+   "sezione": "Parametri con tipo"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\n\nclasse Prodotto(server_web.Modello):\n    nome: tipo_testo\n    prezzo: tipo_decimale\n    disponibile: bool = Vero\n\n\nstampa(Prodotto(nome=\"Penna\", prezzo=2).prezzo)",
+   "giusta": "2.0",
+   "sbagliate": [
+    {
+     "testo": "2",
+     "indizio": "Il campo è decimale: il 2 intero viene portato a 2.0."
+    },
+    "'2'",
+    "Vero"
+   ],
+   "spiegazione": "Un intero è accettato dove serve un decimale, e viene convertito in 2.0.",
+   "sezione": "Modelli di dati"
+  },
+  {
+   "tipo": "stampa",
+   "codice": "importa server_web\n\n\nclasse Prodotto(server_web.Modello):\n    nome: tipo_testo\n    prezzo: tipo_decimale\n    disponibile: bool = Vero\n\n\nstampa(Prodotto(nome=\"Penna\", prezzo=1.5).disponibile)",
+   "giusta": "Vero",
+   "sbagliate": [
+    {
+     "testo": "Falso",
+     "indizio": "Il valore predefinito scritto nel modello è Vero."
+    },
+    "None",
+    "(errore)"
+   ],
+   "spiegazione": "disponibile ha il valore predefinito Vero: se il campo non c'è, resta quello.",
+   "sezione": "Modelli di dati"
+  },
+  {
+   "domanda": "A cosa serve /openapi.json, creato da app.documentazione()?",
+   "giusta": "Descrive l'API (indirizzi, parametri, modelli) in un formato leggibile da altri programmi",
+   "sbagliate": [
+    {
+     "testo": "Salva i dati ricevuti dall'API",
+     "indizio": "Non salva niente: descrive soltanto."
+    },
+    "Contiene la chiave segreta del sito",
+    "Accende il server in HTTPS"
+   ],
+   "spiegazione": "OpenAPI è lo standard per descrivere le API: Swagger, Postman e i generatori di client lo leggono per conoscere indirizzi, parametri e modelli.",
+   "sezione": "Gruppi di rotte e documentazione"
+  }
+ ]
+}

@@ -162,7 +162,7 @@ classe DialogoQuiz(DialogoBase):
 
 
 classe FinestraLezioni(tk.Toplevel):
-    """Il percorso di 26 lezioni: si sceglie una lezione, si legge, si fa il quiz e gli esercizi; con l'AI si può anche chiedere al professore."""
+    """Il percorso di 28 lezioni: si sceglie una lezione, si legge, si fa il quiz e gli esercizi; con l'AI si può anche chiedere al professore."""
 
     definisci __inizializza__(se_stesso, app):
         tk.Toplevel.__init__(se_stesso, app.radice)
@@ -176,7 +176,7 @@ classe FinestraLezioni(tk.Toplevel):
         se_stesso.configure(background=c["pannello"])
         se_stesso.grid_columnconfigure(1, weight=1)
         se_stesso.grid_rowconfigure(0, weight=1)
-        se_stesso.elenco = ttk.Treeview(se_stesso, columns=("stato",), show="tree", selectmode="browse", height=26)
+        se_stesso.elenco = ttk.Treeview(se_stesso, columns=("stato",), show="tree", selectmode="browse", height=28)
         se_stesso.elenco.column("#0", width=270)
         se_stesso.elenco.column("stato", width=60, anchor="e")
         se_stesso.elenco.grid(row=0, column=0, sticky="nsw", padx=(12, 6), pady=12)

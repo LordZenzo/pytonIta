@@ -1,0 +1,512 @@
+"""server_web come un framework: parametri con tipo e modelli (422), gruppi, sessioni firmate, CSRF, accesso e password, modelli di pagina (cicli, se, estende),
+file inviati, documentazione OpenAPI, WSGI, ASGI, HTTPS, filtri e funzioni asincrone."""
+importa sys, os, io, json, tempfile, ssl, asyncio, time
+importa http.client
+da wsgiref.validate importa validator
+importa server_web
+da server_web importa Applicazione, Modello, Gruppo, Risposta, ErroreWeb, reindirizza, json_risposta, pagina, ErroreValidazione
+
+errori = []
+
+
+definisci verifica(c, m):
+    se non c:
+        errori.append(m)
+        stampa("ERRORE:", m)
+
+
+definisci campi(risposta):
+    """Per un 422: l'insieme di (campo, dove)."""
+    ritorna {(voce["campo"], voce["dove"]) per voce in risposta.dati["errori"]}
+
+
+# ======================================================== parametri con tipo
+app = Applicazione("prova", registro=Falso)
+
+
+@app.rotta("/oggetto/<n>")
+definisci oggetto(n: tipo_intero, q: tipo_testo = "", limite: tipo_intero = 10, attivo: bool = Falso):
+    ritorna {"n": n, "q": q, "limite": limite, "attivo": attivo}
+
+
+@app.rotta("/etichette")
+definisci etichette(tag: list[tipo_intero], richiesta):
+    ritorna {"tag": tag}
+
+
+@app.rotta("/obbligatorio")
+definisci obbligatorio(codice: tipo_testo):
+    ritorna {"codice": codice}
+
+
+@app.rotta("/voci/{identificativo}")
+definisci stile_fastapi(identificativo: tipo_intero):
+    ritorna {"id": identificativo}
+
+
+@app.rotta("/senza_tipo")
+definisci senza_tipo(q="niente"):
+    ritorna {"q": q}
+
+
+r = app.simula("/oggetto/7?q=ciao&limite=3&attivo=si")
+verifica(r.stato == 200 e r.dati == {"n": 7, "q": "ciao", "limite": 3, "attivo": Vero}, "parametri dell'indirizzo e della query convertiti: " + r.testo)
+verifica(app.simula("/oggetto/7").dati == {"n": 7, "q": "", "limite": 10, "attivo": Falso}, "i valori predefiniti")
+r = app.simula("/oggetto/sette")
+verifica(r.stato == 422 e ("n", "indirizzo") in campi(r), "un numero sbagliato nell'indirizzo dà 422: " + r.testo)
+r = app.simula("/oggetto/1?limite=tanti&attivo=forse")
+verifica(r.stato == 422 e campi(r) == {("limite", "query"), ("attivo", "query")}, "due errori nella query insieme: " + r.testo)
+verifica(app.simula("/etichette?tag=1&tag=2&tag=3").dati == {"tag": [1, 2, 3]}, "una lista dalla query")
+verifica(app.simula("/etichette").stato == 422 e app.simula("/etichette?tag=x").stato == 422, "lista mancante o sbagliata: 422")
+r = app.simula("/obbligatorio")
+verifica(r.stato == 422 e campi(r) == {("codice", "query")} e "obbligatorio" in r.dati["errori"][0]["messaggio"], "parametro obbligatorio mancante: " + r.testo)
+verifica(app.simula("/voci/12").dati == {"id": 12}, "indirizzo alla maniera di FastAPI: /voci/{id}")
+verifica(app.simula("/voci/dodici").stato == 422, "e con tipo sbagliato: 422")
+verifica(app.simula("/senza_tipo?q=x").dati == {"q": "x"} e app.simula("/senza_tipo").dati == {"q": "niente"}, "senza annotazioni i parametri arrivano come testi")
+
+# ======================================================== modelli
+classe Indirizzo(Modello):
+    citta: tipo_testo
+    cap: tipo_testo = ""
+
+
+classe Persona(Modello):
+    nome: tipo_testo
+    eta: tipo_intero
+    altezza: tipo_decimale = 1.7
+    attivo: bool = Vero
+    tag: list = []
+    indirizzo: Indirizzo | Nessuno = Nessuno
+    amici: list[Indirizzo] = []
+
+
+@app.invia("/persone")
+definisci nuova_persona(persona: Persona):
+    """Crea una persona.
+
+    Riceve il JSON, gia' controllato."""
+    ritorna ({"nome": persona.nome, "eta": persona.eta, "altezza": persona.altezza, "citta": persona.indirizzo.citta se persona.indirizzo altrimenti Nessuno,
+              "amici": lunghezza_di(persona.amici), "tipo": tipo_testo(type(persona).__name__)}, 201)
+
+
+@app.invia("/grezzo")
+definisci grezzo(corpo):
+    ritorna {"ricevuto": corpo}
+
+
+@app.rotta("/modello")
+definisci restituisce_modello():
+    ritorna Persona(nome="Ada", eta=36)
+
+
+r = app.simula("/persone", "POST", json={"nome": "Ada", "eta": 36})
+verifica(r.stato == 201 e r.dati == {"nome": "Ada", "eta": 36, "altezza": 1.7, "citta": Nessuno, "amici": 0, "tipo": "Persona"}, "un modello valido arriva alla funzione: " + r.testo)
+r = app.simula("/persone", "POST", json={"nome": "Ada", "eta": 36, "indirizzo": {"citta": "Roma"}, "amici": [{"citta": "Pisa"}, {"citta": "Siena", "cap": "53100"}], "altezza": 2})
+verifica(r.stato == 201 e r.dati["citta"] == "Roma" e r.dati["amici"] == 2 e r.dati["altezza"] == 2.0, "modelli dentro modelli e liste di modelli: " + r.testo)
+r = app.simula("/persone", "POST", json={"nome": 5, "eta": "trenta", "indirizzo": {"cap": "1"}, "amici": [{}]})
+verifica(r.stato == 422 e campi(r) == {("nome", "corpo"), ("eta", "corpo"), ("indirizzo.citta", "corpo"), ("amici[0].citta", "corpo")}, "errori in tutti i campi, anche annidati: " + r.testo)
+r = app.simula("/persone", "POST", json={"nome": "Ada"})
+verifica(r.stato == 422 e ("eta", "corpo") in campi(r) e "obbligatorio" in r.testo, "campo mancante: 422")
+verifica(app.simula("/persone", "POST", json={"nome": "A", "eta": Vero}).stato == 422, "un booleano non è un intero")
+verifica(app.simula("/persone", "POST").stato == 422 e app.simula("/persone", "POST", json=[1, 2]).stato == 422, "senza corpo o con la forma sbagliata: 422")
+r = app.simula("/persone", "POST", intestazioni={"Content-Type": "application/json"})
+verifica(r.stato == 422, "corpo vuoto")
+verifica(app.simula("/grezzo", "POST", json={"a": 1}).dati == {"ricevuto": {"a": 1}}, "il parametro «corpo» riceve il JSON così com'è")
+verifica(app.simula("/modello").dati["nome"] == "Ada", "una rotta può ritornare un modello")
+verifica(Persona(nome="B", eta=1).a_dizionario()["amici"] == [] e Persona(nome="B", eta=1) == Persona(nome="B", eta=1), "a_dizionario e confronto")
+prova:
+    Persona(nome="B")
+    verifica(Falso, "Persona(...) senza eta dà ErroreValidazione")
+eccetto ErroreValidazione come errore:
+    verifica(errore.errori[0]["campo"] == "eta", "ErroreValidazione porta l'elenco degli errori")
+verifica(Persona(nome="B", eta=1).tag è non Persona(nome="C", eta=2).tag, "il valore predefinito di una lista non è condiviso")
+
+# ======================================================== gruppi
+api = app.gruppo("/api/v1")
+
+
+@api.rotta("/ciao")
+definisci ciao_api():
+    ritorna {"da": "gruppo"}
+
+
+esterno = Gruppo("/utenti")
+
+
+@esterno.ottieni("/lista")
+definisci lista_utenti():
+    ritorna ["ada", "bruno"]
+
+
+@esterno.invia("/nuovo")
+definisci nuovo_utente():
+    ritorna ("creato", 201)
+
+
+app.registra(esterno, "/amministrazione")
+verifica(app.simula("/api/v1/ciao").dati == {"da": "gruppo"}, "un gruppo di rotte con prefisso")
+verifica(app.simula("/amministrazione/utenti/lista").dati == ["ada", "bruno"] e app.simula("/amministrazione/utenti/nuovo", "POST").stato == 201, "un gruppo creato a parte e registrato con un prefisso")
+verifica(app.simula("/utenti/lista").stato == 404, "senza registrazione non esiste")
+
+# ======================================================== sessioni, accesso, CSRF
+sito = Applicazione("sito", registro=Falso)
+sito.configura(chiave_segreta="una chiave molto lunga e riservata per le prove", csrf=Vero)
+UTENTI = {"ada": server_web.cifra_password("segreta1")}
+
+
+@sito.rotta("/contatore")
+definisci contatore(richiesta):
+    richiesta.sessione["n"] = richiesta.sessione.get("n", 0) + 1
+    ritorna {"n": richiesta.sessione["n"]}
+
+
+@sito.rotta("/modulo")
+definisci modulo_csrf(richiesta):
+    ritorna "<form method=post>" + richiesta.campo_csrf + "</form>"
+
+
+@sito.invia("/salva")
+definisci salva():
+    ritorna "salvato"
+
+
+@sito.invia("/api/esterno")
+@sito.senza_csrf
+definisci esterno_senza():
+    ritorna {"ok": Vero}
+
+
+@sito.invia("/accedi")
+definisci accedi(richiesta):
+    nome = richiesta.form.get("nome", "")
+    se nome in UTENTI e server_web.verifica_password(richiesta.form.get("password", ""), UTENTI[nome]):
+        sito.accedi(richiesta, nome, ruoli=["lettore"])
+        ritorna reindirizza("/profilo")
+    ritorna ("Credenziali sbagliate", 401)
+
+
+@sito.rotta("/profilo")
+@sito.richiede_accesso
+definisci profilo(richiesta):
+    ritorna {"utente": richiesta.utente}
+
+
+@sito.rotta("/api/segreto")
+@sito.richiede_accesso
+definisci segreto_api():
+    ritorna {"dato": "riservato"}
+
+
+@sito.rotta("/amministrazione")
+@sito.richiede_accesso(ruolo="admin")
+definisci amministrazione():
+    ritorna "area admin"
+
+
+@sito.invia("/esci")
+definisci esci(richiesta):
+    sito.esci(richiesta)
+    ritorna reindirizza("/")
+
+
+c = sito.cliente()
+verifica(c.ottieni("/contatore").dati == {"n": 1} e c.ottieni("/contatore").dati == {"n": 2}, "la sessione ricorda tra una richiesta e l'altra")
+risposta = sito.simula("/contatore")
+verifica("HttpOnly" in risposta.cookie[0] e "SameSite=Lax" in risposta.cookie[0] e "Max-Age=" in risposta.cookie[0] e "Secure" non in risposta.cookie[0], "il cookie di sessione è HttpOnly e SameSite: " + risposta.cookie[0])
+verifica(sito.simula("/contatore", cookie={"sessione": c.cookie["sessione"] + "x"}).dati == {"n": 1}, "un cookie manomesso viene ignorato")
+valore = c.cookie["sessione"]
+verifica(sito.simula("/contatore", cookie={"sessione": valore.replace(valore[5], "A" se valore[5] != "A" altrimenti "B", 1)}).dati == {"n": 1}, "anche cambiando un carattere dei dati")
+altra = Applicazione("altra", registro=Falso)
+altra.configura(chiave_segreta="un'altra chiave molto lunga e diversa")
+altra.rotta("/contatore")(lambda richiesta: {"n": richiesta.sessione.get("n", 0)})
+verifica(altra.simula("/contatore", cookie={"sessione": valore}).dati == {"n": 0}, "con un'altra chiave il cookie non vale")
+scaduta = Applicazione("scaduta", registro=Falso)
+scaduta.configura(chiave_segreta="una chiave molto lunga e riservata per le prove", durata_sessione=1)
+scaduta.rotta("/contatore")(lambda richiesta: {"n": richiesta.sessione.get("n", 0)})
+verifica(scaduta.simula("/contatore", cookie={"sessione": valore}).dati["n"] == 2, "dentro la durata il cookie vale")
+time.sleep(2.2)
+verifica(scaduta.simula("/contatore", cookie={"sessione": valore}).dati["n"] == 0, "passata la durata la sessione è vuota")
+verifica(server_web.verifica_password("segreta1", UTENTI["ada"]) e non server_web.verifica_password("sbagliata", UTENTI["ada"]) e UTENTI["ada"].startswith(("scrypt$", "pbkdf2$")),
+         "password cifrate e verificate: " + UTENTI["ada"][:12])
+verifica(server_web.cifra_password("x") != server_web.cifra_password("x") e non server_web.verifica_password("x", "spazzatura"), "ogni cifratura ha il suo sale; testi strani non danno errore")
+
+# CSRF
+c = sito.cliente()
+verifica(c.invia("/salva").stato == 403 e "CSRF" in c.invia("/salva").testo, "senza codice CSRF il POST è rifiutato")
+pagina_modulo = c.ottieni("/modulo")
+verifica('name="csrf"' in pagina_modulo.testo e c.token_csrf in pagina_modulo.testo, "il modulo contiene il campo nascosto")
+verifica(c.invia("/salva", form={"csrf": "sbagliato"}).stato == 403, "codice sbagliato")
+verifica(c.invia("/salva", form={"csrf": c.token_csrf}).stato == 200, "codice giusto nel modulo")
+verifica(c.invia("/salva", intestazioni={"X-CSRF-Token": c.token_csrf}).stato == 200, "oppure nell'intestazione X-CSRF-Token (per le API)")
+verifica(sito.cliente().invia("/api/esterno").stato == 200, "@senza_csrf esclude una rotta")
+verifica(c.ottieni("/salva").stato == 405 e sito.cliente().ottieni("/modulo").stato == 200, "le richieste GET non chiedono il codice")
+
+# accesso
+c = sito.cliente()
+r = c.ottieni("/profilo")
+verifica(r.stato == 302 e r.intestazioni["Location"].startswith("/accedi?prossima=%2Fprofilo"), "senza accesso: reindirizza alla pagina di accesso: " + tipo_testo(r.intestazioni))
+verifica(c.ottieni("/api/segreto").stato == 401, "per le API: 401")
+c.ottieni("/modulo")
+verifica(c.invia("/accedi", form={"nome": "ada", "password": "no", "csrf": c.token_csrf}).stato == 401, "password sbagliata")
+vecchio = c.token_csrf
+r = c.invia("/accedi", form={"nome": "ada", "password": "segreta1", "csrf": c.token_csrf})
+verifica(r.stato == 302 e r.intestazioni["Location"] == "/profilo", "accesso riuscito")
+verifica(c.token_csrf != vecchio, "con l'accesso il codice CSRF cambia")
+verifica(c.ottieni("/profilo").dati == {"utente": "ada"} e c.ottieni("/api/segreto").dati == {"dato": "riservato"}, "dopo l'accesso le pagine riservate si aprono")
+verifica(c.ottieni("/amministrazione").stato == 403, "senza il ruolo: 403")
+c.imposta_sessione(ruoli=["admin"])
+verifica(c.ottieni("/amministrazione").testo == "area admin", "con il ruolo giusto si entra")
+verifica(c.invia("/esci", form={"csrf": c.token_csrf}, segui=Falso).stato == 302 e c.ottieni("/profilo").stato == 302, "esci: la sessione si svuota")
+# cliente che segue i reindirizzamenti
+verifica(sito.cliente().ottieni("/profilo", segui=Vero).stato == 405, "segui=Vero arriva alla pagina di accesso (qui solo per POST: 405)")
+
+# ======================================================== modelli di pagina
+cartella = tempfile.mkdtemp()
+pagine = os.path.join(cartella, "pagine")
+os.makedirs(pagine)
+open(os.path.join(pagine, "base.html"), "w", encoding="utf-8").write("<html><title>{% blocco titolo %}Sito{% fine %}</title><body>{% includi \"menu.html\" %}{% blocco corpo %}vuoto{% fine %}</body></html>")
+open(os.path.join(pagine, "menu.html"), "w", encoding="utf-8").write("<nav>{{ utente|predefinito(\"ospite\") }}</nav>")
+open(os.path.join(pagine, "elenco.html"), "w", encoding="utf-8").write(
+    "{% estende \"base.html\" %}{% blocco titolo %}Elenco di {{ nome }}{% fine %}{% blocco corpo %}<ul>{% per x in cose %}<li>{{ ciclo.indice }}/{{ ciclo.totale }} {{ x }}"
+    "{% se ciclo.primo %} (primo){% fine %}</li>{% altrimenti %}<li>nessuna cosa</li>{% fine %}</ul>{% fine %}")
+store = Applicazione("pagine", registro=Falso)
+store.configura(cartella_pagine=pagine, chiave_segreta="una chiave molto lunga e riservata per le prove")
+
+
+@store.rotta("/elenco")
+definisci vedi_elenco(richiesta, quante: tipo_intero = 3):
+    ritorna store.mostra("elenco.html", richiesta, nome="<Ada>", cose=["pane", "latte & caffè", "uova"][:quante])
+
+
+@store.rotta("/errore_pagina")
+definisci errore_pagina():
+    ritorna store.mostra("non_esiste.html")
+
+
+r = store.simula("/elenco")
+verifica("<title>Elenco di &lt;Ada&gt;</title>" in r.testo e "<nav>ospite</nav>" in r.testo, "estende, blocchi, includi e filtri: " + r.testo)
+verifica("<li>1/3 pane (primo)</li><li>2/3 latte &amp; caffè</li><li>3/3 uova</li>" in r.testo, "per con ciclo, se e testi resi innocui: " + r.testo)
+verifica("<li>nessuna cosa</li>" in store.simula("/elenco?quante=0").testo, "per … altrimenti per gli elenchi vuoti")
+verifica(store.simula("/errore_pagina").stato == 500 e "non trovato" in store.simula("/errore_pagina").testo, "un modello che manca dà 500 con la spiegazione")
+verifica(pagina("{{ a }}|{{ b }}", a="<x>", b=Nessuno) == "&lt;x&gt;|", "testi innocui e None vuoto")
+verifica(pagina("{% se n > 2 e non finito %}grande{% altrimenti_se n == 2 %}due{% altrimenti %}piccolo{% fine %}", n=3, finito=Falso) == "grande", "se con e / non")
+verifica(pagina("{% se n > 2 e non finito %}grande{% altrimenti_se n == 2 %}due{% altrimenti %}piccolo{% fine %}", n=2, finito=Falso) == "due" e
+         pagina("{% se n > 2 e non finito %}grande{% altrimenti_se n == 2 %}due{% altrimenti %}piccolo{% fine %}", n=0, finito=Vero) == "piccolo", "altrimenti_se e altrimenti")
+verifica(pagina("{{ d.nome }} {{ d['anni'] }} {{ lista[1] }} {{ lista[0] + 1 }} {{ mancante.altro.ancora }}", d={"nome": "Ada", "anni": 36}, lista=[10, 20]) == "Ada 36 20 11 ", "attributi, indici, calcoli e variabili mancanti")
+verifica(pagina("{% per k, v in d.items() %}{{ k }}={{ v }};{% fine %}", d={"a": 1, "b": 2}) == "a=1;b=2;", "per con due variabili e .items()")
+verifica(pagina("{{ t|maiuscolo }} {{ t|tronca(5) }} {{ t|lunghezza }} {{ x|predefinito('n/d') }} {{ v|unisci('-') }}", t="ciao mondo", v=[1, 2]) == "CIAO MONDO ciao… 10 n/d 1-2", "i filtri")
+verifica(pagina("<script>var d = {{ dati|json }};</script>", dati={"a": "</script><b>"}) == '<script>var d = {"a": "\\u003c/script\\u003e\\u003cb\\u003e"};</script>', "|json è sicuro dentro <script>: " + pagina("{{ dati|json }}", dati={"a": "</script>"}))
+verifica(pagina("{{ x|grezzo }}", x="<b>") == "<b>" e pagina("{# commento #}ciao") == "ciao", "grezzo e commenti")
+per cattivo in ("{{ x.__class__ }}", "{{ ''.join(x) }}", "{{ __import__('os') }}", "{{ (lambda: 1)() }}", "{{ x.__dict__ }}"):
+    prova:
+        esito = pagina(cattivo, x="abc")
+        verifica(esito.strip() == "" o esito == "", f"un'espressione pericolosa non produce nulla: {cattivo!r} -> {esito!r}")
+    eccetto server_web.ErroreModello:
+        passa
+per sbagliato in ("{% se x %}senza fine", "{% boh %}", "{% per x cose %}{% fine %}", "{{ x|filtroinesistente }}", "{{ 1 + }}"):
+    prova:
+        pagina(sbagliato, x=1)
+        verifica(Falso, f"il modello sbagliato {sbagliato!r} dà errore")
+    eccetto server_web.ErroreModello:
+        passa
+
+# ======================================================== file inviati
+caricamenti = Applicazione("file", registro=Falso)
+
+
+@caricamenti.invia("/carica")
+definisci carica(richiesta):
+    f = richiesta.file.get("documento")
+    se f è Nessuno:
+        ritorna ("manca il file", 400)
+    percorso = f.salva(os.path.join(cartella, "caricati"))
+    ritorna {"nome": f.nome_file, "dimensione": f.dimensione, "salvato": os.path.basename(percorso), "titolo": richiesta.form.get("titolo"), "tipo": f.tipo, "testo": f.testo}
+
+
+r = caricamenti.simula("/carica", "POST", form={"titolo": "Relazione"}, file={"documento": ("relazione.txt", "ciao è lì")})
+verifica(r.stato == 200 e r.dati["nome"] == "relazione.txt" e r.dati["titolo"] == "Relazione" e r.dati["testo"] == "ciao è lì" e r.dati["dimensione"] == len("ciao è lì".encode("utf-8")),
+         "un file e un campo di testo dallo stesso modulo: " + r.testo)
+verifica(open(os.path.join(cartella, "caricati", "relazione.txt"), encoding="utf-8").read() == "ciao è lì", "il file è salvato")
+r = caricamenti.simula("/carica", "POST", file={"documento": ("../../fuori/../segreto.txt", b"x")})
+verifica(r.dati["salvato"] == "segreto.txt" e os.path.exists(os.path.join(cartella, "caricati", "segreto.txt")) e non os.path.exists(os.path.join(cartella, "segreto.txt")), "il nome del file è ripulito: non esce dalla cartella: " + r.testo)
+verifica(caricamenti.simula("/carica", "POST", form={"titolo": "x"}).stato == 400, "senza file")
+# …e con un server vero e un file binario
+server = caricamenti.avvia_in_sottofondo()
+prova:
+    confine = "xxBORDOxx"
+    binario = bytes(range(256)) * 4
+    corpo = (f'--{confine}\r\nContent-Disposition: form-data; name="documento"; filename="dati.bin"\r\nContent-Type: application/octet-stream\r\n\r\n').encode() + binario + f"\r\n--{confine}--\r\n".encode()
+    cx = http.client.HTTPConnection("127.0.0.1", server.porta, timeout=10)
+    cx.request("POST", "/carica", body=corpo, headers={"Content-Type": f"multipart/form-data; boundary={confine}"})
+    ris = cx.getresponse()
+    verifica(ris.status == 200 e json.loads(ris.read())["dimensione"] == 1024, "un file binario con un server vero arriva intero")
+    cx.close()
+infine:
+    server.ferma()
+
+# ======================================================== documentazione automatica
+app.documentazione("/docs", "Sito di prova", "2.0")
+d = app.openapi("Sito di prova", "2.0")
+verifica(d["openapi"].startswith("3.") e d["info"] == {"title": "Sito di prova", "version": "2.0"}, "OpenAPI: intestazione")
+verifica("/docs" non in d["paths"] e "/openapi.json" non in d["paths"], "le rotte della documentazione non compaiono")
+op = d["paths"]["/oggetto/{n}"]["get"]
+verifica({(p["name"], p["in"], p["required"], p["schema"]["type"]) per p in op["parameters"]} ==
+         {("n", "path", Vero, "integer"), ("q", "query", Falso, "string"), ("limite", "query", Falso, "integer"), ("attivo", "query", Falso, "boolean")}, "parametri e tipi: " + tipo_testo(op["parameters"]))
+verifica(op["responses"]["422"] e "default" in [p per p in op["parameters"] se p["name"] == "limite"][0]["schema"], "422 e valori predefiniti")
+schema = d["paths"]["/persone"]["post"]["requestBody"]["content"]["application/json"]["schema"]
+verifica(schema["required"] == ["nome", "eta"] e schema["properties"]["eta"] == {"type": "integer"} e schema["properties"]["tag"]["type"] == "array" e
+         schema["properties"]["amici"]["items"]["properties"]["citta"] == {"type": "string"}, "il corpo JSON dal modello: " + tipo_testo(schema))
+verifica(d["paths"]["/persone"]["post"]["summary"] == "Crea una persona." e "Riceve il JSON" in d["paths"]["/persone"]["post"]["description"], "titolo e descrizione dalla docstring")
+verifica("/voci/{identificativo}" in d["paths"] e "/api/v1/ciao" in d["paths"], "le rotte con parametri e i gruppi")
+verifica(app.simula("/openapi.json").dati["info"]["title"] == "Sito di prova", "/openapi.json")
+pagina_docs = app.simula("/docs").testo
+verifica("<code>/persone</code>" in pagina_docs e "POST" in pagina_docs e "eta" in pagina_docs e "Crea una persona" in pagina_docs, "/docs: pagina leggibile")
+
+# ======================================================== WSGI e ASGI
+vivo = Applicazione("wsgi", registro=Falso)
+vivo.configura(chiave_segreta="una chiave molto lunga e riservata per le prove")
+vivo.rotta("/ciao/<nome>")(lambda nome: {"ciao": nome})
+vivo.rotta("/vuota")(lambda: Nessuno)
+vivo.invia("/eco")(lambda richiesta: {"corpo": richiesta.testo, "tipo": richiesta.tipo, "cookie": richiesta.cookie, "https": richiesta.https})
+
+
+definisci ambiente(metodo, percorso, query="", corpo=b"", extra=Nessuno):
+    base = {"REQUEST_METHOD": metodo, "SCRIPT_NAME": "", "PATH_INFO": percorso, "QUERY_STRING": query, "SERVER_NAME": "prova", "SERVER_PORT": "80", "SERVER_PROTOCOL": "HTTP/1.1",
+            "wsgi.version": (1, 0), "wsgi.url_scheme": "http", "wsgi.input": io.BytesIO(corpo), "wsgi.errors": sys.stderr, "wsgi.multithread": Falso,
+            "wsgi.multiprocess": Falso, "wsgi.run_once": Falso}
+    base.update(extra o {})
+    ritorna base
+
+
+definisci chiama_wsgi(env):
+    """(stato, intestazioni, corpo) chiamando l'applicazione come farebbe un server WSGI, con il controllo di wsgiref.validate."""
+    uscita = []
+    iterabile = validator(vivo)(env, lambda stato, intestazioni, info=Nessuno: uscita.append((stato, dict(intestazioni))))
+    prova:
+        corpo = b"".join(iterabile)
+    infine:
+        iterabile.close()
+    ritorna uscita[0][0], uscita[0][1], corpo
+
+
+stato_w, intestazioni_w, corpo_wsgi = chiama_wsgi(ambiente("GET", "/ciao/Ada"))
+verifica(stato_w == "200 OK" e json.loads(corpo_wsgi) == {"ciao": "Ada"} e intestazioni_w["X-Frame-Options"] == "SAMEORIGIN", "WSGI: una richiesta (secondo la specifica, controllata da wsgiref.validate)")
+stato_w, intestazioni_w, corpo_wsgi = chiama_wsgi(ambiente("GET", "/vuota"))
+verifica(stato_w == "204 No Content" e "Content-Type" non in intestazioni_w e corpo_wsgi == b"", "WSGI: 204 senza Content-Type")
+stato_w, intestazioni_w, corpo_wsgi = chiama_wsgi(ambiente("POST", "/eco", corpo=b'{"a":1}', extra={"CONTENT_TYPE": "application/json", "CONTENT_LENGTH": "7", "HTTP_COOKIE": "x=1", "wsgi.url_scheme": "https"}))
+verifica(json.loads(corpo_wsgi) == {"corpo": '{"a":1}', "tipo": "application/json", "cookie": {"x": "1"}, "https": Vero}, "WSGI: corpo, tipo, cookie e https: " + corpo_wsgi.decode())
+stato_w, intestazioni_w, corpo_wsgi = chiama_wsgi(ambiente("GET", "/ciao/x", extra={"PATH_INFO": "/ciao/è".encode("utf-8").decode("latin-1")}))
+verifica(json.loads(corpo_wsgi) == {"ciao": "è"}, "WSGI: i percorsi con lettere accentate: " + corpo_wsgi.decode())
+stato_w, intestazioni_w, corpo_wsgi = chiama_wsgi(ambiente("HEAD", "/ciao/Ada"))
+verifica(stato_w == "200 OK" e corpo_wsgi == b"" e intestazioni_w["Content-Length"] != "0", "WSGI: HEAD senza corpo ma con la lunghezza")
+
+
+asincrono definisci chiama_asgi(percorso, metodo="GET", corpo=b"", intestazioni=Nessuno, app_=Nessuno):
+    messaggi = []
+    ricevuti = [{"type": "http.request", "body": corpo, "more_body": Falso}]
+
+    asincrono definisci ricevi():
+        ritorna ricevuti.pop(0)
+
+    asincrono definisci invia(messaggio):
+        messaggi.append(messaggio)
+    attendi (app_ o vivo).asgi({"type": "http", "method": metodo, "path": percorso, "query_string": b"", "headers": intestazioni o [], "scheme": "http", "client": ("1.2.3.4", 5)}, ricevi, invia)
+    ritorna messaggi
+
+
+m = asyncio.run(chiama_asgi("/ciao/Bruno"))
+verifica(m[0]["status"] == 200 e json.loads(m[1]["body"]) == {"ciao": "Bruno"} e (b"content-type", b"application/json; charset=utf-8") in m[0]["headers"], "ASGI: una richiesta")
+m = asyncio.run(chiama_asgi("/eco", "POST", b'{"b":2}', [(b"content-type", b"application/json"), (b"cookie", b"y=2")]))
+verifica(json.loads(m[1]["body"])["corpo"] == '{"b":2}' e json.loads(m[1]["body"])["cookie"] == {"y": "2"}, "ASGI: corpo e cookie")
+verifica(asyncio.run(chiama_asgi("/nonce"))[0]["status"] == 404, "ASGI: 404")
+
+eventi = []
+vita = Applicazione("vita", registro=Falso)
+vita.all_avvio(lambda: eventi.append("avvio"))
+vita.alla_chiusura(lambda: eventi.append("chiusura"))
+
+
+asincrono definisci ciclo_di_vita():
+    coda = [{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}]
+    risposte = []
+
+    asincrono definisci ricevi():
+        ritorna coda.pop(0)
+
+    asincrono definisci invia(messaggio):
+        risposte.append(messaggio["type"])
+    attendi vita.asgi({"type": "lifespan"}, ricevi, invia)
+    ritorna risposte
+
+
+verifica(asyncio.run(ciclo_di_vita()) == ["lifespan.startup.complete", "lifespan.shutdown.complete"] e eventi == ["avvio", "chiusura"], "ASGI: lifespan richiama avvio e chiusura: " + tipo_testo(eventi))
+eventi.clear()
+s = vita.avvia_in_sottofondo()
+s.ferma()
+verifica(eventi == ["avvio", "chiusura"], "avvia_in_sottofondo e ferma richiamano avvio e chiusura")
+
+# ======================================================== HTTPS
+certificato = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "pitonit", "src", "Lib", "test", "certdata", "keycert.pem")
+se os.path.exists(certificato):
+    sicuro = Applicazione("https", registro=Falso)
+    sicuro.configura(chiave_segreta="una chiave molto lunga e riservata per le prove")
+    sicuro.rotta("/")(lambda richiesta: (richiesta.sessione.__setitem__("x", 1), {"https": richiesta.https})[1])
+    server = sicuro.avvia_in_sottofondo(certificato=certificato, chiave=certificato)
+    prova:
+        verifica(server.indirizzo.startswith("https://"), "l'indirizzo è https")
+        cx = http.client.HTTPSConnection("127.0.0.1", server.porta, timeout=10, context=ssl._create_unverified_context())
+        cx.request("GET", "/")
+        ris = cx.getresponse()
+        dati = json.loads(ris.read())
+        verifica(ris.status == 200 e dati == {"https": Vero}, "HTTPS: il server risponde: " + tipo_testo(dati))
+        verifica("Secure" in ris.getheader("Set-Cookie"), "su HTTPS i cookie di sessione sono «Secure»: " + tipo_testo(ris.getheader("Set-Cookie")))
+        cx.close()
+    infine:
+        server.ferma()
+altrimenti:
+    stampa("(HTTPS non provato: certificato di prova non trovato)")
+
+# ======================================================== varie
+asin = Applicazione("asin", registro=Falso)
+
+
+@asin.rotta("/lenta")
+asincrono definisci lenta():
+    attendi asyncio.sleep(0.01)
+    ritorna {"asincrono": Vero}
+
+
+verifica(asin.simula("/lenta").dati == {"asincrono": Vero}, "le funzioni asincrone funzionano")
+dopo = Applicazione("dopo", registro=Falso)
+dopo.rotta("/")(lambda: "ciao")
+
+
+@dopo.dopo_ogni_richiesta
+definisci aggiungi(richiesta, risposta):
+    risposta.intestazioni["X-Prova"] = richiesta.percorso
+
+
+verifica(dopo.simula("/").intestazioni["X-Prova"] == "/" e dopo.simula("/xyz").intestazioni["X-Prova"] == "/xyz", "dopo_ogni_richiesta modifica ogni risposta, anche gli errori")
+verifica(dopo.simula("/").intestazioni["X-Content-Type-Options"] == "nosniff" e dopo.simula("/").intestazioni["X-Frame-Options"] == "SAMEORIGIN" e
+         dopo.simula("/").intestazioni["Referrer-Policy"] == "same-origin", "intestazioni di sicurezza predefinite")
+dopo.configura(intestazioni_sicurezza={"X-Frame-Options": "DENY"})
+verifica(dopo.simula("/").intestazioni == {"X-Prova": "/", "X-Frame-Options": "DENY"}, "intestazioni di sicurezza personalizzate")
+prova:
+    dopo.configura(chiave_segreta="corta")
+    verifica(Falso, "una chiave troppo corta dà errore")
+eccetto ErroreDiValore:
+    passa
+piccola = Applicazione("piccola", registro=Falso)
+piccola.configura(dimensione_massima=20)
+piccola.invia("/x")(lambda richiesta: "ok")
+server = piccola.avvia_in_sottofondo()
+prova:
+    cx = http.client.HTTPConnection("127.0.0.1", server.porta, timeout=10)
+    cx.request("POST", "/x", body=b"y" * 100)
+    verifica(cx.getresponse().status == 413, "dimensione_massima per applicazione: 413")
+    cx.close()
+infine:
+    server.ferma()
+
+stampa("ERRORI:", errori se errori altrimenti "nessuno")
+sys.exit(1 se errori altrimenti 0)

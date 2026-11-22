@@ -160,6 +160,16 @@
   "gruppo": "Imparare a programmare"
  },
  {
+  "id": "lezione-27",
+  "titolo": "27. Un'API come i professionisti",
+  "gruppo": "Imparare a programmare"
+ },
+ {
+  "id": "lezione-28",
+  "titolo": "28. Accessi e sicurezza",
+  "gruppo": "Imparare a programmare"
+ },
+ {
   "id": "editor",
   "titolo": "L'editor di codice",
   "gruppo": "Programmare"
@@ -222,6 +232,11 @@
  {
   "id": "aggiornamenti",
   "titolo": "Aggiornamenti e librerie online",
+  "gruppo": "Programmare"
+ },
+ {
+  "id": "fastapi",
+  "titolo": "FastAPI in italiano",
   "gruppo": "Programmare"
  },
  {

@@ -54,16 +54,29 @@ Cose da sapere sui certificati:
 PitStudio fa quattro passi, e li racconta uno per uno:
 
 1. converte il progetto in Python (come *Esporta il progetto come Python*);
-2. prepara un ambiente di costruzione dentro `.rad/build` del progetto;
+2. prepara l'ambiente di costruzione dentro `.rad/build` del progetto;
 3. vi installa **PyInstaller** e le librerie che il programma usa (`requirements.txt`);
 4. costruisce l'`.exe` con PyInstaller.
+
+Per costruire PitStudio usa **il proprio interprete** (pitonit, lo stesso con cui esegui i programmi): **non serve installare Python**. Dalla finestra, *Costruisci con* permette di scegliere invece il Python 3 installato sul computer, per esempio se ti serve una versione precisa.
 
 Il tuo computer non viene toccato: tutto avviene in quella cartella, che puoi cancellare quando vuoi.
 
 ## Cosa serve
 
-- **Python 3** installato sul computer di chi costruisce l'eseguibile (da [python.org](https://www.python.org/downloads/), con la spunta «Add python.exe to PATH»). Chi riceve l'`.exe` **non** ha bisogno di nulla.
+- Nient'altro che PitStudio: l'interprete di PitStudio costruisce l'eseguibile. (Solo se scegli *il Python 3 installato sul computer* serve [Python](https://www.python.org/downloads/), con la spunta «Add python.exe to PATH».) Chi riceve l'`.exe` **non** ha bisogno di nulla.
 - **Internet la prima volta**, per scaricare PyInstaller e le librerie. Le volte dopo l'ambiente è già pronto e la costruzione è molto più veloce.
+
+## Se il programma costruito ha un errore
+
+Un programma «senza finestra nera» che va in errore, di norma, si chiude e basta: nessuno sa perché. Per questo ogni eseguibile costruito da PitStudio **parte da un piccolo avvio** che sta intorno al tuo programma (non ne cambia il comportamento):
+
+- un errore non gestito, anche dentro un **filo** o dentro un **pulsante** di una finestra, viene scritto nel file **`errori.log`** con data, nome e versione del programma, sistema e traceback completo;
+- nei programmi senza finestra nera compare un **avviso** con il percorso del registro e la domanda se aprire la cartella; un errore nel pulsante lascia il programma aperto (l'avviso non compare più di una volta ogni 10 secondi);
+- nei programmi da console l'errore si vede come sempre, e in più resta nel registro;
+- `sys.exit(codice)` non è un errore: esce con quel codice senza scrivere nulla.
+
+Il registro è in `%LOCALAPPDATA%\<nome del programma>\errori.log` su Windows e in `~/.local/state/<nome>/errori.log` su Linux; si tronca da solo oltre 1 MB. Chi ti segnala un problema può mandarti quel file. Per provare senza finestre di avviso: variabile d'ambiente `PITSTUDIO_SENZA_AVVISI=1`.
 
 ## Cose da sapere
 
